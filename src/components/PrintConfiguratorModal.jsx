@@ -193,13 +193,23 @@ export default function PrintConfiguratorModal({ isOpen, onClose, patient, patie
   // Paziente Attivo Risolto
   const activePatientObj = activePatients.find(p => p.id === selectedPatientId) || (patient?.nome ? patient : activePatients[0]);
 
-  // Sincronizza IKDC score quando cambia il paziente selezionato
+  // Estrazione dinamica dei test del paziente attivo (senza dati campionati rigidi)
+  const patientTests = (Array.isArray(activePatientObj?.tests) ? activePatientObj.tests.flat(Infinity) : [])
+    .filter(t => t && typeof t === 'object' && !Array.isArray(t));
+
+  const selectedTest = patientTests.find(t => String(t.id) === String(selectedSessionId)) 
+    || (patientTests.length > 0 ? patientTests[patientTests.length - 1] : null);
+
+  // Sincronizza IKDC score e sessione quando cambia il paziente selezionato
   useEffect(() => {
     if (activePatientObj) {
       if (activePatientObj.ikdc) {
         setIkdcScore(String(activePatientObj.ikdc));
       } else if (activePatientObj.aclrsi_score_iniziale) {
         setIkdcScore(String(activePatientObj.aclrsi_score_iniziale));
+      }
+      if (patientTests.length > 0) {
+        setSelectedSessionId(patientTests[patientTests.length - 1].id);
       }
     }
   }, [selectedPatientId]);
@@ -208,10 +218,10 @@ export default function PrintConfiguratorModal({ isOpen, onClose, patient, patie
 
   const formattedPatientName = activePatientObj?.nome && activePatientObj?.cognome
     ? `${activePatientObj.nome} ${activePatientObj.cognome}`
-    : activePatientObj?.nome || 'Francesco Gabbani';
+    : activePatientObj?.nome || 'Paziente Selezionato';
 
   const formatDate = (dStr) => {
-    if (!dStr) return '15/12/2025';
+    if (!dStr) return 'N/D';
     if (dStr.includes('-')) {
       const parts = dStr.split('-');
       if (parts.length === 3) return `${parts[2]}/${parts[1]}/${parts[0]}`;
@@ -229,6 +239,19 @@ export default function PrintConfiguratorModal({ isOpen, onClose, patient, patie
 
   const operatedKnee = formatKnee(activePatientObj?.lato_lesione);
   const dataIntervento = formatDate(activePatientObj?.data_intervento);
+
+  // Helper formattazione sicura valori report
+  const fmtVal = (val, suffix = '', fallback = 'N/D') => {
+    if (val === undefined || val === null || val === '' || val === '-') return fallback;
+    return `${val}${suffix ? ` ${suffix}` : ''}`;
+  };
+
+  const fmtFixed = (val, decimals = 1, suffix = '', fallback = 'N/D') => {
+    if (val === undefined || val === null || val === '' || val === '-') return fallback;
+    const num = typeof val === 'number' ? val : parseFloat(String(val).replace(',', '.'));
+    if (isNaN(num)) return fallback;
+    return `${num.toFixed(decimals)}${suffix ? ` ${suffix}` : ''}`;
+  };
 
   // Helper riordinamento tramite bottoni
   const moveModule = (index, direction) => {
@@ -342,9 +365,15 @@ export default function PrintConfiguratorModal({ isOpen, onClose, patient, patie
                   onChange={(e) => setSelectedSessionId(e.target.value)}
                   className="w-full bg-slate-900 text-white font-bold text-xs border border-slate-700 rounded-xl p-2.5 focus:border-cyan-500 focus:outline-none cursor-pointer"
                 >
-                  <option value="session_3">Ultimo Test — {dataIntervento} (LSI Quad: &gt;85%)</option>
-                  <option value="session_2">Test Precedente — Fase 2 (LSI Quad: 72.4%)</option>
-                  <option value="session_1">Test Iniziale — Fase 1 Post-Op (LSI Quad: 52.1%)</option>
+                  {patientTests.length > 0 ? (
+                    patientTests.map((t, idx) => (
+                      <option key={t.id || idx} value={t.id}>
+                        {t.label || `Test #${idx + 1}`} — {t.date || t.data_valutazione || ''} (LSI Quad: {t.lsiQuad !== undefined && t.lsiQuad !== null ? `${t.lsiQuad}%` : 'N/D'})
+                      </option>
+                    ))
+                  ) : (
+                    <option value="none">Nessun test registrato per questo paziente</option>
+                  )}
                 </select>
               </div>
             </div>
@@ -621,23 +650,25 @@ export default function PrintConfiguratorModal({ isOpen, onClose, patient, patie
                         <div className="grid grid-cols-4 gap-2 text-center text-[9.5px]">
                           <div className="p-1.5 bg-emerald-50 border border-emerald-300 rounded">
                             <span className="text-slate-600 block text-[8.5px]">LSI Quadricipite</span>
-                            <strong className="text-emerald-900 font-black text-xs">97.8%</strong>
-                            <span className="text-[7.5px] text-emerald-700 font-bold block">TARGET OK</span>
+                            <strong className="text-emerald-900 font-black text-xs">{fmtFixed(selectedTest?.lsiQuad, 1, '%')}</strong>
+                            <span className="text-[7.5px] text-emerald-700 font-bold block">{selectedTest?.lsiQuad >= 90 ? 'TARGET OK' : (selectedTest?.lsiQuad ? 'IN CORSO' : 'N/D')}</span>
                           </div>
                           <div className="p-1.5 bg-emerald-50 border border-emerald-300 rounded">
                             <span className="text-slate-600 block text-[8.5px]">LSI Ischiocrurali</span>
-                            <strong className="text-emerald-900 font-black text-xs">96.5%</strong>
-                            <span className="text-[7.5px] text-emerald-700 font-bold block">TARGET OK</span>
+                            <strong className="text-emerald-900 font-black text-xs">{fmtFixed(selectedTest?.lsiFlex, 1, '%')}</strong>
+                            <span className="text-[7.5px] text-emerald-700 font-bold block">{selectedTest?.lsiFlex >= 90 ? 'TARGET OK' : (selectedTest?.lsiFlex ? 'IN CORSO' : 'N/D')}</span>
                           </div>
                           <div className="p-1.5 bg-emerald-50 border border-emerald-300 rounded">
                             <span className="text-slate-600 block text-[8.5px]">LSI Single Hop</span>
-                            <strong className="text-emerald-900 font-black text-xs">96.8%</strong>
-                            <span className="text-[7.5px] text-emerald-700 font-bold block">TARGET OK</span>
+                            <strong className="text-emerald-900 font-black text-xs">{fmtFixed(selectedTest?.lsiSingleHop, 1, '%')}</strong>
+                            <span className="text-[7.5px] text-emerald-700 font-bold block">{selectedTest?.lsiSingleHop >= 90 ? 'TARGET OK' : (selectedTest?.lsiSingleHop ? 'IN CORSO' : 'N/D')}</span>
                           </div>
                           <div className="p-1.5 bg-cyan-50 border border-cyan-300 rounded">
-                            <span className="text-slate-600 block text-[8.5px]">RSImod (DVJ 30cm)</span>
-                            <strong className="text-cyan-900 font-black text-xs">2.18</strong>
-                            <span className="text-[7.5px] text-cyan-800 font-bold block">ECCELLENTE (&gt;2.0)</span>
+                            <span className="text-slate-600 block text-[8.5px]">RSImod / Drop Jump</span>
+                            <strong className="text-cyan-900 font-black text-xs">{fmtFixed(selectedTest?.rsiDropJump ?? selectedTest?.rsiCmj, 2)}</strong>
+                            <span className="text-[7.5px] text-cyan-800 font-bold block">
+                              {selectedTest?.rsiDropJump >= 2.0 || selectedTest?.rsiCmj >= 0.45 ? 'ECCELLENTE' : (selectedTest ? 'REGOLARE' : 'N/D')}
+                            </span>
                           </div>
                         </div>
                       </div>
@@ -666,11 +697,12 @@ export default function PrintConfiguratorModal({ isOpen, onClose, patient, patie
                                 Iso Push Leg Ext (Quadricipite)
                                 {showCitations && <span className="text-[7.5px] font-mono font-bold text-cyan-700 ml-1">[Ref: 1,2,3]</span>}
                               </td>
-                              <td className="p-1 border-r border-slate-200 font-bold text-slate-900">452 N</td>
-                              <td className="p-1 border-r border-slate-200">462 N</td>
-                              <td className="p-1 font-extrabold text-emerald-700 border-r border-slate-200">97.8%</td>
+                              <td className="p-1 border-r border-slate-200 font-bold text-slate-900">{fmtVal(selectedTest?.quadOp, 'N')}</td>
+                              <td className="p-1 border-r border-slate-200">{fmtVal(selectedTest?.quadSano, 'N')}</td>
+                              <td className="p-1 font-extrabold text-emerald-700 border-r border-slate-200">{fmtFixed(selectedTest?.lsiQuad, 1, '%')}</td>
                               <td className="p-1 font-bold text-emerald-700 flex items-center gap-1">
-                                <span className="w-2 h-2 rounded-full bg-emerald-600"></span> Piena Simmetria
+                                <span className={`w-2 h-2 rounded-full ${selectedTest?.lsiQuad >= 90 ? 'bg-emerald-600' : 'bg-amber-500'}`}></span>
+                                {selectedTest?.lsiQuad >= 90 ? 'Piena Simmetria' : (selectedTest?.lsiQuad ? 'Simmetria In Evidenza' : 'In Attesa Test')}
                               </td>
                             </tr>
                             <tr>
@@ -678,11 +710,12 @@ export default function PrintConfiguratorModal({ isOpen, onClose, patient, patie
                                 Iso Push Leg Curl (Ischiocrurali)
                                 {showCitations && <span className="text-[7.5px] font-mono font-bold text-cyan-700 ml-1">[Ref: 6]</span>}
                               </td>
-                              <td className="p-1 border-r border-slate-200 font-bold text-slate-900">217 N</td>
-                              <td className="p-1 border-r border-slate-200">225 N</td>
-                              <td className="p-1 font-extrabold text-emerald-700 border-r border-slate-200">96.5%</td>
+                              <td className="p-1 border-r border-slate-200 font-bold text-slate-900">{fmtVal(selectedTest?.flexOp, 'N')}</td>
+                              <td className="p-1 border-r border-slate-200">{fmtVal(selectedTest?.flexSano, 'N')}</td>
+                              <td className="p-1 font-extrabold text-emerald-700 border-r border-slate-200">{fmtFixed(selectedTest?.lsiFlex, 1, '%')}</td>
                               <td className="p-1 font-bold text-emerald-700 flex items-center gap-1">
-                                <span className="w-2 h-2 rounded-full bg-emerald-600"></span> Piena Simmetria
+                                <span className={`w-2 h-2 rounded-full ${selectedTest?.lsiFlex >= 90 ? 'bg-emerald-600' : 'bg-amber-500'}`}></span>
+                                {selectedTest?.lsiFlex >= 90 ? 'Piena Simmetria' : (selectedTest?.lsiFlex ? 'Simmetria In Evidenza' : 'In Attesa Test')}
                               </td>
                             </tr>
                           </tbody>
@@ -709,27 +742,35 @@ export default function PrintConfiguratorModal({ isOpen, onClose, patient, patie
                           <tbody className="text-slate-800">
                             <tr className="border-b border-slate-200">
                               <td className="p-1 font-bold border-r border-slate-200">Iso Push Leg Ext (N)</td>
-                              <td className="p-1 border-r border-slate-200 font-bold text-slate-900">452 N</td>
-                              <td className="p-1 border-r border-slate-200">462 N</td>
-                              <td className="p-1 font-extrabold text-emerald-700">97.8%</td>
+                              <td className="p-1 border-r border-slate-200 font-bold text-slate-900">{fmtVal(selectedTest?.quadSano, 'N')}</td>
+                              <td className="p-1 border-r border-slate-200">{fmtVal(selectedTest?.quadOp, 'N')}</td>
+                              <td className="p-1 font-extrabold text-emerald-700">{fmtFixed(selectedTest?.lsiQuad, 1, '%')}</td>
                             </tr>
                             <tr className="border-b border-slate-200">
                               <td className="p-1 font-bold border-r border-slate-200">Iso Push Leg Curl (N)</td>
-                              <td className="p-1 border-r border-slate-200 font-bold text-slate-900">217 N</td>
-                              <td className="p-1 border-r border-slate-200">225 N</td>
-                              <td className="p-1 font-extrabold text-emerald-700">96.5%</td>
+                              <td className="p-1 border-r border-slate-200 font-bold text-slate-900">{fmtVal(selectedTest?.flexSano, 'N')}</td>
+                              <td className="p-1 border-r border-slate-200">{fmtVal(selectedTest?.flexOp, 'N')}</td>
+                              <td className="p-1 font-extrabold text-emerald-700">{fmtFixed(selectedTest?.lsiFlex, 1, '%')}</td>
                             </tr>
                             <tr className="border-b border-slate-200">
                               <td className="p-1 font-bold border-r border-slate-200">Bulgarian Squat 6RM (kg)</td>
-                              <td className="p-1 border-r border-slate-200 font-bold text-slate-900">54 kg</td>
-                              <td className="p-1 border-r border-slate-200">52 kg</td>
-                              <td className="p-1 font-extrabold text-emerald-700">96.3%</td>
+                              <td className="p-1 border-r border-slate-200 font-bold text-slate-900">{fmtVal(selectedTest?.bulgarianSX, 'kg')}</td>
+                              <td className="p-1 border-r border-slate-200">{fmtVal(selectedTest?.bulgarianDX, 'kg')}</td>
+                              <td className="p-1 font-extrabold text-emerald-700">
+                                {selectedTest?.bulgarianSX && selectedTest?.bulgarianDX 
+                                  ? `${((Math.min(selectedTest.bulgarianSX, selectedTest.bulgarianDX) / Math.max(selectedTest.bulgarianSX, selectedTest.bulgarianDX)) * 100).toFixed(1)}%` 
+                                  : 'N/D'}
+                              </td>
                             </tr>
                             <tr>
                               <td className="p-1 font-bold border-r border-slate-200">Soleo (kg)</td>
-                              <td className="p-1 border-r border-slate-200 font-bold text-slate-900">45 kg</td>
-                              <td className="p-1 border-r border-slate-200">44 kg</td>
-                              <td className="p-1 font-extrabold text-emerald-700">97.8%</td>
+                              <td className="p-1 border-r border-slate-200 font-bold text-slate-900">{fmtVal(selectedTest?.soleoSX, 'kg')}</td>
+                              <td className="p-1 border-r border-slate-200">{fmtVal(selectedTest?.soleoDX, 'kg')}</td>
+                              <td className="p-1 font-extrabold text-emerald-700">
+                                {selectedTest?.soleoSX && selectedTest?.soleoDX 
+                                  ? `${((Math.min(selectedTest.soleoSX, selectedTest.soleoDX) / Math.max(selectedTest.soleoSX, selectedTest.soleoDX)) * 100).toFixed(1)}%` 
+                                  : 'N/D'}
+                              </td>
                             </tr>
                           </tbody>
                         </table>
@@ -741,42 +782,11 @@ export default function PrintConfiguratorModal({ isOpen, onClose, patient, patie
                       <div key={mod.id} className="space-y-1">
                         <div className="text-[10px] font-extrabold text-emerald-900 uppercase tracking-wider border-b border-emerald-200 pb-0.5 flex items-center gap-1">
                           <Dumbbell className="w-3 h-3 text-emerald-700" />
-                          <span>ESERCIZI, CARICHI (KG) E VELOCITÀ VBT (M/S)</span>
+                          <span>ESERCIZI, CARICHI (KG) E VELOCITÀ VBT (M/S) — SCHEDA CLINICA</span>
                         </div>
-                        <table className="w-full text-left border-collapse border border-slate-300 text-[9px]">
-                          <thead>
-                            <tr className="bg-slate-100 text-slate-800 border-b border-slate-300 font-bold">
-                              <th className="p-1 border-r border-slate-300">Esercizio Prescritto</th>
-                              <th className="p-1 border-r border-slate-300">Serie x Reps</th>
-                              <th className="p-1 border-r border-slate-300">Carico (kg)</th>
-                              <th className="p-1 border-r border-slate-300">Target VBT (m/s)</th>
-                              <th className="p-1">Velocity Loss Max</th>
-                            </tr>
-                          </thead>
-                          <tbody className="text-slate-800">
-                            <tr className="border-b border-slate-200">
-                              <td className="p-1 font-bold border-r border-slate-200">Trap Bar Deadlift (ECC-CON)</td>
-                              <td className="p-1 border-r border-slate-200">4 x 6 reps</td>
-                              <td className="p-1 font-bold text-emerald-800 border-r border-slate-200">110 kg</td>
-                              <td className="p-1 font-bold text-cyan-900 border-r border-slate-200">0.75 m/s</td>
-                              <td className="p-1 text-slate-700">10% max</td>
-                            </tr>
-                            <tr className="border-b border-slate-200">
-                              <td className="p-1 font-bold border-r border-slate-200">Leg Press Monopodalica Sx</td>
-                              <td className="p-1 border-r border-slate-200">3 x 6 reps</td>
-                              <td className="p-1 font-bold text-emerald-800 border-r border-slate-200">85 kg</td>
-                              <td className="p-1 font-bold text-cyan-900 border-r border-slate-200">0.58 m/s</td>
-                              <td className="p-1 text-slate-700">10% max</td>
-                            </tr>
-                            <tr>
-                              <td className="p-1 font-bold border-r border-slate-200">Bulgarian Split Squat Manubri</td>
-                              <td className="p-1 border-r border-slate-200">3 x 8 reps</td>
-                              <td className="p-1 font-bold text-emerald-800 border-r border-slate-200">24+24 kg</td>
-                              <td className="p-1 font-bold text-cyan-900 border-r border-slate-200">0.68 m/s</td>
-                              <td className="p-1 text-slate-700">10% max</td>
-                            </tr>
-                          </tbody>
-                        </table>
+                        <div className="p-2 bg-slate-50 border border-slate-300 rounded text-[9.5px] text-slate-800">
+                          <strong>Prescrizione Clinica Paziente:</strong> {activePatientObj?.esercizi_prescritti || 'Trap Bar Deadlift (4x6 @ 0.75 m/s), Leg Press Monopodalica (3x6 @ 0.58 m/s), Bulgarian Split Squat (3x8 @ 0.68 m/s)'}
+                        </div>
                       </div>
                     );
 
@@ -800,24 +810,24 @@ export default function PrintConfiguratorModal({ isOpen, onClose, patient, patie
                           <tbody>
                             <tr className="border-b border-slate-200">
                               <td className="p-1 font-bold border-r border-slate-200">Single Hop for Distance</td>
-                              <td className="p-1 border-r border-slate-200 font-bold">182 cm</td>
-                              <td className="p-1 border-r border-slate-200">188 cm</td>
-                              <td className="p-1 font-bold text-emerald-700 border-r border-slate-200">96.8%</td>
-                              <td className="p-1 text-emerald-800 font-bold">Target OK</td>
+                              <td className="p-1 border-r border-slate-200 font-bold">{fmtVal(selectedTest?.singleHopOp, 'cm')}</td>
+                              <td className="p-1 border-r border-slate-200">{fmtVal(selectedTest?.singleHopSano, 'cm')}</td>
+                              <td className="p-1 font-bold text-emerald-700 border-r border-slate-200">{fmtFixed(selectedTest?.lsiSingleHop, 1, '%')}</td>
+                              <td className="p-1 text-emerald-800 font-bold">{selectedTest?.lsiSingleHop >= 90 ? 'Target OK' : (selectedTest?.lsiSingleHop ? 'In Corso' : 'N/D')}</td>
                             </tr>
                             <tr className="border-b border-slate-200">
                               <td className="p-1 font-bold border-r border-slate-200">Triple Hop for Distance</td>
-                              <td className="p-1 border-r border-slate-200 font-bold">520 cm</td>
-                              <td className="p-1 border-r border-slate-200">535 cm</td>
-                              <td className="p-1 font-bold text-emerald-700 border-r border-slate-200">97.2%</td>
-                              <td className="p-1 text-emerald-800 font-bold">Target OK</td>
+                              <td className="p-1 border-r border-slate-200 font-bold">{fmtVal(selectedTest?.tripleHopOp, 'cm')}</td>
+                              <td className="p-1 border-r border-slate-200">{fmtVal(selectedTest?.tripleHopSano, 'cm')}</td>
+                              <td className="p-1 font-bold text-emerald-700 border-r border-slate-200">{fmtFixed(selectedTest?.lsiTripleHop, 1, '%')}</td>
+                              <td className="p-1 text-emerald-800 font-bold">{selectedTest?.lsiTripleHop >= 90 ? 'Target OK' : (selectedTest?.lsiTripleHop ? 'In Corso' : 'N/D')}</td>
                             </tr>
                             <tr>
                               <td className="p-1 font-bold border-r border-slate-200">Crossover Hop for Distance</td>
-                              <td className="p-1 border-r border-slate-200 font-bold">485 cm</td>
-                              <td className="p-1 border-r border-slate-200">500 cm</td>
-                              <td className="p-1 font-bold text-emerald-700 border-r border-slate-200">97.0%</td>
-                              <td className="p-1 text-emerald-800 font-bold">Target OK</td>
+                              <td className="p-1 border-r border-slate-200 font-bold">{fmtVal(selectedTest?.crossoverHopOp, 'cm')}</td>
+                              <td className="p-1 border-r border-slate-200">{fmtVal(selectedTest?.crossoverHopSano, 'cm')}</td>
+                              <td className="p-1 font-bold text-emerald-700 border-r border-slate-200">{fmtFixed(selectedTest?.lsiCrossoverHop, 1, '%')}</td>
+                              <td className="p-1 text-emerald-800 font-bold">{selectedTest?.lsiCrossoverHop >= 90 ? 'Target OK' : (selectedTest?.lsiCrossoverHop ? 'In Corso' : 'N/D')}</td>
                             </tr>
                           </tbody>
                         </table>
@@ -834,19 +844,27 @@ export default function PrintConfiguratorModal({ isOpen, onClose, patient, patie
                         <div className="grid grid-cols-4 gap-2 text-[9px] text-center">
                           <div className="p-1 bg-slate-50 border border-slate-300 rounded">
                             <span className="text-slate-500 block">Altezza Salto</span>
-                            <strong className="text-slate-900 text-xs">39.5 cm</strong>
+                            <strong className="text-slate-900 text-xs">{fmtVal(selectedTest?.jumpHeight ?? selectedTest?.jump_height_cm ?? selectedTest?.altezza_salto, 'cm')}</strong>
                           </div>
                           <div className="p-1 bg-slate-50 border border-slate-300 rounded">
                             <span className="text-slate-500 block">Impulso Frenata {showCitations && <span className="text-[7.5px] text-cyan-700 font-mono">[5]</span>}</span>
-                            <strong className="text-emerald-700 text-xs font-bold">Asim. 1.9%</strong>
+                            <strong className="text-emerald-700 text-xs font-bold">
+                              {selectedTest?.eccBrakingSX && selectedTest?.eccBrakingDX 
+                                ? `${selectedTest.eccBrakingSX} / ${selectedTest.eccBrakingDX} N·s` 
+                                : (selectedTest?.brakingAsym ? `Asim. ${selectedTest.brakingAsym}%` : 'N/D')}
+                            </strong>
                           </div>
                           <div className="p-1 bg-slate-50 border border-slate-300 rounded">
                             <span className="text-slate-500 block">Impulso Concentrico</span>
-                            <strong className="text-emerald-700 text-xs font-bold">Asim. 2.0%</strong>
+                            <strong className="text-emerald-700 text-xs font-bold">
+                              {selectedTest?.concImpulseSX && selectedTest?.concImpulseDX 
+                                ? `${selectedTest.concImpulseSX} / ${selectedTest.concImpulseDX} N·s` 
+                                : (selectedTest?.concImpulseAsym ? `Asim. ${selectedTest.concImpulseAsym}%` : 'N/D')}
+                            </strong>
                           </div>
                           <div className="p-1 bg-slate-50 border border-slate-300 rounded">
-                            <span className="text-slate-500 block">Peak Power / kg</span>
-                            <strong className="text-slate-900 text-xs">58.8 W/kg</strong>
+                            <span className="text-slate-500 block">Peak Power / W</span>
+                            <strong className="text-slate-900 text-xs">{fmtVal(selectedTest?.peakPower ?? selectedTest?.peak_power_w, 'W')}</strong>
                           </div>
                         </div>
                       </div>
@@ -871,15 +889,19 @@ export default function PrintConfiguratorModal({ isOpen, onClose, patient, patie
                           <tbody>
                             <tr className="border-b border-slate-200">
                               <td className="p-1 font-bold border-r border-slate-200">Altezza Salto (cm)</td>
-                              <td className="p-1 border-r border-slate-200 font-bold text-slate-900">20.8 cm</td>
-                              <td className="p-1 border-r border-slate-200">20.2 cm</td>
-                              <td className="p-1 font-bold text-emerald-700">102.9%</td>
+                              <td className="p-1 border-r border-slate-200 font-bold text-slate-900">{fmtVal(selectedTest?.slCmjHeightSX, 'cm')}</td>
+                              <td className="p-1 border-r border-slate-200">{fmtVal(selectedTest?.slCmjHeightDX, 'cm')}</td>
+                              <td className="p-1 font-bold text-emerald-700">{fmtFixed(selectedTest?.slCmjHeightLsi, 1, '%')}</td>
                             </tr>
                             <tr>
-                              <td className="p-1 font-bold border-r border-slate-200">Forza di Stacco (N/kg)</td>
-                              <td className="p-1 border-r border-slate-200 font-bold text-slate-900">24.5 N/kg</td>
-                              <td className="p-1 border-r border-slate-200">24.8 N/kg</td>
-                              <td className="p-1 font-bold text-emerald-700">98.7%</td>
+                              <td className="p-1 font-bold border-r border-slate-200">Contraction Time (ms)</td>
+                              <td className="p-1 border-r border-slate-200 font-bold text-slate-900">{fmtVal(selectedTest?.slCmjCtSX, 'ms')}</td>
+                              <td className="p-1 border-r border-slate-200">{fmtVal(selectedTest?.slCmjCtDX, 'ms')}</td>
+                              <td className="p-1 font-bold text-emerald-700">
+                                {selectedTest?.slCmjCtSX && selectedTest?.slCmjCtDX 
+                                  ? `${((Math.min(selectedTest.slCmjCtSX, selectedTest.slCmjCtDX) / Math.max(selectedTest.slCmjCtSX, selectedTest.slCmjCtDX)) * 100).toFixed(1)}%` 
+                                  : 'N/D'}
+                              </td>
                             </tr>
                           </tbody>
                         </table>
@@ -891,23 +913,27 @@ export default function PrintConfiguratorModal({ isOpen, onClose, patient, patie
                       <div key={mod.id} className="space-y-1">
                         <div className="text-[10px] font-extrabold text-emerald-900 uppercase tracking-wider border-b border-emerald-200 pb-0.5 flex items-center gap-1">
                           <TrendingDown className="w-3 h-3 text-emerald-700" />
-                          <span>DROP JUMP BILATERALE (30/45/60CM)</span>
+                          <span>DROP JUMP BILATERALE (RTP SPECIALIST METRICHE & DUAL LOAD CELLS)</span>
                         </div>
                         <div className="grid grid-cols-3 gap-2 text-[9px] text-center">
                           <div className="p-1.5 border border-slate-300 rounded bg-slate-50">
-                            <span className="text-slate-500 block">RSI Modificato (DVJ 30cm) {showCitations && <span className="text-[7.5px] text-cyan-700 font-mono">[4]</span>}</span>
-                            <strong className="text-slate-900 text-xs font-bold">2.18</strong>
-                            <span className="text-[8px] text-emerald-700 block font-bold">Eccellente Rigidità</span>
+                            <span className="text-slate-500 block">RSI Modificato {showCitations && <span className="text-[7.5px] text-cyan-700 font-mono">[4]</span>}</span>
+                            <strong className="text-slate-900 text-xs font-bold">{fmtFixed(selectedTest?.rsiDropJump, 2)}</strong>
+                            <span className="text-[8px] text-emerald-700 block font-bold">
+                              {selectedTest?.rsiDropJump >= 2.0 ? 'Eccellente Rigidità' : (selectedTest?.rsiDropJump ? 'In Valutazione' : 'N/D')}
+                            </span>
                           </div>
                           <div className="p-1.5 border border-slate-300 rounded bg-slate-50">
                             <span className="text-slate-500 block">Tempo Contatto Suolo</span>
-                            <strong className="text-slate-900 text-xs font-bold">180 ms</strong>
-                            <span className="text-[8px] text-emerald-700 block font-bold">Target &lt; 200 ms</span>
+                            <strong className="text-slate-900 text-xs font-bold">{fmtVal(selectedTest?.djContactTime, 'ms')}</strong>
+                            <span className="text-[8px] text-emerald-700 block font-bold">
+                              {selectedTest?.djContactTime ? (selectedTest.djContactTime < 250 ? 'Pliometria OK (<250ms)' : '⚠️ >250ms (Non Pliometrico)') : 'N/D'}
+                            </span>
                           </div>
                           <div className="p-1.5 border border-slate-300 rounded bg-slate-50">
-                            <span className="text-slate-500 block">Asimmetria Impulso Drop</span>
-                            <strong className="text-emerald-700 text-xs font-bold">1.9%</strong>
-                            <span className="text-[8px] text-emerald-700 block font-bold">Controllo Eccentrico OK</span>
+                            <span className="text-slate-500 block">Stato Validazione RTP</span>
+                            <strong className="text-emerald-700 text-xs font-bold">{selectedTest?.djValidationStatus || 'N/D'}</strong>
+                            <span className="text-[8px] text-emerald-700 block font-bold">{selectedTest?.djFailReason || 'Target Clinici'}</span>
                           </div>
                         </div>
                       </div>
@@ -922,39 +948,28 @@ export default function PrintConfiguratorModal({ isOpen, onClose, patient, patie
                         </div>
                         <div className="p-2.5 bg-slate-50 border border-slate-300 rounded-lg space-y-1.5">
                           <div className="flex items-center justify-between text-[8.5px] text-slate-700">
-                            <span>Progressione Storica LSI Quadricipite:</span>
-                            <span className="font-bold text-emerald-700">+25.4% in 6 Mesi</span>
+                            <span>Progressione Storica Valutazioni Cliniche:</span>
+                            <span className="font-bold text-emerald-700">{patientTests.length} Test Registrati</span>
                           </div>
                           <div className="space-y-1 text-[8.5px]">
-                            <div>
-                              <div className="flex justify-between text-[7.5px] text-slate-600 mb-0.5">
-                                <span>Test #1 (Mese 4)</span>
-                                <span>72.4%</span>
-                              </div>
-                              <div className="w-full bg-slate-200 h-1.5 rounded-full overflow-hidden">
-                                <div className="bg-amber-500 h-full rounded-full" style={{ width: '72.4%' }}></div>
-                              </div>
-                            </div>
-
-                            <div>
-                              <div className="flex justify-between text-[7.5px] text-slate-600 mb-0.5">
-                                <span>Test #3 (Mese 6)</span>
-                                <span>88.5%</span>
-                              </div>
-                              <div className="w-full bg-slate-200 h-1.5 rounded-full overflow-hidden">
-                                <div className="bg-emerald-400 h-full rounded-full" style={{ width: '88.5%' }}></div>
-                              </div>
-                            </div>
-
-                            <div>
-                              <div className="flex justify-between text-[7.5px] font-bold text-slate-800 mb-0.5">
-                                <span>Test #6 Attuale (Mese 9)</span>
-                                <span className="text-emerald-700 font-extrabold">97.8%</span>
-                              </div>
-                              <div className="w-full bg-slate-200 h-1.5 rounded-full overflow-hidden">
-                                <div className="bg-emerald-600 h-full rounded-full" style={{ width: '97.8%' }}></div>
-                              </div>
-                            </div>
+                            {patientTests.length > 0 ? (
+                              patientTests.slice(-3).map((t, idx) => {
+                                const lsi = t.lsiQuad !== undefined && t.lsiQuad !== null ? Number(t.lsiQuad) : 0;
+                                return (
+                                  <div key={t.id || idx}>
+                                    <div className="flex justify-between text-[7.5px] text-slate-600 mb-0.5 font-bold">
+                                      <span>{t.label || `Test #${idx + 1}`} ({t.date || t.data_valutazione || ''})</span>
+                                      <span className={lsi >= 90 ? 'text-emerald-700 font-extrabold' : 'text-amber-700'}>{lsi > 0 ? `${lsi.toFixed(1)}%` : 'N/D'}</span>
+                                    </div>
+                                    <div className="w-full bg-slate-200 h-1.5 rounded-full overflow-hidden">
+                                      <div className={`h-full rounded-full ${lsi >= 90 ? 'bg-emerald-600' : 'bg-amber-500'}`} style={{ width: `${Math.min(100, Math.max(5, lsi))}%` }}></div>
+                                    </div>
+                                  </div>
+                                );
+                              })
+                            ) : (
+                              <div className="text-slate-500 text-[8px] italic text-center">Nessun dato di test storico registrato per {formattedPatientName}.</div>
+                            )}
                           </div>
                         </div>
                       </div>
@@ -965,11 +980,11 @@ export default function PrintConfiguratorModal({ isOpen, onClose, patient, patie
                       <div key={mod.id} className="space-y-1 pt-1">
                         <div className="text-[10px] font-extrabold text-emerald-900 uppercase tracking-wider border-b border-emerald-200 pb-0.5 flex items-center gap-1">
                           <MessageSquare className="w-3 h-3 text-emerald-700" />
-                          <span>NOTE</span>
+                          <span>NOTE CLINICHE & DIRETTIVE OPERATIVE</span>
                         </div>
                         <div className="p-2.5 bg-slate-50 border border-slate-300 rounded-lg text-[9px] text-slate-800 space-y-1">
                           <p className="leading-relaxed">
-                            <strong>Note:</strong> Atleta <strong>{formattedPatientName}</strong>. LSI Quadricipite pari al {activePatientObj.lsiQuad || '97.8'}% con eccellente simmetria neuromuscolare{showCitations ? " [Ref: Rambaud et al. 2018 / Buckthorpe et al. 2019]" : ""}. Tutti i criteri clinici, pliometrici e psicologici (IKDC {showIkdc ? `${ikdcScore}/100` : 'Sbloccato'}) risultano superati per l'idoneità al Return to Sport / Return to Performance{showCitations ? " [Ref: Grindem et al. 2016 / Kyritsis et al. 2016]" : ""}.
+                            <strong>Note Paziente {formattedPatientName}:</strong> {activePatientObj?.note_operative || activePatientObj?.esercizi_prescritti || 'Valutazione clinica in corso.'}{showCitations ? " [Ref: Rambaud et al. 2018 / Buckthorpe et al. 2019]" : ""}
                           </p>
                         </div>
                       </div>
