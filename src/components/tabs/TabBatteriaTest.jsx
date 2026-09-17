@@ -23,6 +23,20 @@ import { useAuth } from '../../context/AuthContext';
 import ModalNuovaValutazione from '../ModalNuovaValutazione';
 import GraficoMultimetrica from '../GraficoMultimetrica';
 import { createTestObject, saveTestToSupabase } from '../../utils/testUtils';
+import { UIErrorBoundary } from '../UIErrorBoundary';
+
+// Helper di sicurezza per parsing numerico senza crash di runtime
+const safeNum = (val, fallback = 0) => {
+  if (val === null || val === undefined || val === '' || val === '-') return fallback;
+  const n = Number(val);
+  return isNaN(n) ? fallback : n;
+};
+
+const safeFixed = (val, decimals = 1, fallback = 'N/D') => {
+  if (val === null || val === undefined || val === '' || val === '-') return fallback;
+  const n = Number(val);
+  return isNaN(n) ? fallback : n.toFixed(decimals);
+};
 
 export default function TabBatteriaTest({ patient, activePhase, onChangePhase, onSaveTest }) {
   const { role } = useAuth();
@@ -81,18 +95,24 @@ export default function TabBatteriaTest({ patient, activePhase, onChangePhase, o
     weeklyLoadTolerance: true  
   });
 
-  // STORICO TEST REGISTRATI NEL TEMPO (filtrati rigorosamente per il paziente attivo)
-  const [testsHistory, setTestsHistory] = useState(patient?.tests || []);
-  const [selectedTestId, setSelectedTestId] = useState(
-    patient?.tests && patient.tests.length > 0 ? patient.tests[patient.tests.length - 1].id : null
-  );
+  // STORICO TEST REGISTRATI NEL TEMPO (filtrati rigorosamente per il paziente attivo, senza array annidati)
+  const [testsHistory, setTestsHistory] = useState(() => {
+    const rawTests = Array.isArray(patient?.tests) ? patient.tests.flat(Infinity) : [];
+    return rawTests.filter(t => t && typeof t === 'object' && !Array.isArray(t));
+  });
+  const [selectedTestId, setSelectedTestId] = useState(() => {
+    const rawTests = Array.isArray(patient?.tests) ? patient.tests.flat(Infinity) : [];
+    const cleanTests = rawTests.filter(t => t && typeof t === 'object' && !Array.isArray(t));
+    return cleanTests.length > 0 ? cleanTests[cleanTests.length - 1].id : null;
+  });
 
   // Sincronizzazione dinamica quando cambia il paziente o i suoi test
   React.useEffect(() => {
-    const currentTests = Array.isArray(patient?.tests) ? patient.tests : [];
-    setTestsHistory(currentTests);
-    if (currentTests.length > 0) {
-      setSelectedTestId(currentTests[currentTests.length - 1].id);
+    const rawTests = Array.isArray(patient?.tests) ? patient.tests.flat(Infinity) : [];
+    const cleanTests = rawTests.filter(t => t && typeof t === 'object' && !Array.isArray(t));
+    setTestsHistory(cleanTests);
+    if (cleanTests.length > 0) {
+      setSelectedTestId(cleanTests[cleanTests.length - 1].id);
     } else {
       setSelectedTestId(null);
     }
@@ -148,46 +168,51 @@ export default function TabBatteriaTest({ patient, activePhase, onChangePhase, o
       }
     ];
   } else if (currentPhase.isPhase2) {
-    const hqRatio = activeTest.quadOp ? (activeTest.flexOp / activeTest.quadOp) : 0.63;
-    const ikdcVal = activeTest.ikdc || 68;
+    const lsiQuadVal = safeNum(activeTest?.lsiQuad, 0);
+    const quadOpNmKgVal = safeNum(activeTest?.quadOpNmKg, 0);
+    const lsiFlexVal = safeNum(activeTest?.lsiFlex, 0);
+    const quadOpVal = safeNum(activeTest?.quadOp, 0);
+    const flexOpVal = safeNum(activeTest?.flexOp, 0);
+    const hqRatio = quadOpVal > 0 ? flexOpVal / quadOpVal : 0.63;
+    const ikdcVal = safeNum(activeTest?.ikdc, 68);
 
     cupsData = [
       {
         id: 'lsi_quad',
         title: 'LSI QUADRICIPITE',
         subtitle: '(ISO Push Leg Ext...)',
-        value: activeTest.lsiQuad,
-        displayVal: `${activeTest.lsiQuad.toFixed(1)}%`,
+        value: lsiQuadVal,
+        displayVal: `${safeFixed(lsiQuadVal, 1, '0.0')}%`,
         targetLabel: 'Target: >70%',
-        percentageAchieved: Math.round((activeTest.lsiQuad / 70) * 100),
-        isOk: activeTest.lsiQuad >= 70
+        percentageAchieved: Math.round((lsiQuadVal / 70) * 100),
+        isOk: lsiQuadVal >= 70
       },
       {
         id: 'quad_rel_op',
         title: 'FORZA REL. QUAD OP',
         subtitle: '(Nm/kg Peso Corporeo)',
-        value: activeTest.quadOpNmKg,
-        displayVal: `${activeTest.quadOpNmKg.toFixed(2)} Nm/kg`,
+        value: quadOpNmKgVal,
+        displayVal: `${safeFixed(quadOpNmKgVal, 2, '0.00')} Nm/kg`,
         targetLabel: 'Target: >2.0 Nm/kg',
-        percentageAchieved: Math.round((activeTest.quadOpNmKg / 2.0) * 100),
-        isOk: activeTest.quadOpNmKg >= 2.0
+        percentageAchieved: Math.round((quadOpNmKgVal / 2.0) * 100),
+        isOk: quadOpNmKgVal >= 2.0
       },
       {
         id: 'lsi_flex',
         title: 'LSI HAMSTRING',
         subtitle: '(ISO Push Leg Curl...)',
-        value: activeTest.lsiFlex,
-        displayVal: `${activeTest.lsiFlex.toFixed(1)}%`,
+        value: lsiFlexVal,
+        displayVal: `${safeFixed(lsiFlexVal, 1, '0.0')}%`,
         targetLabel: 'Target: >70%',
-        percentageAchieved: Math.round((activeTest.lsiFlex / 70) * 100),
-        isOk: activeTest.lsiFlex >= 70
+        percentageAchieved: Math.round((lsiFlexVal / 70) * 100),
+        isOk: lsiFlexVal >= 70
       },
       {
         id: 'hq_ratio',
         title: 'H/Q RATIO ISOMETRICO',
         subtitle: '(Flex OP / Quad OP)',
         value: hqRatio,
-        displayVal: `${hqRatio.toFixed(2)}`,
+        displayVal: `${safeFixed(hqRatio, 2, '0.63')}`,
         targetLabel: 'Target: >0.55',
         percentageAchieved: Math.round((hqRatio / 0.55) * 100),
         isOk: hqRatio >= 0.55
@@ -204,89 +229,100 @@ export default function TabBatteriaTest({ patient, activePhase, onChangePhase, o
       }
     ];
   } else if (currentPhase.isPhase3) {
+    const lsiQuadVal = safeNum(activeTest?.lsiQuad, 0);
+    const lsiFlexVal = safeNum(activeTest?.lsiFlex, 0);
+    const cmjImpulseLsiVal = safeNum(activeTest?.cmjImpulseLsi, 82.5);
+    const slCmjHeightLsiVal = safeNum(activeTest?.slCmjHeightLsi, 87.0);
+    const rsiDropJumpVal = safeNum(activeTest?.rsiDropJump, 1.55);
+
     cupsData = [
       {
         id: 'lsi_quad_3',
         title: 'LSI QUADRICIPITE',
         subtitle: '(Iso Push Leg Ext)',
-        value: activeTest.lsiQuad,
-        displayVal: `${activeTest.lsiQuad.toFixed(1)}%`,
+        value: lsiQuadVal,
+        displayVal: `${safeFixed(lsiQuadVal, 1, '0.0')}%`,
         targetLabel: 'Target: >80%',
-        percentageAchieved: Math.round((activeTest.lsiQuad / 80) * 100),
-        isOk: activeTest.lsiQuad >= 80
+        percentageAchieved: Math.round((lsiQuadVal / 80) * 100),
+        isOk: lsiQuadVal >= 80
       },
       {
         id: 'lsi_ham_3',
         title: 'LSI HAMSTRING',
         subtitle: '(Iso Push Leg Curl)',
-        value: activeTest.lsiFlex,
-        displayVal: `${activeTest.lsiFlex.toFixed(1)}%`,
+        value: lsiFlexVal,
+        displayVal: `${safeFixed(lsiFlexVal, 1, '0.0')}%`,
         targetLabel: 'Target: >80%',
-        percentageAchieved: Math.round((activeTest.lsiFlex / 80) * 100),
-        isOk: activeTest.lsiFlex >= 80
+        percentageAchieved: Math.round((lsiFlexVal / 80) * 100),
+        isOk: lsiFlexVal >= 80
       },
       {
         id: 'cmj_braking_3',
         title: 'LSI BRAKING IMPULSE',
         subtitle: '(CMJ Braking Imp)',
-        value: activeTest.cmjImpulseLsi || 82.5,
-        displayVal: `${(activeTest.cmjImpulseLsi || 82.5).toFixed(1)}%`,
+        value: cmjImpulseLsiVal,
+        displayVal: `${safeFixed(cmjImpulseLsiVal, 1, '82.5')}%`,
         targetLabel: 'Target: >80%',
-        percentageAchieved: Math.round(((activeTest.cmjImpulseLsi || 82.5) / 80) * 100),
-        isOk: (activeTest.cmjImpulseLsi || 82.5) >= 80
+        percentageAchieved: Math.round((cmjImpulseLsiVal / 80) * 100),
+        isOk: cmjImpulseLsiVal >= 80
       },
       {
         id: 'lsi_height_3',
         title: 'SL CMJ HEIGHT LSI',
         subtitle: '(Single Leg Jump)',
-        value: activeTest.slCmjHeightLsi || 87.0,
-        displayVal: `${(activeTest.slCmjHeightLsi || 87.0).toFixed(1)}%`,
+        value: slCmjHeightLsiVal,
+        displayVal: `${safeFixed(slCmjHeightLsiVal, 1, '87.0')}%`,
         targetLabel: 'Target: >80%',
-        percentageAchieved: Math.round(((activeTest.slCmjHeightLsi || 87.0) / 80) * 100),
-        isOk: (activeTest.slCmjHeightLsi || 87.0) >= 80
+        percentageAchieved: Math.round((slCmjHeightLsiVal / 80) * 100),
+        isOk: slCmjHeightLsiVal >= 80
       },
       {
         id: 'rsi_dj_3',
         title: 'DL DROP JUMP RSI',
         subtitle: '(Double Leg Box)',
-        value: activeTest.rsiDropJump || 1.55,
-        displayVal: `${(activeTest.rsiDropJump || 1.55).toFixed(2)} idx`,
+        value: rsiDropJumpVal,
+        displayVal: `${safeFixed(rsiDropJumpVal, 2, '1.55')} idx`,
         targetLabel: 'Target: >1.20 idx',
-        percentageAchieved: Math.round(((activeTest.rsiDropJump || 1.55) / 1.20) * 100),
-        isOk: (activeTest.rsiDropJump || 1.55) >= 1.20
+        percentageAchieved: Math.round((rsiDropJumpVal / 1.20) * 100),
+        isOk: rsiDropJumpVal >= 1.20
       }
     ];
   } else if (currentPhase.isPhase4) {
-    const eccAsymVal = activeTest.eccBrakingAsym !== undefined ? parseFloat(activeTest.eccBrakingAsym) : (activeTest.brakingAsym || 11.2);
+    const lsiQuadVal = safeNum(activeTest?.lsiQuad, 0);
+    const lsiFlexVal = safeNum(activeTest?.lsiFlex, 0);
+    const eccAsymVal = safeNum(activeTest?.eccBrakingAsym ?? activeTest?.brakingAsym, 11.2);
     const cmjAsymLsi = 100 - eccAsymVal;
+    const slCmjHeightLsiVal = safeNum(activeTest?.slCmjHeightLsi, 87.0);
+    const rsiDropJumpVal = safeNum(activeTest?.rsiDropJump, 1.55);
+    const aclrsiVal = safeNum(activeTest?.aclrsi, 85);
 
     cupsData = [
       {
         id: 'lsi_quad_p4',
         title: 'LSI QUADRICIPITE',
         subtitle: '(Iso Push Leg Ext)',
-        value: activeTest.lsiQuad,
-        displayVal: `${activeTest.lsiQuad.toFixed(1)}%`,
+        value: lsiQuadVal,
+        displayVal: `${safeFixed(lsiQuadVal, 1, '0.0')}%`,
         targetLabel: 'Target: >85%',
-        percentageAchieved: Math.round((activeTest.lsiQuad / 85) * 100),
-        isOk: activeTest.lsiQuad >= 85
+        percentageAchieved: Math.round((lsiQuadVal / 85) * 100),
+        isOk: lsiQuadVal >= 85
       },
       {
         id: 'lsi_ham_p4',
         title: 'LSI HAMSTRING',
         subtitle: '(Iso Push Leg Curl)',
-        value: activeTest.lsiFlex,
-        displayVal: `${activeTest.lsiFlex.toFixed(1)}%`,
+        value: lsiFlexVal,
+        displayVal: `${safeFixed(lsiFlexVal, 1, '0.0')}%`,
         targetLabel: 'Target: >85%',
-        percentageAchieved: Math.round((activeTest.lsiFlex / 85) * 100),
-        isOk: activeTest.lsiFlex >= 85
+        percentageAchieved: Math.round((lsiFlexVal / 85) * 100),
+        isOk: lsiFlexVal >= 85
       },
       {
         id: 'cmj_braking_p4',
         title: 'LSI BRAKING IMPULSE',
         subtitle: '(CMJ Braking Imp)',
         value: cmjAsymLsi,
-        displayVal: `${cmjAsymLsi.toFixed(1)}% LSI`,
+        displayVal: `${safeFixed(cmjAsymLsi, 1, '88.8')}% LSI`,
         targetLabel: 'Target: >85%',
         percentageAchieved: Math.round((cmjAsymLsi / 85) * 100),
         isOk: eccAsymVal <= 15
@@ -295,64 +331,71 @@ export default function TabBatteriaTest({ patient, activePhase, onChangePhase, o
         id: 'sl_cmj_p4',
         title: 'SL CMJ HEIGHT LSI',
         subtitle: '(Single Leg Jump)',
-        value: activeTest.slCmjHeightLsi || 87.0,
-        displayVal: `${(activeTest.slCmjHeightLsi || 87.0).toFixed(1)}%`,
+        value: slCmjHeightLsiVal,
+        displayVal: `${safeFixed(slCmjHeightLsiVal, 1, '87.0')}%`,
         targetLabel: 'Target: >85%',
-        percentageAchieved: Math.round(((activeTest.slCmjHeightLsi || 87.0) / 85) * 100),
-        isOk: (activeTest.slCmjHeightLsi || 87.0) >= 85
+        percentageAchieved: Math.round((slCmjHeightLsiVal / 85) * 100),
+        isOk: slCmjHeightLsiVal >= 85
       },
       {
         id: 'dl_dj_p4',
         title: 'DL DROP JUMP RSI',
         subtitle: '(Double Leg Box)',
-        value: activeTest.rsiDropJump || 1.55,
-        displayVal: `${(activeTest.rsiDropJump || 1.55).toFixed(2)} idx`,
+        value: rsiDropJumpVal,
+        displayVal: `${safeFixed(rsiDropJumpVal, 2, '1.55')} idx`,
         targetLabel: 'Target: >1.30 idx',
-        percentageAchieved: Math.round(((activeTest.rsiDropJump || 1.55) / 1.30) * 100),
-        isOk: (activeTest.rsiDropJump || 1.55) >= 1.30
+        percentageAchieved: Math.round((rsiDropJumpVal / 1.30) * 100),
+        isOk: rsiDropJumpVal >= 1.30
       },
       {
         id: 'aclrsi_p4',
         title: 'SCORE ACL-RSI',
         subtitle: '(Prontitudine Psico)',
-        value: activeTest.aclrsi || 85,
-        displayVal: `${activeTest.aclrsi || 85}/100`,
+        value: aclrsiVal,
+        displayVal: `${aclrsiVal}/100`,
         targetLabel: 'Target: >65/100',
-        percentageAchieved: Math.round(((activeTest.aclrsi || 85) / 65) * 100),
-        isOk: (activeTest.aclrsi || 85) >= 65
+        percentageAchieved: Math.round((aclrsiVal / 65) * 100),
+        isOk: aclrsiVal >= 65
       }
     ];
   } else {
+    const lsiQuadVal = safeNum(activeTest?.lsiQuad, 0);
+    const quadOpNmKgVal = safeNum(activeTest?.quadOpNmKg, 0);
+    const rsiDropJumpVal = safeNum(activeTest?.rsiDropJump, 0);
+    const targetQuadLSI = currentPhase.targetLSIQuad || 95;
+    const targetNmKg = currentPhase.targetQuadNmKg || 3.0;
+    const targetRsi = currentPhase.targetRSI || 2.0;
+
     cupsData = [
       {
         id: 'lsi_quad',
         title: 'LSI QUADRICIPITE',
         subtitle: '(Iso Push Leg Ext)',
-        value: activeTest.lsiQuad,
-        displayVal: `${activeTest.lsiQuad.toFixed(1)}%`,
-        targetLabel: `Target: >${currentPhase.targetLSIQuad}%`,
-        percentageAchieved: Math.round((activeTest.lsiQuad / currentPhase.targetLSIQuad) * 100),
-        isOk: activeTest.lsiQuad >= currentPhase.targetLSIQuad
+        value: lsiQuadVal,
+        displayVal: `${safeFixed(lsiQuadVal, 1, '0.0')}%`,
+        targetLabel: `Target: >${targetQuadLSI}%`,
+        percentageAchieved: Math.round((lsiQuadVal / targetQuadLSI) * 100),
+        isOk: lsiQuadVal >= targetQuadLSI
       },
       {
         id: 'quad_nm_kg',
         title: 'FORZA RELATIVA QUAD',
         subtitle: '(Nm/kg peso corporeo)',
-        value: activeTest.quadOpNmKg,
-        displayVal: `${activeTest.quadOpNmKg.toFixed(2)} Nm/kg`,
-        targetLabel: `Target: >${currentPhase.targetQuadNmKg} Nm/kg`,
-        percentageAchieved: Math.round((activeTest.quadOpNmKg / currentPhase.targetQuadNmKg) * 100),
-        isOk: activeTest.quadOpNmKg >= currentPhase.targetQuadNmKg
+        value: quadOpNmKgVal,
+        displayVal: `${safeFixed(quadOpNmKgVal, 2, '0.00')} Nm/kg`,
+        targetLabel: `Target: >${targetNmKg} Nm/kg`,
+        percentageAchieved: Math.round((quadOpNmKgVal / targetNmKg) * 100),
+        isOk: quadOpNmKgVal >= targetNmKg
       },
       {
         id: 'rsi_drop_jump',
         title: 'RSI DROP JUMP',
         subtitle: '(Contact Time <250ms)',
-        value: activeTest.rsiDropJump,
-        displayVal: `${activeTest.rsiDropJump.toFixed(2)} rsi`,
-        targetLabel: `Target: >${currentPhase.targetRSI} rsi`,
-        percentageAchieved: Math.round((activeTest.rsiDropJump / currentPhase.targetRSI) * 100),
-        isOk: activeTest.rsiDropJump >= currentPhase.targetRSI
+        value: rsiDropJumpVal,
+        displayVal: `${safeFixed(rsiDropJumpVal, 2, '0.00')} rsi`,
+        targetLabel: `Target: >${targetRsi} rsi`,
+        percentageAchieved: Math.round((rsiDropJumpVal / targetRsi) * 100),
+        isOk: rsiDropJumpVal >= targetRsi
       }
     ];
   }
@@ -484,14 +527,92 @@ export default function TabBatteriaTest({ patient, activePhase, onChangePhase, o
       // 1. TAB [CMJ Bilaterale]
       case 'CMJ_BILATERAL':
         return [
-          { key: 'jumpHeight', label: 'Altezza Salto', unit: 'cm', dotColor: 'bg-emerald-400', getValue: (t) => t.jumpHeight !== undefined ? t.jumpHeight : '-' },
-          { key: 'rsiCmj', label: 'RSImod', unit: 'm/s', dotColor: 'bg-emerald-400', getValue: (t) => t.rsiCmj ? t.rsiCmj : (t.jumpHeight && t.contractionTime ? ((t.jumpHeight / 100) / (t.contractionTime / 1000)).toFixed(2) : '-') },
-          { key: 'contractionTime', label: 'Contraction Time', unit: 'ms', dotColor: 'bg-amber-400', getValue: (t) => t.contractionTime !== undefined ? t.contractionTime : '-' },
-          { key: 'peakPower', label: 'Peak Power', unit: 'W', dotColor: 'bg-emerald-400', getValue: (t) => t.peakPower !== undefined ? t.peakPower : '-' },
-          { key: 'eccBrakingSX', label: 'Eccentric Impulse Left', unit: 'N·s', dotColor: 'bg-[#00e5ff]', getValue: (t) => t.eccBrakingSX !== undefined ? t.eccBrakingSX : '-' },
-          { key: 'eccBrakingDX', label: 'Eccentric Impulse Right', unit: 'N·s', dotColor: 'bg-pink-400', getValue: (t) => t.eccBrakingDX !== undefined ? t.eccBrakingDX : '-' },
-          { key: 'concImpulseSX', label: 'Concentric Impulse Left', unit: 'N·s', dotColor: 'bg-[#00e5ff]', getValue: (t) => t.concImpulseSX !== undefined ? t.concImpulseSX : '-' },
-          { key: 'concImpulseDX', label: 'Concentric Impulse Right', unit: 'N·s', dotColor: 'bg-pink-400', getValue: (t) => t.concImpulseDX !== undefined ? t.concImpulseDX : '-' }
+          { 
+            key: 'jumpHeight', 
+            label: 'Altezza Salto', 
+            unit: 'cm', 
+            dotColor: 'bg-emerald-400', 
+            getValue: (t) => {
+              const v = t?.jumpHeight ?? t?.jump_height_cm ?? t?.altezza_salto ?? t?.jump_height;
+              return v !== undefined && v !== null && v !== '' ? `${v} cm` : 'N/D';
+            } 
+          },
+          { 
+            key: 'rsiCmj', 
+            label: 'RSImod', 
+            unit: 'm/s', 
+            dotColor: 'bg-emerald-400', 
+            getValue: (t) => {
+              const rsi = t?.rsiCmj ?? t?.rsi_cmj ?? t?.rsi_mod ?? t?.rsi;
+              if (rsi !== undefined && rsi !== null && rsi !== '') return `${rsi} m/s`;
+              const jh = safeNum(t?.jumpHeight ?? t?.jump_height_cm ?? t?.altezza_salto, null);
+              const ct = safeNum(t?.contractionTime ?? t?.contraction_time_ms ?? t?.tempo_contrazione, null);
+              if (jh !== null && ct !== null && ct > 0) {
+                return `${((jh / 100) / (ct / 1000)).toFixed(2)} m/s`;
+              }
+              return 'N/D';
+            } 
+          },
+          { 
+            key: 'contractionTime', 
+            label: 'Contraction Time', 
+            unit: 'ms', 
+            dotColor: 'bg-amber-400', 
+            getValue: (t) => {
+              const v = t?.contractionTime ?? t?.contraction_time_ms ?? t?.tempo_contrazione;
+              return v !== undefined && v !== null && v !== '' ? `${v} ms` : 'N/D';
+            } 
+          },
+          { 
+            key: 'peakPower', 
+            label: 'Peak Power', 
+            unit: 'W', 
+            dotColor: 'bg-emerald-400', 
+            getValue: (t) => {
+              const v = t?.peakPower ?? t?.peak_power_w ?? t?.potenza_picco;
+              return v !== undefined && v !== null && v !== '' ? `${v} W` : 'N/D';
+            } 
+          },
+          { 
+            key: 'eccBrakingSX', 
+            label: 'Eccentric Impulse Left', 
+            unit: 'N·s', 
+            dotColor: 'bg-[#00e5ff]', 
+            getValue: (t) => {
+              const v = t?.eccBrakingSX ?? t?.ecc_braking_sx ?? t?.eccentric_impulse_sx;
+              return v !== undefined && v !== null && v !== '' ? `${v} N·s` : 'N/D';
+            } 
+          },
+          { 
+            key: 'eccBrakingDX', 
+            label: 'Eccentric Impulse Right', 
+            unit: 'N·s', 
+            dotColor: 'bg-pink-400', 
+            getValue: (t) => {
+              const v = t?.eccBrakingDX ?? t?.ecc_braking_dx ?? t?.eccentric_impulse_dx;
+              return v !== undefined && v !== null && v !== '' ? `${v} N·s` : 'N/D';
+            } 
+          },
+          { 
+            key: 'concImpulseSX', 
+            label: 'Concentric Impulse Left', 
+            unit: 'N·s', 
+            dotColor: 'bg-[#00e5ff]', 
+            getValue: (t) => {
+              const v = t?.concImpulseSX ?? t?.conc_impulse_sx ?? t?.concentric_impulse_sx;
+              return v !== undefined && v !== null && v !== '' ? `${v} N·s` : 'N/D';
+            } 
+          },
+          { 
+            key: 'concImpulseDX', 
+            label: 'Concentric Impulse Right', 
+            unit: 'N·s', 
+            dotColor: 'bg-pink-400', 
+            getValue: (t) => {
+              const v = t?.concImpulseDX ?? t?.conc_impulse_dx ?? t?.concentric_impulse_dx;
+              return v !== undefined && v !== null && v !== '' ? `${v} N·s` : 'N/D';
+            } 
+          }
         ];
 
       // 2. TAB [CMJ Monopodalico]
@@ -1083,7 +1204,9 @@ export default function TabBatteriaTest({ patient, activePhase, onChangePhase, o
       {/* SEZIONE 3: GRAFICO MULTIMETRICA INTERATTIVO (A TUTTA LARGHEZZA) */}
       {/* ========================================================================= */}
       <div className="w-full lg:col-span-12 block pt-2">
-        <GraficoMultimetrica tests={testsHistory} />
+        <UIErrorBoundary title="Grafico Multimetrico Temporaneamente Non Disponibile">
+          <GraficoMultimetrica tests={testsHistory} />
+        </UIErrorBoundary>
       </div>
 
       {/* MODAL NUOVA VALUTAZIONE CLINICA LCA */}

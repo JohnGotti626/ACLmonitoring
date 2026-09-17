@@ -160,9 +160,15 @@ export default function PatientDetail({ patient, onBack, onUpdatePatient }) {
             activePhase={activePhase}
             onChangePhase={handlePhaseChange}
             onSaveTest={(testData) => {
-              const currentTests = Array.isArray(patient.tests) ? patient.tests : [];
-              const updatedTests = [...currentTests, testData];
-              onUpdatePatient({ ...patient, tests: updatedTests });
+              const currentTests = Array.isArray(patient?.tests) ? patient.tests.flat(Infinity) : [];
+              let updatedTests;
+              if (Array.isArray(testData)) {
+                updatedTests = testData.flat(Infinity);
+              } else {
+                updatedTests = [...currentTests, testData];
+              }
+              const cleanTests = updatedTests.filter(t => t && typeof t === 'object' && !Array.isArray(t));
+              onUpdatePatient({ ...patient, tests: cleanTests });
             }}
           />
         )}

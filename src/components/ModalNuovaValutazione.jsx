@@ -100,56 +100,63 @@ export default function ModalNuovaValutazione({
   useEffect(() => {
     if (initialData) {
       setEvalDate(initialData.data_valutazione || initialData.date || new Date().toISOString().split('T')[0]);
-      setPhase(initialData.fase_riabilitativa || patient.fase_riabilitativa || 'Fase 3 (3-6 mesi)');
+      setPhase(initialData.fase_riabilitativa || patient?.fase_riabilitativa || 'Fase 3 (3-6 mesi)');
       setEvaluator(initialData.valutatore || 'N Rehab Team');
       if (initialData.ginocchio_operato) {
         setOpKnee(initialData.ginocchio_operato);
       }
       
+      const getValStr = (...vals) => {
+        for (const v of vals) {
+          if (v !== undefined && v !== null && v !== '') return String(v);
+        }
+        return '';
+      };
+
       setForm({
-        legExtSX: initialData.legExtSX ?? (initialData.iso_leg_ext_sx !== undefined && initialData.iso_leg_ext_sx !== null ? String(initialData.iso_leg_ext_sx) : ''),
-        legExtDX: initialData.legExtDX ?? (initialData.iso_leg_ext_dx !== undefined && initialData.iso_leg_ext_dx !== null ? String(initialData.iso_leg_ext_dx) : ''),
-        legCurlSX: initialData.legCurlSX ?? (initialData.iso_leg_curl_sx !== undefined && initialData.iso_leg_curl_sx !== null ? String(initialData.iso_leg_curl_sx) : ''),
-        legCurlDX: initialData.legCurlDX ?? (initialData.iso_leg_curl_dx !== undefined && initialData.iso_leg_curl_dx !== null ? String(initialData.iso_leg_curl_dx) : ''),
-        calfRaiseSX: initialData.calfRaiseSX ?? (initialData.calf_raise_sx !== undefined && initialData.calf_raise_sx !== null ? String(initialData.calf_raise_sx) : ''),
-        calfRaiseDX: initialData.calfRaiseDX ?? (initialData.calf_raise_dx !== undefined && initialData.calf_raise_dx !== null ? String(initialData.calf_raise_dx) : ''),
-        soleoSX: initialData.soleoSX ?? (initialData.soleo_sx !== undefined && initialData.soleo_sx !== null ? String(initialData.soleo_sx) : ''),
-        soleoDX: initialData.soleoDX ?? (initialData.soleo_dx !== undefined && initialData.soleo_dx !== null ? String(initialData.soleo_dx) : ''),
-        bulgarianSX: initialData.bulgarianSX ?? (initialData.bulgarian_sx !== undefined && initialData.bulgarian_sx !== null ? String(initialData.bulgarian_sx) : ''),
-        bulgarianDX: initialData.bulgarianDX ?? (initialData.bulgarian_dx !== undefined && initialData.bulgarian_dx !== null ? String(initialData.bulgarian_dx) : ''),
-        imtpPeakForce: initialData.imtpPeakForce ?? (initialData.imtp_peak_force !== undefined && initialData.imtp_peak_force !== null ? String(initialData.imtp_peak_force) : ''),
+        legExtSX: getValStr(initialData.legExtSX, initialData.iso_leg_ext_sx),
+        legExtDX: getValStr(initialData.legExtDX, initialData.iso_leg_ext_dx),
+        legCurlSX: getValStr(initialData.legCurlSX, initialData.iso_leg_curl_sx),
+        legCurlDX: getValStr(initialData.legCurlDX, initialData.iso_leg_curl_dx),
+        calfRaiseSX: getValStr(initialData.calfRaiseSX, initialData.calf_raise_sx),
+        calfRaiseDX: getValStr(initialData.calfRaiseDX, initialData.calf_raise_dx),
+        soleoSX: getValStr(initialData.soleoSX, initialData.soleo_sx),
+        soleoDX: getValStr(initialData.soleoDX, initialData.soleo_dx),
+        bulgarianSX: getValStr(initialData.bulgarianSX, initialData.bulgarian_sx),
+        bulgarianDX: getValStr(initialData.bulgarianDX, initialData.bulgarian_dx),
+        imtpPeakForce: getValStr(initialData.imtpPeakForce, initialData.imtp_peak_force),
 
-        jumpHeight: initialData.jumpHeight ?? (initialData.jump_height_cm !== undefined && initialData.jump_height_cm !== null ? String(initialData.jump_height_cm) : ''),
-        contractionTime: initialData.contractionTime ?? (initialData.contraction_time_ms !== undefined && initialData.contraction_time_ms !== null ? String(initialData.contraction_time_ms) : ''),
-        peakPower: initialData.peakPower ?? (initialData.peak_power_w !== undefined && initialData.peak_power_w !== null ? String(initialData.peak_power_w) : ''),
-        eccBrakingSX: initialData.eccBrakingSX ?? (initialData.ecc_braking_sx !== undefined && initialData.ecc_braking_sx !== null ? String(initialData.ecc_braking_sx) : ''),
-        eccBrakingDX: initialData.eccBrakingDX ?? (initialData.ecc_braking_dx !== undefined && initialData.ecc_braking_dx !== null ? String(initialData.ecc_braking_dx) : ''),
-        concImpulseSX: initialData.concImpulseSX ?? (initialData.conc_impulse_sx !== undefined && initialData.conc_impulse_sx !== null ? String(initialData.conc_impulse_sx) : ''),
-        concImpulseDX: initialData.concImpulseDX ?? (initialData.conc_impulse_dx !== undefined && initialData.conc_impulse_dx !== null ? String(initialData.conc_impulse_dx) : ''),
+        jumpHeight: getValStr(initialData.jumpHeight, initialData.jump_height_cm, initialData.altezza_salto),
+        contractionTime: getValStr(initialData.contractionTime, initialData.contraction_time_ms, initialData.tempo_contrazione),
+        peakPower: getValStr(initialData.peakPower, initialData.peak_power_w, initialData.potenza_picco),
+        eccBrakingSX: getValStr(initialData.eccBrakingSX, initialData.ecc_braking_sx),
+        eccBrakingDX: getValStr(initialData.eccBrakingDX, initialData.ecc_braking_dx),
+        concImpulseSX: getValStr(initialData.concImpulseSX, initialData.conc_impulse_sx),
+        concImpulseDX: getValStr(initialData.concImpulseDX, initialData.conc_impulse_dx),
 
-        slCmjHeightSX: initialData.slCmjHeightSX ?? (initialData.sl_cmj_height_sx !== undefined && initialData.sl_cmj_height_sx !== null ? String(initialData.sl_cmj_height_sx) : ''),
-        slCmjHeightDX: initialData.slCmjHeightDX ?? (initialData.sl_cmj_height_dx !== undefined && initialData.sl_cmj_height_dx !== null ? String(initialData.sl_cmj_height_dx) : ''),
-        slCmjCtSX: initialData.slCmjCtSX ?? (initialData.sl_cmj_ct_sx !== undefined && initialData.sl_cmj_ct_sx !== null ? String(initialData.sl_cmj_ct_sx) : ''),
-        slCmjCtDX: initialData.slCmjCtDX ?? (initialData.sl_cmj_ct_dx !== undefined && initialData.sl_cmj_ct_dx !== null ? String(initialData.sl_cmj_ct_dx) : ''),
-        slCmjPeakPowerSX: initialData.slCmjPeakPowerSX ?? (initialData.sl_cmj_peak_power_sx !== undefined && initialData.sl_cmj_peak_power_sx !== null ? String(initialData.sl_cmj_peak_power_sx) : ''),
-        slCmjPeakPowerDX: initialData.slCmjPeakPowerDX ?? (initialData.sl_cmj_peak_power_dx !== undefined && initialData.sl_cmj_peak_power_dx !== null ? String(initialData.sl_cmj_peak_power_dx) : ''),
-        slCmjRsiSX: initialData.slCmjRsiSX ?? (initialData.sl_cmj_rsi_sx !== undefined && initialData.sl_cmj_rsi_sx !== null ? String(initialData.sl_cmj_rsi_sx) : ''),
-        slCmjRsiDX: initialData.slCmjRsiDX ?? (initialData.sl_cmj_rsi_dx !== undefined && initialData.sl_cmj_rsi_dx !== null ? String(initialData.sl_cmj_rsi_dx) : ''),
-        slCmjEccImpulseSX: initialData.slCmjEccImpulseSX ?? (initialData.sl_cmj_ecc_impulse_sx !== undefined && initialData.sl_cmj_ecc_impulse_sx !== null ? String(initialData.sl_cmj_ecc_impulse_sx) : ''),
-        slCmjEccImpulseDX: initialData.slCmjEccImpulseDX ?? (initialData.sl_cmj_ecc_impulse_dx !== undefined && initialData.sl_cmj_ecc_impulse_dx !== null ? String(initialData.sl_cmj_ecc_impulse_dx) : ''),
+        slCmjHeightSX: getValStr(initialData.slCmjHeightSX, initialData.sl_cmj_height_sx),
+        slCmjHeightDX: getValStr(initialData.slCmjHeightDX, initialData.sl_cmj_height_dx),
+        slCmjCtSX: getValStr(initialData.slCmjCtSX, initialData.sl_cmj_ct_sx),
+        slCmjCtDX: getValStr(initialData.slCmjCtDX, initialData.sl_cmj_ct_dx),
+        slCmjPeakPowerSX: getValStr(initialData.slCmjPeakPowerSX, initialData.sl_cmj_peak_power_sx),
+        slCmjPeakPowerDX: getValStr(initialData.slCmjPeakPowerDX, initialData.sl_cmj_peak_power_dx),
+        slCmjRsiSX: getValStr(initialData.slCmjRsiSX, initialData.sl_cmj_rsi_sx),
+        slCmjRsiDX: getValStr(initialData.slCmjRsiDX, initialData.sl_cmj_rsi_dx),
+        slCmjEccImpulseSX: getValStr(initialData.slCmjEccImpulseSX, initialData.sl_cmj_ecc_impulse_sx),
+        slCmjEccImpulseDX: getValStr(initialData.slCmjEccImpulseDX, initialData.sl_cmj_ecc_impulse_dx),
 
         djBoxHeight: initialData.djBoxHeight || initialData.dj_box_height || '30 cm',
-        djJumpHeight: initialData.djJumpHeight ?? (initialData.dj_jump_height !== undefined && initialData.dj_jump_height !== null ? String(initialData.dj_jump_height) : ''),
-        djContactTime: initialData.djContactTime ?? (initialData.dj_contact_time !== undefined && initialData.dj_contact_time !== null ? String(initialData.dj_contact_time) : ''),
-        djRSI: initialData.djRSI ?? (initialData.dj_rsi !== undefined && initialData.dj_rsi !== null ? String(initialData.dj_rsi) : ''),
-        djTtpfMs: initialData.djTtpfMs ?? (initialData.dj_ttpf_ms !== undefined && initialData.dj_ttpf_ms !== null ? String(initialData.dj_ttpf_ms) : ''),
-        djTakeoffAsymMs: initialData.djTakeoffAsymMs ?? (initialData.dj_takeoff_asym_ms !== undefined && initialData.dj_takeoff_asym_ms !== null ? String(initialData.dj_takeoff_asym_ms) : ''),
-        djLandingPeakSX: initialData.djLandingPeakSX ?? (initialData.dj_landing_peak_sx !== undefined && initialData.dj_landing_peak_sx !== null ? String(initialData.dj_landing_peak_sx) : ''),
-        djLandingPeakDX: initialData.djLandingPeakDX ?? (initialData.dj_landing_peak_dx !== undefined && initialData.dj_landing_peak_dx !== null ? String(initialData.dj_landing_peak_dx) : ''),
-        djConcImpulseSX: initialData.djConcImpulseSX ?? (initialData.dj_conc_impulse_sx !== undefined && initialData.dj_conc_impulse_sx !== null ? String(initialData.dj_conc_impulse_sx) : ''),
-        djConcImpulseDX: initialData.djConcImpulseDX ?? (initialData.dj_conc_impulse_dx !== undefined && initialData.dj_conc_impulse_dx !== null ? String(initialData.dj_conc_impulse_dx) : ''),
-        djBrakingForce: initialData.djBrakingForce ?? (initialData.dj_braking_force !== undefined && initialData.dj_braking_force !== null ? String(initialData.dj_braking_force) : ''),
-        djBrakingImpulse: initialData.djBrakingImpulse ?? (initialData.dj_braking_impulse !== undefined && initialData.dj_braking_impulse !== null ? String(initialData.dj_braking_impulse) : ''),
+        djJumpHeight: getValStr(initialData.djJumpHeight, initialData.dj_jump_height),
+        djContactTime: getValStr(initialData.djContactTime, initialData.dj_contact_time),
+        djRSI: getValStr(initialData.djRSI, initialData.dj_rsi),
+        djTtpfMs: getValStr(initialData.djTtpfMs, initialData.dj_ttpf_ms),
+        djTakeoffAsymMs: getValStr(initialData.djTakeoffAsymMs, initialData.dj_takeoff_asym_ms),
+        djLandingPeakSX: getValStr(initialData.djLandingPeakSX, initialData.dj_landing_peak_sx),
+        djLandingPeakDX: getValStr(initialData.djLandingPeakDX, initialData.dj_landing_peak_dx),
+        djConcImpulseSX: getValStr(initialData.djConcImpulseSX, initialData.dj_conc_impulse_sx),
+        djConcImpulseDX: getValStr(initialData.djConcImpulseDX, initialData.dj_conc_impulse_dx),
+        djBrakingForce: getValStr(initialData.djBrakingForce, initialData.dj_braking_force),
+        djBrakingImpulse: getValStr(initialData.djBrakingImpulse, initialData.dj_braking_impulse),
 
         slDjBoxHeight: initialData.slDjBoxHeight || initialData.sl_dj_box_height || '30 cm',
         slDjCtSX: initialData.slDjCtSX ?? (initialData.sl_dj_ct_sx !== undefined && initialData.sl_dj_ct_sx !== null ? String(initialData.sl_dj_ct_sx) : ''),

@@ -129,31 +129,54 @@ export const createTestObject = (newValData, patientId, testIndex = 1) => {
     imtpForce: parseVal(newValData.imtp_peak_force) || '-',
     ikdc: parseVal(newValData.ikdc_score) || 80,
 
-    // CMJ Bilaterale
-    jumpHeight: parseVal(newValData.jump_height_cm),
-    contractionTime: parseVal(newValData.contraction_time_ms),
-    peakPower: parseVal(newValData.peak_power_w),
-    rsiCmj: parseVal(newValData.rsi_cmj),
-    eccBrakingSX: parseVal(newValData.ecc_braking_sx),
-    eccBrakingDX: parseVal(newValData.ecc_braking_dx),
-    brakingAsym: newValData.ecc_braking_asym_calculated || '0',
-    cmjImpulseLsi: newValData.ecc_braking_asym_calculated ? parseFloat((100 - parseFloat(newValData.ecc_braking_asym_calculated)).toFixed(1)) : 0,
-    concImpulseSX: parseVal(newValData.conc_impulse_sx),
-    concImpulseDX: parseVal(newValData.conc_impulse_dx),
-    concImpulseAsym: newValData.conc_impulse_asym_calculated || '0',
+    // CMJ Bilaterale (Doppia associazione per compatibilità modale/tabella/DB)
+    jumpHeight: parseVal(newValData.jump_height_cm) ?? parseVal(newValData.jumpHeight) ?? parseVal(newValData.altezza_salto) ?? null,
+    jump_height_cm: parseVal(newValData.jump_height_cm) ?? parseVal(newValData.jumpHeight) ?? parseVal(newValData.altezza_salto) ?? null,
+    altezza_salto: parseVal(newValData.jump_height_cm) ?? parseVal(newValData.jumpHeight) ?? parseVal(newValData.altezza_salto) ?? null,
+
+    contractionTime: parseVal(newValData.contraction_time_ms) ?? parseVal(newValData.contractionTime) ?? parseVal(newValData.tempo_contrazione) ?? null,
+    contraction_time_ms: parseVal(newValData.contraction_time_ms) ?? parseVal(newValData.contractionTime) ?? parseVal(newValData.tempo_contrazione) ?? null,
+
+    peakPower: parseVal(newValData.peak_power_w) ?? parseVal(newValData.peakPower) ?? parseVal(newValData.potenza_picco) ?? null,
+    peak_power_w: parseVal(newValData.peak_power_w) ?? parseVal(newValData.peakPower) ?? parseVal(newValData.potenza_picco) ?? null,
+
+    rsiCmj: parseVal(newValData.rsi_cmj) ?? parseVal(newValData.rsiCmj) ?? parseVal(newValData.rsi_mod) ?? 
+      ((parseVal(newValData.jump_height_cm) ?? parseVal(newValData.jumpHeight)) && (parseVal(newValData.contraction_time_ms) ?? parseVal(newValData.contractionTime))
+        ? parseFloat((((parseVal(newValData.jump_height_cm) ?? parseVal(newValData.jumpHeight)) / 100) / ((parseVal(newValData.contraction_time_ms) ?? parseVal(newValData.contractionTime)) / 1000)).toFixed(2))
+        : null),
+    rsi_cmj: parseVal(newValData.rsi_cmj) ?? parseVal(newValData.rsiCmj) ?? parseVal(newValData.rsi_mod) ?? null,
+
+    eccBrakingSX: parseVal(newValData.ecc_braking_sx) ?? parseVal(newValData.eccBrakingSX) ?? null,
+    ecc_braking_sx: parseVal(newValData.ecc_braking_sx) ?? parseVal(newValData.eccBrakingSX) ?? null,
+
+    eccBrakingDX: parseVal(newValData.ecc_braking_dx) ?? parseVal(newValData.eccBrakingDX) ?? null,
+    ecc_braking_dx: parseVal(newValData.ecc_braking_dx) ?? parseVal(newValData.eccBrakingDX) ?? null,
+
+    brakingAsym: newValData.ecc_braking_asym_calculated || newValData.brakingAsym || '0',
+    cmjImpulseLsi: newValData.ecc_braking_asym_calculated 
+      ? parseFloat((100 - parseFloat(newValData.ecc_braking_asym_calculated)).toFixed(1)) 
+      : (parseVal(newValData.cmjImpulseLsi) ?? 0),
+
+    concImpulseSX: parseVal(newValData.conc_impulse_sx) ?? parseVal(newValData.concImpulseSX) ?? null,
+    conc_impulse_sx: parseVal(newValData.conc_impulse_sx) ?? parseVal(newValData.concImpulseSX) ?? null,
+
+    concImpulseDX: parseVal(newValData.conc_impulse_dx) ?? parseVal(newValData.concImpulseDX) ?? null,
+    conc_impulse_dx: parseVal(newValData.conc_impulse_dx) ?? parseVal(newValData.concImpulseDX) ?? null,
+
+    concImpulseAsym: newValData.conc_impulse_asym_calculated || newValData.concImpulseAsym || '0',
 
     // CMJ Monopodalico
-    slCmjHeightSX: parseVal(newValData.sl_cmj_height_sx),
-    slCmjHeightDX: parseVal(newValData.sl_cmj_height_dx),
-    slCmjCtSX: parseVal(newValData.sl_cmj_ct_sx),
-    slCmjCtDX: parseVal(newValData.sl_cmj_ct_dx),
-    slCmjPeakPowerSX: parseVal(newValData.sl_cmj_peak_power_sx),
-    slCmjPeakPowerDX: parseVal(newValData.sl_cmj_peak_power_dx),
-    slCmjRsiSX: parseVal(newValData.sl_cmj_rsi_sx),
-    slCmjRsiDX: parseVal(newValData.sl_cmj_rsi_dx),
-    slCmjEccImpulseSX: parseVal(newValData.sl_cmj_ecc_impulse_sx),
-    slCmjEccImpulseDX: parseVal(newValData.sl_cmj_ecc_impulse_dx),
-    slCmjHeightLsi: parseVal(newValData.lsi_sl_cmj_height_calculated) || 0,
+    slCmjHeightSX: parseVal(newValData.sl_cmj_height_sx) ?? parseVal(newValData.slCmjHeightSX) ?? null,
+    slCmjHeightDX: parseVal(newValData.sl_cmj_height_dx) ?? parseVal(newValData.slCmjHeightDX) ?? null,
+    slCmjCtSX: parseVal(newValData.sl_cmj_ct_sx) ?? parseVal(newValData.slCmjCtSX) ?? null,
+    slCmjCtDX: parseVal(newValData.sl_cmj_ct_dx) ?? parseVal(newValData.slCmjCtDX) ?? null,
+    slCmjPeakPowerSX: parseVal(newValData.sl_cmj_peak_power_sx) ?? parseVal(newValData.slCmjPeakPowerSX) ?? null,
+    slCmjPeakPowerDX: parseVal(newValData.sl_cmj_peak_power_dx) ?? parseVal(newValData.slCmjPeakPowerDX) ?? null,
+    slCmjRsiSX: parseVal(newValData.sl_cmj_rsi_sx) ?? parseVal(newValData.slCmjRsiSX) ?? null,
+    slCmjRsiDX: parseVal(newValData.sl_cmj_rsi_dx) ?? parseVal(newValData.slCmjRsiDX) ?? null,
+    slCmjEccImpulseSX: parseVal(newValData.sl_cmj_ecc_impulse_sx) ?? parseVal(newValData.slCmjEccImpulseSX) ?? null,
+    slCmjEccImpulseDX: parseVal(newValData.sl_cmj_ecc_impulse_dx) ?? parseVal(newValData.slCmjEccImpulseDX) ?? null,
+    slCmjHeightLsi: parseVal(newValData.lsi_sl_cmj_height_calculated) ?? parseVal(newValData.slCmjHeightLsi) ?? 0,
 
     // Drop Jump Bilaterale (RTP Specialist Metriche Temporali & Dual Load Cells)
     djBoxHeight,
