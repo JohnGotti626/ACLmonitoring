@@ -22,6 +22,7 @@ import {
 import { useAuth } from '../../context/AuthContext';
 import ModalNuovaValutazione from '../ModalNuovaValutazione';
 import GraficoMultimetrica from '../GraficoMultimetrica';
+import { createTestObject, saveTestToSupabase } from '../../utils/testUtils';
 
 export default function TabBatteriaTest({ patient, activePhase, onChangePhase, onSaveTest }) {
   const { role } = useAuth();
@@ -29,12 +30,33 @@ export default function TabBatteriaTest({ patient, activePhase, onChangePhase, o
 
   // State Modal Nuova Valutazione Clinica
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [editingTest, setEditingTest] = useState(null);
 
   // Sub-Tab Superiori a Sinistra (Default: CMJ Bilaterale)
   const [activeSubTab, setActiveSubTab] = useState('CMJ_BILATERAL'); // 'LSI', 'FORZA', 'CMJ_BILATERAL', 'CMJ_SL', 'DJ_BILATERAL', 'DJ_SL'
 
-  // Fase Target Selezionata a Destra (Default: Fase 3 (>80%))
-  const [selectedPhase, setSelectedPhase] = useState('Fase 3 (>80%)');
+  // Mapper fase riabilitativa -> chiave fase per la Batteria Test
+  const getPhaseKeyForBatteria = (fase) => {
+    if (!fase) return 'Fase 3 (>80%)';
+    const str = String(fase).toLowerCase();
+    if (str.includes('1') || str.includes('early') || str.includes('rom')) return 'Fase 1';
+    if (str.includes('2') || str.includes('mid') || str.includes('forza')) return 'Fase 2 (>70%)';
+    if (str.includes('3') || str.includes('run') || str.includes('power') || str.includes('drills')) return 'Fase 3 (>80%)';
+    if (str.includes('4') || str.includes('late') || str.includes('cod') || str.includes('agility')) return 'Fase 4';
+    if (str.includes('5') || str.includes('perf') || str.includes('rts') || str.includes('sport') || str.includes('play')) return 'Fase 5 (RTS)';
+    return 'Fase 3 (>80%)';
+  };
+
+  // Fase Target Selezionata a Destra (Sincronizzata di default con la Fase Attiva del paziente)
+  const [selectedPhase, setSelectedPhase] = useState(() => getPhaseKeyForBatteria(patient?.fase_riabilitativa || activePhase));
+
+  // Sincronizzazione automatica quando viene cambiata la fase nelle Direttive Operative
+  React.useEffect(() => {
+    const currentActive = patient?.fase_riabilitativa || activePhase;
+    if (currentActive) {
+      setSelectedPhase(getPhaseKeyForBatteria(currentActive));
+    }
+  }, [patient?.fase_riabilitativa, activePhase]);
 
   // CHECKLIST QUALITATIVA FASE 2
   const [phase2Checklist, setPhase2Checklist] = useState({
@@ -59,409 +81,24 @@ export default function TabBatteriaTest({ patient, activePhase, onChangePhase, o
     weeklyLoadTolerance: true  
   });
 
-  // STORICO TEST REGISTRATI NEL TEMPO (Simulazione 6 valutazioni longitudinali al 9° mese)
-  const [testsHistory, setTestsHistory] = useState([
-    {
-      id: 'test-1',
-      num: 1,
-      label: 'Test #1 (Mese 2)',
-      date: '15/02/2026',
-      lsiQuad: 62.5,
-      lsiQuadDelta: '-',
-      lsiFlex: 68.0,
-      lsiFlexDelta: '-',
-      lsiSingleHop: 60.0,
-      lsiSingleHopDelta: '-',
-      lsiTripleHop: 62.0,
-      lsiTripleHopDelta: '-',
-      quadOpNmKg: 1.85,
-      quadSano: 360,
-      quadOp: 225,
-      flexSano: 180,
-      flexOp: 122,
-      bulgarianSX: 30,
-      bulgarianDX: 24,
-      soleoSX: 28,
-      soleoDX: 22,
-      imtpForce: '-',
-      imtpRelForce: '-',
-      ikdc: 58,
-      brakingAsym: 19.5,
-      cmjImpulseLsi: 68.5,
-      slCmjHeightLsi: 72.0,
-      rsiCmj: 0.32,
-      calfRaiseKg: 35.0,
-      jumpHeight: 21.0,
-      contractionTime: 680,
-      peakPower: 35.2,
-      eccBrakingSX: 165,
-      eccBrakingDX: 140,
-      eccBrakingAsym: '17.8',
-      concImpulseSX: 160,
-      concImpulseDX: 135,
-      concImpulseAsym: '18.5',
-      slCmjHeightSX: 12.5,
-      slCmjHeightDX: 9.0,
-      slCmjCtSX: 640,
-      slCmjCtDX: 690,
-      slCmjPeakPowerSX: 24.0,
-      slCmjPeakPowerDX: 17.5,
-      slCmjRsiSX: 0.20,
-      slCmjRsiDX: 0.14,
-      slCmjEccImpulseSX: 105,
-      slCmjEccImpulseDX: 78,
-      djBoxHeight: '30 cm',
-      djContactTime: 260,
-      rsiDropJump: 1.10,
-      djBrakingForce: 1250,
-      djBrakingImpulse: 150,
-      slDjBoxHeight: '30 cm',
-      slDjCtSX: 410,
-      slDjCtDX: 460,
-      slDjRsiSX: 0.28,
-      slDjRsiDX: 0.21,
-      slDjHeightSX: 10.5,
-      slDjHeightDX: 8.0,
-      slDjBrakingSX: 85,
-      slDjBrakingDX: 65,
-      slDjRsiLsi: 75.0,
-      aclrsi: 45
-    },
-    {
-      id: 'test-2',
-      num: 2,
-      label: 'Test #2 (Mese 3.5)',
-      date: '30/03/2026',
-      lsiQuad: 72.4,
-      lsiQuadDelta: '+15.8%',
-      lsiFlex: 75.5,
-      lsiFlexDelta: '+11.0%',
-      lsiSingleHop: 73.9,
-      lsiSingleHopDelta: '+23.1%',
-      lsiTripleHop: 74.8,
-      lsiTripleHopDelta: '+20.6%',
-      quadOpNmKg: 2.15,
-      quadSano: 393,
-      quadOp: 284,
-      flexSano: 185,
-      flexOp: 140,
-      bulgarianSX: 38,
-      bulgarianDX: 32,
-      soleoSX: 32,
-      soleoDX: 28,
-      imtpForce: '-',
-      imtpRelForce: '-',
-      ikdc: 68,
-      brakingAsym: 16.1,
-      cmjImpulseLsi: 73.9,
-      slCmjHeightLsi: 82.6,
-      rsiCmj: 0.43,
-      calfRaiseKg: 42.0,
-      jumpHeight: 26.5,
-      contractionTime: 650,
-      peakPower: 41.8,
-      eccBrakingSX: 195,
-      eccBrakingDX: 168,
-      eccBrakingAsym: '16.1',
-      concImpulseSX: 185,
-      concImpulseDX: 155,
-      concImpulseAsym: '16.2',
-      slCmjHeightSX: 15.5,
-      slCmjHeightDX: 12.8,
-      slCmjCtSX: 620,
-      slCmjCtDX: 650,
-      slCmjPeakPowerSX: 28.5,
-      slCmjPeakPowerDX: 23.4,
-      slCmjRsiSX: 0.25,
-      slCmjRsiDX: 0.20,
-      slCmjEccImpulseSX: 120,
-      slCmjEccImpulseDX: 98,
-      djBoxHeight: '30 cm',
-      djContactTime: 240,
-      rsiDropJump: 1.25,
-      djBrakingForce: 1380,
-      djBrakingImpulse: 175,
-      slDjBoxHeight: '30 cm',
-      slDjCtSX: 380,
-      slDjCtDX: 420,
-      slDjRsiSX: 0.34,
-      slDjRsiDX: 0.28,
-      slDjHeightSX: 12.5,
-      slDjHeightDX: 10.2,
-      slDjBrakingSX: 95,
-      slDjBrakingDX: 78,
-      slDjRsiLsi: 82.4,
-      aclrsi: 62
-    },
-    {
-      id: 'test-3',
-      num: 3,
-      label: 'Test #3 (Mese 5)',
-      date: '15/05/2026',
-      lsiQuad: 81.5,
-      lsiQuadDelta: '+12.6%',
-      lsiFlex: 83.0,
-      lsiFlexDelta: '+9.9%',
-      lsiSingleHop: 80.5,
-      lsiSingleHopDelta: '+8.9%',
-      lsiTripleHop: 82.0,
-      lsiTripleHopDelta: '+9.6%',
-      quadOpNmKg: 2.45,
-      quadSano: 420,
-      quadOp: 342,
-      flexSano: 200,
-      flexOp: 166,
-      bulgarianSX: 42,
-      bulgarianDX: 38,
-      soleoSX: 35,
-      soleoDX: 32,
-      imtpForce: '-',
-      imtpRelForce: '-',
-      ikdc: 76,
-      brakingAsym: 11.2,
-      cmjImpulseLsi: 82.5,
-      slCmjHeightLsi: 87.0,
-      rsiCmj: 0.50,
-      calfRaiseKg: 48.0,
-      jumpHeight: 31.0,
-      contractionTime: 610,
-      peakPower: 46.5,
-      eccBrakingSX: 220,
-      eccBrakingDX: 198,
-      eccBrakingAsym: '11.2',
-      concImpulseSX: 210,
-      concImpulseDX: 190,
-      concImpulseAsym: '10.5',
-      slCmjHeightSX: 17.2,
-      slCmjHeightDX: 15.0,
-      slCmjCtSX: 590,
-      slCmjCtDX: 620,
-      slCmjPeakPowerSX: 31.0,
-      slCmjPeakPowerDX: 27.0,
-      slCmjRsiSX: 0.29,
-      slCmjRsiDX: 0.24,
-      slCmjEccImpulseSX: 128,
-      slCmjEccImpulseDX: 112,
-      djBoxHeight: '30 cm',
-      djContactTime: 220,
-      rsiDropJump: 1.45,
-      djBrakingForce: 1520,
-      djBrakingImpulse: 192,
-      slDjBoxHeight: '30 cm',
-      slDjCtSX: 340,
-      slDjCtDX: 380,
-      slDjRsiSX: 0.42,
-      slDjRsiDX: 0.35,
-      slDjHeightSX: 14.2,
-      slDjHeightDX: 12.0,
-      slDjBrakingSX: 110,
-      slDjBrakingDX: 92,
-      slDjRsiLsi: 83.3,
-      aclrsi: 74
-    },
-    {
-      id: 'test-4',
-      num: 4,
-      label: 'Test #4 (Mese 6.5)',
-      date: '30/06/2026',
-      lsiQuad: 88.5,
-      lsiQuadDelta: '+8.6%',
-      lsiFlex: 89.2,
-      lsiFlexDelta: '+7.5%',
-      lsiSingleHop: 87.5,
-      lsiSingleHopDelta: '+8.7%',
-      lsiTripleHop: 88.0,
-      lsiTripleHopDelta: '+7.3%',
-      quadOpNmKg: 2.68,
-      quadSano: 435,
-      quadOp: 385,
-      flexSano: 210,
-      flexOp: 187,
-      bulgarianSX: 46,
-      bulgarianDX: 43,
-      soleoSX: 38,
-      soleoDX: 36,
-      imtpForce: '2450',
-      imtpRelForce: '32.5',
-      ikdc: 84,
-      brakingAsym: 7.5,
-      cmjImpulseLsi: 88.0,
-      slCmjHeightLsi: 91.5,
-      rsiCmj: 0.58,
-      calfRaiseKg: 52.0,
-      jumpHeight: 34.5,
-      contractionTime: 590,
-      peakPower: 51.0,
-      eccBrakingSX: 242,
-      eccBrakingDX: 225,
-      eccBrakingAsym: '7.5',
-      concImpulseSX: 230,
-      concImpulseDX: 215,
-      concImpulseAsym: '6.9',
-      slCmjHeightSX: 18.5,
-      slCmjHeightDX: 16.9,
-      slCmjCtSX: 560,
-      slCmjCtDX: 585,
-      slCmjPeakPowerSX: 33.2,
-      slCmjPeakPowerDX: 30.4,
-      slCmjRsiSX: 0.33,
-      slCmjRsiDX: 0.29,
-      slCmjEccImpulseSX: 138,
-      slCmjEccImpulseDX: 127,
-      djBoxHeight: '30 cm',
-      djContactTime: 205,
-      rsiDropJump: 1.68,
-      djBrakingForce: 1650,
-      djBrakingImpulse: 210,
-      slDjBoxHeight: '30 cm',
-      slDjCtSX: 310,
-      slDjCtDX: 340,
-      slDjRsiSX: 0.48,
-      slDjRsiDX: 0.42,
-      slDjHeightSX: 15.8,
-      slDjHeightDX: 14.1,
-      slDjBrakingSX: 122,
-      slDjBrakingDX: 110,
-      slDjRsiLsi: 87.5,
-      aclrsi: 82
-    },
-    {
-      id: 'test-5',
-      num: 5,
-      label: 'Test #5 (Mese 8)',
-      date: '15/08/2026',
-      lsiQuad: 94.2,
-      lsiQuadDelta: '+6.4%',
-      lsiFlex: 93.8,
-      lsiFlexDelta: '+5.2%',
-      lsiSingleHop: 93.5,
-      lsiSingleHopDelta: '+6.8%',
-      lsiTripleHop: 94.0,
-      lsiTripleHopDelta: '+6.8%',
-      quadOpNmKg: 2.88,
-      quadSano: 450,
-      quadOp: 424,
-      flexSano: 220,
-      flexOp: 206,
-      bulgarianSX: 50,
-      bulgarianDX: 48,
-      soleoSX: 42,
-      soleoDX: 40,
-      imtpForce: '2680',
-      imtpRelForce: '35.7',
-      ikdc: 91,
-      brakingAsym: 4.0,
-      cmjImpulseLsi: 94.0,
-      slCmjHeightLsi: 95.2,
-      rsiCmj: 0.65,
-      calfRaiseKg: 58.0,
-      jumpHeight: 37.2,
-      contractionTime: 570,
-      peakPower: 55.4,
-      eccBrakingSX: 258,
-      eccBrakingDX: 248,
-      eccBrakingAsym: '4.0',
-      concImpulseSX: 245,
-      concImpulseDX: 236,
-      concImpulseAsym: '3.8',
-      slCmjHeightSX: 19.8,
-      slCmjHeightDX: 18.8,
-      slCmjCtSX: 540,
-      slCmjCtDX: 560,
-      slCmjPeakPowerSX: 35.8,
-      slCmjPeakPowerDX: 34.1,
-      slCmjRsiSX: 0.37,
-      slCmjRsiDX: 0.34,
-      slCmjEccImpulseSX: 146,
-      slCmjEccImpulseDX: 139,
-      djBoxHeight: '30 cm',
-      djContactTime: 190,
-      rsiDropJump: 1.95,
-      djBrakingForce: 1780,
-      djBrakingImpulse: 228,
-      slDjBoxHeight: '30 cm',
-      slDjCtSX: 285,
-      slDjCtDX: 305,
-      slDjRsiSX: 0.55,
-      slDjRsiDX: 0.50,
-      slDjHeightSX: 17.2,
-      slDjHeightDX: 15.9,
-      slDjBrakingSX: 135,
-      slDjBrakingDX: 126,
-      slDjRsiLsi: 90.9,
-      aclrsi: 90
-    },
-    {
-      id: 'test-6',
-      num: 6,
-      label: 'Test #6 (Mese 9)',
-      date: '15/09/2026',
-      lsiQuad: 97.8,
-      lsiQuadDelta: '+3.8%',
-      lsiFlex: 96.5,
-      lsiFlexDelta: '+2.9%',
-      lsiSingleHop: 96.8,
-      lsiSingleHopDelta: '+3.5%',
-      lsiTripleHop: 97.2,
-      lsiTripleHopDelta: '+3.4%',
-      quadOpNmKg: 3.05,
-      quadSano: 462,
-      quadOp: 452,
-      flexSano: 225,
-      flexOp: 217,
-      bulgarianSX: 54,
-      bulgarianDX: 52,
-      soleoSX: 45,
-      soleoDX: 44,
-      imtpForce: '2820',
-      imtpRelForce: '37.6',
-      ikdc: 96,
-      brakingAsym: 1.9,
-      cmjImpulseLsi: 97.5,
-      slCmjHeightLsi: 97.0,
-      rsiCmj: 0.72,
-      calfRaiseKg: 62.0,
-      jumpHeight: 39.5,
-      contractionTime: 550,
-      peakPower: 58.8,
-      eccBrakingSX: 270,
-      eccBrakingDX: 265,
-      eccBrakingAsym: '1.9',
-      concImpulseSX: 256,
-      concImpulseDX: 251,
-      concImpulseAsym: '2.0',
-      slCmjHeightSX: 20.8,
-      slCmjHeightDX: 20.2,
-      slCmjCtSX: 520,
-      slCmjCtDX: 535,
-      slCmjPeakPowerSX: 37.5,
-      slCmjPeakPowerDX: 36.4,
-      slCmjRsiSX: 0.40,
-      slCmjRsiDX: 0.38,
-      slCmjEccImpulseSX: 154,
-      slCmjEccImpulseDX: 149,
-      djBoxHeight: '30 cm',
-      djContactTime: 180,
-      rsiDropJump: 2.18,
-      djBrakingForce: 1890,
-      djBrakingImpulse: 242,
-      slDjBoxHeight: '30 cm',
-      slDjCtSX: 265,
-      slDjCtDX: 280,
-      slDjRsiSX: 0.62,
-      slDjRsiDX: 0.58,
-      slDjHeightSX: 18.5,
-      slDjHeightDX: 17.5,
-      slDjBrakingSX: 145,
-      slDjBrakingDX: 138,
-      slDjRsiLsi: 93.5,
-      aclrsi: 95
-    }
-  ]);
+  // STORICO TEST REGISTRATI NEL TEMPO (filtrati rigorosamente per il paziente attivo)
+  const [testsHistory, setTestsHistory] = useState(patient?.tests || []);
+  const [selectedTestId, setSelectedTestId] = useState(
+    patient?.tests && patient.tests.length > 0 ? patient.tests[patient.tests.length - 1].id : null
+  );
 
-  // TEST SELEZIONATO PER I BICCHIERI (Default: Test #6 al 9° Mese)
-  const [selectedTestId, setSelectedTestId] = useState('test-6');
-  const activeTest = testsHistory.find(t => t.id === selectedTestId) || testsHistory[testsHistory.length - 1];
+  // Sincronizzazione dinamica quando cambia il paziente o i suoi test
+  React.useEffect(() => {
+    const currentTests = Array.isArray(patient?.tests) ? patient.tests : [];
+    setTestsHistory(currentTests);
+    if (currentTests.length > 0) {
+      setSelectedTestId(currentTests[currentTests.length - 1].id);
+    } else {
+      setSelectedTestId(null);
+    }
+  }, [patient?.id, patient?.tests]);
+
+  const activeTest = testsHistory.find(t => t.id === selectedTestId) || (testsHistory.length > 0 ? testsHistory[testsHistory.length - 1] : null);
 
   // CONFIGURAZIONE CLINICA FASI & TARGET
   const phaseConfig = {
@@ -495,7 +132,9 @@ export default function TabBatteriaTest({ patient, activePhase, onChangePhase, o
   // CONFIGURAZIONE BICCHIERI PRESTATIVI
   let cupsData = [];
 
-  if (currentPhase.isEarlyStage) {
+  if (!activeTest) {
+    cupsData = [];
+  } else if (currentPhase.isEarlyStage) {
     cupsData = [
       {
         id: 'early_stage_info',
@@ -718,87 +357,102 @@ export default function TabBatteriaTest({ patient, activePhase, onChangePhase, o
     ];
   }
 
-  // Gestore aggiunta nuovo test da Modal
-  const handleModalSave = (newValData) => {
-    const newNum = testsHistory.length + 1;
-    const newTest = {
-      id: `test-${newNum}`,
-      num: newNum,
-      label: `Test #${newNum}`,
-      date: newValData.data_valutazione ? newValData.data_valutazione.split('-').reverse().join('/') : 'Oggi',
-      lsiQuad: newValData.lsi_quad_calculated ? parseFloat(newValData.lsi_quad_calculated) : 92.0,
-      lsiQuadDelta: '+4.5%',
-      lsiFlex: newValData.lsi_curl_calculated ? parseFloat(newValData.lsi_curl_calculated) : 90.0,
-      lsiFlexDelta: '+3.5%',
-      lsiSingleHop: 91.0,
-      lsiSingleHopDelta: '+4.0%',
-      lsiTripleHop: 92.0,
-      lsiTripleHopDelta: '+4.2%',
-      quadOpNmKg: 2.65,
-      quadSano: newValData.iso_leg_ext_sx || 450,
-      quadOp: newValData.iso_leg_ext_dx || 414,
-      flexSano: newValData.iso_leg_curl_sx || 220,
-      flexOp: newValData.iso_leg_curl_dx || 198,
-      bulgarianSX: 44,
-      bulgarianDX: 40,
-      soleoSX: 36,
-      soleoDX: 34,
-      imtpForce: '-',
-      imtpRelForce: '-',
-      ikdc: 82,
-      brakingAsym: newValData.ecc_braking_asym_calculated || '8.6',
-      cmjImpulseLsi: newValData.ecc_braking_asym_calculated ? (100 - parseFloat(newValData.ecc_braking_asym_calculated)).toFixed(1) : 91.4,
-      slCmjHeightLsi: newValData.lsi_sl_cmj_height_calculated || 90.0,
-      slDjRsi: 0.45,
-      slDjCt: 0.28,
-      rsiCmj: newValData.rsi_cmj || 0.52,
-      calfRaiseKg: 54.0,
-      jumpHeight: newValData.jump_height_cm || 32.0,
-      contractionTime: newValData.contraction_time_ms || 610,
-      peakPower: newValData.peak_power_w || 52.5,
-      eccBrakingSX: newValData.ecc_braking_sx || 240,
-      eccBrakingDX: newValData.ecc_braking_dx || 220,
-      eccBrakingAsym: newValData.ecc_braking_asym_calculated || '8.3',
-      concImpulseSX: newValData.conc_impulse_sx || 230,
-      concImpulseDX: newValData.conc_impulse_dx || 215,
-      concImpulseAsym: newValData.conc_impulse_asym_calculated || '6.5',
-      // CMJ Monopodalico
-      slCmjHeightSX: newValData.sl_cmj_height_sx || 18.5,
-      slCmjHeightDX: newValData.sl_cmj_height_dx || 16.8,
-      slCmjCtSX: newValData.sl_cmj_ct_sx || 580,
-      slCmjCtDX: newValData.sl_cmj_ct_dx || 610,
-      slCmjPeakPowerSX: newValData.sl_cmj_peak_power_sx || 32.5,
-      slCmjPeakPowerDX: newValData.sl_cmj_peak_power_dx || 29.8,
-      slCmjRsiSX: newValData.sl_cmj_rsi_sx || 0.31,
-      slCmjRsiDX: newValData.sl_cmj_rsi_dx || 0.27,
-      slCmjEccImpulseSX: newValData.sl_cmj_ecc_impulse_sx || 132,
-      slCmjEccImpulseDX: newValData.sl_cmj_ecc_impulse_dx || 120,
-      // DJ Bilaterale
-      djBoxHeight: newValData.dj_box_height || '30 cm',
-      djContactTime: newValData.dj_contact_time || 210,
-      rsiDropJump: newValData.dj_rsi || 1.65,
-      djBrakingForce: newValData.dj_braking_force || 1620,
-      djBrakingImpulse: newValData.dj_braking_impulse || 205,
-      // SL DJ Monopodalico
-      slDjBoxHeight: newValData.sl_dj_box_height || '30 cm',
-      slDjCtSX: newValData.sl_dj_ct_sx || 320,
-      slDjCtDX: newValData.sl_dj_ct_dx || 360,
-      slDjRsiSX: newValData.sl_dj_rsi_sx || 0.45,
-      slDjRsiDX: newValData.sl_dj_rsi_dx || 0.38,
-      slDjHeightSX: newValData.sl_dj_height_sx || 15.0,
-      slDjHeightDX: newValData.sl_dj_height_dx || 12.8,
-      slDjBrakingSX: newValData.sl_dj_braking_sx || 118,
-      slDjBrakingDX: newValData.sl_dj_braking_dx || 102,
-      slDjRsiLsi: newValData.lsi_sl_dj_rsi_calculated || 90.0,
-      aclrsi: 90
-    };
+  // Gestore salvataggio o modifica test da Modal
+  const handleModalSave = async (newValData) => {
+    const targetId = newValData.id || editingTest?.id;
+    const isEditing = !!targetId;
 
-    const updated = [...testsHistory, newTest];
-    setTestsHistory(updated);
-    setSelectedTestId(newTest.id);
+    if (isEditing) {
+      const updated = testsHistory.map((existingTest) => {
+        if (existingTest.id === targetId) {
+          const parseLSI = (val) => (val !== null && val !== undefined && val !== '' ? parseFloat(val) : null);
+          const lsiQuadCalc = parseLSI(newValData.lsi_quad_calculated);
+          const lsiFlexCalc = parseLSI(newValData.lsi_curl_calculated);
 
-    if (onSaveTest) {
-      onSaveTest(newValData);
+          const updatedTest = {
+            ...existingTest,
+            patient_id: patient?.id || existingTest.patient_id,
+            patientId: patient?.id || existingTest.patientId,
+            date: newValData.data_valutazione ? newValData.data_valutazione.split('-').reverse().join('/') : existingTest.date,
+            lsiQuad: lsiQuadCalc !== null ? lsiQuadCalc : existingTest.lsiQuad,
+            lsiFlex: lsiFlexCalc !== null ? lsiFlexCalc : existingTest.lsiFlex,
+            quadSano: newValData.iso_leg_ext_sx !== null ? newValData.iso_leg_ext_sx : existingTest.quadSano,
+            quadOp: newValData.iso_leg_ext_dx !== null ? newValData.iso_leg_ext_dx : existingTest.quadOp,
+            flexSano: newValData.iso_leg_curl_sx !== null ? newValData.iso_leg_curl_sx : existingTest.flexSano,
+            flexOp: newValData.iso_leg_curl_dx !== null ? newValData.iso_leg_curl_dx : existingTest.flexOp,
+            calfRaiseSX: newValData.calf_raise_sx !== null ? newValData.calf_raise_sx : existingTest.calfRaiseSX,
+            calfRaiseDX: newValData.calf_raise_dx !== null ? newValData.calf_raise_dx : existingTest.calfRaiseDX,
+            soleoSX: newValData.soleo_sx !== null ? newValData.soleo_sx : existingTest.soleoSX,
+            soleoDX: newValData.soleo_dx !== null ? newValData.soleo_dx : existingTest.soleoDX,
+            bulgarianSX: newValData.bulgarian_sx !== null ? newValData.bulgarian_sx : existingTest.bulgarianSX,
+            bulgarianDX: newValData.bulgarian_dx !== null ? newValData.bulgarian_dx : existingTest.bulgarianDX,
+            imtpForce: newValData.imtp_peak_force !== null ? newValData.imtp_peak_force : existingTest.imtpForce,
+            jumpHeight: newValData.jump_height_cm !== null ? newValData.jump_height_cm : existingTest.jumpHeight,
+            contractionTime: newValData.contraction_time_ms !== null ? newValData.contraction_time_ms : existingTest.contractionTime,
+            peakPower: newValData.peak_power_w !== null ? newValData.peak_power_w : existingTest.peakPower,
+            rsiCmj: newValData.rsi_cmj !== null ? newValData.rsi_cmj : existingTest.rsiCmj,
+            eccBrakingSX: newValData.ecc_braking_sx !== null ? newValData.ecc_braking_sx : existingTest.eccBrakingSX,
+            eccBrakingDX: newValData.ecc_braking_dx !== null ? newValData.ecc_braking_dx : existingTest.eccBrakingDX,
+            concImpulseSX: newValData.conc_impulse_sx !== null ? newValData.conc_impulse_sx : existingTest.concImpulseSX,
+            concImpulseDX: newValData.conc_impulse_dx !== null ? newValData.conc_impulse_dx : existingTest.concImpulseDX,
+            slCmjHeightSX: newValData.sl_cmj_height_sx !== null ? newValData.sl_cmj_height_sx : existingTest.slCmjHeightSX,
+            slCmjHeightDX: newValData.sl_cmj_height_dx !== null ? newValData.sl_cmj_height_dx : existingTest.slCmjHeightDX,
+            slCmjCtSX: newValData.sl_cmj_ct_sx !== null ? newValData.sl_cmj_ct_sx : existingTest.slCmjCtSX,
+            slCmjCtDX: newValData.sl_cmj_ct_dx !== null ? newValData.sl_cmj_ct_dx : existingTest.slCmjCtDX,
+            slCmjPeakPowerSX: newValData.sl_cmj_peak_power_sx !== null ? newValData.sl_cmj_peak_power_sx : existingTest.slCmjPeakPowerSX,
+            slCmjPeakPowerDX: newValData.sl_cmj_peak_power_dx !== null ? newValData.sl_cmj_peak_power_dx : existingTest.slCmjPeakPowerDX,
+            slCmjRsiSX: newValData.sl_cmj_rsi_sx !== null ? newValData.sl_cmj_rsi_sx : existingTest.slCmjRsiSX,
+            slCmjRsiDX: newValData.sl_cmj_rsi_dx !== null ? newValData.sl_cmj_rsi_dx : existingTest.slCmjRsiDX,
+            slCmjEccImpulseSX: newValData.sl_cmj_ecc_impulse_sx !== null ? newValData.sl_cmj_ecc_impulse_sx : existingTest.slCmjEccImpulseSX,
+            slCmjEccImpulseDX: newValData.sl_cmj_ecc_impulse_dx !== null ? newValData.sl_cmj_ecc_impulse_dx : existingTest.slCmjEccImpulseDX,
+            djBoxHeight: newValData.dj_box_height || existingTest.djBoxHeight,
+            djContactTime: newValData.dj_contact_time !== null ? newValData.dj_contact_time : existingTest.djContactTime,
+            rsiDropJump: newValData.dj_rsi !== null ? newValData.dj_rsi : existingTest.rsiDropJump,
+            djBrakingForce: newValData.dj_braking_force !== null ? newValData.dj_braking_force : existingTest.djBrakingForce,
+            djBrakingImpulse: newValData.dj_braking_impulse !== null ? newValData.dj_braking_impulse : existingTest.djBrakingImpulse,
+            slDjBoxHeight: newValData.sl_dj_box_height || existingTest.slDjBoxHeight,
+            slDjCtSX: newValData.sl_dj_ct_sx !== null ? newValData.sl_dj_ct_sx : existingTest.slDjCtSX,
+            slDjCtDX: newValData.sl_dj_ct_dx !== null ? newValData.sl_dj_ct_dx : existingTest.slDjCtDX,
+            slDjRsiSX: newValData.sl_dj_rsi_sx !== null ? newValData.sl_dj_rsi_sx : existingTest.slDjRsiSX,
+            slDjRsiDX: newValData.sl_dj_rsi_dx !== null ? newValData.sl_dj_rsi_dx : existingTest.slDjRsiDX,
+            slDjHeightSX: newValData.sl_dj_height_sx !== null ? newValData.sl_dj_height_sx : existingTest.slDjHeightSX,
+            slDjHeightDX: newValData.sl_dj_height_dx !== null ? newValData.sl_dj_height_dx : existingTest.slDjHeightDX,
+            slDjBrakingSX: newValData.sl_dj_braking_sx !== null ? newValData.sl_dj_braking_sx : existingTest.slDjBrakingSX,
+            slDjBrakingDX: newValData.sl_dj_braking_dx !== null ? newValData.sl_dj_braking_dx : existingTest.slDjBrakingDX,
+            brakingAsym: newValData.ecc_braking_asym_calculated || existingTest.brakingAsym,
+            cmjImpulseLsi: newValData.ecc_braking_asym_calculated ? (100 - parseFloat(newValData.ecc_braking_asym_calculated)).toFixed(1) : existingTest.cmjImpulseLsi,
+            slCmjHeightLsi: newValData.lsi_sl_cmj_height_calculated || existingTest.slCmjHeightLsi,
+            slDjRsiLsi: newValData.lsi_sl_dj_rsi_calculated || existingTest.slDjRsiLsi
+          };
+          console.log("Dati inviati (modifica test):", updatedTest);
+          saveTestToSupabase(updatedTest);
+          return updatedTest;
+        }
+        return existingTest;
+      });
+
+      setTestsHistory(updated);
+      setSelectedTestId(targetId);
+      setEditingTest(null);
+
+      if (onSaveTest) {
+        onSaveTest(updated);
+      }
+    } else {
+      const newNum = testsHistory.length + 1;
+      const newTest = createTestObject(newValData, patient?.id, newNum);
+
+      console.log("Dati inviati:", newTest);
+
+      await saveTestToSupabase(newTest);
+
+      setTestsHistory(prev => [...prev, newTest]);
+      setSelectedTestId(newTest.id);
+      setEditingTest(null);
+
+      if (onSaveTest) {
+        onSaveTest([...testsHistory, newTest]);
+      }
     }
   };
 
@@ -820,9 +474,9 @@ export default function TabBatteriaTest({ patient, activePhase, onChangePhase, o
           { key: 'flexSano', label: 'Iso Push Leg Curl (SX)', unit: 'N', dotColor: 'bg-[#00e5ff]', getValue: (t) => t.flexSano !== undefined ? t.flexSano : 185 },
           { key: 'flexOp', label: 'Iso Push Leg Curl (DX)', unit: 'N', dotColor: 'bg-pink-400', getValue: (t) => t.flexOp !== undefined ? t.flexOp : 245 },
           { key: 'bulgarianSX', label: 'Bulgarian 6RM (SX)', unit: 'kg', dotColor: 'bg-[#00e5ff]', getValue: (t) => t.bulgarianSX !== undefined ? t.bulgarianSX : 38 },
-          { key: 'bulgarianDX', label: 'Bulgarian 6RM (DX)', unit: 'kg', dotColor: 'bg-pink-400', getValue: (t) => t.bulgarianDX !== undefined ? t.bulgarianDX : 48 },
-          { key: 'soleoSX', label: 'Soleo (SX)', unit: 'kg', dotColor: 'bg-[#00e5ff]', getValue: (t) => t.soleoSX !== undefined ? t.soleoSX : 32 },
-          { key: 'soleoDX', label: 'Soleo (DX)', unit: 'kg', dotColor: 'bg-pink-400', getValue: (t) => t.soleoDX !== undefined ? t.soleoDX : 38 },
+          { key: 'bulgarianDX', label: 'Bulgarian 6RM (DX)', unit: 'kg', dotColor: 'bg-pink-400', getValue: (t) => t.bulgarianDX !== undefined ? t.bulgarianDX : '-' },
+          { key: 'soleoSX', label: 'Soleo (SX)', unit: 'kg', dotColor: 'bg-[#00e5ff]', getValue: (t) => t.soleoSX !== undefined ? t.soleoSX : '-' },
+          { key: 'soleoDX', label: 'Soleo (DX)', unit: 'kg', dotColor: 'bg-pink-400', getValue: (t) => t.soleoDX !== undefined ? t.soleoDX : '-' },
           { key: 'imtpForce', label: 'IMTP Peak Force', unit: 'N', dotColor: 'bg-amber-400', getValue: (t) => t.imtpForce || '-' },
           { key: 'imtpRelForce', label: 'IMTP Peak Force / BW', unit: 'N/kg', dotColor: 'bg-amber-400', getValue: (t) => t.imtpRelForce || '-' }
         ];
@@ -830,14 +484,14 @@ export default function TabBatteriaTest({ patient, activePhase, onChangePhase, o
       // 1. TAB [CMJ Bilaterale]
       case 'CMJ_BILATERAL':
         return [
-          { key: 'jumpHeight', label: 'Altezza Salto', unit: 'cm', dotColor: 'bg-emerald-400', getValue: (t) => t.jumpHeight !== undefined ? t.jumpHeight : 32.5 },
-          { key: 'rsiCmj', label: 'RSImod', unit: 'm/s', dotColor: 'bg-emerald-400', getValue: (t) => t.rsiCmj ? t.rsiCmj : ((t.jumpHeight / 100) / (t.contractionTime / 1000)).toFixed(2) },
-          { key: 'contractionTime', label: 'Contraction Time', unit: 'ms', dotColor: 'bg-amber-400', getValue: (t) => t.contractionTime !== undefined ? t.contractionTime : 610 },
-          { key: 'peakPower', label: 'Peak Power', unit: 'W', dotColor: 'bg-emerald-400', getValue: (t) => t.peakPower !== undefined ? t.peakPower : 49.2 },
-          { key: 'eccBrakingSX', label: 'Eccentric Impulse Left', unit: 'N·s', dotColor: 'bg-[#00e5ff]', getValue: (t) => t.eccBrakingSX !== undefined ? t.eccBrakingSX : 235 },
-          { key: 'eccBrakingDX', label: 'Eccentric Impulse Right', unit: 'N·s', dotColor: 'bg-pink-400', getValue: (t) => t.eccBrakingDX !== undefined ? t.eccBrakingDX : 205 },
-          { key: 'concImpulseSX', label: 'Concentric Impulse Left', unit: 'N·s', dotColor: 'bg-[#00e5ff]', getValue: (t) => t.concImpulseSX !== undefined ? t.concImpulseSX : 225 },
-          { key: 'concImpulseDX', label: 'Concentric Impulse Right', unit: 'N·s', dotColor: 'bg-pink-400', getValue: (t) => t.concImpulseDX !== undefined ? t.concImpulseDX : 200 }
+          { key: 'jumpHeight', label: 'Altezza Salto', unit: 'cm', dotColor: 'bg-emerald-400', getValue: (t) => t.jumpHeight !== undefined ? t.jumpHeight : '-' },
+          { key: 'rsiCmj', label: 'RSImod', unit: 'm/s', dotColor: 'bg-emerald-400', getValue: (t) => t.rsiCmj ? t.rsiCmj : (t.jumpHeight && t.contractionTime ? ((t.jumpHeight / 100) / (t.contractionTime / 1000)).toFixed(2) : '-') },
+          { key: 'contractionTime', label: 'Contraction Time', unit: 'ms', dotColor: 'bg-amber-400', getValue: (t) => t.contractionTime !== undefined ? t.contractionTime : '-' },
+          { key: 'peakPower', label: 'Peak Power', unit: 'W', dotColor: 'bg-emerald-400', getValue: (t) => t.peakPower !== undefined ? t.peakPower : '-' },
+          { key: 'eccBrakingSX', label: 'Eccentric Impulse Left', unit: 'N·s', dotColor: 'bg-[#00e5ff]', getValue: (t) => t.eccBrakingSX !== undefined ? t.eccBrakingSX : '-' },
+          { key: 'eccBrakingDX', label: 'Eccentric Impulse Right', unit: 'N·s', dotColor: 'bg-pink-400', getValue: (t) => t.eccBrakingDX !== undefined ? t.eccBrakingDX : '-' },
+          { key: 'concImpulseSX', label: 'Concentric Impulse Left', unit: 'N·s', dotColor: 'bg-[#00e5ff]', getValue: (t) => t.concImpulseSX !== undefined ? t.concImpulseSX : '-' },
+          { key: 'concImpulseDX', label: 'Concentric Impulse Right', unit: 'N·s', dotColor: 'bg-pink-400', getValue: (t) => t.concImpulseDX !== undefined ? t.concImpulseDX : '-' }
         ];
 
       // 2. TAB [CMJ Monopodalico]
@@ -848,88 +502,146 @@ export default function TabBatteriaTest({ patient, activePhase, onChangePhase, o
             label: 'Altezza Salto (SX / DX)', 
             unit: 'cm', 
             dotColor: 'bg-cyan-400',
-            getValue: (t) => `${t.slCmjHeightSX || 17.2} / ${t.slCmjHeightDX || 15.0}`,
-            getTooltip: (t) => ({ title: 'Altezza Salto SL (SX vs DX)', sx: `${t.slCmjHeightSX || 17.2} cm`, dx: `${t.slCmjHeightDX || 15.0} cm`, asym: `LSI: ${((Math.min(t.slCmjHeightSX, t.slCmjHeightDX)/Math.max(t.slCmjHeightSX, t.slCmjHeightDX))*100).toFixed(1)}%` })
+            getValue: (t) => (t.slCmjHeightSX !== undefined && t.slCmjHeightDX !== undefined) ? `${t.slCmjHeightSX} / ${t.slCmjHeightDX}` : 'N/D',
+            getTooltip: (t) => (t.slCmjHeightSX !== undefined && t.slCmjHeightDX !== undefined) ? ({ title: 'Altezza Salto SL (SX vs DX)', sx: `${t.slCmjHeightSX} cm`, dx: `${t.slCmjHeightDX} cm`, asym: `LSI: ${((Math.min(t.slCmjHeightSX, t.slCmjHeightDX)/Math.max(t.slCmjHeightSX, t.slCmjHeightDX))*100).toFixed(1)}%` }) : null
           },
           { 
             key: 'slCmjCtSplit', 
             label: 'Duration Time (SX / DX)', 
             unit: 'ms', 
             dotColor: 'bg-amber-400',
-            getValue: (t) => `${t.slCmjCtSX || 590} / ${t.slCmjCtDX || 620}`,
-            getTooltip: (t) => ({ title: 'Duration Time SL (SX vs DX)', sx: `${t.slCmjCtSX || 590} ms`, dx: `${t.slCmjCtDX || 620} ms`, asym: `LSI: ${((Math.min(t.slCmjCtSX, t.slCmjCtDX)/Math.max(t.slCmjCtSX, t.slCmjCtDX))*100).toFixed(1)}%` })
+            getValue: (t) => (t.slCmjCtSX !== undefined && t.slCmjCtDX !== undefined) ? `${t.slCmjCtSX} / ${t.slCmjCtDX}` : 'N/D',
+            getTooltip: (t) => (t.slCmjCtSX !== undefined && t.slCmjCtDX !== undefined) ? ({ title: 'Duration Time SL (SX vs DX)', sx: `${t.slCmjCtSX} ms`, dx: `${t.slCmjCtDX} ms`, asym: `LSI: ${((Math.min(t.slCmjCtSX, t.slCmjCtDX)/Math.max(t.slCmjCtSX, t.slCmjCtDX))*100).toFixed(1)}%` }) : null
           },
           { 
             key: 'slCmjPeakPowerSplit', 
             label: 'Peak Power/BW (SX / DX)', 
             unit: 'W/kg', 
             dotColor: 'bg-[#00e5ff]',
-            getValue: (t) => `${t.slCmjPeakPowerSX || 31.0} / ${t.slCmjPeakPowerDX || 27.0}`,
-            getTooltip: (t) => ({ title: 'Peak Power/BW (SX vs DX)', sx: `${t.slCmjPeakPowerSX || 31.0} W/kg`, dx: `${t.slCmjPeakPowerDX || 27.0} W/kg`, asym: `LSI: ${((Math.min(t.slCmjPeakPowerSX, t.slCmjPeakPowerDX)/Math.max(t.slCmjPeakPowerSX, t.slCmjPeakPowerDX))*100).toFixed(1)}%` })
+            getValue: (t) => (t.slCmjPeakPowerSX !== undefined && t.slCmjPeakPowerDX !== undefined) ? `${t.slCmjPeakPowerSX} / ${t.slCmjPeakPowerDX}` : 'N/D',
+            getTooltip: (t) => (t.slCmjPeakPowerSX !== undefined && t.slCmjPeakPowerDX !== undefined) ? ({ title: 'Peak Power/BW (SX vs DX)', sx: `${t.slCmjPeakPowerSX} W/kg`, dx: `${t.slCmjPeakPowerDX} W/kg`, asym: `LSI: ${((Math.min(t.slCmjPeakPowerSX, t.slCmjPeakPowerDX)/Math.max(t.slCmjPeakPowerSX, t.slCmjPeakPowerDX))*100).toFixed(1)}%` }) : null
           },
           { 
             key: 'slCmjRsiSplit', 
             label: 'RSI (SX / DX)', 
             unit: 'm/s', 
             dotColor: 'bg-emerald-400',
-            getValue: (t) => `${t.slCmjRsiSX || 0.29} / ${t.slCmjRsiDX || 0.24}`,
-            getTooltip: (t) => ({ title: 'RSI Monopodalico (SX vs DX)', sx: `${t.slCmjRsiSX || 0.29} m/s`, dx: `${t.slCmjRsiDX || 0.24} m/s`, asym: `LSI: ${((Math.min(t.slCmjRsiSX, t.slCmjRsiDX)/Math.max(t.slCmjRsiSX, t.slCmjRsiDX))*100).toFixed(1)}%` })
+            getValue: (t) => (t.slCmjRsiSX !== undefined && t.slCmjRsiDX !== undefined) ? `${t.slCmjRsiSX} / ${t.slCmjRsiDX}` : 'N/D',
+            getTooltip: (t) => (t.slCmjRsiSX !== undefined && t.slCmjRsiDX !== undefined) ? ({ title: 'RSI Monopodalico (SX vs DX)', sx: `${t.slCmjRsiSX} m/s`, dx: `${t.slCmjRsiDX} m/s`, asym: `LSI: ${((Math.min(t.slCmjRsiSX, t.slCmjRsiDX)/Math.max(t.slCmjRsiSX, t.slCmjRsiDX))*100).toFixed(1)}%` }) : null
           },
           { 
             key: 'slCmjEccImpulseSplit', 
             label: 'Braking Impulse (SX / DX)', 
             unit: 'N·s', 
             dotColor: 'bg-purple-400',
-            getValue: (t) => `${t.slCmjEccImpulseSX || 128} / ${t.slCmjEccImpulseDX || 112}`,
-            getTooltip: (t) => ({ title: 'Braking Impulse (SX vs DX)', sx: `${t.slCmjEccImpulseSX || 128} N·s`, dx: `${t.slCmjEccImpulseDX || 112} N·s`, asym: `LSI: ${((Math.min(t.slCmjEccImpulseSX, t.slCmjEccImpulseDX)/Math.max(t.slCmjEccImpulseSX, t.slCmjEccImpulseDX))*100).toFixed(1)}%` })
+            getValue: (t) => (t.slCmjEccImpulseSX !== undefined && t.slCmjEccImpulseDX !== undefined) ? `${t.slCmjEccImpulseSX} / ${t.slCmjEccImpulseDX}` : 'N/D',
+            getTooltip: (t) => (t.slCmjEccImpulseSX !== undefined && t.slCmjEccImpulseDX !== undefined) ? ({ title: 'Braking Impulse (SX vs DX)', sx: `${t.slCmjEccImpulseSX} N·s`, dx: `${t.slCmjEccImpulseDX} N·s`, asym: `LSI: ${((Math.min(t.slCmjEccImpulseSX, t.slCmjEccImpulseDX)/Math.max(t.slCmjEccImpulseSX, t.slCmjEccImpulseDX))*100).toFixed(1)}%` }) : null
           }
         ];
 
-      // 3. TAB [Drop Jump Bilaterale]
+      // 3. TAB [Drop Jump Bilaterale - RTP Specialist Metriche Temporali & Dual Load Cells]
       case 'DJ_BILATERAL':
         return [
-          { key: 'djBoxHeight', label: 'Altezza Caduta Box Selector', unit: 'cm', dotColor: 'bg-amber-400', getValue: (t) => t.djBoxHeight || '30 cm' },
-          { key: 'djContactTime', label: 'Ground Contact Time', unit: 'ms', dotColor: 'bg-amber-400', getValue: (t) => t.djContactTime !== undefined ? t.djContactTime : 220 },
-          { key: 'rsiDropJump', label: 'RSI (Reactive Strength Index)', unit: 'm/s', dotColor: 'bg-emerald-400', getValue: (t) => t.rsiDropJump !== undefined ? t.rsiDropJump : 1.55 },
-          { key: 'djBrakingForce', label: 'Mean Braking Force', unit: 'N', dotColor: 'bg-[#00e5ff]', getValue: (t) => t.djBrakingForce !== undefined ? t.djBrakingForce : 1520 },
-          { key: 'djBrakingImpulse', label: 'Braking Impulse', unit: 'N·s', dotColor: 'bg-purple-400', getValue: (t) => t.djBrakingImpulse !== undefined ? t.djBrakingImpulse : 192 }
+          { 
+            key: 'djBoxHeight', 
+            label: 'Altezza Caduta Box Selector', 
+            unit: '-', 
+            dotColor: 'bg-amber-400', 
+            getValue: (t) => t.djBoxHeight || '30 cm' 
+          },
+          { 
+            key: 'djJumpHeight', 
+            label: 'Altezza Salto (cm)', 
+            unit: 'cm', 
+            dotColor: 'bg-emerald-400', 
+            getValue: (t) => t.djJumpHeight !== undefined && t.djJumpHeight !== null ? `${t.djJumpHeight} cm` : (t.jumpHeight !== undefined ? `${t.jumpHeight} cm` : 'N/D') 
+          },
+          { 
+            key: 'djContactTime', 
+            label: 'Ground Contact Time GCT (<250ms)', 
+            unit: 'ms', 
+            dotColor: 'bg-amber-400', 
+            getValue: (t) => t.djContactTime !== undefined && t.djContactTime !== null ? `${t.djContactTime} ms` : 'N/D' 
+          },
+          { 
+            key: 'rsiDropJump', 
+            label: '1. Efficienza Pliometrica RSI (>2.0)', 
+            unit: 'idx', 
+            dotColor: 'bg-emerald-400', 
+            getValue: (t) => t.rsiDropJump !== undefined && t.rsiDropJump !== null ? `${t.rsiDropJump} idx` : 'N/D' 
+          },
+          { 
+            key: 'djTtpfMs', 
+            label: '2. Time to Peak Force TTPF (80-120ms)', 
+            unit: 'ms', 
+            dotColor: 'bg-cyan-400', 
+            getValue: (t) => t.djTtpfMs !== undefined && t.djTtpfMs !== null ? `${t.djTtpfMs} ms` : 'N/D' 
+          },
+          { 
+            key: 'djTakeoffAsymMs', 
+            label: '3. Asimmetria Temporale Stacco (<10ms)', 
+            unit: 'ms', 
+            dotColor: 'bg-emerald-400', 
+            getValue: (t) => t.djTakeoffAsymMs !== undefined && t.djTakeoffAsymMs !== null ? `${t.djTakeoffAsymMs} ms` : 'N/D' 
+          },
+          { 
+            key: 'djLandingPeakLsi', 
+            label: 'Landing Peak Force LSI (>=90%)', 
+            unit: '%', 
+            dotColor: 'bg-pink-400', 
+            getValue: (t) => t.djLandingPeakLsi !== undefined && t.djLandingPeakLsi !== null ? `${t.djLandingPeakLsi}%` : (t.djLandingPeakSX && t.djLandingPeakDX ? `${((Math.min(t.djLandingPeakSX, t.djLandingPeakDX)/Math.max(t.djLandingPeakSX, t.djLandingPeakDX))*100).toFixed(1)}%` : 'N/D') 
+          },
+          { 
+            key: 'djConcImpulseLsi', 
+            label: 'Concentric Impulse LSI (>=95%)', 
+            unit: '%', 
+            dotColor: 'bg-cyan-400', 
+            getValue: (t) => t.djConcImpulseLsi !== undefined && t.djConcImpulseLsi !== null ? `${t.djConcImpulseLsi}%` : (t.djConcImpulseSX && t.djConcImpulseDX ? `${((Math.min(t.djConcImpulseSX, t.djConcImpulseDX)/Math.max(t.djConcImpulseSX, t.djConcImpulseDX))*100).toFixed(1)}%` : 'N/D') 
+          },
+          { 
+            key: 'djValidationStatus', 
+            label: 'Stato Validazione Test RTP Specialist', 
+            unit: '-', 
+            dotColor: 'bg-emerald-400', 
+            getValue: (t) => t.djValidationStatus ? (t.djValidationStatus === 'PASSED' ? '✅ PASSED' : `❌ ${t.djFailReason || 'FAILED'}`) : 'N/D' 
+          }
         ];
 
       // 4. TAB [Drop Jump Monopodalico / SL DJ]
       case 'DJ_SL':
         return [
-          { key: 'slDjBoxHeight', label: 'Altezza Caduta Box Selector', unit: 'cm', dotColor: 'bg-amber-400', getValue: (t) => t.slDjBoxHeight || '30 cm' },
+          { key: 'slDjBoxHeight', label: 'Altezza Caduta Box Selector', unit: 'cm', dotColor: 'bg-amber-400', getValue: (t) => t.slDjBoxHeight || '-' },
           { 
             key: 'slDjCtSplit', 
             label: 'Ground Contact Time (SX / DX)', 
             unit: 'ms', 
             dotColor: 'bg-amber-400',
-            getValue: (t) => `${t.slDjCtSX || 340} / ${t.slDjCtDX || 380}`,
-            getTooltip: (t) => ({ title: 'Ground Contact Time (SX vs DX)', sx: `${t.slDjCtSX || 340} ms`, dx: `${t.slDjCtDX || 380} ms`, asym: `LSI: ${((Math.min(t.slDjCtSX, t.slDjCtDX)/Math.max(t.slDjCtSX, t.slDjCtDX))*100).toFixed(1)}%` })
+            getValue: (t) => (t.slDjCtSX !== undefined && t.slDjCtDX !== undefined) ? `${t.slDjCtSX} / ${t.slDjCtDX}` : 'N/D',
+            getTooltip: (t) => (t.slDjCtSX !== undefined && t.slDjCtDX !== undefined) ? ({ title: 'Ground Contact Time (SX vs DX)', sx: `${t.slDjCtSX} ms`, dx: `${t.slDjCtDX} ms`, asym: `LSI: ${((Math.min(t.slDjCtSX, t.slDjCtDX)/Math.max(t.slDjCtSX, t.slDjCtDX))*100).toFixed(1)}%` }) : null
           },
           { 
             key: 'slDjRsiSplit', 
             label: 'RSI (SX / DX)', 
             unit: 'm/s', 
             dotColor: 'bg-emerald-400',
-            getValue: (t) => `${t.slDjRsiSX || 0.42} / ${t.slDjRsiDX || 0.35}`,
-            getTooltip: (t) => ({ title: 'SL Drop Jump RSI (SX vs DX)', sx: `${t.slDjRsiSX || 0.42} m/s`, dx: `${t.slDjRsiDX || 0.35} m/s`, asym: `LSI: ${((Math.min(t.slDjRsiSX, t.slDjRsiDX)/Math.max(t.slDjRsiSX, t.slDjRsiDX))*100).toFixed(1)}%` })
+            getValue: (t) => (t.slDjRsiSX !== undefined && t.slDjRsiDX !== undefined) ? `${t.slDjRsiSX} / ${t.slDjRsiDX}` : 'N/D',
+            getTooltip: (t) => (t.slDjRsiSX !== undefined && t.slDjRsiDX !== undefined) ? ({ title: 'SL Drop Jump RSI (SX vs DX)', sx: `${t.slDjRsiSX} m/s`, dx: `${t.slDjRsiDX} m/s`, asym: `LSI: ${((Math.min(t.slDjRsiSX, t.slDjRsiDX)/Math.max(t.slDjRsiSX, t.slDjRsiDX))*100).toFixed(1)}%` }) : null
           },
           { 
             key: 'slDjHeightSplit', 
             label: 'Altezza Salto (SX / DX)', 
             unit: 'cm', 
             dotColor: 'bg-[#00e5ff]',
-            getValue: (t) => `${t.slDjHeightSX || 14.2} / ${t.slDjHeightDX || 12.0}`,
-            getTooltip: (t) => ({ title: 'SL Drop Jump Altezza (SX vs DX)', sx: `${t.slDjHeightSX || 14.2} cm`, dx: `${t.slDjHeightDX || 12.0} cm`, asym: `LSI: ${((Math.min(t.slDjHeightSX, t.slDjHeightDX)/Math.max(t.slDjHeightSX, t.slDjHeightDX))*100).toFixed(1)}%` })
+            getValue: (t) => (t.slDjHeightSX !== undefined && t.slDjHeightDX !== undefined) ? `${t.slDjHeightSX} / ${t.slDjHeightDX}` : 'N/D',
+            getTooltip: (t) => (t.slDjHeightSX !== undefined && t.slDjHeightDX !== undefined) ? ({ title: 'SL Drop Jump Altezza (SX vs DX)', sx: `${t.slDjHeightSX} cm`, dx: `${t.slDjHeightDX} cm`, asym: `LSI: ${((Math.min(t.slDjHeightSX, t.slDjHeightDX)/Math.max(t.slDjHeightSX, t.slDjHeightDX))*100).toFixed(1)}%` }) : null
           },
           { 
             key: 'slDjBrakingSplit', 
             label: 'Braking Impulse (SX / DX)', 
             unit: 'N·s', 
             dotColor: 'bg-purple-400',
-            getValue: (t) => `${t.slDjBrakingSX || 110} / ${t.slDjBrakingDX || 92}`,
-            getTooltip: (t) => ({ title: 'SL Drop Jump Braking Impulse', sx: `${t.slDjBrakingSX || 110} N·s`, dx: `${t.slDjBrakingDX || 92} N·s`, asym: `LSI: ${((Math.min(t.slDjBrakingSX, t.slDjBrakingDX)/Math.max(t.slDjBrakingSX, t.slDjBrakingDX))*100).toFixed(1)}%` })
+            getValue: (t) => (t.slDjBrakingSX !== undefined && t.slDjBrakingDX !== undefined) ? `${t.slDjBrakingSX} / ${t.slDjBrakingDX}` : 'N/D',
+            getTooltip: (t) => (t.slDjBrakingSX !== undefined && t.slDjBrakingDX !== undefined) ? ({ title: 'SL Drop Jump Braking Impulse', sx: `${t.slDjBrakingSX} N·s`, dx: `${t.slDjBrakingDX} N·s`, asym: `LSI: ${((Math.min(t.slDjBrakingSX, t.slDjBrakingDX)/Math.max(t.slDjBrakingSX, t.slDjBrakingDX))*100).toFixed(1)}%` }) : null
           }
         ];
       default:
@@ -995,13 +707,31 @@ export default function TabBatteriaTest({ patient, activePhase, onChangePhase, o
             </p>
           </div>
 
-          <button
-            onClick={() => setIsModalOpen(true)}
-            className="px-3.5 py-1.5 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-black rounded-xl text-xs flex items-center gap-1.5 shadow-md border border-emerald-400/50 transition-all cursor-pointer shrink-0 self-start sm:self-auto"
-          >
-            <Plus className="w-4 h-4 text-[#39FF14]" />
-            <span>+ Nuova Valutazione</span>
-          </button>
+          <div className="flex items-center gap-2 self-start sm:self-auto">
+            {activeTest && (
+              <button
+                onClick={() => {
+                  setEditingTest(activeTest);
+                  setIsModalOpen(true);
+                }}
+                className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-cyan-300 font-extrabold rounded-xl text-xs flex items-center gap-1.5 border border-cyan-500/40 transition-all cursor-pointer shrink-0"
+              >
+                <Edit3 className="w-3.5 h-3.5 text-cyan-400" />
+                <span>Modifica {activeTest.label}</span>
+              </button>
+            )}
+
+            <button
+              onClick={() => {
+                setEditingTest(null);
+                setIsModalOpen(true);
+              }}
+              className="px-3.5 py-1.5 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-black rounded-xl text-xs flex items-center gap-1.5 shadow-md border border-emerald-400/50 transition-all cursor-pointer shrink-0"
+            >
+              <Plus className="w-4 h-4 text-[#39FF14]" />
+              <span>+ Nuova Valutazione</span>
+            </button>
+          </div>
         </div>
 
         {/* 6 Pills Sotto-Tab (Tutte le Sezioni di Salto Sincronizzate - FLEX NOWRAP COMPATTO) */}
@@ -1054,7 +784,18 @@ export default function TabBatteriaTest({ patient, activePhase, onChangePhase, o
                     >
                       <div className="flex items-center justify-center gap-1">
                         <span className="font-extrabold text-xs tracking-tight">{t.label}</span>
-                        <Edit3 className="w-3 h-3 text-slate-500 opacity-60 hover:opacity-100" />
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setSelectedTestId(t.id);
+                            setEditingTest(t);
+                            setIsModalOpen(true);
+                          }}
+                          title={`Modifica ${t.label}`}
+                          className="p-1 hover:bg-cyan-900/60 rounded transition-colors text-slate-400 hover:text-cyan-300"
+                        >
+                          <Edit3 className="w-3 h-3 text-cyan-400" />
+                        </button>
                       </div>
                       <div className="text-[9.5px] text-cyan-400 font-mono font-bold mt-0.5">{t.date}</div>
                     </th>
@@ -1064,7 +805,18 @@ export default function TabBatteriaTest({ patient, activePhase, onChangePhase, o
             </thead>
 
             <tbody className="divide-y divide-slate-800/50 text-xs font-semibold">
-              {rows.map((row) => (
+              {testsHistory.length === 0 ? (
+                <tr>
+                  <td colSpan={10} className="py-12 text-center text-slate-400 font-medium bg-[#050c17]/50">
+                    <div className="space-y-2 max-w-sm mx-auto">
+                      <Activity className="w-8 h-8 text-cyan-500/40 mx-auto" />
+                      <p className="text-sm font-extrabold text-white">Nessuna valutazione registrata per {patient?.nome} {patient?.cognome}</p>
+                      <p className="text-xs text-slate-400">Clicca sul pulsante in alto <strong className="text-cyan-400 font-bold">"+ Nuova Valutazione"</strong> per inserire i dati del primo test clinico.</p>
+                    </div>
+                  </td>
+                </tr>
+              ) : (
+                rows.map((row) => (
                 <tr key={row.key} className="hover:bg-slate-900/50 transition-colors">
                   
                   {/* Colonna 1: Parametro Metrica Sticky */}
@@ -1143,7 +895,8 @@ export default function TabBatteriaTest({ patient, activePhase, onChangePhase, o
                     );
                   })}
                 </tr>
-              ))}
+              ))
+              )}
             </tbody>
           </table>
         </div>
@@ -1195,7 +948,6 @@ export default function TabBatteriaTest({ patient, activePhase, onChangePhase, o
                   key={pObj.key}
                   onClick={() => {
                     setSelectedPhase(pObj.key);
-                    if (onChangePhase) onChangePhase(pObj.key);
                   }}
                   className={`py-1 px-1 rounded-lg text-[10px] font-black transition-all cursor-pointer text-center ${
                     isActive
@@ -1337,8 +1089,12 @@ export default function TabBatteriaTest({ patient, activePhase, onChangePhase, o
       {/* MODAL NUOVA VALUTAZIONE CLINICA LCA */}
       <ModalNuovaValutazione 
         isOpen={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
+        onClose={() => {
+          setIsModalOpen(false);
+          setEditingTest(null);
+        }}
         patient={patient}
+        initialData={editingTest}
         onSaveEvaluation={handleModalSave}
       />
 

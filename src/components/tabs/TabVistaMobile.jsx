@@ -21,18 +21,69 @@ export default function TabVistaMobile({ patient }) {
   // Sotto-Tab Interna Mobile (Default: Scheda Operativa & Esercizi)
   const [mobileTab, setMobileTab] = useState('OPERATIVA'); // 'OPERATIVA' | 'BICCHIERI'
 
-  // Data per Direttive Operative
-  const phaseTitle = patient?.fase_riabilitativa ? `3. ${patient.fase_riabilitativa}: Drills, RSI and Power` : '3. Return to Run: Drills, RSI and Power';
-  const phaseSubtitle = 'Introduzione alla corsa sul dritto, drills meccanici, lavoro su RSI (Reactive Strength Index) e potenza.';
+  // Ricava titolo, sottotitolo e target di fase dinamicamente dalla Fase Attiva del paziente
+  const getPhaseInfo = (fase) => {
+    const str = String(fase || '').toLowerCase();
+    if (str.includes('1') || str.includes('early') || str.includes('rom')) {
+      return {
+        title: '1. Early Stage: ROM and Quality',
+        subtitle: 'Recupero estensione 0°, controllo del gonfiore, riattivazione isolata VMO e propriocezione iniziale.',
+        targetLsi: 70
+      };
+    }
+    if (str.includes('2') || str.includes('mid') || str.includes('forza')) {
+      return {
+        title: '2. Mid Stage: Strength, Jump and Landing',
+        subtitle: 'Rinforzo muscolare progressivo in catena chiusa/aperta, landing mechanics e primi salti controllati.',
+        targetLsi: 75
+      };
+    }
+    if (str.includes('3') || str.includes('run') || str.includes('power') || str.includes('drills')) {
+      return {
+        title: '3. Return to Run: Drills, RSI and Power',
+        subtitle: 'Introduzione alla corsa sul dritto, drills meccanici, lavoro su RSI (Reactive Strength Index) e potenza.',
+        targetLsi: 80
+      };
+    }
+    if (str.includes('4') || str.includes('late') || str.includes('cod') || str.includes('agility')) {
+      return {
+        title: '4. Late Stage: CODs, Chaos and Plyo',
+        subtitle: 'Cambi di direzione (CODs) ad alta velocità, ambienti caotici/reattivi e pliometria ad alto impatto.',
+        targetLsi: 85
+      };
+    }
+    if (str.includes('5') || str.includes('perf') || str.includes('rts') || str.includes('sport') || str.includes('play')) {
+      return {
+        title: '5. Return to Performance: Med, Sprint and PeakPower',
+        subtitle: 'Ritorno alla performance massimale: test di sprint 10-30m, potenza di picco e idoneità Return to Sport.',
+        targetLsi: 95
+      };
+    }
+    return {
+      title: `3. ${patient?.fase_riabilitativa || 'Return to Run'}: Drills, RSI and Power`,
+      subtitle: 'Direttive operative cliniche per il recupero neuromuscolare e Return to Sport.',
+      targetLsi: 80
+    };
+  };
 
-  const deficits = [
-    {
+  const phaseInfo = getPhaseInfo(patient?.fase_riabilitativa);
+  const phaseTitle = phaseInfo.title;
+  const phaseSubtitle = phaseInfo.subtitle;
+  const targetLsi = phaseInfo.targetLsi;
+
+  // Estrai i test specifici del paziente attivo
+  const patientTests = Array.isArray(patient?.tests) ? patient.tests : [];
+  const latestTest = patientTests.length > 0 ? patientTests[patientTests.length - 1] : null;
+  const hasTests = latestTest !== null;
+
+  const deficits = hasTests ? [
+    ...(latestTest.lsiQuad && latestTest.lsiQuad < targetLsi ? [{
       id: 1,
       severity: 'Rosso',
-      title: 'Deficit Forza Quadricipite LSI (72.4%)',
-      detail: 'Forza dinamometrica Iso Push SX 393N vs DX 543N.',
+      title: `Deficit Forza Quadricipite LSI (${latestTest.lsiQuad.toFixed(1)}%)`,
+      detail: `Forza dinamometrica Iso Push: ${latestTest.quadOp || 'N/D'}N (Arto Operato) vs ${latestTest.quadSano || 'N/D'}N (Arto Sano). Target Fase: ≥${targetLsi}%.`,
       actionPlan: 'Piano Azione: Potenziamento selettivo concentrico/eccentrico.'
-    },
+    }] : []),
     {
       id: 2,
       severity: 'Giallo',
@@ -40,11 +91,20 @@ export default function TabVistaMobile({ patient }) {
       detail: 'Cedimento dinamico su atterraggio SL a fine seduta quando subentra affaticamento.',
       actionPlan: 'Piano Azione: Rinforzo medio gluteo + feedback visivo allo specchio.'
     }
-  ];
+  ] : [];
 
-  const rehabNote = patient?.note_operative || 'Progressione della forza quadricipitale. LSI ISOpush 72.4%. Continua lavoro su Leg Extension unipedale ed isometrica a 60°.';
+  const rehabNote = patient?.note_operative || 'Nessuna direttiva clinica specifica inserita.';
 
-  const exercises = [
+  const exercises = patient?.esercizi_prescritti ? [
+    {
+      id: 1,
+      name: patient.esercizi_prescritti,
+      setsReps: '4x6',
+      weight: '40 kg',
+      vbtSpeed: '0.7 m/s',
+      note: 'Prescrizione fisio attiva'
+    }
+  ] : [
     {
       id: 1,
       name: 'Leg Extension Isometrico 60°',
@@ -60,25 +120,17 @@ export default function TabVistaMobile({ patient }) {
       weight: '85 kg',
       vbtSpeed: '0.65 m/s',
       note: 'Controllo fase eccentrica 3s'
-    },
-    {
-      id: 3,
-      name: 'Drop Jump SL Box 30cm',
-      setsReps: '3x5',
-      weight: 'BW',
-      vbtSpeed: '0.85 m/s',
-      note: 'Focus tempo contatto suolo < 200ms'
     }
   ];
 
-  // Data per Bicchieri Prestativi
+  // Data per Bicchieri Prestativi sincronizzati con la Fase del Paziente
   const cups = [
-    { id: 1, name: 'LSI QUADRICIPITE', val: '81.5%', target: 'Target: >70%', pct: 100, isOk: true, note: 'Iso Push Leg Extension' },
-    { id: 2, name: 'FORZA REL. QUAD OP', val: '2.45 Nm/kg', target: 'Target: >2.0 Nm/kg', pct: 100, isOk: true, note: 'Torque Relativo Corporeo' },
-    { id: 3, name: 'LSI HAMSTRING', val: '82.0%', target: 'Target: >70%', pct: 100, isOk: true, note: 'Iso Push Leg Curl' },
-    { id: 4, name: 'H/Q RATIO ISOMETRICO', val: '0.65', target: 'Target: >0.55', pct: 100, isOk: true, note: 'Rapporto Flessori / Estensori' },
-    { id: 5, name: 'SCORE IKDC', val: '76 pts', target: 'Target: >70 pts', pct: 100, isOk: true, note: 'Prontitudine Clinica Soggettiva' },
-    { id: 6, name: 'RSI DROP JUMP', val: '1.55 rsi', target: 'Target: >1.50 rsi', pct: 100, isOk: true, note: 'Contact Time < 250ms' }
+    { id: 1, name: 'LSI QUADRICIPITE', val: hasTests && latestTest.lsiQuad !== undefined ? `${latestTest.lsiQuad.toFixed(1)}%` : 'N/D', target: `Target: >${targetLsi}%`, pct: hasTests && latestTest.lsiQuad ? Math.min(100, Math.round((latestTest.lsiQuad / targetLsi) * 100)) : 0, isOk: hasTests && latestTest.lsiQuad >= targetLsi, note: 'Iso Push Leg Extension' },
+    { id: 2, name: 'FORZA REL. QUAD OP', val: hasTests && latestTest.quadOpNmKg !== undefined ? `${latestTest.quadOpNmKg.toFixed(2)} Nm/kg` : 'N/D', target: 'Target: >2.0 Nm/kg', pct: hasTests && latestTest.quadOpNmKg ? Math.min(100, Math.round((latestTest.quadOpNmKg / 2.0) * 100)) : 0, isOk: hasTests && latestTest.quadOpNmKg >= 2.0, note: 'Torque Relativo Corporeo' },
+    { id: 3, name: 'LSI HAMSTRING', val: hasTests && latestTest.lsiFlex !== undefined ? `${latestTest.lsiFlex.toFixed(1)}%` : 'N/D', target: `Target: >${targetLsi}%`, pct: hasTests && latestTest.lsiFlex ? Math.min(100, Math.round((latestTest.lsiFlex / targetLsi) * 100)) : 0, isOk: hasTests && latestTest.lsiFlex >= targetLsi, note: 'Iso Push Leg Curl' },
+    { id: 4, name: 'H/Q RATIO ISOMETRICO', val: hasTests && latestTest.quadOp && latestTest.flexOp ? (latestTest.flexOp / latestTest.quadOp).toFixed(2) : 'N/D', target: 'Target: >0.55', pct: hasTests && latestTest.quadOp && latestTest.flexOp ? Math.min(100, Math.round(((latestTest.flexOp / latestTest.quadOp) / 0.55) * 100)) : 0, isOk: hasTests && (latestTest.flexOp / latestTest.quadOp) >= 0.55, note: 'Rapporto Flessori / Estensori' },
+    { id: 5, name: 'SCORE IKDC', val: hasTests && latestTest.ikdc !== undefined ? `${latestTest.ikdc} pts` : 'N/D', target: 'Target: >70 pts', pct: hasTests && latestTest.ikdc ? Math.min(100, Math.round((latestTest.ikdc / 70) * 100)) : 0, isOk: hasTests && latestTest.ikdc >= 70, note: 'Prontitudine Clinica Soggettiva' },
+    { id: 6, name: 'RSI DROP JUMP', val: hasTests && latestTest.rsiDropJump !== undefined ? `${latestTest.rsiDropJump} rsi` : 'N/D', target: 'Target: >1.50 rsi', pct: hasTests && latestTest.rsiDropJump ? Math.min(100, Math.round((latestTest.rsiDropJump / 1.5) * 100)) : 0, isOk: hasTests && latestTest.rsiDropJump >= 1.5, note: 'Contact Time < 250ms' }
   ];
 
   return (

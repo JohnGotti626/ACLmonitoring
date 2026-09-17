@@ -244,22 +244,28 @@ function CopilotEngineInner({ patient }) {
 
   const monthsPostOp = getMonthsPostOp(safePatient.data_intervento);
 
-  // Metriche Cliniche Paziente con Optional Chaining & Fallbacks
-  const isFrancesco = safePatient.nome?.toLowerCase().includes('francesco');
-  const lsiQuad = parseSafeFloat(safePatient.lsiQuad ?? safePatient.lsi_quad, isFrancesco ? 97.8 : 72.4);
-  const lsiFlex = parseSafeFloat(safePatient.lsiFlex ?? safePatient.lsi_flex, isFrancesco ? 96.5 : 88.5);
-  const lsiSingleHop = parseSafeFloat(safePatient.lsiSingleHop ?? safePatient.lsi_single_hop, isFrancesco ? 96.8 : 81.5);
-  const rsiVal = parseSafeFloat(safePatient.rsiDropJump ?? safePatient.rsiCmj ?? safePatient.rsi_cmj, isFrancesco ? 2.18 : 0.43);
-  const brakingAsym = parseSafeFloat(safePatient.brakingAsym ?? safePatient.braking_asym, isFrancesco ? 1.9 : 16.8);
-  const hqRatio = parseSafeFloat(safePatient.hqRatio ?? safePatient.hq_ratio, isFrancesco ? 0.68 : 0.47);
-  const ikdcVal = parseSafeFloat(safePatient.ikdc ?? safePatient.aclrsi_score_iniziale, isFrancesco ? 96 : 68);
+  // Estrazione rigorosa dei test del paziente attivo (senza ereditare dati di altri pazienti)
+  const patientTests = Array.isArray(safePatient?.tests) ? safePatient.tests : [];
+  const latestTest = patientTests.length > 0 ? patientTests[patientTests.length - 1] : null;
+  const hasTests = latestTest !== null;
 
-  const safeHqDisplay = typeof hqRatio === 'number' && !isNaN(hqRatio) ? hqRatio.toFixed(2) : '0.60';
+  // Metriche Cliniche Paziente (Se non ci sono test registrati, lo stato rimane pulito N/D)
+  const lsiQuad = hasTests ? parseSafeFloat(latestTest.lsiQuad ?? latestTest.lsi_quad, null) : null;
+  const lsiFlex = hasTests ? parseSafeFloat(latestTest.lsiFlex ?? latestTest.lsi_flex, null) : null;
+  const lsiSingleHop = hasTests ? parseSafeFloat(latestTest.lsiSingleHop ?? latestTest.lsi_single_hop, null) : null;
+  const rsiVal = hasTests ? parseSafeFloat(latestTest.rsiDropJump ?? latestTest.rsiCmj ?? latestTest.rsi_cmj, null) : null;
+  const brakingAsym = hasTests ? parseSafeFloat(latestTest.brakingAsym ?? latestTest.braking_asym, null) : null;
+  const hqRatio = hasTests ? parseSafeFloat(latestTest.hqRatio ?? latestTest.hq_ratio, null) : null;
+  const ikdcVal = hasTests ? parseSafeFloat(latestTest.ikdc ?? safePatient.aclrsi_score_iniziale, null) : null;
+
+  const safeHqDisplay = hqRatio !== null && !isNaN(hqRatio) ? hqRatio.toFixed(2) : 'N/D';
 
   // ---------------------------------------------------------------------------
   // RICALCOLO AUTOMATICO DINAMICO DEL READINESS SCORE (0-100%) IN BASE ALLA FASE
   // ---------------------------------------------------------------------------
   const recalculateCopilotScore = (metrics, targetConfig) => {
+    if (!hasTests || metrics.lsiQuad === null) return null;
+
     let score = 0;
 
     // 1. Quad LSI Component (Max 30 pt)
@@ -267,24 +273,30 @@ function CopilotEngineInner({ patient }) {
     score += Math.min(30, quadRatio * 30);
 
     // 2. Single Hop LSI Component (Max 20 pt)
-    const hopRatio = metrics.lsiSingleHop / targetConfig.targetLsiHop;
+    const hopRatio = (metrics.lsiSingleHop || 0) / targetConfig.targetLsiHop;
     score += Math.min(20, hopRatio * 20);
 
     // 3. Braking Asymmetry Component (Max 20 pt)
-    if (metrics.brakingAsym <= targetConfig.targetBrakingAsym) {
-      score += 20;
-    } else {
-      const diff = metrics.brakingAsym - targetConfig.targetBrakingAsym;
-      score += Math.max(0, 20 - (diff * 1.5));
+    if (metrics.brakingAsym !== null) {
+      if (metrics.brakingAsym <= targetConfig.targetBrakingAsym) {
+        score += 20;
+      } else {
+        const diff = metrics.brakingAsym - targetConfig.targetBrakingAsym;
+        score += Math.max(0, 20 - (diff * 1.5));
+      }
     }
 
     // 4. RSImod Component (Max 15 pt)
-    const rsiRatio = metrics.rsiVal / targetConfig.targetRsi;
-    score += Math.min(15, rsiRatio * 15);
+    if (metrics.rsiVal !== null) {
+      const rsiRatio = metrics.rsiVal / targetConfig.targetRsi;
+      score += Math.min(15, rsiRatio * 15);
+    }
 
     // 5. H:Q Ratio Component (Max 15 pt)
-    const hqRatioNorm = metrics.hqRatio / targetConfig.targetHq;
-    score += Math.min(15, hqRatioNorm * 15);
+    if (metrics.hqRatio !== null) {
+      const hqRatioNorm = metrics.hqRatio / targetConfig.targetHq;
+      score += Math.min(15, hqRatioNorm * 15);
+    }
 
     return Math.min(100, Math.max(0, Math.round(score)));
   };
@@ -297,6 +309,17 @@ function CopilotEngineInner({ patient }) {
   // ---------------------------------------------------------------------------
   const getDynamicAlerts = (metrics, targetConfig) => {
     const alertsList = [];
+
+    if (!hasTests || metrics.lsiQuad === null) {
+      alertsList.push({
+        type: 'yellow',
+        title: 'IN ATTESA DI PRIMA VALUTAZIONE CLINICA 🟡',
+        metric: 'Nessun test registrato',
+        description: `Questo paziente non ha ancora misurazioni o test biometrici registrati. Inserisci il primo test tramite il pulsante "+ Nuova Valutazione Clinica" per sbloccare l'analisi del Copilot IA Engine.`,
+        citation: 'Protocollo Clinico ACL RTS Monitor'
+      });
+      return alertsList;
+    }
 
     // 1. Alert Quadricipite (Buckthorpe et al. 2019, Grindem et al. 2016)
     if (metrics.lsiQuad >= targetConfig.targetLsiQuad) {
@@ -326,68 +349,74 @@ function CopilotEngineInner({ patient }) {
     }
 
     // 2. Alert Braking Impulse / Assorbimento (Read et al. 2020)
-    if (metrics.brakingAsym <= targetConfig.targetBrakingAsym) {
-      alertsList.push({
-        type: 'green',
-        title: `TARGET RAGGIUNTO 🟢: Assorbimento Eccentrico del Carico Bilanciato`,
-        metric: `Asimmetria Impulso Frenata: ${metrics.brakingAsym}% (Target Fase: <${targetConfig.targetBrakingAsym}%)`,
-        description: `Meccanica di decelerazione ed assorbimento bilaterale del carico bilanciata e priva di compensi.`,
-        citation: targetConfig.citationBraking
-      });
-    } else if (metrics.brakingAsym <= targetConfig.targetBrakingAsym + 5) {
-      alertsList.push({
-        type: 'yellow',
-        title: `IN PROGRESSIONE 🟡: Lieve Asimmetria di Frenata Eccentrica`,
-        metric: `Asimmetria Impulso Frenata: ${metrics.brakingAsym}% (Target Fase: <${targetConfig.targetBrakingAsym}%)`,
-        description: `Controllo motorio in affinamento; raccomandato biofeedback visivo nei salti monopodalici.`,
-        citation: targetConfig.citationBraking
-      });
-    } else {
-      alertsList.push({
-        type: 'red',
-        title: `CRITICITÀ HIGH RISK 🔴: Mancato Assorbimento Eccentrico del Carico`,
-        metric: `Asimmetria Impulso Frenata: ${metrics.brakingAsym}% (Target Fase: <${targetConfig.targetBrakingAsym}%)`,
-        description: `L'atleta trasferisce il carico sull'arto sano durante le frenate (CMJ/Drop Jump). Rischio di sovraccarico controlaterale e meccanica d'atterraggio alterata.`,
-        citation: targetConfig.citationBraking
-      });
+    if (metrics.brakingAsym !== null) {
+      if (metrics.brakingAsym <= targetConfig.targetBrakingAsym) {
+        alertsList.push({
+          type: 'green',
+          title: `TARGET RAGGIUNTO 🟢: Assorbimento Eccentrico del Carico Bilanciato`,
+          metric: `Asimmetria Impulso Frenata: ${metrics.brakingAsym}% (Target Fase: <${targetConfig.targetBrakingAsym}%)`,
+          description: `Meccanica di decelerazione ed assorbimento bilaterale del carico bilanciata e priva di compensi.`,
+          citation: targetConfig.citationBraking
+        });
+      } else if (metrics.brakingAsym <= targetConfig.targetBrakingAsym + 5) {
+        alertsList.push({
+          type: 'yellow',
+          title: `IN PROGRESSIONE 🟡: Lieve Asimmetria di Frenata Eccentrica`,
+          metric: `Asimmetria Impulso Frenata: ${metrics.brakingAsym}% (Target Fase: <${targetConfig.targetBrakingAsym}%)`,
+          description: `Controllo motorio in affinamento; raccomandato biofeedback visivo nei salti monopodalici.`,
+          citation: targetConfig.citationBraking
+        });
+      } else {
+        alertsList.push({
+          type: 'red',
+          title: `CRITICITÀ HIGH RISK 🔴: Mancato Assorbimento Eccentrico del Carico`,
+          metric: `Asimmetria Impulso Frenata: ${metrics.brakingAsym}% (Target Fase: <${targetConfig.targetBrakingAsym}%)`,
+          description: `L'atleta trasferisce il carico sull'arto sano durante le frenate (CMJ/Drop Jump). Rischio di sovraccarico controlaterale e meccanica d'atterraggio alterata.`,
+          citation: targetConfig.citationBraking
+        });
+      }
     }
 
     // 3. Alert Stiffness & RSI (Ebbs et al. 2023)
-    if (metrics.rsiVal >= targetConfig.targetRsi) {
-      alertsList.push({
-        type: 'green',
-        title: `TARGET RAGGIUNTO 🟢: Stiffness Tendinea & Rigidità Reattiva Elevata`,
-        metric: `RSImod Drop Jump: ${metrics.rsiVal} idx (Target Fase: >${targetConfig.targetRsi} idx)`,
-        description: `Capacità reattiva plio-metrica sviluppata in linea con gli standard idonei della ${targetConfig.shortName}.`,
-        citation: targetConfig.citationRsi
-      });
-    } else {
-      alertsList.push({
-        type: 'yellow',
-        title: `IN PROGRESSIONE 🟡: Carenza di Stiffness Tendinea & Rigidità Reattiva`,
-        metric: `RSImod Drop Jump: ${metrics.rsiVal} idx (Target Fase: >${targetConfig.targetRsi} idx)`,
-        description: `Tempi di contatto al suolo prolungati ed insufficiente accumulo di energia elastica (Stretch-Shortening Cycle).`,
-        citation: targetConfig.citationRsi
-      });
+    if (metrics.rsiVal !== null) {
+      if (metrics.rsiVal >= targetConfig.targetRsi) {
+        alertsList.push({
+          type: 'green',
+          title: `TARGET RAGGIUNTO 🟢: Stiffness Tendinea & Rigidità Reattiva Elevata`,
+          metric: `RSImod Drop Jump: ${metrics.rsiVal} idx (Target Fase: >${targetConfig.targetRsi} idx)`,
+          description: `Capacità reattiva plio-metrica sviluppata in linea con gli standard idonei della ${targetConfig.shortName}.`,
+          citation: targetConfig.citationRsi
+        });
+      } else {
+        alertsList.push({
+          type: 'yellow',
+          title: `IN PROGRESSIONE 🟡: Carenza di Stiffness Tendinea & Rigidità Reattiva`,
+          metric: `RSImod Drop Jump: ${metrics.rsiVal} idx (Target Fase: >${targetConfig.targetRsi} idx)`,
+          description: `Tempi di contatto al suolo prolungati ed insufficiente accumulo di energia elastica (Stretch-Shortening Cycle).`,
+          citation: targetConfig.citationRsi
+        });
+      }
     }
 
     // 4. Alert H:Q Ratio (Kyritsis et al. 2016)
-    if (metrics.hqRatio >= targetConfig.targetHq) {
-      alertsList.push({
-        type: 'green',
-        title: `TARGET RAGGIUNTO 🟢: Equilibrio Agonista/Antagonista H:Q Ratio Ottimale`,
-        metric: `Rapporto H:Q Isocinetico: ${typeof metrics.hqRatio === 'number' ? metrics.hqRatio.toFixed(2) : metrics.hqRatio} (Target Fase: ≥${targetConfig.targetHq})`,
-        description: `Co-attivazione degli ischiocrurali adeguata per la protezione traslatoria della tibia rispetto al femore.`,
-        citation: targetConfig.citationHq
-      });
-    } else {
-      alertsList.push({
-        type: 'red',
-        title: `CRITICITÀ 🔴: Squilibrio Agonista/Antagonista H:Q Ratio`,
-        metric: `Rapporto H:Q Isocinetico: ${typeof metrics.hqRatio === 'number' ? metrics.hqRatio.toFixed(2) : metrics.hqRatio} (Target Fase: ≥${targetConfig.targetHq})`,
-        description: `Insufficiente forza di ritenzione degli ischiocrurali a protezione del neoligamento in estensione.`,
-        citation: targetConfig.citationHq
-      });
+    if (metrics.hqRatio !== null) {
+      if (metrics.hqRatio >= targetConfig.targetHq) {
+        alertsList.push({
+          type: 'green',
+          title: `TARGET RAGGIUNTO 🟢: Equilibrio Agonista/Antagonista H:Q Ratio Ottimale`,
+          metric: `Rapporto H:Q Isocinetico: ${typeof metrics.hqRatio === 'number' ? metrics.hqRatio.toFixed(2) : metrics.hqRatio} (Target Fase: ≥${targetConfig.targetHq})`,
+          description: `Co-attivazione degli ischiocrurali adeguata per la protezione traslatoria della tibia rispetto al femore.`,
+          citation: targetConfig.citationHq
+        });
+      } else {
+        alertsList.push({
+          type: 'red',
+          title: `CRITICITÀ 🔴: Squilibrio Agonista/Antagonista H:Q Ratio`,
+          metric: `Rapporto H:Q Isocinetico: ${typeof metrics.hqRatio === 'number' ? metrics.hqRatio.toFixed(2) : metrics.hqRatio} (Target Fase: ≥${targetConfig.targetHq})`,
+          description: `Insufficiente forza di ritenzione degli ischiocrurali a protezione del neoligamento in estensione.`,
+          citation: targetConfig.citationHq
+        });
+      }
     }
 
     return alertsList;
@@ -467,8 +496,8 @@ function CopilotEngineInner({ patient }) {
                   d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
                 />
                 <path
-                  className={readinessScore >= 90 ? 'text-emerald-400' : readinessScore >= 75 ? 'text-amber-400' : 'text-rose-500'}
-                  strokeDasharray={`${readinessScore}, 100`}
+                  className={readinessScore === null ? 'text-slate-700' : readinessScore >= 90 ? 'text-emerald-400' : readinessScore >= 75 ? 'text-amber-400' : 'text-rose-500'}
+                  strokeDasharray={`${readinessScore ?? 0}, 100`}
                   strokeWidth="3.5"
                   strokeLinecap="round"
                   stroke="currentColor"
@@ -477,7 +506,9 @@ function CopilotEngineInner({ patient }) {
                 />
               </svg>
               <div className="absolute inset-0 flex flex-col items-center justify-center text-center">
-                <span className="text-xl font-black font-mono text-white leading-none">{readinessScore}%</span>
+                <span className="text-xl font-black font-mono text-white leading-none">
+                  {readinessScore !== null ? `${readinessScore}%` : 'N/D'}
+                </span>
                 <span className="text-[8px] text-slate-400 font-bold uppercase mt-0.5">Score</span>
               </div>
             </div>
@@ -487,10 +518,20 @@ function CopilotEngineInner({ patient }) {
                 READINESS CLINICA RTS
               </span>
               <strong className="text-sm font-extrabold text-white block">
-                {readinessScore >= 85 ? '🌟 Idoneità Fase Validata' : readinessScore >= 70 ? '🟡 In Progressione' : '🔴 Deficit Critici Rilevati'}
+                {readinessScore === null 
+                  ? '🟡 In Attesa del Primo Test' 
+                  : readinessScore >= 85 
+                    ? '🌟 Idoneità Fase Validata' 
+                    : readinessScore >= 70 
+                      ? '🟡 In Progressione' 
+                      : '🔴 Deficit Critici Rilevati'}
               </strong>
               <p className="text-[10.5px] text-slate-400 font-medium">
-                {readinessScore >= 85 ? 'Target di fase pienamente soddisfatti.' : 'Parametri sotto le soglie target della fase.'}
+                {readinessScore === null 
+                  ? 'Effettua la prima valutazione per attivare lo score.' 
+                  : readinessScore >= 85 
+                    ? 'Target di fase pienamente soddisfatti.' 
+                    : 'Parametri sotto le soglie target della fase.'}
               </p>
             </div>
 

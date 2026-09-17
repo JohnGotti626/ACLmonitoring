@@ -10,7 +10,7 @@ const METRIC_CONFIG = [
     color: '#06b6d4', // Cyan
     getValue: (t) => {
       const val = parseFloat(t?.lsiQuad);
-      return !isNaN(val) ? val : 72.4;
+      return !isNaN(val) ? val : 0;
     }
   },
   {
@@ -21,7 +21,7 @@ const METRIC_CONFIG = [
     color: '#10b981', // Emerald Green
     getValue: (t) => {
       const val = parseFloat(t?.jumpHeight);
-      return !isNaN(val) ? val : 28.1;
+      return !isNaN(val) ? val : 0;
     }
   },
   {
@@ -32,7 +32,7 @@ const METRIC_CONFIG = [
     color: '#f59e0b', // Amber Gold
     getValue: (t) => {
       const val = parseFloat(t?.rsiCmj);
-      return !isNaN(val) ? val : 0.43;
+      return !isNaN(val) ? val : 0;
     }
   },
   {
@@ -43,7 +43,7 @@ const METRIC_CONFIG = [
     color: '#ec4899', // Neon Pink
     getValue: (t) => {
       const val = parseFloat(t?.lsiSingleHop);
-      return !isNaN(val) ? val : 73.9;
+      return !isNaN(val) ? val : 0;
     }
   },
   {
@@ -54,7 +54,7 @@ const METRIC_CONFIG = [
     color: '#a855f7', // Purple
     getValue: (t) => {
       const val = parseFloat(t?.peakPower);
-      return !isNaN(val) ? val : 44.8;
+      return !isNaN(val) ? val : 0;
     }
   },
   {
@@ -65,7 +65,7 @@ const METRIC_CONFIG = [
     color: '#f97316', // Orange
     getValue: (t) => {
       const val = parseFloat(t?.eccBrakingSX);
-      return !isNaN(val) ? val : 220;
+      return !isNaN(val) ? val : 0;
     }
   },
   {
@@ -76,7 +76,7 @@ const METRIC_CONFIG = [
     color: '#3b82f6', // Blue
     getValue: (t) => {
       const val = parseFloat(t?.lsiFlex);
-      return !isNaN(val) ? val : 75.5;
+      return !isNaN(val) ? val : 0;
     }
   }
 ];
@@ -86,13 +86,21 @@ export default function GraficoMultimetrica({ tests = [] }) {
   const [activeMetrics, setActiveMetrics] = useState(['lsiQuad', 'jumpHeight']);
   const [hoveredPoint, setHoveredPoint] = useState(null);
 
-  // Dati di fallback se l'array del paziente è vuoto
-  const rawTests = (tests && tests.length > 0) ? tests : [
-    { id: 't1', label: 'TEST #1', date: '10/08', lsiQuad: 72.4, jumpHeight: 28.1, rsiCmj: 0.43, lsiSingleHop: 73.9, peakPower: 44.8, eccBrakingSX: 220, lsiFlex: 75.5 },
-    { id: 't2', label: 'TEST #2', date: '10/09', lsiQuad: 81.5, jumpHeight: 32.5, rsiCmj: 0.53, lsiSingleHop: 80.5, peakPower: 49.2, eccBrakingSX: 235, lsiFlex: 82.0 },
-    { id: 't3', label: 'TEST #3', date: '10/10', lsiQuad: 88.5, jumpHeight: 35.8, rsiCmj: 0.61, lsiSingleHop: 86.0, peakPower: 52.4, eccBrakingSX: 248, lsiFlex: 88.0 },
-    { id: 't4', label: 'TEST #4', date: '10/11', lsiQuad: 94.2, jumpHeight: 38.0, rsiCmj: 0.68, lsiSingleHop: 92.0, peakPower: 55.0, eccBrakingSX: 260, lsiFlex: 92.5 }
-  ];
+  if (!tests || tests.length === 0) {
+    return (
+      <div className="w-full p-8 bg-[#0a1628] rounded-2xl border border-slate-800 text-center space-y-2 no-print shadow-lg">
+        <TrendingUp className="w-8 h-8 text-cyan-500/50 mx-auto" />
+        <h3 className="font-extrabold text-white text-xs uppercase tracking-wide">
+          Grafico Multimetrico (Nessun Dati)
+        </h3>
+        <p className="text-slate-400 text-xs max-w-md mx-auto">
+          Nessuna valutazione clinica registrata per questo paziente. Registra la prima valutazione per visualizzare l'andamento multimetrico nel tempo.
+        </p>
+      </div>
+    );
+  }
+
+  const rawTests = tests;
 
   const toggleMetric = (id) => {
     if (activeMetrics.includes(id)) {

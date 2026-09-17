@@ -20,12 +20,20 @@ import TabDirettiveOperative from './tabs/TabDirettiveOperative';
 import TabVistaMobile from './tabs/TabVistaMobile';
 import TabCopilotPdf from './tabs/TabCopilotPdf';
 import ModalNuovaValutazione from './ModalNuovaValutazione';
+import { createTestObject, saveTestToSupabase } from '../utils/testUtils';
 
 export default function PatientDetail({ patient, onBack, onUpdatePatient }) {
   const { role } = useAuth();
   const [activeTab, setActiveTab] = useState('tab2'); // Default to Tab 2 (Batteria Test & Bicchieri)
   const [activePhase, setActivePhase] = useState(patient.fase_riabilitativa || 'Return to Run');
   const [isModalOpen, setIsModalOpen] = useState(false);
+
+  // Sincronizzazione automatica quando la fase del paziente viene aggiornata nelle direttive o altrove
+  React.useEffect(() => {
+    if (patient?.fase_riabilitativa) {
+      setActivePhase(patient.fase_riabilitativa);
+    }
+  }, [patient?.fase_riabilitativa]);
 
   if (!patient) return null;
 
@@ -152,7 +160,9 @@ export default function PatientDetail({ patient, onBack, onUpdatePatient }) {
             activePhase={activePhase}
             onChangePhase={handlePhaseChange}
             onSaveTest={(testData) => {
-              onUpdatePatient({ ...patient, ...testData });
+              const currentTests = Array.isArray(patient.tests) ? patient.tests : [];
+              const updatedTests = [...currentTests, testData];
+              onUpdatePatient({ ...patient, tests: updatedTests });
             }}
           />
         )}
@@ -187,10 +197,18 @@ export default function PatientDetail({ patient, onBack, onUpdatePatient }) {
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
         patient={patient}
-        onSaveEvaluation={(evalData) => {
+        onSaveEvaluation={async (evalData) => {
+          const currentTests = Array.isArray(patient.tests) ? patient.tests : [];
+          const newNum = currentTests.length + 1;
+          const newTest = createTestObject(evalData, patient.id, newNum);
+
+          console.log("Dati inviati:", newTest);
+
+          await saveTestToSupabase(newTest);
+
           onUpdatePatient({
             ...patient,
-            ...evalData
+            tests: [...currentTests, newTest]
           });
         }}
       />

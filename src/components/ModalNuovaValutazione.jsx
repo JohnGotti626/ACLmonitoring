@@ -70,10 +70,17 @@ export default function ModalNuovaValutazione({
     slCmjEccImpulseSX: '',
     slCmjEccImpulseDX: '',
 
-    // 4. Drop Jump Bipodalico (DJ)
+    // 4. Drop Jump Bipodalico (DJ - RTP Specialist & Dual Load Cells)
     djBoxHeight: '30 cm',
+    djJumpHeight: '',
     djContactTime: '',
     djRSI: '',
+    djTtpfMs: '',
+    djTakeoffAsymMs: '',
+    djLandingPeakSX: '',
+    djLandingPeakDX: '',
+    djConcImpulseSX: '',
+    djConcImpulseDX: '',
     djBrakingForce: '',
     djBrakingImpulse: '',
 
@@ -92,19 +99,82 @@ export default function ModalNuovaValutazione({
   // Load initialData if provided
   useEffect(() => {
     if (initialData) {
-      setEvalDate(initialData.data_valutazione || new Date().toISOString().split('T')[0]);
+      setEvalDate(initialData.data_valutazione || initialData.date || new Date().toISOString().split('T')[0]);
       setPhase(initialData.fase_riabilitativa || patient.fase_riabilitativa || 'Fase 3 (3-6 mesi)');
       setEvaluator(initialData.valutatore || 'N Rehab Team');
+      if (initialData.ginocchio_operato) {
+        setOpKnee(initialData.ginocchio_operato);
+      }
       
-      const newForm = { ...form };
-      Object.keys(newForm).forEach(key => {
-        if (initialData[key] !== undefined && initialData[key] !== null) {
-          newForm[key] = String(initialData[key]);
-        }
+      setForm({
+        legExtSX: initialData.legExtSX ?? (initialData.iso_leg_ext_sx !== undefined && initialData.iso_leg_ext_sx !== null ? String(initialData.iso_leg_ext_sx) : ''),
+        legExtDX: initialData.legExtDX ?? (initialData.iso_leg_ext_dx !== undefined && initialData.iso_leg_ext_dx !== null ? String(initialData.iso_leg_ext_dx) : ''),
+        legCurlSX: initialData.legCurlSX ?? (initialData.iso_leg_curl_sx !== undefined && initialData.iso_leg_curl_sx !== null ? String(initialData.iso_leg_curl_sx) : ''),
+        legCurlDX: initialData.legCurlDX ?? (initialData.iso_leg_curl_dx !== undefined && initialData.iso_leg_curl_dx !== null ? String(initialData.iso_leg_curl_dx) : ''),
+        calfRaiseSX: initialData.calfRaiseSX ?? (initialData.calf_raise_sx !== undefined && initialData.calf_raise_sx !== null ? String(initialData.calf_raise_sx) : ''),
+        calfRaiseDX: initialData.calfRaiseDX ?? (initialData.calf_raise_dx !== undefined && initialData.calf_raise_dx !== null ? String(initialData.calf_raise_dx) : ''),
+        soleoSX: initialData.soleoSX ?? (initialData.soleo_sx !== undefined && initialData.soleo_sx !== null ? String(initialData.soleo_sx) : ''),
+        soleoDX: initialData.soleoDX ?? (initialData.soleo_dx !== undefined && initialData.soleo_dx !== null ? String(initialData.soleo_dx) : ''),
+        bulgarianSX: initialData.bulgarianSX ?? (initialData.bulgarian_sx !== undefined && initialData.bulgarian_sx !== null ? String(initialData.bulgarian_sx) : ''),
+        bulgarianDX: initialData.bulgarianDX ?? (initialData.bulgarian_dx !== undefined && initialData.bulgarian_dx !== null ? String(initialData.bulgarian_dx) : ''),
+        imtpPeakForce: initialData.imtpPeakForce ?? (initialData.imtp_peak_force !== undefined && initialData.imtp_peak_force !== null ? String(initialData.imtp_peak_force) : ''),
+
+        jumpHeight: initialData.jumpHeight ?? (initialData.jump_height_cm !== undefined && initialData.jump_height_cm !== null ? String(initialData.jump_height_cm) : ''),
+        contractionTime: initialData.contractionTime ?? (initialData.contraction_time_ms !== undefined && initialData.contraction_time_ms !== null ? String(initialData.contraction_time_ms) : ''),
+        peakPower: initialData.peakPower ?? (initialData.peak_power_w !== undefined && initialData.peak_power_w !== null ? String(initialData.peak_power_w) : ''),
+        eccBrakingSX: initialData.eccBrakingSX ?? (initialData.ecc_braking_sx !== undefined && initialData.ecc_braking_sx !== null ? String(initialData.ecc_braking_sx) : ''),
+        eccBrakingDX: initialData.eccBrakingDX ?? (initialData.ecc_braking_dx !== undefined && initialData.ecc_braking_dx !== null ? String(initialData.ecc_braking_dx) : ''),
+        concImpulseSX: initialData.concImpulseSX ?? (initialData.conc_impulse_sx !== undefined && initialData.conc_impulse_sx !== null ? String(initialData.conc_impulse_sx) : ''),
+        concImpulseDX: initialData.concImpulseDX ?? (initialData.conc_impulse_dx !== undefined && initialData.conc_impulse_dx !== null ? String(initialData.conc_impulse_dx) : ''),
+
+        slCmjHeightSX: initialData.slCmjHeightSX ?? (initialData.sl_cmj_height_sx !== undefined && initialData.sl_cmj_height_sx !== null ? String(initialData.sl_cmj_height_sx) : ''),
+        slCmjHeightDX: initialData.slCmjHeightDX ?? (initialData.sl_cmj_height_dx !== undefined && initialData.sl_cmj_height_dx !== null ? String(initialData.sl_cmj_height_dx) : ''),
+        slCmjCtSX: initialData.slCmjCtSX ?? (initialData.sl_cmj_ct_sx !== undefined && initialData.sl_cmj_ct_sx !== null ? String(initialData.sl_cmj_ct_sx) : ''),
+        slCmjCtDX: initialData.slCmjCtDX ?? (initialData.sl_cmj_ct_dx !== undefined && initialData.sl_cmj_ct_dx !== null ? String(initialData.sl_cmj_ct_dx) : ''),
+        slCmjPeakPowerSX: initialData.slCmjPeakPowerSX ?? (initialData.sl_cmj_peak_power_sx !== undefined && initialData.sl_cmj_peak_power_sx !== null ? String(initialData.sl_cmj_peak_power_sx) : ''),
+        slCmjPeakPowerDX: initialData.slCmjPeakPowerDX ?? (initialData.sl_cmj_peak_power_dx !== undefined && initialData.sl_cmj_peak_power_dx !== null ? String(initialData.sl_cmj_peak_power_dx) : ''),
+        slCmjRsiSX: initialData.slCmjRsiSX ?? (initialData.sl_cmj_rsi_sx !== undefined && initialData.sl_cmj_rsi_sx !== null ? String(initialData.sl_cmj_rsi_sx) : ''),
+        slCmjRsiDX: initialData.slCmjRsiDX ?? (initialData.sl_cmj_rsi_dx !== undefined && initialData.sl_cmj_rsi_dx !== null ? String(initialData.sl_cmj_rsi_dx) : ''),
+        slCmjEccImpulseSX: initialData.slCmjEccImpulseSX ?? (initialData.sl_cmj_ecc_impulse_sx !== undefined && initialData.sl_cmj_ecc_impulse_sx !== null ? String(initialData.sl_cmj_ecc_impulse_sx) : ''),
+        slCmjEccImpulseDX: initialData.slCmjEccImpulseDX ?? (initialData.sl_cmj_ecc_impulse_dx !== undefined && initialData.sl_cmj_ecc_impulse_dx !== null ? String(initialData.sl_cmj_ecc_impulse_dx) : ''),
+
+        djBoxHeight: initialData.djBoxHeight || initialData.dj_box_height || '30 cm',
+        djJumpHeight: initialData.djJumpHeight ?? (initialData.dj_jump_height !== undefined && initialData.dj_jump_height !== null ? String(initialData.dj_jump_height) : ''),
+        djContactTime: initialData.djContactTime ?? (initialData.dj_contact_time !== undefined && initialData.dj_contact_time !== null ? String(initialData.dj_contact_time) : ''),
+        djRSI: initialData.djRSI ?? (initialData.dj_rsi !== undefined && initialData.dj_rsi !== null ? String(initialData.dj_rsi) : ''),
+        djTtpfMs: initialData.djTtpfMs ?? (initialData.dj_ttpf_ms !== undefined && initialData.dj_ttpf_ms !== null ? String(initialData.dj_ttpf_ms) : ''),
+        djTakeoffAsymMs: initialData.djTakeoffAsymMs ?? (initialData.dj_takeoff_asym_ms !== undefined && initialData.dj_takeoff_asym_ms !== null ? String(initialData.dj_takeoff_asym_ms) : ''),
+        djLandingPeakSX: initialData.djLandingPeakSX ?? (initialData.dj_landing_peak_sx !== undefined && initialData.dj_landing_peak_sx !== null ? String(initialData.dj_landing_peak_sx) : ''),
+        djLandingPeakDX: initialData.djLandingPeakDX ?? (initialData.dj_landing_peak_dx !== undefined && initialData.dj_landing_peak_dx !== null ? String(initialData.dj_landing_peak_dx) : ''),
+        djConcImpulseSX: initialData.djConcImpulseSX ?? (initialData.dj_conc_impulse_sx !== undefined && initialData.dj_conc_impulse_sx !== null ? String(initialData.dj_conc_impulse_sx) : ''),
+        djConcImpulseDX: initialData.djConcImpulseDX ?? (initialData.dj_conc_impulse_dx !== undefined && initialData.dj_conc_impulse_dx !== null ? String(initialData.dj_conc_impulse_dx) : ''),
+        djBrakingForce: initialData.djBrakingForce ?? (initialData.dj_braking_force !== undefined && initialData.dj_braking_force !== null ? String(initialData.dj_braking_force) : ''),
+        djBrakingImpulse: initialData.djBrakingImpulse ?? (initialData.dj_braking_impulse !== undefined && initialData.dj_braking_impulse !== null ? String(initialData.dj_braking_impulse) : ''),
+
+        slDjBoxHeight: initialData.slDjBoxHeight || initialData.sl_dj_box_height || '30 cm',
+        slDjCtSX: initialData.slDjCtSX ?? (initialData.sl_dj_ct_sx !== undefined && initialData.sl_dj_ct_sx !== null ? String(initialData.sl_dj_ct_sx) : ''),
+        slDjCtDX: initialData.slDjCtDX ?? (initialData.sl_dj_ct_dx !== undefined && initialData.sl_dj_ct_dx !== null ? String(initialData.sl_dj_ct_dx) : ''),
+        slDjRsiSX: initialData.slDjRsiSX ?? (initialData.sl_dj_rsi_sx !== undefined && initialData.sl_dj_rsi_sx !== null ? String(initialData.sl_dj_rsi_sx) : ''),
+        slDjRsiDX: initialData.slDjRsiDX ?? (initialData.sl_dj_rsi_dx !== undefined && initialData.sl_dj_rsi_dx !== null ? String(initialData.sl_dj_rsi_dx) : ''),
+        slDjHeightSX: initialData.slDjHeightSX ?? (initialData.sl_dj_height_sx !== undefined && initialData.sl_dj_height_sx !== null ? String(initialData.sl_dj_height_sx) : ''),
+        slDjHeightDX: initialData.slDjHeightDX ?? (initialData.sl_dj_height_dx !== undefined && initialData.sl_dj_height_dx !== null ? String(initialData.sl_dj_height_dx) : ''),
+        slDjBrakingSX: initialData.slDjBrakingSX ?? (initialData.sl_dj_braking_sx !== undefined && initialData.sl_dj_braking_sx !== null ? String(initialData.sl_dj_braking_sx) : ''),
+        slDjBrakingDX: initialData.slDjBrakingDX ?? (initialData.sl_dj_braking_dx !== undefined && initialData.sl_dj_braking_dx !== null ? String(initialData.sl_dj_braking_dx) : '')
       });
-      setForm(newForm);
+    } else {
+      setEvalDate(new Date().toISOString().split('T')[0]);
+      setPhase(patient?.fase_riabilitativa || 'Fase 3 (3-6 mesi)');
+      setEvaluator('N Rehab Team');
+      setForm({
+        legExtSX: '', legExtDX: '', legCurlSX: '', legCurlDX: '', calfRaiseSX: '', calfRaiseDX: '',
+        soleoSX: '', soleoDX: '', bulgarianSX: '', bulgarianDX: '', imtpPeakForce: '',
+        jumpHeight: '', contractionTime: '', peakPower: '', eccBrakingSX: '', eccBrakingDX: '', concImpulseSX: '', concImpulseDX: '',
+        slCmjHeightSX: '', slCmjHeightDX: '', slCmjCtSX: '', slCmjCtDX: '', slCmjPeakPowerSX: '', slCmjPeakPowerDX: '', slCmjRsiSX: '', slCmjRsiDX: '', slCmjEccImpulseSX: '', slCmjEccImpulseDX: '',
+        djBoxHeight: '30 cm', djJumpHeight: '', djContactTime: '', djRSI: '', djTtpfMs: '', djTakeoffAsymMs: '', djLandingPeakSX: '', djLandingPeakDX: '', djConcImpulseSX: '', djConcImpulseDX: '', djBrakingForce: '', djBrakingImpulse: '',
+        slDjBoxHeight: '30 cm', slDjCtSX: '', slDjCtDX: '', slDjRsiSX: '', slDjRsiDX: '', slDjHeightSX: '', slDjHeightDX: '', slDjBrakingSX: '', slDjBrakingDX: ''
+      });
     }
-  }, [initialData]);
+  }, [initialData, patient, isOpen]);
 
   const handleChange = (field, value) => {
     setForm(prev => ({ ...prev, [field]: value }));
@@ -159,13 +229,18 @@ export default function ModalNuovaValutazione({
   const countForza = getCollectedCount(['legExtSX', 'legExtDX', 'legCurlSX', 'legCurlDX', 'calfRaiseSX', 'calfRaiseDX', 'soleoSX', 'soleoDX', 'bulgarianSX', 'bulgarianDX', 'imtpPeakForce']);
   const countCMJ = getCollectedCount(['jumpHeight', 'contractionTime', 'peakPower', 'eccBrakingSX', 'eccBrakingDX', 'concImpulseSX', 'concImpulseDX']);
   const countSlCmj = getCollectedCount(['slCmjHeightSX', 'slCmjHeightDX', 'slCmjCtSX', 'slCmjCtDX', 'slCmjPeakPowerSX', 'slCmjPeakPowerDX', 'slCmjRsiSX', 'slCmjRsiDX', 'slCmjEccImpulseSX', 'slCmjEccImpulseDX']);
-  const countDJ = getCollectedCount(['djContactTime', 'djRSI', 'djBrakingForce', 'djBrakingImpulse']);
+  const countDJ = getCollectedCount(['djContactTime', 'djRSI', 'djJumpHeight', 'djTtpfMs', 'djTakeoffAsymMs', 'djLandingPeakSX', 'djLandingPeakDX', 'djConcImpulseSX', 'djConcImpulseDX', 'djBrakingForce', 'djBrakingImpulse']);
   const countSlDj = getCollectedCount(['slDjCtSX', 'slDjCtDX', 'slDjRsiSX', 'slDjRsiDX', 'slDjHeightSX', 'slDjHeightDX', 'slDjBrakingSX', 'slDjBrakingDX']);
 
   const handleSubmit = (e) => {
     e.preventDefault();
 
     const sanitizedData = {
+      patient_id: patient?.id,
+      patientId: patient?.id,
+      id: initialData?.id,
+      num: initialData?.num,
+      label: initialData?.label,
       data_valutazione: evalDate,
       ginocchio_operato: opKnee,
       fase_riabilitativa: phase,
@@ -206,10 +281,17 @@ export default function ModalNuovaValutazione({
       sl_cmj_ecc_impulse_sx: parseVal(form.slCmjEccImpulseSX),
       sl_cmj_ecc_impulse_dx: parseVal(form.slCmjEccImpulseDX),
 
-      // Dominio 4: Drop Jump Bipodalico
+      // Dominio 4: Drop Jump Bipodalico (RTP Specialist & Dual Load Cells)
       dj_box_height: form.djBoxHeight,
+      dj_jump_height: parseVal(form.djJumpHeight),
       dj_contact_time: parseVal(form.djContactTime),
-      dj_rsi: parseVal(form.djRSI),
+      dj_rsi: parseVal(form.djRSI) || computeRSImod(form.djJumpHeight, form.djContactTime),
+      dj_ttpf_ms: parseVal(form.djTtpfMs),
+      dj_takeoff_asym_ms: parseVal(form.djTakeoffAsymMs),
+      dj_landing_peak_sx: parseVal(form.djLandingPeakSX),
+      dj_landing_peak_dx: parseVal(form.djLandingPeakDX),
+      dj_conc_impulse_sx: parseVal(form.djConcImpulseSX),
+      dj_conc_impulse_dx: parseVal(form.djConcImpulseDX),
       dj_braking_force: parseVal(form.djBrakingForce),
       dj_braking_impulse: parseVal(form.djBrakingImpulse),
 
@@ -239,6 +321,8 @@ export default function ModalNuovaValutazione({
       lsi_sl_dj_height_calculated: computeLSI(form.slDjHeightSX, form.slDjHeightDX),
       lsi_sl_dj_braking_calculated: computeLSI(form.slDjBrakingSX, form.slDjBrakingDX)
     };
+
+    console.log("Dati inviati dal form:", sanitizedData);
 
     onSaveEvaluation(sanitizedData);
     onClose();
@@ -663,13 +747,13 @@ export default function ModalNuovaValutazione({
             </div>
           </div>
 
-          {/* 📦 4. DROP JUMP BILATERALE */}
+          {/* 📦 4. DROP JUMP BILATERALE (RTP SPECIALIST & DUAL LOAD CELLS) */}
           <div className="p-4 sm:p-5 rounded-2xl bg-slate-950/60 border border-slate-800 space-y-4 shadow-xl">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-2.5 border-b border-slate-800">
               <div className="flex items-center gap-2">
                 <Box className="w-4 h-4 text-amber-400" />
                 <h4 className="font-extrabold text-white text-sm">
-                  4. DROP JUMP BILATERALE
+                  4. DROP JUMP BILATERALE (METRICHE TEMPORALI & FORCE PLATES)
                 </h4>
                 <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase ${
                   countDJ > 0 ? 'bg-amber-950 text-amber-300 border border-amber-500/40' : 'bg-slate-900 text-slate-400 border border-slate-800'
@@ -677,10 +761,11 @@ export default function ModalNuovaValutazione({
                   {countDJ > 0 ? `${countDJ} DATI RACCOLTI` : 'NESSUN DATO'}
                 </span>
               </div>
-              <span className="text-[10px] text-slate-400 font-mono">Box Selector, Contact Time, RSI, Mean Braking Force & Impulse</span>
+              <span className="text-[10px] text-slate-400 font-mono">Contact Time &lt; 250ms | 3 Metrice Temporali | Dual Load Cells LSI</span>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
+            {/* Sub-grid 1: Parametri Salto & Vincolo GCT */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
               <div>
                 <label className="block text-slate-400 text-[10px] font-bold mb-1">Altezza Caduta Box</label>
                 <select
@@ -695,24 +780,144 @@ export default function ModalNuovaValutazione({
               </div>
 
               <div>
-                <label className="block text-slate-400 text-[10px] font-bold mb-1">Ground Contact Time (ms)</label>
-                <input type="number" placeholder="es. 230" value={form.djContactTime} onChange={(e) => handleChange('djContactTime', e.target.value)} className="w-full bg-slate-950 border border-slate-700 rounded-lg p-2.5 text-amber-300 font-mono text-xs font-bold" />
+                <label className="block text-slate-400 text-[10px] font-bold mb-1">Altezza Salto (cm)</label>
+                <input type="number" step="0.1" placeholder="es. 28.5" value={form.djJumpHeight} onChange={(e) => handleChange('djJumpHeight', e.target.value)} className="w-full bg-slate-950 border border-slate-700 rounded-lg p-2.5 text-emerald-300 font-mono text-xs font-bold" />
               </div>
 
               <div>
-                <label className="block text-slate-400 text-[10px] font-bold mb-1">RSI (Reactive Index)</label>
-                <input type="number" step="0.01" placeholder="es. 1.42" value={form.djRSI} onChange={(e) => handleChange('djRSI', e.target.value)} className="w-full bg-slate-950 border border-slate-700 rounded-lg p-2.5 text-emerald-300 font-mono text-xs font-bold" />
+                <div className="flex justify-between items-center mb-1">
+                  <label className="text-slate-400 text-[10px] font-bold">Contact Time GCT (ms)</label>
+                  <span className="text-[9px] text-amber-400 font-mono font-bold">Vincolo &lt;250ms</span>
+                </div>
+                <input 
+                  type="number" 
+                  placeholder="es. 220" 
+                  value={form.djContactTime} 
+                  onChange={(e) => handleChange('djContactTime', e.target.value)} 
+                  className={`w-full bg-slate-950 border rounded-lg p-2.5 font-mono text-xs font-bold ${
+                    form.djContactTime && parseFloat(form.djContactTime) >= 250
+                      ? 'border-red-500/80 text-red-400 bg-red-950/20'
+                      : 'border-slate-700 text-amber-300'
+                  }`} 
+                />
+                {form.djContactTime && parseFloat(form.djContactTime) >= 250 && (
+                  <p className="text-[9px] text-red-400 font-bold mt-1">⚠️ Contact Time &gt; 250ms: Non Pliometrico!</p>
+                )}
               </div>
 
               <div>
-                <label className="block text-slate-400 text-[10px] font-bold mb-1">Mean Braking Force (N)</label>
-                <input type="number" step="1" placeholder="es. 1450" value={form.djBrakingForce} onChange={(e) => handleChange('djBrakingForce', e.target.value)} className="w-full bg-slate-950 border border-slate-700 rounded-lg p-2.5 text-cyan-300 font-mono text-xs font-bold" />
+                <div className="flex justify-between items-center mb-1">
+                  <label className="text-slate-400 text-[10px] font-bold">RSI (Reactive Index)</label>
+                  <span className="text-[9px] text-emerald-400 font-mono">Target &gt; 2.0</span>
+                </div>
+                <input type="number" step="0.01" placeholder="es. 2.15" value={form.djRSI} onChange={(e) => handleChange('djRSI', e.target.value)} className="w-full bg-slate-950 border border-slate-700 rounded-lg p-2.5 text-emerald-300 font-mono text-xs font-bold" />
+              </div>
+            </div>
+
+            {/* Sub-grid 2: PANNELLO 3 METRICHE TEMPORALI INDIPENDENTI (RTP Evidenze Scientifiche) */}
+            <div className="p-3.5 rounded-xl border border-slate-800 bg-slate-950/90 space-y-3">
+              <div className="flex items-center justify-between border-b border-slate-800 pb-1.5">
+                <span className="text-xs font-black text-white flex items-center gap-1.5 uppercase tracking-wide">
+                  <Flame className="w-3.5 h-3.5 text-amber-400" />
+                  Pannello 3 Metriche Temporali Indipendenti (RTP Scientific Panel)
+                </span>
+                <span className="text-[9.5px] font-mono text-slate-400">Literature Validated (Cormack / Suchomel / Pedley)</span>
               </div>
 
-              <div>
-                <label className="block text-slate-400 text-[10px] font-bold mb-1">Braking Impulse (N·s)</label>
-                <input type="number" step="1" placeholder="es. 185" value={form.djBrakingImpulse} onChange={(e) => handleChange('djBrakingImpulse', e.target.value)} className="w-full bg-slate-950 border border-slate-700 rounded-lg p-2.5 text-purple-300 font-mono text-xs font-bold" />
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                {/* 1. Efficienza Pliometrica */}
+                <div className="p-2.5 rounded-lg bg-slate-900 border border-slate-800 space-y-1">
+                  <div className="text-[10.5px] font-extrabold text-slate-200">1. Efficienza Pliometrica (RSI)</div>
+                  <div className="text-[9.5px] text-slate-400 leading-tight">Flight Time / Contact Time (GCT &lt; 250ms)</div>
+                  <div className="text-[10px] font-mono font-bold text-emerald-400 pt-1 border-t border-slate-800/80">Target Severo: RSI &gt; 2.0</div>
+                </div>
+
+                {/* 2. Decelerazione & Controllo Motorio (TTPF) */}
+                <div className="p-2.5 rounded-lg bg-slate-900 border border-slate-800 space-y-1">
+                  <div className="flex justify-between items-center">
+                    <span className="text-[10.5px] font-extrabold text-slate-200">2. Time to Peak Force (ms)</span>
+                    <span className="text-[9px] font-mono text-cyan-400 font-bold">Target 80-120 ms</span>
+                  </div>
+                  <input type="number" placeholder="es. 95" value={form.djTtpfMs} onChange={(e) => handleChange('djTtpfMs', e.target.value)} className="w-full bg-slate-950 border border-slate-700 rounded p-1.5 text-cyan-300 font-mono text-xs font-bold" />
+                  {form.djTtpfMs && parseFloat(form.djTtpfMs) < 60 && (
+                    <p className="text-[9px] text-red-400 font-bold">⚠️ TTPF &lt; 60ms: Atterraggio Rigido Stiff!</p>
+                  )}
+                </div>
+
+                {/* 3. Asimmetria Temporale allo Stacco */}
+                <div className="p-2.5 rounded-lg bg-slate-900 border border-slate-800 space-y-1">
+                  <div className="flex justify-between items-center">
+                    <span className="text-[10.5px] font-extrabold text-slate-200">3. Delta Stacco L vs R (ms)</span>
+                    <span className="text-[9px] font-mono text-emerald-400 font-bold">Target &lt; 10 ms</span>
+                  </div>
+                  <input type="number" step="0.1" placeholder="es. 4.5" value={form.djTakeoffAsymMs} onChange={(e) => handleChange('djTakeoffAsymMs', e.target.value)} className="w-full bg-slate-950 border border-slate-700 rounded p-1.5 text-emerald-300 font-mono text-xs font-bold" />
+                </div>
               </div>
+            </div>
+
+            {/* Sub-grid 3: Dual Load Cells Force Plates (Landing Peak & Concentric Impulse L/R) */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-1">
+              
+              {/* Landing Peak Force L/R (N) */}
+              {(() => {
+                const lsi = computeLSI(form.djLandingPeakSX, form.djLandingPeakDX);
+                const isFail = lsi !== null && parseFloat(lsi) < 90;
+                return (
+                  <div className="p-3.5 rounded-xl border border-slate-800 bg-slate-950/80 space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-black text-white">Landing Peak Force (N)</span>
+                      <span className="text-[10px] font-mono text-slate-400">Target LSI &ge; 90%</span>
+                    </div>
+                    <div className="grid grid-cols-2 gap-2 text-xs">
+                      <div>
+                        <label className="block text-slate-400 text-[10px] mb-0.5">Left (SX)</label>
+                        <input type="number" step="1" placeholder="es. 2450" value={form.djLandingPeakSX} onChange={(e) => handleChange('djLandingPeakSX', e.target.value)} className="w-full bg-slate-950 border border-slate-700 rounded-lg p-2 text-cyan-300 font-mono text-xs font-bold" />
+                      </div>
+                      <div>
+                        <label className="block text-slate-400 text-[10px] mb-0.5">Right (DX)</label>
+                        <input type="number" step="1" placeholder="es. 2320" value={form.djLandingPeakDX} onChange={(e) => handleChange('djLandingPeakDX', e.target.value)} className="w-full bg-slate-950 border border-slate-700 rounded-lg p-2 text-pink-400 font-mono text-xs font-bold" />
+                      </div>
+                    </div>
+                    {lsi !== null && (
+                      <div className={`text-[10px] font-mono font-black pt-1 border-t border-slate-800 flex items-center justify-between ${isFail ? 'text-red-400' : 'text-emerald-400'}`}>
+                        <span>LSI Picco Atterraggio: {lsi}%</span>
+                        {isFail ? <span className="text-[9px] bg-red-950 px-1.5 py-0.5 rounded border border-red-500/50">⚠️ &lt; 90%</span> : <span className="text-[9px] bg-emerald-950 px-1.5 py-0.5 rounded border border-emerald-500/50">✓ OK</span>}
+                      </div>
+                    )}
+                  </div>
+                );
+              })()}
+
+              {/* Concentric Impulse L/R (N·s) */}
+              {(() => {
+                const lsi = computeLSI(form.djConcImpulseSX, form.djConcImpulseDX);
+                const isFail = lsi !== null && parseFloat(lsi) < 95;
+                return (
+                  <div className="p-3.5 rounded-xl border border-slate-800 bg-slate-950/80 space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-black text-white">Concentric Impulse (N·s)</span>
+                      <span className="text-[10px] font-mono text-slate-400">Target LSI &ge; 95%</span>
+                    </div>
+                    <div className="grid grid-cols-2 gap-2 text-xs">
+                      <div>
+                        <label className="block text-slate-400 text-[10px] mb-0.5">Left (SX)</label>
+                        <input type="number" step="1" placeholder="es. 215" value={form.djConcImpulseSX} onChange={(e) => handleChange('djConcImpulseSX', e.target.value)} className="w-full bg-slate-950 border border-slate-700 rounded-lg p-2 text-cyan-300 font-mono text-xs font-bold" />
+                      </div>
+                      <div>
+                        <label className="block text-slate-400 text-[10px] mb-0.5">Right (DX)</label>
+                        <input type="number" step="1" placeholder="es. 210" value={form.djConcImpulseDX} onChange={(e) => handleChange('djConcImpulseDX', e.target.value)} className="w-full bg-slate-950 border border-slate-700 rounded-lg p-2 text-pink-400 font-mono text-xs font-bold" />
+                      </div>
+                    </div>
+                    {lsi !== null && (
+                      <div className={`text-[10px] font-mono font-black pt-1 border-t border-slate-800 flex items-center justify-between ${isFail ? 'text-red-400' : 'text-emerald-400'}`}>
+                        <span>LSI Impulso Concentrico: {lsi}%</span>
+                        {isFail ? <span className="text-[9px] bg-red-950 px-1.5 py-0.5 rounded border border-red-500/50">⚠️ &lt; 95%</span> : <span className="text-[9px] bg-emerald-950 px-1.5 py-0.5 rounded border border-emerald-500/50">✓ OK</span>}
+                      </div>
+                    )}
+                  </div>
+                );
+              })()}
+
             </div>
           </div>
 
