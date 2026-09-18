@@ -433,6 +433,8 @@ export default function TabBatteriaTest({ patient, activePhase, onChangePhase, o
             jumpHeight: newValData.jump_height_cm !== null ? newValData.jump_height_cm : existingTest.jumpHeight,
             contractionTime: newValData.contraction_time_ms !== null ? newValData.contraction_time_ms : existingTest.contractionTime,
             peakPower: newValData.peak_power_w !== null ? newValData.peak_power_w : existingTest.peakPower,
+            cmjDepth: newValData.cmj_depth !== null ? newValData.cmj_depth : existingTest.cmjDepth,
+            eccBrakingRfd: newValData.ecc_braking_rfd !== null ? newValData.ecc_braking_rfd : existingTest.eccBrakingRfd,
             rsiCmj: newValData.rsi_cmj !== null ? newValData.rsi_cmj : existingTest.rsiCmj,
             eccBrakingSX: newValData.ecc_braking_sx !== null ? newValData.ecc_braking_sx : existingTest.eccBrakingSX,
             eccBrakingDX: newValData.ecc_braking_dx !== null ? newValData.ecc_braking_dx : existingTest.eccBrakingDX,
@@ -446,6 +448,8 @@ export default function TabBatteriaTest({ patient, activePhase, onChangePhase, o
             slCmjPeakPowerDX: newValData.sl_cmj_peak_power_dx !== null ? newValData.sl_cmj_peak_power_dx : existingTest.slCmjPeakPowerDX,
             slCmjRsiSX: newValData.sl_cmj_rsi_sx !== null ? newValData.sl_cmj_rsi_sx : existingTest.slCmjRsiSX,
             slCmjRsiDX: newValData.sl_cmj_rsi_dx !== null ? newValData.sl_cmj_rsi_dx : existingTest.slCmjRsiDX,
+            slCmjDepthSX: newValData.sl_cmj_depth_sx !== null ? newValData.sl_cmj_depth_sx : existingTest.slCmjDepthSX,
+            slCmjDepthDX: newValData.sl_cmj_depth_dx !== null ? newValData.sl_cmj_depth_dx : existingTest.slCmjDepthDX,
             slCmjEccImpulseSX: newValData.sl_cmj_ecc_impulse_sx !== null ? newValData.sl_cmj_ecc_impulse_sx : existingTest.slCmjEccImpulseSX,
             slCmjEccImpulseDX: newValData.sl_cmj_ecc_impulse_dx !== null ? newValData.sl_cmj_ecc_impulse_dx : existingTest.slCmjEccImpulseDX,
             djBoxHeight: newValData.dj_box_height || existingTest.djBoxHeight,
@@ -465,6 +469,7 @@ export default function TabBatteriaTest({ patient, activePhase, onChangePhase, o
             brakingAsym: newValData.ecc_braking_asym_calculated || existingTest.brakingAsym,
             cmjImpulseLsi: newValData.ecc_braking_asym_calculated ? (100 - parseFloat(newValData.ecc_braking_asym_calculated)).toFixed(1) : existingTest.cmjImpulseLsi,
             slCmjHeightLsi: newValData.lsi_sl_cmj_height_calculated || existingTest.slCmjHeightLsi,
+            slCmjDepthLsi: newValData.lsi_sl_cmj_depth_calculated || existingTest.slCmjDepthLsi,
             slDjRsiLsi: newValData.lsi_sl_dj_rsi_calculated || existingTest.slDjRsiLsi
           };
           console.log("Dati inviati (modifica test):", updatedTest);
@@ -554,6 +559,26 @@ export default function TabBatteriaTest({ patient, activePhase, onChangePhase, o
             } 
           },
           { 
+            key: 'peakPower', 
+            label: 'Peak Power / BM', 
+            unit: 'W/kg', 
+            dotColor: 'bg-emerald-400', 
+            getValue: (t) => {
+              const v = t?.peakPower ?? t?.peak_power_w ?? t?.peak_power_bm ?? t?.potenza_picco;
+              return v !== undefined && v !== null && v !== '' ? `${v} W/kg` : 'N/D';
+            } 
+          },
+          { 
+            key: 'cmjDepth', 
+            label: 'Countermovement Depth', 
+            unit: 'cm', 
+            dotColor: 'bg-cyan-400', 
+            getValue: (t) => {
+              const v = t?.cmjDepth ?? t?.cmj_depth ?? t?.countermovement_depth;
+              return v !== undefined && v !== null && v !== '' ? `${v} cm` : 'N/D';
+            } 
+          },
+          { 
             key: 'contractionTime', 
             label: 'Contraction Time', 
             unit: 'ms', 
@@ -564,54 +589,30 @@ export default function TabBatteriaTest({ patient, activePhase, onChangePhase, o
             } 
           },
           { 
-            key: 'peakPower', 
-            label: 'Peak Power', 
-            unit: 'W', 
-            dotColor: 'bg-emerald-400', 
+            key: 'eccBrakingRfd', 
+            label: 'Eccentric Braking RFD', 
+            unit: 'N/s', 
+            dotColor: 'bg-purple-400', 
             getValue: (t) => {
-              const v = t?.peakPower ?? t?.peak_power_w ?? t?.potenza_picco;
-              return v !== undefined && v !== null && v !== '' ? `${v} W` : 'N/D';
+              const v = t?.eccBrakingRfd ?? t?.ecc_braking_rfd ?? t?.eccentric_braking_rfd;
+              return v !== undefined && v !== null && v !== '' ? `${v} N/s` : 'N/D';
             } 
           },
           { 
-            key: 'eccBrakingSX', 
-            label: 'Eccentric Impulse Left', 
+            key: 'concImpulseSplit', 
+            label: 'Concentric Impulse (SX / DX)', 
             unit: 'N·s', 
-            dotColor: 'bg-[#00e5ff]', 
+            dotColor: 'bg-cyan-400', 
             getValue: (t) => {
-              const v = t?.eccBrakingSX ?? t?.ecc_braking_sx ?? t?.eccentric_impulse_sx;
-              return v !== undefined && v !== null && v !== '' ? `${v} N·s` : 'N/D';
-            } 
-          },
-          { 
-            key: 'eccBrakingDX', 
-            label: 'Eccentric Impulse Right', 
-            unit: 'N·s', 
-            dotColor: 'bg-pink-400', 
-            getValue: (t) => {
-              const v = t?.eccBrakingDX ?? t?.ecc_braking_dx ?? t?.eccentric_impulse_dx;
-              return v !== undefined && v !== null && v !== '' ? `${v} N·s` : 'N/D';
-            } 
-          },
-          { 
-            key: 'concImpulseSX', 
-            label: 'Concentric Impulse Left', 
-            unit: 'N·s', 
-            dotColor: 'bg-[#00e5ff]', 
-            getValue: (t) => {
-              const v = t?.concImpulseSX ?? t?.conc_impulse_sx ?? t?.concentric_impulse_sx;
-              return v !== undefined && v !== null && v !== '' ? `${v} N·s` : 'N/D';
-            } 
-          },
-          { 
-            key: 'concImpulseDX', 
-            label: 'Concentric Impulse Right', 
-            unit: 'N·s', 
-            dotColor: 'bg-pink-400', 
-            getValue: (t) => {
-              const v = t?.concImpulseDX ?? t?.conc_impulse_dx ?? t?.concentric_impulse_dx;
-              return v !== undefined && v !== null && v !== '' ? `${v} N·s` : 'N/D';
-            } 
+              const sx = t?.concImpulseSX ?? t?.conc_impulse_sx;
+              const dx = t?.concImpulseDX ?? t?.conc_impulse_dx;
+              return (sx !== undefined && sx !== null && dx !== undefined && dx !== null) ? `${sx} / ${dx}` : 'N/D';
+            },
+            getTooltip: (t) => {
+              const sx = t?.concImpulseSX ?? t?.conc_impulse_sx;
+              const dx = t?.concImpulseDX ?? t?.conc_impulse_dx;
+              return (sx !== undefined && sx !== null && dx !== undefined && dx !== null) ? ({ title: 'Concentric Impulse (SX vs DX)', sx: `${sx} N·s`, dx: `${dx} N·s`, asym: `LSI: ${((Math.min(sx, dx)/Math.max(sx, dx))*100).toFixed(1)}%` }) : null;
+            }
           }
         ];
 
@@ -623,40 +624,32 @@ export default function TabBatteriaTest({ patient, activePhase, onChangePhase, o
             label: 'Altezza Salto (SX / DX)', 
             unit: 'cm', 
             dotColor: 'bg-cyan-400',
-            getValue: (t) => (t.slCmjHeightSX !== undefined && t.slCmjHeightDX !== undefined) ? `${t.slCmjHeightSX} / ${t.slCmjHeightDX}` : 'N/D',
-            getTooltip: (t) => (t.slCmjHeightSX !== undefined && t.slCmjHeightDX !== undefined) ? ({ title: 'Altezza Salto SL (SX vs DX)', sx: `${t.slCmjHeightSX} cm`, dx: `${t.slCmjHeightDX} cm`, asym: `LSI: ${((Math.min(t.slCmjHeightSX, t.slCmjHeightDX)/Math.max(t.slCmjHeightSX, t.slCmjHeightDX))*100).toFixed(1)}%` }) : null
-          },
-          { 
-            key: 'slCmjCtSplit', 
-            label: 'Duration Time (SX / DX)', 
-            unit: 'ms', 
-            dotColor: 'bg-amber-400',
-            getValue: (t) => (t.slCmjCtSX !== undefined && t.slCmjCtDX !== undefined) ? `${t.slCmjCtSX} / ${t.slCmjCtDX}` : 'N/D',
-            getTooltip: (t) => (t.slCmjCtSX !== undefined && t.slCmjCtDX !== undefined) ? ({ title: 'Duration Time SL (SX vs DX)', sx: `${t.slCmjCtSX} ms`, dx: `${t.slCmjCtDX} ms`, asym: `LSI: ${((Math.min(t.slCmjCtSX, t.slCmjCtDX)/Math.max(t.slCmjCtSX, t.slCmjCtDX))*100).toFixed(1)}%` }) : null
+            getValue: (t) => (t.slCmjHeightSX !== undefined && t.slCmjHeightSX !== null && t.slCmjHeightDX !== undefined && t.slCmjHeightDX !== null) ? `${t.slCmjHeightSX} / ${t.slCmjHeightDX}` : 'N/D',
+            getTooltip: (t) => (t.slCmjHeightSX && t.slCmjHeightDX) ? ({ title: 'Altezza Salto SL (SX vs DX)', sx: `${t.slCmjHeightSX} cm`, dx: `${t.slCmjHeightDX} cm`, asym: `LSI: ${((Math.min(t.slCmjHeightSX, t.slCmjHeightDX)/Math.max(t.slCmjHeightSX, t.slCmjHeightDX))*100).toFixed(1)}%` }) : null
           },
           { 
             key: 'slCmjPeakPowerSplit', 
-            label: 'Peak Power/BW (SX / DX)', 
+            label: 'Peak Power / BM (SX / DX)', 
             unit: 'W/kg', 
             dotColor: 'bg-[#00e5ff]',
-            getValue: (t) => (t.slCmjPeakPowerSX !== undefined && t.slCmjPeakPowerDX !== undefined) ? `${t.slCmjPeakPowerSX} / ${t.slCmjPeakPowerDX}` : 'N/D',
-            getTooltip: (t) => (t.slCmjPeakPowerSX !== undefined && t.slCmjPeakPowerDX !== undefined) ? ({ title: 'Peak Power/BW (SX vs DX)', sx: `${t.slCmjPeakPowerSX} W/kg`, dx: `${t.slCmjPeakPowerDX} W/kg`, asym: `LSI: ${((Math.min(t.slCmjPeakPowerSX, t.slCmjPeakPowerDX)/Math.max(t.slCmjPeakPowerSX, t.slCmjPeakPowerDX))*100).toFixed(1)}%` }) : null
+            getValue: (t) => (t.slCmjPeakPowerSX !== undefined && t.slCmjPeakPowerSX !== null && t.slCmjPeakPowerDX !== undefined && t.slCmjPeakPowerDX !== null) ? `${t.slCmjPeakPowerSX} / ${t.slCmjPeakPowerDX}` : 'N/D',
+            getTooltip: (t) => (t.slCmjPeakPowerSX && t.slCmjPeakPowerDX) ? ({ title: 'Peak Power / BM SL (SX vs DX)', sx: `${t.slCmjPeakPowerSX} W/kg`, dx: `${t.slCmjPeakPowerDX} W/kg`, asym: `LSI: ${((Math.min(t.slCmjPeakPowerSX, t.slCmjPeakPowerDX)/Math.max(t.slCmjPeakPowerSX, t.slCmjPeakPowerDX))*100).toFixed(1)}%` }) : null
           },
           { 
             key: 'slCmjRsiSplit', 
-            label: 'RSI (SX / DX)', 
+            label: 'RSImod (SX / DX)', 
             unit: 'm/s', 
             dotColor: 'bg-emerald-400',
-            getValue: (t) => (t.slCmjRsiSX !== undefined && t.slCmjRsiDX !== undefined) ? `${t.slCmjRsiSX} / ${t.slCmjRsiDX}` : 'N/D',
-            getTooltip: (t) => (t.slCmjRsiSX !== undefined && t.slCmjRsiDX !== undefined) ? ({ title: 'RSI Monopodalico (SX vs DX)', sx: `${t.slCmjRsiSX} m/s`, dx: `${t.slCmjRsiDX} m/s`, asym: `LSI: ${((Math.min(t.slCmjRsiSX, t.slCmjRsiDX)/Math.max(t.slCmjRsiSX, t.slCmjRsiDX))*100).toFixed(1)}%` }) : null
+            getValue: (t) => (t.slCmjRsiSX !== undefined && t.slCmjRsiSX !== null && t.slCmjRsiDX !== undefined && t.slCmjRsiDX !== null) ? `${t.slCmjRsiSX} / ${t.slCmjRsiDX}` : 'N/D',
+            getTooltip: (t) => (t.slCmjRsiSX && t.slCmjRsiDX) ? ({ title: 'RSImod Monopodalico (SX vs DX)', sx: `${t.slCmjRsiSX} m/s`, dx: `${t.slCmjRsiDX} m/s`, asym: `LSI: ${((Math.min(t.slCmjRsiSX, t.slCmjRsiDX)/Math.max(t.slCmjRsiSX, t.slCmjRsiDX))*100).toFixed(1)}%` }) : null
           },
           { 
-            key: 'slCmjEccImpulseSplit', 
-            label: 'Braking Impulse (SX / DX)', 
-            unit: 'N·s', 
+            key: 'slCmjDepthSplit', 
+            label: 'Countermovement Depth (SX / DX)', 
+            unit: 'cm', 
             dotColor: 'bg-purple-400',
-            getValue: (t) => (t.slCmjEccImpulseSX !== undefined && t.slCmjEccImpulseDX !== undefined) ? `${t.slCmjEccImpulseSX} / ${t.slCmjEccImpulseDX}` : 'N/D',
-            getTooltip: (t) => (t.slCmjEccImpulseSX !== undefined && t.slCmjEccImpulseDX !== undefined) ? ({ title: 'Braking Impulse (SX vs DX)', sx: `${t.slCmjEccImpulseSX} N·s`, dx: `${t.slCmjEccImpulseDX} N·s`, asym: `LSI: ${((Math.min(t.slCmjEccImpulseSX, t.slCmjEccImpulseDX)/Math.max(t.slCmjEccImpulseSX, t.slCmjEccImpulseDX))*100).toFixed(1)}%` }) : null
+            getValue: (t) => (t.slCmjDepthSX !== undefined && t.slCmjDepthSX !== null && t.slCmjDepthDX !== undefined && t.slCmjDepthDX !== null) ? `${t.slCmjDepthSX} / ${t.slCmjDepthDX}` : 'N/D',
+            getTooltip: (t) => (t.slCmjDepthSX && t.slCmjDepthDX) ? ({ title: 'Countermovement Depth SL (SX vs DX)', sx: `${t.slCmjDepthSX} cm`, dx: `${t.slCmjDepthDX} cm`, asym: `LSI: ${((Math.min(t.slCmjDepthSX, t.slCmjDepthDX)/Math.max(t.slCmjDepthSX, t.slCmjDepthDX))*100).toFixed(1)}%` }) : null
           }
         ];
 

@@ -53,6 +53,8 @@ export default function ModalNuovaValutazione({
     jumpHeight: '',
     contractionTime: '',
     peakPower: '',
+    cmjDepth: '',
+    eccBrakingRfd: '',
     eccBrakingSX: '',
     eccBrakingDX: '',
     concImpulseSX: '',
@@ -67,6 +69,8 @@ export default function ModalNuovaValutazione({
     slCmjPeakPowerDX: '',
     slCmjRsiSX: '',
     slCmjRsiDX: '',
+    slCmjDepthSX: '',
+    slCmjDepthDX: '',
     slCmjEccImpulseSX: '',
     slCmjEccImpulseDX: '',
 
@@ -128,7 +132,9 @@ export default function ModalNuovaValutazione({
 
         jumpHeight: getValStr(initialData.jumpHeight, initialData.jump_height_cm, initialData.altezza_salto),
         contractionTime: getValStr(initialData.contractionTime, initialData.contraction_time_ms, initialData.tempo_contrazione),
-        peakPower: getValStr(initialData.peakPower, initialData.peak_power_w, initialData.potenza_picco),
+        peakPower: getValStr(initialData.peakPower, initialData.peak_power_w, initialData.peak_power_bm, initialData.potenza_picco),
+        cmjDepth: getValStr(initialData.cmjDepth, initialData.cmj_depth, initialData.countermovement_depth),
+        eccBrakingRfd: getValStr(initialData.eccBrakingRfd, initialData.ecc_braking_rfd, initialData.eccentric_braking_rfd),
         eccBrakingSX: getValStr(initialData.eccBrakingSX, initialData.ecc_braking_sx),
         eccBrakingDX: getValStr(initialData.eccBrakingDX, initialData.ecc_braking_dx),
         concImpulseSX: getValStr(initialData.concImpulseSX, initialData.conc_impulse_sx),
@@ -142,6 +148,8 @@ export default function ModalNuovaValutazione({
         slCmjPeakPowerDX: getValStr(initialData.slCmjPeakPowerDX, initialData.sl_cmj_peak_power_dx),
         slCmjRsiSX: getValStr(initialData.slCmjRsiSX, initialData.sl_cmj_rsi_sx),
         slCmjRsiDX: getValStr(initialData.slCmjRsiDX, initialData.sl_cmj_rsi_dx),
+        slCmjDepthSX: getValStr(initialData.slCmjDepthSX, initialData.sl_cmj_depth_sx),
+        slCmjDepthDX: getValStr(initialData.slCmjDepthDX, initialData.sl_cmj_depth_dx),
         slCmjEccImpulseSX: getValStr(initialData.slCmjEccImpulseSX, initialData.sl_cmj_ecc_impulse_sx),
         slCmjEccImpulseDX: getValStr(initialData.slCmjEccImpulseDX, initialData.sl_cmj_ecc_impulse_dx),
 
@@ -175,8 +183,8 @@ export default function ModalNuovaValutazione({
       setForm({
         legExtSX: '', legExtDX: '', legCurlSX: '', legCurlDX: '', calfRaiseSX: '', calfRaiseDX: '',
         soleoSX: '', soleoDX: '', bulgarianSX: '', bulgarianDX: '', imtpPeakForce: '',
-        jumpHeight: '', contractionTime: '', peakPower: '', eccBrakingSX: '', eccBrakingDX: '', concImpulseSX: '', concImpulseDX: '',
-        slCmjHeightSX: '', slCmjHeightDX: '', slCmjCtSX: '', slCmjCtDX: '', slCmjPeakPowerSX: '', slCmjPeakPowerDX: '', slCmjRsiSX: '', slCmjRsiDX: '', slCmjEccImpulseSX: '', slCmjEccImpulseDX: '',
+        jumpHeight: '', contractionTime: '', peakPower: '', cmjDepth: '', eccBrakingRfd: '', eccBrakingSX: '', eccBrakingDX: '', concImpulseSX: '', concImpulseDX: '',
+        slCmjHeightSX: '', slCmjHeightDX: '', slCmjCtSX: '', slCmjCtDX: '', slCmjPeakPowerSX: '', slCmjPeakPowerDX: '', slCmjRsiSX: '', slCmjRsiDX: '', slCmjDepthSX: '', slCmjDepthDX: '', slCmjEccImpulseSX: '', slCmjEccImpulseDX: '',
         djBoxHeight: '30 cm', djJumpHeight: '', djContactTime: '', djRSI: '', djTtpfMs: '', djTakeoffAsymMs: '', djLandingPeakSX: '', djLandingPeakDX: '', djConcImpulseSX: '', djConcImpulseDX: '', djBrakingForce: '', djBrakingImpulse: '',
         slDjBoxHeight: '30 cm', slDjCtSX: '', slDjCtDX: '', slDjRsiSX: '', slDjRsiDX: '', slDjHeightSX: '', slDjHeightDX: '', slDjBrakingSX: '', slDjBrakingDX: ''
       });
@@ -234,8 +242,8 @@ export default function ModalNuovaValutazione({
   };
 
   const countForza = getCollectedCount(['legExtSX', 'legExtDX', 'legCurlSX', 'legCurlDX', 'calfRaiseSX', 'calfRaiseDX', 'soleoSX', 'soleoDX', 'bulgarianSX', 'bulgarianDX', 'imtpPeakForce']);
-  const countCMJ = getCollectedCount(['jumpHeight', 'contractionTime', 'peakPower', 'eccBrakingSX', 'eccBrakingDX', 'concImpulseSX', 'concImpulseDX']);
-  const countSlCmj = getCollectedCount(['slCmjHeightSX', 'slCmjHeightDX', 'slCmjCtSX', 'slCmjCtDX', 'slCmjPeakPowerSX', 'slCmjPeakPowerDX', 'slCmjRsiSX', 'slCmjRsiDX', 'slCmjEccImpulseSX', 'slCmjEccImpulseDX']);
+  const countCMJ = getCollectedCount(['jumpHeight', 'contractionTime', 'peakPower', 'cmjDepth', 'eccBrakingRfd', 'eccBrakingSX', 'eccBrakingDX', 'concImpulseSX', 'concImpulseDX']);
+  const countSlCmj = getCollectedCount(['slCmjHeightSX', 'slCmjHeightDX', 'slCmjCtSX', 'slCmjCtDX', 'slCmjPeakPowerSX', 'slCmjPeakPowerDX', 'slCmjRsiSX', 'slCmjRsiDX', 'slCmjDepthSX', 'slCmjDepthDX', 'slCmjEccImpulseSX', 'slCmjEccImpulseDX']);
   const countDJ = getCollectedCount(['djContactTime', 'djRSI', 'djJumpHeight', 'djTtpfMs', 'djTakeoffAsymMs', 'djLandingPeakSX', 'djLandingPeakDX', 'djConcImpulseSX', 'djConcImpulseDX', 'djBrakingForce', 'djBrakingImpulse']);
   const countSlDj = getCollectedCount(['slDjCtSX', 'slDjCtDX', 'slDjRsiSX', 'slDjRsiDX', 'slDjHeightSX', 'slDjHeightDX', 'slDjBrakingSX', 'slDjBrakingDX']);
 
@@ -270,6 +278,8 @@ export default function ModalNuovaValutazione({
       jump_height_cm: parseVal(form.jumpHeight),
       contraction_time_ms: parseVal(form.contractionTime),
       peak_power_w: parseVal(form.peakPower),
+      cmj_depth: parseVal(form.cmjDepth),
+      ecc_braking_rfd: parseVal(form.eccBrakingRfd),
       rsi_cmj: computeRSImod(form.jumpHeight, form.contractionTime),
       ecc_braking_sx: parseVal(form.eccBrakingSX),
       ecc_braking_dx: parseVal(form.eccBrakingDX),
@@ -285,6 +295,8 @@ export default function ModalNuovaValutazione({
       sl_cmj_peak_power_dx: parseVal(form.slCmjPeakPowerDX),
       sl_cmj_rsi_sx: parseVal(form.slCmjRsiSX) || computeRSImod(form.slCmjHeightSX, form.slCmjCtSX),
       sl_cmj_rsi_dx: parseVal(form.slCmjRsiDX) || computeRSImod(form.slCmjHeightDX, form.slCmjCtDX),
+      sl_cmj_depth_sx: parseVal(form.slCmjDepthSX),
+      sl_cmj_depth_dx: parseVal(form.slCmjDepthDX),
       sl_cmj_ecc_impulse_sx: parseVal(form.slCmjEccImpulseSX),
       sl_cmj_ecc_impulse_dx: parseVal(form.slCmjEccImpulseDX),
 
@@ -524,7 +536,7 @@ export default function ModalNuovaValutazione({
               <div className="flex items-center gap-2">
                 <Zap className="w-4 h-4 text-cyan-400" />
                 <h4 className="font-extrabold text-white text-sm">
-                  2. CMJ BILATERALE
+                  2. CMJ BILATERALE (COUNTERMOVEMENT JUMP)
                 </h4>
                 <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase ${
                   countCMJ > 0 ? 'bg-cyan-950 text-cyan-300 border border-cyan-500/40' : 'bg-slate-900 text-slate-400 border border-slate-800'
@@ -532,17 +544,14 @@ export default function ModalNuovaValutazione({
                   {countCMJ > 0 ? `${countCMJ} DATI RACCOLTI` : 'NESSUN DATO'}
                 </span>
               </div>
-              <span className="text-[10px] text-slate-400 font-mono">Altezza Salto, RSImod, Contraction Time, Peak Power, Eccentric & Concentric Impulse</span>
+              <span className="text-[10px] text-slate-400 font-mono">Altezza Salto, RSImod, Peak Power/BM, CMJ Depth, Contraction Time, Eccentric Braking RFD, Concentric Impulse</span>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+            {/* Grid 1: Metriche Primarie CMJ Bilaterale */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
               <div>
                 <label className="block text-slate-400 text-[10px] font-bold mb-1">Altezza Salto (cm)</label>
                 <input type="number" step="0.1" placeholder="es. 33.5" value={form.jumpHeight} onChange={(e) => handleChange('jumpHeight', e.target.value)} className="w-full bg-slate-950 border border-slate-700 rounded-lg p-2.5 text-emerald-300 font-mono text-xs font-bold" />
-              </div>
-              <div>
-                <label className="block text-slate-400 text-[10px] font-bold mb-1">Contraction Time (ms)</label>
-                <input type="number" placeholder="es. 610" value={form.contractionTime} onChange={(e) => handleChange('contractionTime', e.target.value)} className="w-full bg-slate-950 border border-slate-700 rounded-lg p-2.5 text-amber-300 font-mono text-xs font-bold" />
               </div>
               <div>
                 <div className="flex justify-between items-center mb-1">
@@ -554,44 +563,26 @@ export default function ModalNuovaValutazione({
                 </div>
               </div>
               <div>
-                <label className="block text-slate-400 text-[10px] font-bold mb-1">Peak Power (W)</label>
-                <input type="number" step="0.1" placeholder="es. 2950" value={form.peakPower} onChange={(e) => handleChange('peakPower', e.target.value)} className="w-full bg-slate-950 border border-slate-700 rounded-lg p-2.5 text-emerald-300 font-mono text-xs font-bold" />
+                <label className="block text-slate-400 text-[10px] font-bold mb-1">Peak Power / BM (W/kg)</label>
+                <input type="number" step="0.1" placeholder="es. 48.5" value={form.peakPower} onChange={(e) => handleChange('peakPower', e.target.value)} className="w-full bg-slate-950 border border-slate-700 rounded-lg p-2.5 text-emerald-300 font-mono text-xs font-bold" />
+              </div>
+              <div>
+                <label className="block text-slate-400 text-[10px] font-bold mb-1">Countermovement Depth (cm)</label>
+                <input type="number" step="0.1" placeholder="es. 31.2" value={form.cmjDepth} onChange={(e) => handleChange('cmjDepth', e.target.value)} className="w-full bg-slate-950 border border-slate-700 rounded-lg p-2.5 text-cyan-300 font-mono text-xs font-bold" />
+              </div>
+              <div>
+                <label className="block text-slate-400 text-[10px] font-bold mb-1">Contraction Time (ms)</label>
+                <input type="number" placeholder="es. 610" value={form.contractionTime} onChange={(e) => handleChange('contractionTime', e.target.value)} className="w-full bg-slate-950 border border-slate-700 rounded-lg p-2.5 text-amber-300 font-mono text-xs font-bold" />
+              </div>
+              <div>
+                <label className="block text-slate-400 text-[10px] font-bold mb-1">Eccentric Braking RFD (N/s)</label>
+                <input type="number" step="1" placeholder="es. 3450" value={form.eccBrakingRfd} onChange={(e) => handleChange('eccBrakingRfd', e.target.value)} className="w-full bg-slate-950 border border-slate-700 rounded-lg p-2.5 text-purple-300 font-mono text-xs font-bold" />
               </div>
             </div>
 
-            {/* Scomposizione SX / DX per Impulse */}
+            {/* Grid 2: Concentric & Eccentric Impulse SX / DX */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-1">
               
-              {/* Eccentric Impulse Left & Right */}
-              {(() => {
-                const asym = computeLimbAsym(form.eccBrakingSX, form.eccBrakingDX);
-                const isRed = asym !== null && parseFloat(asym) > 15;
-                return (
-                  <div className="p-3.5 rounded-xl border border-slate-800 bg-slate-950/80 space-y-2">
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs font-black text-white">Eccentric Impulse (N·s)</span>
-                      <span className="text-[10px] text-slate-400 font-mono">Left vs Right</span>
-                    </div>
-                    <div className="grid grid-cols-2 gap-2 text-xs">
-                      <div>
-                        <label className="block text-slate-400 text-[10px] mb-0.5">Left (SX)</label>
-                        <input type="number" step="1" placeholder="es. 220" value={form.eccBrakingSX} onChange={(e) => handleChange('eccBrakingSX', e.target.value)} className="w-full bg-slate-950 border border-slate-700 rounded-lg p-2 text-cyan-300 font-mono text-xs font-bold" />
-                      </div>
-                      <div>
-                        <label className="block text-slate-400 text-[10px] mb-0.5">Right (DX)</label>
-                        <input type="number" step="1" placeholder="es. 175" value={form.eccBrakingDX} onChange={(e) => handleChange('eccBrakingDX', e.target.value)} className="w-full bg-slate-950 border border-slate-700 rounded-lg p-2 text-pink-400 font-mono text-xs font-bold" />
-                      </div>
-                    </div>
-                    {asym !== null && (
-                      <div className={`text-[10px] font-mono font-black pt-1 border-t border-slate-800 flex items-center justify-between ${isRed ? 'text-red-400' : 'text-emerald-400'}`}>
-                        <span>Asimmetria Frenata: {asym}%</span>
-                        {isRed ? <span className="text-[9px] bg-red-950 px-1.5 py-0.5 rounded border border-red-500/50">⚠️ &gt;15%</span> : <span className="text-[9px] bg-emerald-950 px-1.5 py-0.5 rounded border border-emerald-500/50">✓ OK</span>}
-                      </div>
-                    )}
-                  </div>
-                );
-              })()}
-
               {/* Concentric Impulse Left & Right */}
               {(() => {
                 const asym = computeLimbAsym(form.concImpulseSX, form.concImpulseDX);
@@ -600,21 +591,51 @@ export default function ModalNuovaValutazione({
                   <div className="p-3.5 rounded-xl border border-slate-800 bg-slate-950/80 space-y-2">
                     <div className="flex items-center justify-between">
                       <span className="text-xs font-black text-white">Concentric Impulse (N·s)</span>
-                      <span className="text-[10px] text-slate-400 font-mono">Left vs Right</span>
+                      <span className="text-[10px] text-slate-400 font-mono">Sinistro vs Destro</span>
                     </div>
                     <div className="grid grid-cols-2 gap-2 text-xs">
                       <div>
-                        <label className="block text-slate-400 text-[10px] mb-0.5">Left (SX)</label>
+                        <label className="block text-slate-400 text-[10px] mb-0.5">Sinistro (SX)</label>
                         <input type="number" step="1" placeholder="es. 210" value={form.concImpulseSX} onChange={(e) => handleChange('concImpulseSX', e.target.value)} className="w-full bg-slate-950 border border-slate-700 rounded-lg p-2 text-cyan-300 font-mono text-xs font-bold" />
                       </div>
                       <div>
-                        <label className="block text-slate-400 text-[10px] mb-0.5">Right (DX)</label>
+                        <label className="block text-slate-400 text-[10px] mb-0.5">Destro (DX)</label>
                         <input type="number" step="1" placeholder="es. 175" value={form.concImpulseDX} onChange={(e) => handleChange('concImpulseDX', e.target.value)} className="w-full bg-slate-950 border border-slate-700 rounded-lg p-2 text-pink-400 font-mono text-xs font-bold" />
                       </div>
                     </div>
                     {asym !== null && (
                       <div className={`text-[10px] font-mono font-black pt-1 border-t border-slate-800 flex items-center justify-between ${isRed ? 'text-red-400' : 'text-emerald-400'}`}>
                         <span>Asimmetria Spinta: {asym}%</span>
+                        {isRed ? <span className="text-[9px] bg-red-950 px-1.5 py-0.5 rounded border border-red-500/50">⚠️ &gt;15%</span> : <span className="text-[9px] bg-emerald-950 px-1.5 py-0.5 rounded border border-emerald-500/50">✓ OK</span>}
+                      </div>
+                    )}
+                  </div>
+                );
+              })()}
+
+              {/* Eccentric Impulse Left & Right */}
+              {(() => {
+                const asym = computeLimbAsym(form.eccBrakingSX, form.eccBrakingDX);
+                const isRed = asym !== null && parseFloat(asym) > 15;
+                return (
+                  <div className="p-3.5 rounded-xl border border-slate-800 bg-slate-950/80 space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-black text-white">Eccentric Impulse (N·s)</span>
+                      <span className="text-[10px] text-slate-400 font-mono">Sinistro vs Destro</span>
+                    </div>
+                    <div className="grid grid-cols-2 gap-2 text-xs">
+                      <div>
+                        <label className="block text-slate-400 text-[10px] mb-0.5">Sinistro (SX)</label>
+                        <input type="number" step="1" placeholder="es. 220" value={form.eccBrakingSX} onChange={(e) => handleChange('eccBrakingSX', e.target.value)} className="w-full bg-slate-950 border border-slate-700 rounded-lg p-2 text-cyan-300 font-mono text-xs font-bold" />
+                      </div>
+                      <div>
+                        <label className="block text-slate-400 text-[10px] mb-0.5">Destro (DX)</label>
+                        <input type="number" step="1" placeholder="es. 175" value={form.eccBrakingDX} onChange={(e) => handleChange('eccBrakingDX', e.target.value)} className="w-full bg-slate-950 border border-slate-700 rounded-lg p-2 text-pink-400 font-mono text-xs font-bold" />
+                      </div>
+                    </div>
+                    {asym !== null && (
+                      <div className={`text-[10px] font-mono font-black pt-1 border-t border-slate-800 flex items-center justify-between ${isRed ? 'text-red-400' : 'text-emerald-400'}`}>
+                        <span>Asimmetria Frenata: {asym}%</span>
                         {isRed ? <span className="text-[9px] bg-red-950 px-1.5 py-0.5 rounded border border-red-500/50">⚠️ &gt;15%</span> : <span className="text-[9px] bg-emerald-950 px-1.5 py-0.5 rounded border border-emerald-500/50">✓ OK</span>}
                       </div>
                     )}
@@ -639,12 +660,12 @@ export default function ModalNuovaValutazione({
                   {countSlCmj > 0 ? `${countSlCmj} DATI RACCOLTI` : 'NESSUN DATO'}
                 </span>
               </div>
-              <span className="text-[10px] text-slate-400 font-mono">Altezza Salto, Duration Time, Peak Power/BW, RSI & Braking Impulse</span>
+              <span className="text-[10px] text-slate-400 font-mono">Altezza Salto, Peak Power/BM, RSImod & Countermovement Depth (SX vs DX)</span>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5">
               
-              {/* Altezza Salto (cm) */}
+              {/* 1. Altezza Salto (Sinistra vs Destra) */}
               {(() => {
                 const lsi = computeLSI(form.slCmjHeightSX, form.slCmjHeightDX);
                 return (
@@ -652,12 +673,12 @@ export default function ModalNuovaValutazione({
                     <span className="text-xs font-black text-white block">Altezza Salto (cm)</span>
                     <div className="grid grid-cols-2 gap-2 text-xs">
                       <div>
-                        <label className="block text-slate-400 text-[10px]">SX (cm)</label>
-                        <input type="number" step="0.1" placeholder="es. 15.5" value={form.slCmjHeightSX} onChange={(e) => handleChange('slCmjHeightSX', e.target.value)} className="w-full bg-slate-950 border border-slate-700 rounded-lg p-2 text-cyan-300 font-mono" />
+                        <label className="block text-slate-400 text-[10px]">Sinistra (SX)</label>
+                        <input type="number" step="0.1" placeholder="es. 15.5" value={form.slCmjHeightSX} onChange={(e) => handleChange('slCmjHeightSX', e.target.value)} className="w-full bg-slate-950 border border-slate-700 rounded-lg p-2 text-cyan-300 font-mono font-bold" />
                       </div>
                       <div>
-                        <label className="block text-slate-400 text-[10px]">DX (cm)</label>
-                        <input type="number" step="0.1" placeholder="es. 12.8" value={form.slCmjHeightDX} onChange={(e) => handleChange('slCmjHeightDX', e.target.value)} className="w-full bg-slate-950 border border-slate-700 rounded-lg p-2 text-pink-400 font-mono" />
+                        <label className="block text-slate-400 text-[10px]">Destra (DX)</label>
+                        <input type="number" step="0.1" placeholder="es. 12.8" value={form.slCmjHeightDX} onChange={(e) => handleChange('slCmjHeightDX', e.target.value)} className="w-full bg-slate-950 border border-slate-700 rounded-lg p-2 text-pink-400 font-mono font-bold" />
                       </div>
                     </div>
                     {lsi !== null && <div className="text-[10px] font-mono text-emerald-400 font-black pt-1 border-t border-slate-800">LSI Salto: {lsi}%</div>}
@@ -665,41 +686,20 @@ export default function ModalNuovaValutazione({
                 );
               })()}
 
-              {/* Duration Time (ms) */}
-              {(() => {
-                const lsi = computeLSI(form.slCmjCtSX, form.slCmjCtDX);
-                return (
-                  <div className="p-3.5 rounded-xl border border-slate-800 bg-slate-950/80 space-y-2">
-                    <span className="text-xs font-black text-white block">Duration Time (ms)</span>
-                    <div className="grid grid-cols-2 gap-2 text-xs">
-                      <div>
-                        <label className="block text-slate-400 text-[10px]">SX (ms)</label>
-                        <input type="number" placeholder="es. 620" value={form.slCmjCtSX} onChange={(e) => handleChange('slCmjCtSX', e.target.value)} className="w-full bg-slate-950 border border-slate-700 rounded-lg p-2 text-amber-300 font-mono" />
-                      </div>
-                      <div>
-                        <label className="block text-slate-400 text-[10px]">DX (ms)</label>
-                        <input type="number" placeholder="es. 650" value={form.slCmjCtDX} onChange={(e) => handleChange('slCmjCtDX', e.target.value)} className="w-full bg-slate-950 border border-slate-700 rounded-lg p-2 text-amber-300 font-mono" />
-                      </div>
-                    </div>
-                    {lsi !== null && <div className="text-[10px] font-mono text-amber-400 font-black pt-1 border-t border-slate-800">LSI Duration: {lsi}%</div>}
-                  </div>
-                );
-              })()}
-
-              {/* Peak Power/BW (W/kg) */}
+              {/* 2. Peak Power / BM (Sinistra vs Destra) */}
               {(() => {
                 const lsi = computeLSI(form.slCmjPeakPowerSX, form.slCmjPeakPowerDX);
                 return (
                   <div className="p-3.5 rounded-xl border border-slate-800 bg-slate-950/80 space-y-2">
-                    <span className="text-xs font-black text-white block">Peak Power/BW (W/kg)</span>
+                    <span className="text-xs font-black text-white block">Peak Power / BM (W/kg)</span>
                     <div className="grid grid-cols-2 gap-2 text-xs">
                       <div>
-                        <label className="block text-slate-400 text-[10px]">SX (W/kg)</label>
-                        <input type="number" step="0.1" placeholder="es. 28.5" value={form.slCmjPeakPowerSX} onChange={(e) => handleChange('slCmjPeakPowerSX', e.target.value)} className="w-full bg-slate-950 border border-slate-700 rounded-lg p-2 text-cyan-300 font-mono" />
+                        <label className="block text-slate-400 text-[10px]">Sinistra (SX)</label>
+                        <input type="number" step="0.1" placeholder="es. 28.5" value={form.slCmjPeakPowerSX} onChange={(e) => handleChange('slCmjPeakPowerSX', e.target.value)} className="w-full bg-slate-950 border border-slate-700 rounded-lg p-2 text-cyan-300 font-mono font-bold" />
                       </div>
                       <div>
-                        <label className="block text-slate-400 text-[10px]">DX (W/kg)</label>
-                        <input type="number" step="0.1" placeholder="es. 23.4" value={form.slCmjPeakPowerDX} onChange={(e) => handleChange('slCmjPeakPowerDX', e.target.value)} className="w-full bg-slate-950 border border-slate-700 rounded-lg p-2 text-pink-400 font-mono" />
+                        <label className="block text-slate-400 text-[10px]">Destra (DX)</label>
+                        <input type="number" step="0.1" placeholder="es. 23.4" value={form.slCmjPeakPowerDX} onChange={(e) => handleChange('slCmjPeakPowerDX', e.target.value)} className="w-full bg-slate-950 border border-slate-700 rounded-lg p-2 text-pink-400 font-mono font-bold" />
                       </div>
                     </div>
                     {lsi !== null && <div className="text-[10px] font-mono text-[#00e5ff] font-black pt-1 border-t border-slate-800">LSI Peak Power: {lsi}%</div>}
@@ -707,22 +707,22 @@ export default function ModalNuovaValutazione({
                 );
               })()}
 
-              {/* RSI (m/s) */}
+              {/* 3. RSImod (Sinistro vs Destro) */}
               {(() => {
                 const rsiSX = form.slCmjRsiSX || computeRSImod(form.slCmjHeightSX, form.slCmjCtSX);
                 const rsiDX = form.slCmjRsiDX || computeRSImod(form.slCmjHeightDX, form.slCmjCtDX);
                 const lsi = computeLSI(rsiSX, rsiDX);
                 return (
                   <div className="p-3.5 rounded-xl border border-slate-800 bg-slate-950/80 space-y-2">
-                    <span className="text-xs font-black text-white block">RSI (m/s)</span>
+                    <span className="text-xs font-black text-white block">RSImod (m/s)</span>
                     <div className="grid grid-cols-2 gap-2 text-xs">
                       <div>
-                        <label className="block text-slate-400 text-[10px]">SX (m/s)</label>
-                        <input type="number" step="0.01" placeholder="es. 0.25" value={form.slCmjRsiSX} onChange={(e) => handleChange('slCmjRsiSX', e.target.value)} className="w-full bg-slate-950 border border-slate-700 rounded-lg p-2 text-emerald-300 font-mono" />
+                        <label className="block text-slate-400 text-[10px]">Sinistro (SX)</label>
+                        <input type="number" step="0.01" placeholder="es. 0.25" value={form.slCmjRsiSX} onChange={(e) => handleChange('slCmjRsiSX', e.target.value)} className="w-full bg-slate-950 border border-slate-700 rounded-lg p-2 text-emerald-300 font-mono font-bold" />
                       </div>
                       <div>
-                        <label className="block text-slate-400 text-[10px]">DX (m/s)</label>
-                        <input type="number" step="0.01" placeholder="es. 0.20" value={form.slCmjRsiDX} onChange={(e) => handleChange('slCmjRsiDX', e.target.value)} className="w-full bg-slate-950 border border-slate-700 rounded-lg p-2 text-emerald-300 font-mono" />
+                        <label className="block text-slate-400 text-[10px]">Destro (DX)</label>
+                        <input type="number" step="0.01" placeholder="es. 0.20" value={form.slCmjRsiDX} onChange={(e) => handleChange('slCmjRsiDX', e.target.value)} className="w-full bg-slate-950 border border-slate-700 rounded-lg p-2 text-emerald-300 font-mono font-bold" />
                       </div>
                     </div>
                     {lsi !== null && <div className="text-[10px] font-mono text-emerald-400 font-black pt-1 border-t border-slate-800">LSI RSI: {lsi}%</div>}
@@ -730,23 +730,23 @@ export default function ModalNuovaValutazione({
                 );
               })()}
 
-              {/* Braking Impulse (N·s) */}
+              {/* 4. Countermovement Depth (Sinistro vs Destro) */}
               {(() => {
-                const lsi = computeLSI(form.slCmjEccImpulseSX, form.slCmjEccImpulseDX);
+                const lsi = computeLSI(form.slCmjDepthSX, form.slCmjDepthDX);
                 return (
                   <div className="p-3.5 rounded-xl border border-slate-800 bg-slate-950/80 space-y-2">
-                    <span className="text-xs font-black text-white block">Braking Impulse (N·s)</span>
+                    <span className="text-xs font-black text-white block">Countermovement Depth (cm)</span>
                     <div className="grid grid-cols-2 gap-2 text-xs">
                       <div>
-                        <label className="block text-slate-400 text-[10px]">SX (N·s)</label>
-                        <input type="number" step="1" placeholder="es. 120" value={form.slCmjEccImpulseSX} onChange={(e) => handleChange('slCmjEccImpulseSX', e.target.value)} className="w-full bg-slate-950 border border-slate-700 rounded-lg p-2 text-cyan-300 font-mono" />
+                        <label className="block text-slate-400 text-[10px]">Sinistro (SX)</label>
+                        <input type="number" step="0.1" placeholder="es. 24.5" value={form.slCmjDepthSX} onChange={(e) => handleChange('slCmjDepthSX', e.target.value)} className="w-full bg-slate-950 border border-slate-700 rounded-lg p-2 text-cyan-300 font-mono font-bold" />
                       </div>
                       <div>
-                        <label className="block text-slate-400 text-[10px]">DX (N·s)</label>
-                        <input type="number" step="1" placeholder="es. 98" value={form.slCmjEccImpulseDX} onChange={(e) => handleChange('slCmjEccImpulseDX', e.target.value)} className="w-full bg-slate-950 border border-slate-700 rounded-lg p-2 text-pink-400 font-mono" />
+                        <label className="block text-slate-400 text-[10px]">Destro (DX)</label>
+                        <input type="number" step="0.1" placeholder="es. 21.0" value={form.slCmjDepthDX} onChange={(e) => handleChange('slCmjDepthDX', e.target.value)} className="w-full bg-slate-950 border border-slate-700 rounded-lg p-2 text-pink-400 font-mono font-bold" />
                       </div>
                     </div>
-                    {lsi !== null && <div className="text-[10px] font-mono text-cyan-400 font-black pt-1 border-t border-slate-800">LSI Braking Impulse: {lsi}%</div>}
+                    {lsi !== null && <div className="text-[10px] font-mono text-cyan-400 font-black pt-1 border-t border-slate-800">LSI Depth: {lsi}%</div>}
                   </div>
                 );
               })()}

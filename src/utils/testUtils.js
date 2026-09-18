@@ -146,6 +146,12 @@ export const createTestObject = (newValData, patientId, testIndex = 1) => {
         : null),
     rsi_cmj: parseVal(newValData.rsi_cmj) ?? parseVal(newValData.rsiCmj) ?? parseVal(newValData.rsi_mod) ?? null,
 
+    cmjDepth: parseVal(newValData.cmj_depth) ?? parseVal(newValData.cmjDepth) ?? parseVal(newValData.countermovement_depth) ?? null,
+    cmj_depth: parseVal(newValData.cmj_depth) ?? parseVal(newValData.cmjDepth) ?? parseVal(newValData.countermovement_depth) ?? null,
+
+    eccBrakingRfd: parseVal(newValData.ecc_braking_rfd) ?? parseVal(newValData.eccBrakingRfd) ?? parseVal(newValData.eccentric_braking_rfd) ?? null,
+    ecc_braking_rfd: parseVal(newValData.ecc_braking_rfd) ?? parseVal(newValData.eccBrakingRfd) ?? parseVal(newValData.eccentric_braking_rfd) ?? null,
+
     eccBrakingSX: parseVal(newValData.ecc_braking_sx) ?? parseVal(newValData.eccBrakingSX) ?? null,
     ecc_braking_sx: parseVal(newValData.ecc_braking_sx) ?? parseVal(newValData.eccBrakingSX) ?? null,
 
@@ -174,9 +180,12 @@ export const createTestObject = (newValData, patientId, testIndex = 1) => {
     slCmjPeakPowerDX: parseVal(newValData.sl_cmj_peak_power_dx) ?? parseVal(newValData.slCmjPeakPowerDX) ?? null,
     slCmjRsiSX: parseVal(newValData.sl_cmj_rsi_sx) ?? parseVal(newValData.slCmjRsiSX) ?? null,
     slCmjRsiDX: parseVal(newValData.sl_cmj_rsi_dx) ?? parseVal(newValData.slCmjRsiDX) ?? null,
+    slCmjDepthSX: parseVal(newValData.sl_cmj_depth_sx) ?? parseVal(newValData.slCmjDepthSX) ?? null,
+    slCmjDepthDX: parseVal(newValData.sl_cmj_depth_dx) ?? parseVal(newValData.slCmjDepthDX) ?? null,
     slCmjEccImpulseSX: parseVal(newValData.sl_cmj_ecc_impulse_sx) ?? parseVal(newValData.slCmjEccImpulseSX) ?? null,
     slCmjEccImpulseDX: parseVal(newValData.sl_cmj_ecc_impulse_dx) ?? parseVal(newValData.slCmjEccImpulseDX) ?? null,
     slCmjHeightLsi: parseVal(newValData.lsi_sl_cmj_height_calculated) ?? parseVal(newValData.slCmjHeightLsi) ?? 0,
+    slCmjDepthLsi: parseVal(newValData.lsi_sl_cmj_depth_calculated) ?? parseVal(newValData.slCmjDepthLsi) ?? 0,
 
     // Drop Jump Bilaterale (RTP Specialist Metriche Temporali & Dual Load Cells)
     djBoxHeight,

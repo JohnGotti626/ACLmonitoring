@@ -841,30 +841,40 @@ export default function PrintConfiguratorModal({ isOpen, onClose, patient, patie
                           <Zap className="w-3 h-3 text-emerald-700" />
                           <span>CMJ BILATERALE (PEDANA DI FORZA FORCEDECKS)</span>
                         </div>
-                        <div className="grid grid-cols-4 gap-2 text-[9px] text-center">
+                        <div className="grid grid-cols-4 gap-1.5 text-[9px] text-center">
                           <div className="p-1 bg-slate-50 border border-slate-300 rounded">
-                            <span className="text-slate-500 block">Altezza Salto</span>
-                            <strong className="text-slate-900 text-xs">{fmtVal(selectedTest?.jumpHeight ?? selectedTest?.jump_height_cm ?? selectedTest?.altezza_salto, 'cm')}</strong>
+                            <span className="text-slate-500 block text-[8px]">Altezza Salto</span>
+                            <strong className="text-slate-900 text-xs font-black">{fmtVal(selectedTest?.jumpHeight ?? selectedTest?.jump_height_cm ?? selectedTest?.altezza_salto, 'cm')}</strong>
                           </div>
                           <div className="p-1 bg-slate-50 border border-slate-300 rounded">
-                            <span className="text-slate-500 block">Impulso Frenata {showCitations && <span className="text-[7.5px] text-cyan-700 font-mono">[5]</span>}</span>
-                            <strong className="text-emerald-700 text-xs font-bold">
-                              {selectedTest?.eccBrakingSX && selectedTest?.eccBrakingDX 
-                                ? `${selectedTest.eccBrakingSX} / ${selectedTest.eccBrakingDX} N·s` 
-                                : (selectedTest?.brakingAsym ? `Asim. ${selectedTest.brakingAsym}%` : 'N/D')}
+                            <span className="text-slate-500 block text-[8px]">RSImod</span>
+                            <strong className="text-emerald-700 text-xs font-black">
+                              {selectedTest?.rsiCmj ? `${selectedTest.rsiCmj} m/s` : (selectedTest?.jumpHeight && selectedTest?.contractionTime ? `${((selectedTest.jumpHeight/100)/(selectedTest.contractionTime/1000)).toFixed(2)} m/s` : 'N/D')}
                             </strong>
                           </div>
                           <div className="p-1 bg-slate-50 border border-slate-300 rounded">
-                            <span className="text-slate-500 block">Impulso Concentrico</span>
-                            <strong className="text-emerald-700 text-xs font-bold">
+                            <span className="text-slate-500 block text-[8px]">Peak Power / BM</span>
+                            <strong className="text-slate-900 text-xs font-black">{fmtVal(selectedTest?.peakPower ?? selectedTest?.peak_power_w ?? selectedTest?.peak_power_bm, 'W/kg')}</strong>
+                          </div>
+                          <div className="p-1 bg-slate-50 border border-slate-300 rounded">
+                            <span className="text-slate-500 block text-[8px]">CMJ Depth</span>
+                            <strong className="text-slate-900 text-xs font-black">{fmtVal(selectedTest?.cmjDepth ?? selectedTest?.cmj_depth, 'cm')}</strong>
+                          </div>
+                          <div className="p-1 bg-slate-50 border border-slate-300 rounded">
+                            <span className="text-slate-500 block text-[8px]">Contraction Time</span>
+                            <strong className="text-amber-700 text-xs font-black">{fmtVal(selectedTest?.contractionTime ?? selectedTest?.contraction_time_ms, 'ms')}</strong>
+                          </div>
+                          <div className="p-1 bg-slate-50 border border-slate-300 rounded">
+                            <span className="text-slate-500 block text-[8px]">Eccentric Braking RFD</span>
+                            <strong className="text-purple-700 text-xs font-black">{fmtVal(selectedTest?.eccBrakingRfd ?? selectedTest?.ecc_braking_rfd, 'N/s')}</strong>
+                          </div>
+                          <div className="p-1 bg-slate-50 border border-slate-300 rounded col-span-2">
+                            <span className="text-slate-500 block text-[8px]">Concentric Impulse (Sx / Dx)</span>
+                            <strong className="text-cyan-700 text-xs font-black">
                               {selectedTest?.concImpulseSX && selectedTest?.concImpulseDX 
                                 ? `${selectedTest.concImpulseSX} / ${selectedTest.concImpulseDX} N·s` 
                                 : (selectedTest?.concImpulseAsym ? `Asim. ${selectedTest.concImpulseAsym}%` : 'N/D')}
                             </strong>
-                          </div>
-                          <div className="p-1 bg-slate-50 border border-slate-300 rounded">
-                            <span className="text-slate-500 block">Peak Power / W</span>
-                            <strong className="text-slate-900 text-xs">{fmtVal(selectedTest?.peakPower ?? selectedTest?.peak_power_w, 'W')}</strong>
                           </div>
                         </div>
                       </div>
@@ -875,14 +885,14 @@ export default function PrintConfiguratorModal({ isOpen, onClose, patient, patie
                       <div key={mod.id} className="space-y-1">
                         <div className="text-[10px] font-extrabold text-emerald-900 uppercase tracking-wider border-b border-emerald-200 pb-0.5 flex items-center gap-1">
                           <Footprints className="w-3 h-3 text-emerald-700" />
-                          <span>CMJ MONOPODALICO (PEDANA DI FORZA)</span>
+                          <span>CMJ MONOPODALICO (SINGLE LEG CMJ - PEDANA DI FORZA)</span>
                         </div>
                         <table className="w-full text-left border-collapse border border-slate-300 text-[9px]">
                           <thead>
                             <tr className="bg-slate-100 text-slate-800 border-b border-slate-300 font-bold">
                               <th className="p-1 border-r border-slate-300">Parametro Pedana</th>
-                              <th className="p-1 border-r border-slate-300">Arto Operato ({operatedKnee})</th>
-                              <th className="p-1 border-r border-slate-300">Arto Sano</th>
+                              <th className="p-1 border-r border-slate-300">Arto Sinistro (SX)</th>
+                              <th className="p-1 border-r border-slate-300">Arto Destro (DX)</th>
                               <th className="p-1">LSI %</th>
                             </tr>
                           </thead>
@@ -893,14 +903,34 @@ export default function PrintConfiguratorModal({ isOpen, onClose, patient, patie
                               <td className="p-1 border-r border-slate-200">{fmtVal(selectedTest?.slCmjHeightDX, 'cm')}</td>
                               <td className="p-1 font-bold text-emerald-700">{fmtFixed(selectedTest?.slCmjHeightLsi, 1, '%')}</td>
                             </tr>
-                            <tr>
-                              <td className="p-1 font-bold border-r border-slate-200">Contraction Time (ms)</td>
-                              <td className="p-1 border-r border-slate-200 font-bold text-slate-900">{fmtVal(selectedTest?.slCmjCtSX, 'ms')}</td>
-                              <td className="p-1 border-r border-slate-200">{fmtVal(selectedTest?.slCmjCtDX, 'ms')}</td>
+                            <tr className="border-b border-slate-200">
+                              <td className="p-1 font-bold border-r border-slate-200">Peak Power / BM (W/kg)</td>
+                              <td className="p-1 border-r border-slate-200 font-bold text-slate-900">{fmtVal(selectedTest?.slCmjPeakPowerSX, 'W/kg')}</td>
+                              <td className="p-1 border-r border-slate-200">{fmtVal(selectedTest?.slCmjPeakPowerDX, 'W/kg')}</td>
                               <td className="p-1 font-bold text-emerald-700">
-                                {selectedTest?.slCmjCtSX && selectedTest?.slCmjCtDX 
-                                  ? `${((Math.min(selectedTest.slCmjCtSX, selectedTest.slCmjCtDX) / Math.max(selectedTest.slCmjCtSX, selectedTest.slCmjCtDX)) * 100).toFixed(1)}%` 
+                                {selectedTest?.slCmjPeakPowerSX && selectedTest?.slCmjPeakPowerDX 
+                                  ? `${((Math.min(selectedTest.slCmjPeakPowerSX, selectedTest.slCmjPeakPowerDX) / Math.max(selectedTest.slCmjPeakPowerSX, selectedTest.slCmjPeakPowerDX)) * 100).toFixed(1)}%` 
                                   : 'N/D'}
+                              </td>
+                            </tr>
+                            <tr className="border-b border-slate-200">
+                              <td className="p-1 font-bold border-r border-slate-200">RSImod (m/s)</td>
+                              <td className="p-1 border-r border-slate-200 font-bold text-slate-900">{fmtVal(selectedTest?.slCmjRsiSX, 'm/s')}</td>
+                              <td className="p-1 border-r border-slate-200">{fmtVal(selectedTest?.slCmjRsiDX, 'm/s')}</td>
+                              <td className="p-1 font-bold text-emerald-700">
+                                {selectedTest?.slCmjRsiSX && selectedTest?.slCmjRsiDX 
+                                  ? `${((Math.min(selectedTest.slCmjRsiSX, selectedTest.slCmjRsiDX) / Math.max(selectedTest.slCmjRsiSX, selectedTest.slCmjRsiDX)) * 100).toFixed(1)}%` 
+                                  : 'N/D'}
+                              </td>
+                            </tr>
+                            <tr>
+                              <td className="p-1 font-bold border-r border-slate-200">Countermovement Depth (cm)</td>
+                              <td className="p-1 border-r border-slate-200 font-bold text-slate-900">{fmtVal(selectedTest?.slCmjDepthSX, 'cm')}</td>
+                              <td className="p-1 border-r border-slate-200">{fmtVal(selectedTest?.slCmjDepthDX, 'cm')}</td>
+                              <td className="p-1 font-bold text-emerald-700">
+                                {selectedTest?.slCmjDepthSX && selectedTest?.slCmjDepthDX 
+                                  ? `${((Math.min(selectedTest.slCmjDepthSX, selectedTest.slCmjDepthDX) / Math.max(selectedTest.slCmjDepthSX, selectedTest.slCmjDepthDX)) * 100).toFixed(1)}%` 
+                                  : (fmtFixed(selectedTest?.slCmjDepthLsi, 1, '%'))}
                               </td>
                             </tr>
                           </tbody>
