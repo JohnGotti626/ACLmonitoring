@@ -253,6 +253,17 @@ export default function PrintConfiguratorModal({ isOpen, onClose, patient, patie
     return `${num.toFixed(decimals)}${suffix ? ` ${suffix}` : ''}`;
   };
 
+  const calcRatioLsi = (val1, val2) => {
+    if (val1 === undefined || val1 === null || val1 === '' || val1 === '-') return 'N/D';
+    if (val2 === undefined || val2 === null || val2 === '' || val2 === '-') return 'N/D';
+    const n1 = typeof val1 === 'number' ? val1 : parseFloat(String(val1).replace(',', '.'));
+    const n2 = typeof val2 === 'number' ? val2 : parseFloat(String(val2).replace(',', '.'));
+    if (isNaN(n1) || isNaN(n2) || n1 <= 0 || n2 <= 0) return 'N/D';
+    const max = Math.max(n1, n2);
+    if (max === 0) return 'N/D';
+    return `${((Math.min(n1, n2) / max) * 100).toFixed(1)}%`;
+  };
+
   // Helper riordinamento tramite bottoni
   const moveModule = (index, direction) => {
     const newIndex = direction === 'up' ? index - 1 : index + 1;
@@ -752,14 +763,12 @@ export default function PrintConfiguratorModal({ isOpen, onClose, patient, patie
                               <td className="p-1 border-r border-slate-200">{fmtVal(selectedTest?.flexOp, 'N')}</td>
                               <td className="p-1 font-extrabold text-emerald-700">{fmtFixed(selectedTest?.lsiFlex, 1, '%')}</td>
                             </tr>
-                            <tr className="border-b border-slate-200">
+                             <tr className="border-b border-slate-200">
                               <td className="p-1 font-bold border-r border-slate-200">Bulgarian Squat 6RM (kg)</td>
                               <td className="p-1 border-r border-slate-200 font-bold text-slate-900">{fmtVal(selectedTest?.bulgarianSX, 'kg')}</td>
                               <td className="p-1 border-r border-slate-200">{fmtVal(selectedTest?.bulgarianDX, 'kg')}</td>
                               <td className="p-1 font-extrabold text-emerald-700">
-                                {selectedTest?.bulgarianSX && selectedTest?.bulgarianDX 
-                                  ? `${((Math.min(selectedTest.bulgarianSX, selectedTest.bulgarianDX) / Math.max(selectedTest.bulgarianSX, selectedTest.bulgarianDX)) * 100).toFixed(1)}%` 
-                                  : 'N/D'}
+                                {calcRatioLsi(selectedTest?.bulgarianSX, selectedTest?.bulgarianDX)}
                               </td>
                             </tr>
                             <tr>
@@ -767,9 +776,7 @@ export default function PrintConfiguratorModal({ isOpen, onClose, patient, patie
                               <td className="p-1 border-r border-slate-200 font-bold text-slate-900">{fmtVal(selectedTest?.soleoSX, 'kg')}</td>
                               <td className="p-1 border-r border-slate-200">{fmtVal(selectedTest?.soleoDX, 'kg')}</td>
                               <td className="p-1 font-extrabold text-emerald-700">
-                                {selectedTest?.soleoSX && selectedTest?.soleoDX 
-                                  ? `${((Math.min(selectedTest.soleoSX, selectedTest.soleoDX) / Math.max(selectedTest.soleoSX, selectedTest.soleoDX)) * 100).toFixed(1)}%` 
-                                  : 'N/D'}
+                                {calcRatioLsi(selectedTest?.soleoSX, selectedTest?.soleoDX)}
                               </td>
                             </tr>
                           </tbody>
@@ -901,16 +908,14 @@ export default function PrintConfiguratorModal({ isOpen, onClose, patient, patie
                               <td className="p-1 font-bold border-r border-slate-200">Altezza Salto (cm)</td>
                               <td className="p-1 border-r border-slate-200 font-bold text-slate-900">{fmtVal(selectedTest?.slCmjHeightSX, 'cm')}</td>
                               <td className="p-1 border-r border-slate-200">{fmtVal(selectedTest?.slCmjHeightDX, 'cm')}</td>
-                              <td className="p-1 font-bold text-emerald-700">{fmtFixed(selectedTest?.slCmjHeightLsi, 1, '%')}</td>
+                              <td className="p-1 font-bold text-emerald-700">{calcRatioLsi(selectedTest?.slCmjHeightSX, selectedTest?.slCmjHeightDX) !== 'N/D' ? calcRatioLsi(selectedTest?.slCmjHeightSX, selectedTest?.slCmjHeightDX) : fmtFixed(selectedTest?.slCmjHeightLsi, 1, '%')}</td>
                             </tr>
                             <tr className="border-b border-slate-200">
                               <td className="p-1 font-bold border-r border-slate-200">Peak Power / BM (W/kg)</td>
                               <td className="p-1 border-r border-slate-200 font-bold text-slate-900">{fmtVal(selectedTest?.slCmjPeakPowerSX, 'W/kg')}</td>
                               <td className="p-1 border-r border-slate-200">{fmtVal(selectedTest?.slCmjPeakPowerDX, 'W/kg')}</td>
                               <td className="p-1 font-bold text-emerald-700">
-                                {selectedTest?.slCmjPeakPowerSX && selectedTest?.slCmjPeakPowerDX 
-                                  ? `${((Math.min(selectedTest.slCmjPeakPowerSX, selectedTest.slCmjPeakPowerDX) / Math.max(selectedTest.slCmjPeakPowerSX, selectedTest.slCmjPeakPowerDX)) * 100).toFixed(1)}%` 
-                                  : 'N/D'}
+                                {calcRatioLsi(selectedTest?.slCmjPeakPowerSX, selectedTest?.slCmjPeakPowerDX)}
                               </td>
                             </tr>
                             <tr className="border-b border-slate-200">
@@ -918,9 +923,7 @@ export default function PrintConfiguratorModal({ isOpen, onClose, patient, patie
                               <td className="p-1 border-r border-slate-200 font-bold text-slate-900">{fmtVal(selectedTest?.slCmjRsiSX, 'm/s')}</td>
                               <td className="p-1 border-r border-slate-200">{fmtVal(selectedTest?.slCmjRsiDX, 'm/s')}</td>
                               <td className="p-1 font-bold text-emerald-700">
-                                {selectedTest?.slCmjRsiSX && selectedTest?.slCmjRsiDX 
-                                  ? `${((Math.min(selectedTest.slCmjRsiSX, selectedTest.slCmjRsiDX) / Math.max(selectedTest.slCmjRsiSX, selectedTest.slCmjRsiDX)) * 100).toFixed(1)}%` 
-                                  : 'N/D'}
+                                {calcRatioLsi(selectedTest?.slCmjRsiSX, selectedTest?.slCmjRsiDX)}
                               </td>
                             </tr>
                             <tr>
@@ -928,9 +931,7 @@ export default function PrintConfiguratorModal({ isOpen, onClose, patient, patie
                               <td className="p-1 border-r border-slate-200 font-bold text-slate-900">{fmtVal(selectedTest?.slCmjDepthSX, 'cm')}</td>
                               <td className="p-1 border-r border-slate-200">{fmtVal(selectedTest?.slCmjDepthDX, 'cm')}</td>
                               <td className="p-1 font-bold text-emerald-700">
-                                {selectedTest?.slCmjDepthSX && selectedTest?.slCmjDepthDX 
-                                  ? `${((Math.min(selectedTest.slCmjDepthSX, selectedTest.slCmjDepthDX) / Math.max(selectedTest.slCmjDepthSX, selectedTest.slCmjDepthDX)) * 100).toFixed(1)}%` 
-                                  : (fmtFixed(selectedTest?.slCmjDepthLsi, 1, '%'))}
+                                {calcRatioLsi(selectedTest?.slCmjDepthSX, selectedTest?.slCmjDepthDX) !== 'N/D' ? calcRatioLsi(selectedTest?.slCmjDepthSX, selectedTest?.slCmjDepthDX) : fmtFixed(selectedTest?.slCmjDepthLsi, 1, '%')}
                               </td>
                             </tr>
                           </tbody>

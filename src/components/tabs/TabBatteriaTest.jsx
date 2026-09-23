@@ -38,6 +38,17 @@ const safeFixed = (val, decimals = 1, fallback = 'N/D') => {
   return isNaN(n) ? fallback : n.toFixed(decimals);
 };
 
+const calcRatioLsi = (val1, val2) => {
+  if (val1 === undefined || val1 === null || val1 === '' || val1 === '-') return null;
+  if (val2 === undefined || val2 === null || val2 === '' || val2 === '-') return null;
+  const n1 = typeof val1 === 'number' ? val1 : parseFloat(String(val1).replace(',', '.'));
+  const n2 = typeof val2 === 'number' ? val2 : parseFloat(String(val2).replace(',', '.'));
+  if (isNaN(n1) || isNaN(n2) || n1 <= 0 || n2 <= 0) return null;
+  const max = Math.max(n1, n2);
+  if (max === 0) return null;
+  return ((Math.min(n1, n2) / max) * 100).toFixed(1);
+};
+
 export default function TabBatteriaTest({ patient, activePhase, onChangePhase, onSaveTest }) {
   const { role } = useAuth();
   const isAdmin = role === 'ADMIN';
@@ -611,7 +622,8 @@ export default function TabBatteriaTest({ patient, activePhase, onChangePhase, o
             getTooltip: (t) => {
               const sx = t?.concImpulseSX ?? t?.conc_impulse_sx;
               const dx = t?.concImpulseDX ?? t?.conc_impulse_dx;
-              return (sx !== undefined && sx !== null && dx !== undefined && dx !== null) ? ({ title: 'Concentric Impulse (SX vs DX)', sx: `${sx} N·s`, dx: `${dx} N·s`, asym: `LSI: ${((Math.min(sx, dx)/Math.max(sx, dx))*100).toFixed(1)}%` }) : null;
+              const lsi = calcRatioLsi(sx, dx);
+              return (sx !== undefined && sx !== null && dx !== undefined && dx !== null) ? ({ title: 'Concentric Impulse (SX vs DX)', sx: `${sx} N·s`, dx: `${dx} N·s`, asym: lsi ? `LSI: ${lsi}%` : 'LSI: N/D' }) : null;
             }
           }
         ];
@@ -625,7 +637,10 @@ export default function TabBatteriaTest({ patient, activePhase, onChangePhase, o
             unit: 'cm', 
             dotColor: 'bg-cyan-400',
             getValue: (t) => (t.slCmjHeightSX !== undefined && t.slCmjHeightSX !== null && t.slCmjHeightDX !== undefined && t.slCmjHeightDX !== null) ? `${t.slCmjHeightSX} / ${t.slCmjHeightDX}` : 'N/D',
-            getTooltip: (t) => (t.slCmjHeightSX && t.slCmjHeightDX) ? ({ title: 'Altezza Salto SL (SX vs DX)', sx: `${t.slCmjHeightSX} cm`, dx: `${t.slCmjHeightDX} cm`, asym: `LSI: ${((Math.min(t.slCmjHeightSX, t.slCmjHeightDX)/Math.max(t.slCmjHeightSX, t.slCmjHeightDX))*100).toFixed(1)}%` }) : null
+            getTooltip: (t) => {
+              const lsi = calcRatioLsi(t.slCmjHeightSX, t.slCmjHeightDX);
+              return (t.slCmjHeightSX && t.slCmjHeightDX) ? ({ title: 'Altezza Salto SL (SX vs DX)', sx: `${t.slCmjHeightSX} cm`, dx: `${t.slCmjHeightDX} cm`, asym: lsi ? `LSI: ${lsi}%` : 'LSI: N/D' }) : null;
+            }
           },
           { 
             key: 'slCmjPeakPowerSplit', 
@@ -633,7 +648,10 @@ export default function TabBatteriaTest({ patient, activePhase, onChangePhase, o
             unit: 'W/kg', 
             dotColor: 'bg-[#00e5ff]',
             getValue: (t) => (t.slCmjPeakPowerSX !== undefined && t.slCmjPeakPowerSX !== null && t.slCmjPeakPowerDX !== undefined && t.slCmjPeakPowerDX !== null) ? `${t.slCmjPeakPowerSX} / ${t.slCmjPeakPowerDX}` : 'N/D',
-            getTooltip: (t) => (t.slCmjPeakPowerSX && t.slCmjPeakPowerDX) ? ({ title: 'Peak Power / BM SL (SX vs DX)', sx: `${t.slCmjPeakPowerSX} W/kg`, dx: `${t.slCmjPeakPowerDX} W/kg`, asym: `LSI: ${((Math.min(t.slCmjPeakPowerSX, t.slCmjPeakPowerDX)/Math.max(t.slCmjPeakPowerSX, t.slCmjPeakPowerDX))*100).toFixed(1)}%` }) : null
+            getTooltip: (t) => {
+              const lsi = calcRatioLsi(t.slCmjPeakPowerSX, t.slCmjPeakPowerDX);
+              return (t.slCmjPeakPowerSX && t.slCmjPeakPowerDX) ? ({ title: 'Peak Power / BM SL (SX vs DX)', sx: `${t.slCmjPeakPowerSX} W/kg`, dx: `${t.slCmjPeakPowerDX} W/kg`, asym: lsi ? `LSI: ${lsi}%` : 'LSI: N/D' }) : null;
+            }
           },
           { 
             key: 'slCmjRsiSplit', 
@@ -641,7 +659,10 @@ export default function TabBatteriaTest({ patient, activePhase, onChangePhase, o
             unit: 'm/s', 
             dotColor: 'bg-emerald-400',
             getValue: (t) => (t.slCmjRsiSX !== undefined && t.slCmjRsiSX !== null && t.slCmjRsiDX !== undefined && t.slCmjRsiDX !== null) ? `${t.slCmjRsiSX} / ${t.slCmjRsiDX}` : 'N/D',
-            getTooltip: (t) => (t.slCmjRsiSX && t.slCmjRsiDX) ? ({ title: 'RSImod Monopodalico (SX vs DX)', sx: `${t.slCmjRsiSX} m/s`, dx: `${t.slCmjRsiDX} m/s`, asym: `LSI: ${((Math.min(t.slCmjRsiSX, t.slCmjRsiDX)/Math.max(t.slCmjRsiSX, t.slCmjRsiDX))*100).toFixed(1)}%` }) : null
+            getTooltip: (t) => {
+              const lsi = calcRatioLsi(t.slCmjRsiSX, t.slCmjRsiDX);
+              return (t.slCmjRsiSX && t.slCmjRsiDX) ? ({ title: 'RSImod Monopodalico (SX vs DX)', sx: `${t.slCmjRsiSX} m/s`, dx: `${t.slCmjRsiDX} m/s`, asym: lsi ? `LSI: ${lsi}%` : 'LSI: N/D' }) : null;
+            }
           },
           { 
             key: 'slCmjDepthSplit', 
@@ -649,7 +670,10 @@ export default function TabBatteriaTest({ patient, activePhase, onChangePhase, o
             unit: 'cm', 
             dotColor: 'bg-purple-400',
             getValue: (t) => (t.slCmjDepthSX !== undefined && t.slCmjDepthSX !== null && t.slCmjDepthDX !== undefined && t.slCmjDepthDX !== null) ? `${t.slCmjDepthSX} / ${t.slCmjDepthDX}` : 'N/D',
-            getTooltip: (t) => (t.slCmjDepthSX && t.slCmjDepthDX) ? ({ title: 'Countermovement Depth SL (SX vs DX)', sx: `${t.slCmjDepthSX} cm`, dx: `${t.slCmjDepthDX} cm`, asym: `LSI: ${((Math.min(t.slCmjDepthSX, t.slCmjDepthDX)/Math.max(t.slCmjDepthSX, t.slCmjDepthDX))*100).toFixed(1)}%` }) : null
+            getTooltip: (t) => {
+              const lsi = calcRatioLsi(t.slCmjDepthSX, t.slCmjDepthDX);
+              return (t.slCmjDepthSX && t.slCmjDepthDX) ? ({ title: 'Countermovement Depth SL (SX vs DX)', sx: `${t.slCmjDepthSX} cm`, dx: `${t.slCmjDepthDX} cm`, asym: lsi ? `LSI: ${lsi}%` : 'LSI: N/D' }) : null;
+            }
           }
         ];
 
@@ -703,14 +727,14 @@ export default function TabBatteriaTest({ patient, activePhase, onChangePhase, o
             label: 'Landing Peak Force LSI (>=90%)', 
             unit: '%', 
             dotColor: 'bg-pink-400', 
-            getValue: (t) => t.djLandingPeakLsi !== undefined && t.djLandingPeakLsi !== null ? `${t.djLandingPeakLsi}%` : (t.djLandingPeakSX && t.djLandingPeakDX ? `${((Math.min(t.djLandingPeakSX, t.djLandingPeakDX)/Math.max(t.djLandingPeakSX, t.djLandingPeakDX))*100).toFixed(1)}%` : 'N/D') 
+            getValue: (t) => t.djLandingPeakLsi !== undefined && t.djLandingPeakLsi !== null ? `${t.djLandingPeakLsi}%` : (calcRatioLsi(t.djLandingPeakSX, t.djLandingPeakDX) ? `${calcRatioLsi(t.djLandingPeakSX, t.djLandingPeakDX)}%` : 'N/D') 
           },
           { 
             key: 'djConcImpulseLsi', 
             label: 'Concentric Impulse LSI (>=95%)', 
             unit: '%', 
             dotColor: 'bg-cyan-400', 
-            getValue: (t) => t.djConcImpulseLsi !== undefined && t.djConcImpulseLsi !== null ? `${t.djConcImpulseLsi}%` : (t.djConcImpulseSX && t.djConcImpulseDX ? `${((Math.min(t.djConcImpulseSX, t.djConcImpulseDX)/Math.max(t.djConcImpulseSX, t.djConcImpulseDX))*100).toFixed(1)}%` : 'N/D') 
+            getValue: (t) => t.djConcImpulseLsi !== undefined && t.djConcImpulseLsi !== null ? `${t.djConcImpulseLsi}%` : (calcRatioLsi(t.djConcImpulseSX, t.djConcImpulseDX) ? `${calcRatioLsi(t.djConcImpulseSX, t.djConcImpulseDX)}%` : 'N/D') 
           },
           { 
             key: 'djValidationStatus', 
@@ -731,7 +755,10 @@ export default function TabBatteriaTest({ patient, activePhase, onChangePhase, o
             unit: 'ms', 
             dotColor: 'bg-amber-400',
             getValue: (t) => (t.slDjCtSX !== undefined && t.slDjCtDX !== undefined) ? `${t.slDjCtSX} / ${t.slDjCtDX}` : 'N/D',
-            getTooltip: (t) => (t.slDjCtSX !== undefined && t.slDjCtDX !== undefined) ? ({ title: 'Ground Contact Time (SX vs DX)', sx: `${t.slDjCtSX} ms`, dx: `${t.slDjCtDX} ms`, asym: `LSI: ${((Math.min(t.slDjCtSX, t.slDjCtDX)/Math.max(t.slDjCtSX, t.slDjCtDX))*100).toFixed(1)}%` }) : null
+            getTooltip: (t) => {
+              const lsi = calcRatioLsi(t.slDjCtSX, t.slDjCtDX);
+              return (t.slDjCtSX !== undefined && t.slDjCtDX !== undefined) ? ({ title: 'Ground Contact Time (SX vs DX)', sx: `${t.slDjCtSX} ms`, dx: `${t.slDjCtDX} ms`, asym: lsi ? `LSI: ${lsi}%` : 'LSI: N/D' }) : null;
+            }
           },
           { 
             key: 'slDjRsiSplit', 
@@ -739,7 +766,10 @@ export default function TabBatteriaTest({ patient, activePhase, onChangePhase, o
             unit: 'm/s', 
             dotColor: 'bg-emerald-400',
             getValue: (t) => (t.slDjRsiSX !== undefined && t.slDjRsiDX !== undefined) ? `${t.slDjRsiSX} / ${t.slDjRsiDX}` : 'N/D',
-            getTooltip: (t) => (t.slDjRsiSX !== undefined && t.slDjRsiDX !== undefined) ? ({ title: 'SL Drop Jump RSI (SX vs DX)', sx: `${t.slDjRsiSX} m/s`, dx: `${t.slDjRsiDX} m/s`, asym: `LSI: ${((Math.min(t.slDjRsiSX, t.slDjRsiDX)/Math.max(t.slDjRsiSX, t.slDjRsiDX))*100).toFixed(1)}%` }) : null
+            getTooltip: (t) => {
+              const lsi = calcRatioLsi(t.slDjRsiSX, t.slDjRsiDX);
+              return (t.slDjRsiSX !== undefined && t.slDjRsiDX !== undefined) ? ({ title: 'SL Drop Jump RSI (SX vs DX)', sx: `${t.slDjRsiSX} m/s`, dx: `${t.slDjRsiDX} m/s`, asym: lsi ? `LSI: ${lsi}%` : 'LSI: N/D' }) : null;
+            }
           },
           { 
             key: 'slDjHeightSplit', 
@@ -747,7 +777,10 @@ export default function TabBatteriaTest({ patient, activePhase, onChangePhase, o
             unit: 'cm', 
             dotColor: 'bg-[#00e5ff]',
             getValue: (t) => (t.slDjHeightSX !== undefined && t.slDjHeightDX !== undefined) ? `${t.slDjHeightSX} / ${t.slDjHeightDX}` : 'N/D',
-            getTooltip: (t) => (t.slDjHeightSX !== undefined && t.slDjHeightDX !== undefined) ? ({ title: 'SL Drop Jump Altezza (SX vs DX)', sx: `${t.slDjHeightSX} cm`, dx: `${t.slDjHeightDX} cm`, asym: `LSI: ${((Math.min(t.slDjHeightSX, t.slDjHeightDX)/Math.max(t.slDjHeightSX, t.slDjHeightDX))*100).toFixed(1)}%` }) : null
+            getTooltip: (t) => {
+              const lsi = calcRatioLsi(t.slDjHeightSX, t.slDjHeightDX);
+              return (t.slDjHeightSX !== undefined && t.slDjHeightDX !== undefined) ? ({ title: 'SL Drop Jump Altezza (SX vs DX)', sx: `${t.slDjHeightSX} cm`, dx: `${t.slDjHeightDX} cm`, asym: lsi ? `LSI: ${lsi}%` : 'LSI: N/D' }) : null;
+            }
           },
           { 
             key: 'slDjBrakingSplit', 
@@ -755,7 +788,10 @@ export default function TabBatteriaTest({ patient, activePhase, onChangePhase, o
             unit: 'N·s', 
             dotColor: 'bg-purple-400',
             getValue: (t) => (t.slDjBrakingSX !== undefined && t.slDjBrakingDX !== undefined) ? `${t.slDjBrakingSX} / ${t.slDjBrakingDX}` : 'N/D',
-            getTooltip: (t) => (t.slDjBrakingSX !== undefined && t.slDjBrakingDX !== undefined) ? ({ title: 'SL Drop Jump Braking Impulse', sx: `${t.slDjBrakingSX} N·s`, dx: `${t.slDjBrakingDX} N·s`, asym: `LSI: ${((Math.min(t.slDjBrakingSX, t.slDjBrakingDX)/Math.max(t.slDjBrakingSX, t.slDjBrakingDX))*100).toFixed(1)}%` }) : null
+            getTooltip: (t) => {
+              const lsi = calcRatioLsi(t.slDjBrakingSX, t.slDjBrakingDX);
+              return (t.slDjBrakingSX !== undefined && t.slDjBrakingDX !== undefined) ? ({ title: 'SL Drop Jump Braking Impulse', sx: `${t.slDjBrakingSX} N·s`, dx: `${t.slDjBrakingDX} N·s`, asym: lsi ? `LSI: ${lsi}%` : 'LSI: N/D' }) : null;
+            }
           }
         ];
       default:
