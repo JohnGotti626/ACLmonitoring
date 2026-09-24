@@ -127,7 +127,8 @@ export const createTestObject = (newValData, patientId, testIndex = 1) => {
     bulgarianSX: parseVal(newValData.bulgarian_sx),
     bulgarianDX: parseVal(newValData.bulgarian_dx),
     imtpForce: parseVal(newValData.imtp_peak_force) || '-',
-    ikdc: parseVal(newValData.ikdc_score) || 80,
+    ikdc: parseVal(newValData.ikdc_score) ?? parseVal(newValData.ikdc) ?? null,
+    ikdc_score: parseVal(newValData.ikdc_score) ?? parseVal(newValData.ikdc) ?? null,
 
     // CMJ Bilaterale (Doppia associazione per compatibilità modale/tabella/DB)
     jumpHeight: parseVal(newValData.jump_height_cm) ?? parseVal(newValData.jumpHeight) ?? parseVal(newValData.altezza_salto) ?? null,

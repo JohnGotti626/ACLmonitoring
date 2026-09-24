@@ -11,7 +11,8 @@ import {
   Stethoscope,
   ShieldCheck,
   CheckCircle2,
-  Plus
+  Plus,
+  FileText
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import TabAnagrafica from './tabs/TabAnagrafica';
@@ -20,6 +21,7 @@ import TabDirettiveOperative from './tabs/TabDirettiveOperative';
 import TabVistaMobile from './tabs/TabVistaMobile';
 import TabCopilotPdf from './tabs/TabCopilotPdf';
 import ModalNuovaValutazione from './ModalNuovaValutazione';
+import ModalIKDC from './ModalIKDC';
 import { createTestObject, saveTestToSupabase } from '../utils/testUtils';
 
 export default function PatientDetail({ patient, onBack, onUpdatePatient }) {
@@ -27,6 +29,7 @@ export default function PatientDetail({ patient, onBack, onUpdatePatient }) {
   const [activeTab, setActiveTab] = useState('tab2'); // Default to Tab 2 (Batteria Test & Bicchieri)
   const [activePhase, setActivePhase] = useState(patient.fase_riabilitativa || 'Return to Run');
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isIKDCModalOpen, setIsIKDCModalOpen] = useState(false);
 
   // Sincronizzazione automatica quando la fase del paziente viene aggiornata nelle direttive o altrove
   React.useEffect(() => {
@@ -64,6 +67,14 @@ export default function PatientDetail({ patient, onBack, onUpdatePatient }) {
           </button>
 
           <div className="flex items-center gap-2">
+            <button
+              onClick={() => setIsIKDCModalOpen(true)}
+              className="px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-cyan-600 to-emerald-600 hover:from-cyan-500 hover:to-emerald-500 text-white font-extrabold text-xs flex items-center gap-1.5 shadow-md border border-cyan-400/50 transition-all cursor-pointer"
+            >
+              <FileText className="w-4 h-4 text-[#39FF14]" />
+              <span>Questionario IKDC iPad</span>
+            </button>
+
             <button
               onClick={() => setIsModalOpen(true)}
               className="px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-extrabold text-xs flex items-center gap-1.5 shadow-md border border-emerald-400/50 transition-all cursor-pointer"
@@ -215,6 +226,39 @@ export default function PatientDetail({ patient, onBack, onUpdatePatient }) {
           onUpdatePatient({
             ...patient,
             tests: [...currentTests, newTest]
+          });
+        }}
+      />
+
+      {/* Modal Questionario IKDC Soggettivo Digitale (iPad Touch Ready) */}
+      <ModalIKDC
+        isOpen={isIKDCModalOpen}
+        onClose={() => setIsIKDCModalOpen(false)}
+        patient={patient}
+        onSaveIKDC={async (ikdcData) => {
+          const currentTests = Array.isArray(patient?.tests) ? patient.tests.flat(Infinity) : [];
+          let updatedTests;
+
+          if (currentTests.length > 0) {
+            updatedTests = [...currentTests];
+            const lastIdx = updatedTests.length - 1;
+            const updatedLastTest = {
+              ...updatedTests[lastIdx],
+              ikdc: ikdcData.ikdc_score,
+              ikdc_score: ikdcData.ikdc_score,
+              ikdc_classification: ikdcData.classification
+            };
+            updatedTests[lastIdx] = updatedLastTest;
+            await saveTestToSupabase(updatedLastTest);
+          } else {
+            const newTest = createTestObject({ ikdc_score: ikdcData.ikdc_score }, patient.id, 1);
+            updatedTests = [newTest];
+            await saveTestToSupabase(newTest);
+          }
+
+          onUpdatePatient({
+            ...patient,
+            tests: updatedTests
           });
         }}
       />

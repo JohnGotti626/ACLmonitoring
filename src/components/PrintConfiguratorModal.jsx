@@ -200,19 +200,18 @@ export default function PrintConfiguratorModal({ isOpen, onClose, patient, patie
   const selectedTest = patientTests.find(t => String(t.id) === String(selectedSessionId)) 
     || (patientTests.length > 0 ? patientTests[patientTests.length - 1] : null);
 
-  // Sincronizza IKDC score e sessione quando cambia il paziente selezionato
+  // Sincronizza IKDC score e sessione quando cambia il paziente selezionato o la sessione
   useEffect(() => {
     if (activePatientObj) {
-      if (activePatientObj.ikdc) {
-        setIkdcScore(String(activePatientObj.ikdc));
-      } else if (activePatientObj.aclrsi_score_iniziale) {
-        setIkdcScore(String(activePatientObj.aclrsi_score_iniziale));
+      const currentIkdc = selectedTest?.ikdc ?? selectedTest?.ikdc_score ?? activePatientObj?.ikdc ?? activePatientObj?.aclrsi_score_iniziale;
+      if (currentIkdc !== undefined && currentIkdc !== null) {
+        setIkdcScore(String(currentIkdc));
       }
-      if (patientTests.length > 0) {
+      if (patientTests.length > 0 && (!selectedSessionId || !patientTests.some(t => String(t.id) === String(selectedSessionId)))) {
         setSelectedSessionId(patientTests[patientTests.length - 1].id);
       }
     }
-  }, [selectedPatientId]);
+  }, [selectedPatientId, selectedSessionId, activePatientObj]);
 
   if (!isOpen) return null;
 
@@ -583,14 +582,9 @@ export default function PrintConfiguratorModal({ isOpen, onClose, patient, patie
           {/* PANNELLO DI DESTRA: ANTEPRIMA A4 IN TEMPO REALE */}
           <div className="lg:col-span-7 bg-slate-950 p-4 sm:p-6 overflow-y-auto flex justify-center items-start">
             
-            {/* CANVAS A4 (Target di stampa per window.print) */}
-            <div className="w-full max-w-[750px] bg-white text-slate-900 p-7 sm:p-9 rounded-xl shadow-2xl border border-slate-300 print:shadow-none print:border-0 print:p-0 print:w-full text-[10px] leading-snug space-y-4 font-sans">
+            {/* CANVAS A4 (Target unico di stampa per window.print) */}
+            <div id="printable-report-area" className="w-full max-w-[750px] bg-white text-slate-900 p-7 sm:p-9 rounded-xl shadow-2xl border border-slate-300 print:shadow-none print:border-0 print:p-0 print:w-full text-[10px] leading-snug space-y-4 font-sans">
               
-              {/* INTESTAZIONE ESCLUSIVA STAMPA (@media print) */}
-              <div className="print-header">
-                <h1>VALUTAZIONE CLINICO-FUNZIONALE LCA</h1>
-              </div>
-
               {/* HEADER REPORT CENTRO */}
               <div className="flex items-center justify-between pb-3 border-b-2 border-slate-300">
                 <div className="flex items-center gap-3">

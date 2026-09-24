@@ -82,52 +82,64 @@ export default function TabVistaMobile({ patient }) {
     return isNaN(num) ? 'N/D' : `${num.toFixed(decimals)}${suffix}`;
   };
 
-  const deficits = hasTests ? [
-    ...(latestTest?.lsiQuad && typeof latestTest.lsiQuad === 'number' && latestTest.lsiQuad < targetLsi ? [{
-      id: 1,
-      severity: 'Rosso',
-      title: `Deficit Forza Quadricipite LSI (${latestTest.lsiQuad.toFixed(1)}%)`,
-      detail: `Forza dinamometrica Iso Push: ${latestTest.quadOp || 'N/D'}N (Arto Operato) vs ${latestTest.quadSano || 'N/D'}N (Arto Sano). Target Fase: ≥${targetLsi}%.`,
-      actionPlan: 'Piano Azione: Potenziamento selettivo concentrico/eccentrico.'
-    }] : []),
-    {
-      id: 2,
-      severity: 'Giallo',
-      title: 'Valgo Dinamico in Atterraggio',
-      detail: 'Cedimento dinamico su atterraggio SL a fine seduta quando subentra affaticamento.',
-      actionPlan: 'Piano Azione: Rinforzo medio gluteo + feedback visivo allo specchio.'
-    }
-  ] : [];
+  // Sincronizzazione dinamica dei deficit con le Direttive Operative
+  const deficits = (Array.isArray(patient?.deficits_list) && patient.deficits_list.length > 0)
+    ? patient.deficits_list.map(d => ({
+        id: d.id,
+        severity: d.severity || 'Rosso',
+        title: d.title,
+        detail: d.description || 'Nessuna osservazione specifica inserita.',
+        actionPlan: d.actionPlan || 'Piano di monitoraggio standard.'
+      }))
+    : (hasTests ? [
+        ...(latestTest?.lsiQuad && typeof latestTest.lsiQuad === 'number' && latestTest.lsiQuad < targetLsi ? [{
+          id: 1,
+          severity: 'Rosso',
+          title: `Deficit Forza Quadricipite LSI (${latestTest.lsiQuad.toFixed(1)}%)`,
+          detail: `Forza dinamometrica Iso Push: ${latestTest.quadOp || 'N/D'}N (Arto Operato) vs ${latestTest.quadSano || 'N/D'}N (Arto Sano). Target Fase: ≥${targetLsi}%.`,
+          actionPlan: 'Piano Azione: Potenziamento selettivo concentrico/eccentrico.'
+        }] : []),
+        {
+          id: 2,
+          severity: 'Giallo',
+          title: 'Valgo Dinamico in Atterraggio',
+          detail: 'Cedimento dinamico su atterraggio SL a fine seduta quando subentra affaticamento.',
+          actionPlan: 'Piano Azione: Rinforzo medio gluteo + feedback visivo allo specchio.'
+        }
+      ] : []);
 
   const rehabNote = patient?.note_operative || 'Nessuna direttiva clinica specifica inserita.';
 
-  const exercises = patient?.esercizi_prescritti ? [
-    {
-      id: 1,
-      name: patient.esercizi_prescritti,
-      setsReps: '4x6',
-      weight: '40 kg',
-      vbtSpeed: '0.7 m/s',
-      note: 'Prescrizione fisio attiva'
-    }
-  ] : [
-    {
-      id: 1,
-      name: 'Leg Extension Isometrico 60°',
-      setsReps: '4x6',
-      weight: '40 kg',
-      vbtSpeed: '0.7 m/s',
-      note: 'Spinta isometrica massimale 5s'
-    },
-    {
-      id: 2,
-      name: 'Single Leg Press',
-      setsReps: '4x10',
-      weight: '85 kg',
-      vbtSpeed: '0.65 m/s',
-      note: 'Controllo fase eccentrica 3s'
-    }
-  ];
+  // Sincronizzazione dinamica della scheda esercizi con le Direttive Operative
+  const exercises = (Array.isArray(patient?.exercises_list) && patient.exercises_list.length > 0)
+    ? patient.exercises_list
+    : (patient?.esercizi_prescritti ? [
+        {
+          id: 1,
+          name: patient.esercizi_prescritti,
+          setsReps: '4x6',
+          weight: '40 kg',
+          vbtSpeed: '0.7 m/s',
+          note: 'Prescrizione fisio attiva'
+        }
+      ] : [
+        {
+          id: 1,
+          name: 'Leg Extension Isometrico 60°',
+          setsReps: '4x6',
+          weight: '40 kg',
+          vbtSpeed: '0.7 m/s',
+          note: 'Spinta isometrica massimale 5s'
+        },
+        {
+          id: 2,
+          name: 'Single Leg Press',
+          setsReps: '4x10',
+          weight: '85 kg',
+          vbtSpeed: '0.65 m/s',
+          note: 'Controllo fase eccentrica 3s'
+        }
+      ]);
 
   // Data per Bicchieri Prestativi sincronizzati con la Fase del Paziente
   const cups = [
