@@ -583,7 +583,7 @@ export default function PrintConfiguratorModal({ isOpen, onClose, patient, patie
           <div className="lg:col-span-7 bg-slate-950 p-4 sm:p-6 overflow-y-auto flex justify-center items-start">
             
             {/* CANVAS A4 (Target unico di stampa per window.print) */}
-            <div id="printable-report-area" className="w-full max-w-[750px] bg-white text-slate-900 p-7 sm:p-9 rounded-xl shadow-2xl border border-slate-300 print:shadow-none print:border-0 print:p-0 print:w-full text-[10px] leading-snug space-y-4 font-sans">
+            <div id="report-a4-container" className="printable-report w-full max-w-[750px] bg-white text-slate-900 p-7 sm:p-9 rounded-xl shadow-2xl border border-slate-300 print:shadow-none print:border-0 print:p-0 print:w-full text-[10px] leading-snug space-y-4 font-sans">
               
               {/* HEADER REPORT CENTRO */}
               <div className="flex items-center justify-between pb-3 border-b-2 border-slate-300">
