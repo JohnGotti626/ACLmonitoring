@@ -23,6 +23,7 @@ import TabCopilotPdf from './tabs/TabCopilotPdf';
 import ModalNuovaValutazione from './ModalNuovaValutazione';
 import ModalIKDC from './ModalIKDC';
 import { createTestObject, saveTestToSupabase } from '../utils/testUtils';
+import { supabase, isSupabaseConfigured } from '../lib/supabase';
 
 export default function PatientDetail({ patient, onBack, onUpdatePatient }) {
   const { role } = useAuth();
@@ -188,14 +189,26 @@ export default function PatientDetail({ patient, onBack, onUpdatePatient }) {
           <TabDirettiveOperative 
             patient={patient}
             onChangePhase={handlePhaseChange}
-            onSaveDirectives={(directives) => {
-              onUpdatePatient({
+            onSaveDirectives={async (directives) => {
+              const updatedPatient = {
                 ...patient,
-                ...(directives.fase_riabilitativa ? { fase_riabilitativa: directives.fase_riabilitativa } : {}),
-                ...(directives.deficit_prioritari ? { note_operative: directives.deficit_prioritari } : {}),
-                ...(directives.target_vbt_carico ? { esercizi_prescritti: directives.target_vbt_carico } : {}),
-                ...(directives.alert_compenso ? { alert_compenso: directives.alert_compenso } : {})
-              });
+                ...directives
+              };
+              if (isSupabaseConfigured && patient?.id) {
+                try {
+                  await supabase.from('pazienti').update({
+                    note_operative: updatedPatient.note_operative || '',
+                    esercizi_prescritti: updatedPatient.esercizi_prescritti || '',
+                    ...(directives.fase_riabilitativa ? { fase_riabilitativa: directives.fase_riabilitativa } : {}),
+                    ...(directives.alert_compenso ? { alert_compenso: directives.alert_compenso } : {}),
+                    ...(directives.deficits_list ? { deficits_list: directives.deficits_list } : {}),
+                    ...(directives.exercises_list ? { exercises_list: directives.exercises_list } : {})
+                  }).eq('id', patient.id);
+                } catch (err) {
+                  console.error('Errore aggiornamento direttive su Supabase:', err);
+                }
+              }
+              onUpdatePatient(updatedPatient);
             }}
           />
         )}

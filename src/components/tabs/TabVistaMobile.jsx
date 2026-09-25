@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   Smartphone, 
   AlertTriangle, 
@@ -16,10 +16,43 @@ import {
   TrendingUp,
   Info
 } from 'lucide-react';
+import { supabase, isSupabaseConfigured } from '../../lib/supabase';
 
 export default function TabVistaMobile({ patient }) {
   // Sotto-Tab Interna Mobile (Default: Scheda Operativa & Esercizi)
   const [mobileTab, setMobileTab] = useState('OPERATIVA'); // 'OPERATIVA' | 'BICCHIERI'
+
+  // Stato Locale Reattivo del Paziente Attivo per Sincronizzazione Realtime
+  const [activePatient, setActivePatient] = useState(patient);
+
+  useEffect(() => {
+    setActivePatient(patient);
+  }, [patient]);
+
+  // Sottoscrizione Supabase Realtime (Tabella 'pazienti') per aggiornamenti istantanei da qualsiasi dispositivo
+  useEffect(() => {
+    if (!patient?.id || !isSupabaseConfigured) return;
+
+    const channel = supabase
+      .channel(`schema-db-changes-${patient.id}`)
+      .on(
+        'postgres_changes',
+        { event: 'UPDATE', schema: 'public', table: 'pazienti', filter: `id=eq.${patient.id}` },
+        (payload) => {
+          if (payload.new) {
+            setActivePatient(prev => ({
+              ...prev,
+              ...payload.new
+            }));
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [patient?.id]);
 
   // Ricava titolo, sottotitolo e target di fase dinamicamente dalla Fase Attiva del paziente
   const getPhaseInfo = (fase) => {
@@ -60,19 +93,19 @@ export default function TabVistaMobile({ patient }) {
       };
     }
     return {
-      title: `3. ${patient?.fase_riabilitativa || 'Return to Run'}: Drills, RSI and Power`,
+      title: `3. ${activePatient?.fase_riabilitativa || 'Return to Run'}: Drills, RSI and Power`,
       subtitle: 'Direttive operative cliniche per il recupero neuromuscolare e Return to Sport.',
       targetLsi: 80
     };
   };
 
-  const phaseInfo = getPhaseInfo(patient?.fase_riabilitativa);
+  const phaseInfo = getPhaseInfo(activePatient?.fase_riabilitativa);
   const phaseTitle = phaseInfo.title;
   const phaseSubtitle = phaseInfo.subtitle;
   const targetLsi = phaseInfo.targetLsi;
 
   // Estrai i test specifici del paziente attivo
-  const patientTests = Array.isArray(patient?.tests) ? patient.tests : [];
+  const patientTests = Array.isArray(activePatient?.tests) ? activePatient.tests : [];
   const latestTest = patientTests.length > 0 ? patientTests[patientTests.length - 1] : null;
   const hasTests = latestTest !== null;
 
@@ -83,8 +116,8 @@ export default function TabVistaMobile({ patient }) {
   };
 
   // Sincronizzazione dinamica dei deficit con le Direttive Operative
-  const deficits = (Array.isArray(patient?.deficits_list) && patient.deficits_list.length > 0)
-    ? patient.deficits_list.map(d => ({
+  const deficits = (Array.isArray(activePatient?.deficits_list) && activePatient.deficits_list.length > 0)
+    ? activePatient.deficits_list.map(d => ({
         id: d.id,
         severity: d.severity || 'Rosso',
         title: d.title,
@@ -108,15 +141,15 @@ export default function TabVistaMobile({ patient }) {
         }
       ] : []);
 
-  const rehabNote = patient?.note_operative || 'Nessuna direttiva clinica specifica inserita.';
+  const rehabNote = activePatient?.note_operative || 'Nessuna direttiva clinica specifica inserita.';
 
   // Sincronizzazione dinamica della scheda esercizi con le Direttive Operative
-  const exercises = (Array.isArray(patient?.exercises_list) && patient.exercises_list.length > 0)
-    ? patient.exercises_list
-    : (patient?.esercizi_prescritti ? [
+  const exercises = (Array.isArray(activePatient?.exercises_list) && activePatient.exercises_list.length > 0)
+    ? activePatient.exercises_list
+    : (activePatient?.esercizi_prescritti ? [
         {
           id: 1,
-          name: patient.esercizi_prescritti,
+          name: activePatient.esercizi_prescritti,
           setsReps: '4x6',
           weight: '40 kg',
           vbtSpeed: '0.7 m/s',
@@ -225,14 +258,14 @@ export default function TabVistaMobile({ patient }) {
         {/* Card Paziente */}
         <div className="p-2.5 bg-[#071322] rounded-xl border border-slate-800 flex items-center justify-between text-xs">
           <div>
-            <div className="font-extrabold text-white text-xs sm:text-sm">{patient.nome} {patient.cognome}</div>
+            <div className="font-extrabold text-white text-xs sm:text-sm">{activePatient?.nome} {activePatient?.cognome}</div>
             <div className="text-slate-400 text-[10.5px] mt-0.5">
-              {patient.sport} ({patient.ruolo_sportivo || 'Atleta'}) • <strong className="text-cyan-300">{patient.tipo_innesto} {patient.lato_lesione}</strong>
+              {activePatient?.sport} ({activePatient?.ruolo_sportivo || 'Atleta'}) • <strong className="text-cyan-300">{activePatient?.tipo_innesto} {activePatient?.lato_lesione}</strong>
             </div>
           </div>
 
           <span className="px-2 py-1 rounded-lg bg-cyan-950/80 border border-cyan-500/40 text-cyan-300 font-extrabold text-[10px] uppercase tracking-wider">
-            {patient.fase_riabilitativa}
+            {activePatient?.fase_riabilitativa}
           </span>
         </div>
       </div>
