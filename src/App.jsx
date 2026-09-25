@@ -125,7 +125,7 @@ function MainApp() {
   const [sqlModalOpen, setSqlModalOpen] = useState(false);
   const [isPrintModalOpen, setIsPrintModalOpen] = useState(false);
 
-  // Inizializzazione Pazienti con sincronizzazione Cloud DB e localStorage
+  // 1. Inizializzazione Pazienti senza dati finti hardcodati (Lettura da localStorage o array vuoto)
   const [patients, setPatients] = useState(() => {
     try {
       const saved = localStorage.getItem(STORAGE_KEY);
@@ -138,15 +138,23 @@ function MainApp() {
     } catch (err) {
       console.warn('Errore lettura pazienti da localStorage:', err);
     }
-    return INITIAL_PATIENTS;
+    return [];
   });
 
-  // Fetch iniziale da Supabase Cloud per collegare colleghi da reti diverse
+  // 2. Lettura Prioritaria ed Esclusiva da Supabase Cloud
   React.useEffect(() => {
     async function loadCloudData() {
       const cloudPatients = await fetchPatientsFromCloud();
       if (cloudPatients && cloudPatients.length > 0) {
         setPatients(cloudPatients);
+        // Sincronizza il paziente selezionato con i dati reali caricati dal DB
+        setSelectedPatient(prev => {
+          if (prev?.id) {
+            const found = cloudPatients.find(p => p.id === prev.id);
+            return found || cloudPatients[0];
+          }
+          return cloudPatients[0];
+        });
       }
     }
     loadCloudData();
@@ -163,16 +171,18 @@ function MainApp() {
 
   // Salvataggio automatico su localStorage ad ogni modifica dei pazienti o dei test
   React.useEffect(() => {
-    try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(patients));
-    } catch (err) {
-      console.error('Errore salvataggio pazienti su localStorage:', err);
+    if (patients.length > 0) {
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(patients));
+      } catch (err) {
+        console.error('Errore salvataggio pazienti su localStorage:', err);
+      }
     }
   }, [patients]);
 
-  const [selectedPatient, setSelectedPatient] = useState(() => patients[0] || INITIAL_PATIENTS[0]);
+  const [selectedPatient, setSelectedPatient] = useState(() => patients[0] || null);
 
-  // Sincronizza lo stato del paziente selezionato quando cambia la lista dei pazienti
+  // Sincronizza lo stato del paziente selezionato quando cambia la lista dei pazienti dal DB
   React.useEffect(() => {
     if (selectedPatient) {
       const updated = patients.find(p => p.id === selectedPatient.id);

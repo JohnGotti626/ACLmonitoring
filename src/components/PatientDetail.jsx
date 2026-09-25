@@ -28,16 +28,17 @@ import { supabase, isSupabaseConfigured } from '../lib/supabase';
 export default function PatientDetail({ patient, onBack, onUpdatePatient }) {
   const { role } = useAuth();
   const [activeTab, setActiveTab] = useState('tab2'); // Default to Tab 2 (Batteria Test & Bicchieri)
-  const [activePhase, setActivePhase] = useState(patient.fase_riabilitativa || 'Return to Run');
+  const [activePhase, setActivePhase] = useState(() => patient?.fase_riabilitativa || patient?.fase_attuale || '');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isIKDCModalOpen, setIsIKDCModalOpen] = useState(false);
 
-  // Sincronizzazione automatica quando la fase del paziente viene aggiornata nelle direttive o altrove
+  // Sincronizzazione automatica con i dati reali restituiti da Supabase
   React.useEffect(() => {
-    if (patient?.fase_riabilitativa) {
-      setActivePhase(patient.fase_riabilitativa);
+    const currentRealPhase = patient?.fase_riabilitativa || patient?.fase_attuale;
+    if (currentRealPhase) {
+      setActivePhase(currentRealPhase);
     }
-  }, [patient?.fase_riabilitativa]);
+  }, [patient?.fase_riabilitativa, patient?.fase_attuale]);
 
   if (!patient) return null;
 
@@ -49,9 +50,29 @@ export default function PatientDetail({ patient, onBack, onUpdatePatient }) {
     { id: 'tab5', label: '5. Copilot IA Engine', icon: Bot }
   ];
 
-  const handlePhaseChange = (newPhase) => {
+  // 3. Persistenza dei Cambiamenti di Fase su Supabase
+  const handlePhaseChange = async (newPhase) => {
+    if (isSupabaseConfigured && patient?.id) {
+      try {
+        await supabase
+          .from('pazienti')
+          .update({ 
+            fase_riabilitativa: newPhase, 
+            fase_attuale: newPhase,
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', patient.id);
+      } catch (err) {
+        console.error("Errore aggiornamento fase su Supabase:", err);
+      }
+    }
+
     setActivePhase(newPhase);
-    onUpdatePatient({ ...patient, fase_riabilitativa: newPhase });
+    onUpdatePatient({ 
+      ...patient, 
+      fase_riabilitativa: newPhase,
+      fase_attuale: newPhase
+    });
   };
 
   return (
