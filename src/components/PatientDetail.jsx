@@ -24,11 +24,12 @@ import ModalNuovaValutazione from './ModalNuovaValutazione';
 import ModalIKDC from './ModalIKDC';
 import { createTestObject, saveTestToSupabase } from '../utils/testUtils';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
+import { normalizePhaseForDb } from '../utils/phaseUtils';
 
 export default function PatientDetail({ patient, onBack, onUpdatePatient }) {
   const { role } = useAuth();
   const [activeTab, setActiveTab] = useState('tab2'); // Default to Tab 2 (Batteria Test & Bicchieri)
-  const [activePhase, setActivePhase] = useState(() => patient?.fase_riabilitativa || patient?.fase_attuale || '');
+  const [activePhase, setActivePhase] = useState(() => normalizePhaseForDb(patient?.fase_riabilitativa || patient?.fase_attuale));
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isIKDCModalOpen, setIsIKDCModalOpen] = useState(false);
 
@@ -36,7 +37,7 @@ export default function PatientDetail({ patient, onBack, onUpdatePatient }) {
   React.useEffect(() => {
     const currentRealPhase = patient?.fase_riabilitativa || patient?.fase_attuale;
     if (currentRealPhase) {
-      setActivePhase(currentRealPhase);
+      setActivePhase(normalizePhaseForDb(currentRealPhase));
     }
   }, [patient?.fase_riabilitativa, patient?.fase_attuale]);
 
@@ -51,27 +52,34 @@ export default function PatientDetail({ patient, onBack, onUpdatePatient }) {
   ];
 
   // 3. Persistenza dei Cambiamenti di Fase su Supabase
-  const handlePhaseChange = async (newPhase) => {
+  const handlePhaseChange = async (newPhaseInput) => {
+    const normPhase = normalizePhaseForDb(newPhaseInput);
+
     if (isSupabaseConfigured && patient?.id) {
       try {
-        await supabase
+        const { error } = await supabase
           .from('pazienti')
           .update({ 
-            fase_riabilitativa: newPhase, 
-            fase_attuale: newPhase,
+            fase_riabilitativa: normPhase, 
             updated_at: new Date().toISOString()
           })
           .eq('id', patient.id);
+
+        if (error) {
+          console.error("⚡ [Supabase Cloud] Errore aggiornamento fase su Supabase:", error.message);
+        } else {
+          console.log("⚡ [Supabase Cloud] Fase salvata con successo nel DB:", normPhase);
+        }
       } catch (err) {
-        console.error("Errore aggiornamento fase su Supabase:", err);
+        console.error("Eccezione durante l'aggiornamento fase:", err);
       }
     }
 
-    setActivePhase(newPhase);
+    setActivePhase(normPhase);
     onUpdatePatient({ 
       ...patient, 
-      fase_riabilitativa: newPhase,
-      fase_attuale: newPhase
+      fase_riabilitativa: normPhase,
+      fase_attuale: normPhase
     });
   };
 

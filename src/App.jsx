@@ -14,7 +14,7 @@ const STORAGE_KEY = 'acl_rts_patients_v1';
 
 const INITIAL_PATIENTS = [
   {
-    id: 'f6g7h8i9-j0k1-4234-f567-890123fg0006',
+    id: 'f6a7b8c9-d0e1-4234-a567-890123456789',
     nome: 'Francesco',
     cognome: 'Gabbani',
     data_nascita: '1995-09-09',
@@ -30,18 +30,18 @@ const INITIAL_PATIENTS = [
     note_chirurgiche: 'Ricostruzione LCA con tendine rotuleo autologo (BTB) e vite ad interferenza in titanio. Nessuna lesione meniscale associata.',
     complicanze: 'Nessuna complicanza peri-operatoria. Eccellente recupero estensione 0° e controllo artrogeno.',
     aclrsi_score_iniziale: 55.0,
-    fase_riabilitativa: 'Fase 5 (RTS)',
+    fase_riabilitativa: 'Return to Play',
     prossimo_controllo: '2026-09-25',
     note_operative: 'Paziente al 9° mese post-op. Effettuati 6 test longitudinali completi (Test #1 - Test #6). Tutti i criteri di Return to Sport e Return to Performance superati con simmetria LSI >97%.',
     esercizi_prescritti: 'High Velocity Agility Drills con viraggi a 180°, Sprint al 100% VBT, Plyometrics reattiva su box 40cm, Small Sided Games 5v5 con contatto.',
     alert_compenso: 'Nessun compenso cinematica/dinamica. Piena simmetria neuromuscolare (LSI Quad 97.8%, Hop Test 96.8%, ACL-RSI 95/100).',
     tests: [
-      { id: 'test-1', patientId: 'f6g7h8i9-j0k1-4234-f567-890123fg0006', patient_id: 'f6g7h8i9-j0k1-4234-f567-890123fg0006', num: 1, label: 'Test #1 (Mese 2)', date: '15/02/2026', lsiQuad: 62.5, lsiQuadDelta: '-', lsiFlex: 68.0, lsiFlexDelta: '-', lsiSingleHop: 60.0, lsiTripleHop: 62.0, quadOpNmKg: 1.85, quadSano: 360, quadOp: 225, flexSano: 180, flexOp: 122, ikdc: 58, brakingAsym: 19.5, cmjImpulseLsi: 68.5, slCmjHeightLsi: 72.0, rsiCmj: 0.32, jumpHeight: 21.0, contractionTime: 680, peakPower: 35.2, eccBrakingSX: 165, eccBrakingDX: 140, rsiDropJump: 0.72, djBoxHeight: '30 cm', djJumpHeight: 21.0, djContactTime: 290, djTtpfMs: 55, djTakeoffAsymMs: 22, djLandingPeakSX: 2200, djLandingPeakDX: 1750, djLandingPeakLsi: 79.5, djConcImpulseSX: 190, djConcImpulseDX: 155, djConcImpulseLsi: 81.6, djValidationStatus: 'FAILED', djFailReason: 'FAILED - Contact Time > 250ms (Non Pliometrico)', aclrsi: 55 },
-      { id: 'test-2', patientId: 'f6g7h8i9-j0k1-4234-f567-890123fg0006', patient_id: 'f6g7h8i9-j0k1-4234-f567-890123fg0006', num: 2, label: 'Test #2 (Mese 3.5)', date: '30/03/2026', lsiQuad: 72.4, lsiQuadDelta: '+9.9%', lsiFlex: 75.5, lsiFlexDelta: '+7.5%', lsiSingleHop: 73.9, lsiTripleHop: 75.0, quadOpNmKg: 2.15, quadSano: 393, quadOp: 285, flexSano: 185, flexOp: 140, ikdc: 68, brakingAsym: 15.2, cmjImpulseLsi: 76.5, slCmjHeightLsi: 80.0, rsiCmj: 0.43, jumpHeight: 25.5, contractionTime: 640, peakPower: 41.5, eccBrakingSX: 195, eccBrakingDX: 168, rsiDropJump: 0.94, djBoxHeight: '30 cm', djJumpHeight: 25.5, djContactTime: 270, djTtpfMs: 68, djTakeoffAsymMs: 18, djLandingPeakSX: 2350, djLandingPeakDX: 1980, djLandingPeakLsi: 84.3, djConcImpulseSX: 205, djConcImpulseDX: 178, djConcImpulseLsi: 86.8, djValidationStatus: 'FAILED', djFailReason: 'FAILED - Contact Time > 250ms (Non Pliometrico)', aclrsi: 68 },
-      { id: 'test-3', patientId: 'f6g7h8i9-j0k1-4234-f567-890123fg0006', patient_id: 'f6g7h8i9-j0k1-4234-f567-890123fg0006', num: 3, label: 'Test #3 (Mese 5)', date: '15/05/2026', lsiQuad: 81.5, lsiQuadDelta: '+9.1%', lsiFlex: 82.0, lsiFlexDelta: '+6.5%', lsiSingleHop: 80.5, lsiTripleHop: 82.0, quadOpNmKg: 2.45, quadSano: 420, quadOp: 342, flexSano: 200, flexOp: 164, ikdc: 76, brakingAsym: 11.8, cmjImpulseLsi: 82.5, slCmjHeightLsi: 87.0, rsiCmj: 0.52, jumpHeight: 29.0, contractionTime: 610, peakPower: 47.0, eccBrakingSX: 220, eccBrakingDX: 195, rsiDropJump: 1.14, djBoxHeight: '30 cm', djJumpHeight: 29.0, djContactTime: 255, djTtpfMs: 78, djTakeoffAsymMs: 14, djLandingPeakSX: 2400, djLandingPeakDX: 2150, djLandingPeakLsi: 89.6, djConcImpulseSX: 215, djConcImpulseDX: 198, djConcImpulseLsi: 92.1, djValidationStatus: 'FAILED', djFailReason: 'FAILED - Contact Time > 250ms (Non Pliometrico)', aclrsi: 78 },
-      { id: 'test-4', patientId: 'f6g7h8i9-j0k1-4234-f567-890123fg0006', patient_id: 'f6g7h8i9-j0k1-4234-f567-890123fg0006', num: 4, label: 'Test #4 (Mese 6.5)', date: '30/06/2026', lsiQuad: 88.5, lsiQuadDelta: '+7.0%', lsiFlex: 88.0, lsiFlexDelta: '+6.0%', lsiSingleHop: 87.0, lsiTripleHop: 88.0, quadOpNmKg: 2.70, quadSano: 440, quadOp: 389, flexSano: 210, flexOp: 185, ikdc: 84, brakingAsym: 8.5, cmjImpulseLsi: 89.0, slCmjHeightLsi: 91.5, rsiCmj: 0.61, jumpHeight: 32.5, contractionTime: 590, peakPower: 52.0, eccBrakingSX: 238, eccBrakingDX: 218, rsiDropJump: 1.35, djBoxHeight: '30 cm', djJumpHeight: 32.5, djContactTime: 240, djTtpfMs: 88, djTakeoffAsymMs: 9, djLandingPeakSX: 2480, djLandingPeakDX: 2320, djLandingPeakLsi: 93.5, djConcImpulseSX: 225, djConcImpulseDX: 215, djConcImpulseLsi: 95.6, djValidationStatus: 'FAILED', djFailReason: 'FAILED - Indice Reattivo RSI < 1.8', aclrsi: 86 },
-      { id: 'test-5', patientId: 'f6g7h8i9-j0k1-4234-f567-890123fg0006', patient_id: 'f6g7h8i9-j0k1-4234-f567-890123fg0006', num: 5, label: 'Test #5 (Mese 8)', date: '10/08/2026', lsiQuad: 94.2, lsiQuadDelta: '+5.7%', lsiFlex: 93.5, lsiFlexDelta: '+5.5%', lsiSingleHop: 93.0, lsiTripleHop: 94.0, quadOpNmKg: 2.92, quadSano: 460, quadOp: 433, flexSano: 220, flexOp: 206, ikdc: 90, brakingAsym: 4.8, cmjImpulseLsi: 94.5, slCmjHeightLsi: 95.0, rsiCmj: 0.68, jumpHeight: 35.8, contractionTime: 560, peakPower: 56.5, eccBrakingSX: 252, eccBrakingDX: 240, rsiDropJump: 1.85, djBoxHeight: '30 cm', djJumpHeight: 35.8, djContactTime: 225, djTtpfMs: 98, djTakeoffAsymMs: 6, djLandingPeakSX: 2550, djLandingPeakDX: 2480, djLandingPeakLsi: 97.3, djConcImpulseSX: 235, djConcImpulseDX: 228, djConcImpulseLsi: 97.0, djValidationStatus: 'PASSED', djFailReason: 'PASSED - Tutti i Requisiti Clinici Soddisfatti', aclrsi: 92 },
-      { id: 'test-6', patientId: 'f6g7h8i9-j0k1-4234-f567-890123fg0006', patient_id: 'f6g7h8i9-j0k1-4234-f567-890123fg0006', num: 6, label: 'Test #6 (Mese 9 - RTS)', date: '05/09/2026', lsiQuad: 97.8, lsiQuadDelta: '+3.6%', lsiFlex: 96.5, lsiFlexDelta: '+3.0%', lsiSingleHop: 96.8, lsiTripleHop: 97.5, quadOpNmKg: 3.12, quadSano: 475, quadOp: 465, flexSano: 228, flexOp: 220, ikdc: 95, brakingAsym: 2.1, cmjImpulseLsi: 98.2, slCmjHeightLsi: 98.0, rsiCmj: 0.74, jumpHeight: 38.2, contractionTime: 535, peakPower: 60.5, eccBrakingSX: 265, eccBrakingDX: 260, rsiDropJump: 2.15, djBoxHeight: '30 cm', djJumpHeight: 38.2, djContactTime: 210, djTtpfMs: 105, djTakeoffAsymMs: 3, djLandingPeakSX: 2600, djLandingPeakDX: 2560, djLandingPeakLsi: 98.5, djConcImpulseSX: 240, djConcImpulseDX: 238, djConcImpulseLsi: 99.2, djValidationStatus: 'PASSED', djFailReason: 'PASSED - Tutti i Requisiti Clinici Soddisfatti', aclrsi: 95 }
+      { id: 'test-1', patientId: 'f6a7b8c9-d0e1-4234-a567-890123456789', patient_id: 'f6a7b8c9-d0e1-4234-a567-890123456789', num: 1, label: 'Test #1 (Mese 2)', date: '15/02/2026', lsiQuad: 62.5, lsiQuadDelta: '-', lsiFlex: 68.0, lsiFlexDelta: '-', lsiSingleHop: 60.0, lsiTripleHop: 62.0, quadOpNmKg: 1.85, quadSano: 360, quadOp: 225, flexSano: 180, flexOp: 122, ikdc: 58, brakingAsym: 19.5, cmjImpulseLsi: 68.5, slCmjHeightLsi: 72.0, rsiCmj: 0.32, jumpHeight: 21.0, contractionTime: 680, peakPower: 35.2, eccBrakingSX: 165, eccBrakingDX: 140, rsiDropJump: 0.72, djBoxHeight: '30 cm', djJumpHeight: 21.0, djContactTime: 290, djTtpfMs: 55, djTakeoffAsymMs: 22, djLandingPeakSX: 2200, djLandingPeakDX: 1750, djLandingPeakLsi: 79.5, djConcImpulseSX: 190, djConcImpulseDX: 155, djConcImpulseLsi: 81.6, djValidationStatus: 'FAILED', djFailReason: 'FAILED - Contact Time > 250ms (Non Pliometrico)', aclrsi: 55 },
+      { id: 'test-2', patientId: 'f6a7b8c9-d0e1-4234-a567-890123456789', patient_id: 'f6a7b8c9-d0e1-4234-a567-890123456789', num: 2, label: 'Test #2 (Mese 3.5)', date: '30/03/2026', lsiQuad: 72.4, lsiQuadDelta: '+9.9%', lsiFlex: 75.5, lsiFlexDelta: '+7.5%', lsiSingleHop: 73.9, lsiTripleHop: 75.0, quadOpNmKg: 2.15, quadSano: 393, quadOp: 285, flexSano: 185, flexOp: 140, ikdc: 68, brakingAsym: 15.2, cmjImpulseLsi: 76.5, slCmjHeightLsi: 80.0, rsiCmj: 0.43, jumpHeight: 25.5, contractionTime: 640, peakPower: 41.5, eccBrakingSX: 195, eccBrakingDX: 168, rsiDropJump: 0.94, djBoxHeight: '30 cm', djJumpHeight: 25.5, djContactTime: 270, djTtpfMs: 68, djTakeoffAsymMs: 18, djLandingPeakSX: 2350, djLandingPeakDX: 1980, djLandingPeakLsi: 84.3, djConcImpulseSX: 205, djConcImpulseDX: 178, djConcImpulseLsi: 86.8, djValidationStatus: 'FAILED', djFailReason: 'FAILED - Contact Time > 250ms (Non Pliometrico)', aclrsi: 68 },
+      { id: 'test-3', patientId: 'f6a7b8c9-d0e1-4234-a567-890123456789', patient_id: 'f6a7b8c9-d0e1-4234-a567-890123456789', num: 3, label: 'Test #3 (Mese 5)', date: '15/05/2026', lsiQuad: 81.5, lsiQuadDelta: '+9.1%', lsiFlex: 82.0, lsiFlexDelta: '+6.5%', lsiSingleHop: 80.5, lsiTripleHop: 82.0, quadOpNmKg: 2.45, quadSano: 420, quadOp: 342, flexSano: 200, flexOp: 164, ikdc: 76, brakingAsym: 11.8, cmjImpulseLsi: 82.5, slCmjHeightLsi: 87.0, rsiCmj: 0.52, jumpHeight: 29.0, contractionTime: 610, peakPower: 47.0, eccBrakingSX: 220, eccBrakingDX: 195, rsiDropJump: 1.14, djBoxHeight: '30 cm', djJumpHeight: 29.0, djContactTime: 255, djTtpfMs: 78, djTakeoffAsymMs: 14, djLandingPeakSX: 2400, djLandingPeakDX: 2150, djLandingPeakLsi: 89.6, djConcImpulseSX: 215, djConcImpulseDX: 198, djConcImpulseLsi: 92.1, djValidationStatus: 'FAILED', djFailReason: 'FAILED - Contact Time > 250ms (Non Pliometrico)', aclrsi: 78 },
+      { id: 'test-4', patientId: 'f6a7b8c9-d0e1-4234-a567-890123456789', patient_id: 'f6a7b8c9-d0e1-4234-a567-890123456789', num: 4, label: 'Test #4 (Mese 6.5)', date: '30/06/2026', lsiQuad: 88.5, lsiQuadDelta: '+7.0%', lsiFlex: 88.0, lsiFlexDelta: '+6.0%', lsiSingleHop: 87.0, lsiTripleHop: 88.0, quadOpNmKg: 2.70, quadSano: 440, quadOp: 389, flexSano: 210, flexOp: 185, ikdc: 84, brakingAsym: 8.5, cmjImpulseLsi: 89.0, slCmjHeightLsi: 91.5, rsiCmj: 0.61, jumpHeight: 32.5, contractionTime: 590, peakPower: 52.0, eccBrakingSX: 238, eccBrakingDX: 218, rsiDropJump: 1.35, djBoxHeight: '30 cm', djJumpHeight: 32.5, djContactTime: 240, djTtpfMs: 88, djTakeoffAsymMs: 9, djLandingPeakSX: 2480, djLandingPeakDX: 2320, djLandingPeakLsi: 93.5, djConcImpulseSX: 225, djConcImpulseDX: 215, djConcImpulseLsi: 95.6, djValidationStatus: 'FAILED', djFailReason: 'FAILED - Indice Reattivo RSI < 1.8', aclrsi: 86 },
+      { id: 'test-5', patientId: 'f6a7b8c9-d0e1-4234-a567-890123456789', patient_id: 'f6a7b8c9-d0e1-4234-a567-890123456789', num: 5, label: 'Test #5 (Mese 8)', date: '10/08/2026', lsiQuad: 94.2, lsiQuadDelta: '+5.7%', lsiFlex: 93.5, lsiFlexDelta: '+5.5%', lsiSingleHop: 93.0, lsiTripleHop: 94.0, quadOpNmKg: 2.92, quadSano: 460, quadOp: 433, flexSano: 220, flexOp: 206, ikdc: 90, brakingAsym: 4.8, cmjImpulseLsi: 94.5, slCmjHeightLsi: 95.0, rsiCmj: 0.68, jumpHeight: 35.8, contractionTime: 560, peakPower: 56.5, eccBrakingSX: 252, eccBrakingDX: 240, rsiDropJump: 1.85, djBoxHeight: '30 cm', djJumpHeight: 35.8, djContactTime: 225, djTtpfMs: 98, djTakeoffAsymMs: 6, djLandingPeakSX: 2550, djLandingPeakDX: 2480, djLandingPeakLsi: 97.3, djConcImpulseSX: 235, djConcImpulseDX: 228, djConcImpulseLsi: 97.0, djValidationStatus: 'PASSED', djFailReason: 'PASSED - Tutti i Requisiti Clinici Soddisfatti', aclrsi: 92 },
+      { id: 'test-6', patientId: 'f6a7b8c9-d0e1-4234-a567-890123456789', patient_id: 'f6a7b8c9-d0e1-4234-a567-890123456789', num: 6, label: 'Test #6 (Mese 9 - RTS)', date: '05/09/2026', lsiQuad: 97.8, lsiQuadDelta: '+3.6%', lsiFlex: 96.5, lsiFlexDelta: '+3.0%', lsiSingleHop: 96.8, lsiTripleHop: 97.5, quadOpNmKg: 3.12, quadSano: 475, quadOp: 465, flexSano: 228, flexOp: 220, ikdc: 95, brakingAsym: 2.1, cmjImpulseLsi: 98.2, slCmjHeightLsi: 98.0, rsiCmj: 0.74, jumpHeight: 38.2, contractionTime: 535, peakPower: 60.5, eccBrakingSX: 265, eccBrakingDX: 260, rsiDropJump: 2.15, djBoxHeight: '30 cm', djJumpHeight: 38.2, djContactTime: 210, djTtpfMs: 105, djTakeoffAsymMs: 3, djLandingPeakSX: 2600, djLandingPeakDX: 2560, djLandingPeakLsi: 98.5, djConcImpulseSX: 240, djConcImpulseDX: 238, djConcImpulseLsi: 99.2, djValidationStatus: 'PASSED', djFailReason: 'PASSED - Tutti i Requisiti Clinici Soddisfatti', aclrsi: 95 }
     ]
   },
   {
@@ -144,16 +144,32 @@ function MainApp() {
   // 2. Lettura Prioritaria ed Esclusiva da Supabase Cloud
   React.useEffect(() => {
     async function loadCloudData() {
-      const cloudPatients = await fetchPatientsFromCloud();
+      let cloudPatients = await fetchPatientsFromCloud();
+
+      // Assicurati che i pazienti di base siano presenti su Supabase Cloud
+      if (!cloudPatients || cloudPatients.length === 0) {
+        for (const p of INITIAL_PATIENTS) {
+          await savePatientToCloud(p);
+        }
+        cloudPatients = await fetchPatientsFromCloud();
+      } else {
+        // Se un paziente iniziale manca su Supabase Cloud (es: Francesco Gabbani), assegnalo subito
+        const gabbani = cloudPatients.find(p => p.id === INITIAL_PATIENTS[0].id);
+        if (!gabbani) {
+          await savePatientToCloud(INITIAL_PATIENTS[0]);
+          cloudPatients = await fetchPatientsFromCloud();
+        }
+      }
+
       if (cloudPatients && cloudPatients.length > 0) {
         setPatients(cloudPatients);
-        // Sincronizza il paziente selezionato con i dati reali caricati dal DB
+        
+        // Ripristina il paziente selezionato usando l'ID salvato prima del refresh (F5)
+        const savedId = localStorage.getItem('acl_selected_patient_id');
         setSelectedPatient(prev => {
-          if (prev?.id) {
-            const found = cloudPatients.find(p => p.id === prev.id);
-            return found || cloudPatients[0];
-          }
-          return cloudPatients[0];
+          const targetId = savedId || prev?.id;
+          const found = cloudPatients.find(p => p.id === targetId);
+          return found || cloudPatients[0];
         });
       }
     }
@@ -180,11 +196,23 @@ function MainApp() {
     }
   }, [patients]);
 
-  const [selectedPatient, setSelectedPatient] = useState(() => patients[0] || null);
+  const [selectedPatient, setSelectedPatient] = useState(() => {
+    const savedId = localStorage.getItem('acl_selected_patient_id');
+    if (savedId && patients.length > 0) {
+      const found = patients.find(p => p.id === savedId);
+      if (found) return found;
+    }
+    return patients[0] || null;
+  });
 
-  // Sincronizza lo stato del paziente selezionato quando cambia la lista dei pazienti dal DB
+  // Sincronizza lo stato del paziente selezionato e salva l'ID in localStorage
   React.useEffect(() => {
-    if (selectedPatient) {
+    if (selectedPatient?.id) {
+      try {
+        localStorage.setItem('acl_selected_patient_id', selectedPatient.id);
+      } catch (err) {
+        console.error('Errore salvataggio id paziente selezionato:', err);
+      }
       const updated = patients.find(p => p.id === selectedPatient.id);
       if (updated && JSON.stringify(updated) !== JSON.stringify(selectedPatient)) {
         setSelectedPatient(updated);
@@ -192,7 +220,8 @@ function MainApp() {
     } else if (patients.length > 0) {
       setSelectedPatient(patients[0]);
     }
-  }, [patients]);
+  }, [patients, selectedPatient?.id]);
+
   const [showNewPatientModal, setShowNewPatientModal] = useState(false);
   const [newPatientForm, setNewPatientForm] = useState({
     nome: '',
@@ -211,6 +240,11 @@ function MainApp() {
 
   const handleSelectPatient = (patient) => {
     setSelectedPatient(patient);
+    if (patient?.id) {
+      try {
+        localStorage.setItem('acl_selected_patient_id', patient.id);
+      } catch (e) {}
+    }
     setCurrentView('patient-detail');
   };
 

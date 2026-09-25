@@ -64,11 +64,11 @@ export default function TabDirettiveOperative({ patient, onSaveDirectives, onCha
   const getPhaseIdFromPatient = (fase) => {
     if (!fase) return 'RETURN_TO_RUN';
     const str = String(fase).toLowerCase();
-    if (str.includes('early') || str.includes('1') || str.includes('rom')) return 'EARLY_STAGE';
-    if (str.includes('mid') || str.includes('2') || str.includes('strength')) return 'MID_STAGE';
-    if (str.includes('run') || str.includes('3') || str.includes('drills')) return 'RETURN_TO_RUN';
-    if (str.includes('late') || str.includes('4') || str.includes('cod')) return 'LATE_STAGE';
-    if (str.includes('perf') || str.includes('5') || str.includes('rts') || str.includes('sprint') || str.includes('play') || str.includes('sport')) return 'PERFORMANCE';
+    if (str.includes('early') || str.includes('rom') || str === 'fase 1') return 'EARLY_STAGE';
+    if (str.includes('mid') || str.includes('strength') || str === 'fase 2') return 'MID_STAGE';
+    if (str.includes('run') || str.includes('drills') || str === 'fase 3') return 'RETURN_TO_RUN';
+    if (str.includes('late') || str.includes('cod') || str.includes('agility') || str === 'fase 4') return 'LATE_STAGE';
+    if (str.includes('perf') || str.includes('play') || str.includes('sport') || str.includes('rts') || str === 'fase 5') return 'PERFORMANCE';
     return 'RETURN_TO_RUN';
   };
 
@@ -85,16 +85,21 @@ export default function TabDirettiveOperative({ patient, onSaveDirectives, onCha
 
   const handleSelectPhase = (ph) => {
     setSelectedPhaseId(ph.id);
-    const newPhaseName = `Fase ${ph.num} (${ph.tag})`;
+    let dbPhase = 'Return to Run';
+    if (ph.id === 'EARLY_STAGE') dbPhase = 'Early Phase';
+    if (ph.id === 'MID_STAGE') dbPhase = 'Return to Run';
+    if (ph.id === 'RETURN_TO_RUN') dbPhase = 'Return to Run';
+    if (ph.id === 'LATE_STAGE') dbPhase = 'Return to Sport';
+    if (ph.id === 'PERFORMANCE') dbPhase = 'Return to Play';
     
     if (onChangePhase) {
-      onChangePhase(newPhaseName);
+      onChangePhase(dbPhase);
     }
     if (onSaveDirectives) {
-      onSaveDirectives({ fase_riabilitativa: newPhaseName });
+      onSaveDirectives({ fase_riabilitativa: dbPhase });
     }
 
-    showSuccessFeedback(`Fase salvata automaticamente: ${newPhaseName}`);
+    showSuccessFeedback(`Fase salvata su Supabase Cloud: ${dbPhase}`);
   };
 
   // ---------------------------------------------------------------------------
