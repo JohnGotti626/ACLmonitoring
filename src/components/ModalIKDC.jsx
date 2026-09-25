@@ -13,14 +13,15 @@ import {
   RotateCcw
 } from 'lucide-react';
 
-// DOMANDE STANDARD QUESTIONARIO IKDC SOGGETTIVO (MODULO CLINICO UNIFICATO IKDC-SKF)
+// DOMANDE STANDARD QUESTIONARIO IKDC SOGGETTIVO (MODULO CLINICO UNIFICATO IKDC-SKF - Irrgang et al., 2001)
 export const IKDC_QUESTIONS = [
-  // SEZIONE 1: SINTOMI
+  // SEZIONE 1: SINTOMI (6 Domande)
   {
     id: 'q1_max_activity_pain',
     section: '1. Sintomi',
-    question: '1. Max attività senza dolore significativo:',
+    question: '1. Max livello di attività eseguibile senza dolore significativo:',
     type: 'single_choice',
+    isScored: true,
     options: [
       { label: '[4] Molto intense (salti, cambi direzione, calcio)', points: 4 },
       { label: '[3] Intense (lavoro pesante, sci, tennis)', points: 3 },
@@ -34,13 +35,14 @@ export const IKDC_QUESTIONS = [
     section: '1. Sintomi',
     question: '2. Frequenza del dolore nelle ultime 4 settimane:',
     type: 'scale_0_10',
+    isScored: true,
     options: [
       { label: '10 - Mai (Nessun dolore)', points: 10 },
       { label: '9', points: 9 },
       { label: '8', points: 8 },
       { label: '7', points: 7 },
       { label: '6', points: 6 },
-      { label: '5 - Moderato', points: 5 },
+      { label: '5 - Moderata frequenza', points: 5 },
       { label: '4', points: 4 },
       { label: '3', points: 3 },
       { label: '2', points: 2 },
@@ -51,27 +53,29 @@ export const IKDC_QUESTIONS = [
   {
     id: 'q3_pain_severity',
     section: '1. Sintomi',
-    question: '3. Gravità del dolore nelle ultime 4 settimane:',
+    question: '3. Gravità / Intensità del dolore nelle ultime 4 settimane:',
     type: 'scale_0_10',
+    isScored: true,
     options: [
-      { label: '10 - Nessun dolore', points: 10 },
+      { label: '10 - Nessun dolore (0/10)', points: 10 },
       { label: '9', points: 9 },
       { label: '8', points: 8 },
       { label: '7', points: 7 },
       { label: '6', points: 6 },
-      { label: '5 - Moderato', points: 5 },
+      { label: '5 - Moderato (5/10)', points: 5 },
       { label: '4', points: 4 },
       { label: '3', points: 3 },
       { label: '2', points: 2 },
       { label: '1', points: 1 },
-      { label: '0 - Peggior dolore', points: 0 }
+      { label: '0 - Peggior dolore (10/10)', points: 0 }
     ]
   },
   {
     id: 'q4_swelling',
     section: '1. Sintomi',
-    question: '4. Gonfiore al ginocchio:',
+    question: '4. Gonfiore al ginocchio nelle ultime 4 settimane:',
     type: 'single_choice',
+    isScored: true,
     options: [
       { label: '[4] Mai', points: 4 },
       { label: '[3] Solo dopo attività molto intense', points: 3 },
@@ -85,6 +89,7 @@ export const IKDC_QUESTIONS = [
     section: '1. Sintomi',
     question: '5. Blocchi articolari o scatti improvvisi:',
     type: 'single_choice',
+    isScored: true,
     options: [
       { label: '[1] No (Assenti / Nessun blocco)', points: 1 },
       { label: '[0] Sì (Presenti / Si blocca)', points: 0 }
@@ -93,8 +98,9 @@ export const IKDC_QUESTIONS = [
   {
     id: 'q6_giving_way',
     section: '1. Sintomi',
-    question: '6. Max attività senza cedimento/instabilità:',
+    question: '6. Max livello di attività eseguibile senza cedimento/instabilità:',
     type: 'single_choice',
+    isScored: true,
     options: [
       { label: '[4] Molto intense (salti, cambi direzione)', points: 4 },
       { label: '[3] Intense (lavoro pesante, tennis)', points: 3 },
@@ -104,12 +110,13 @@ export const IKDC_QUESTIONS = [
     ]
   },
 
-  // SEZIONE 2: ATTIVITÀ QUOTIDIANE E SPORTIVE
+  // SEZIONE 2: ATTIVITÀ QUOTIDIANE E SPORTIVE (9 Domande)
   {
     id: 'q7a_stairs_up',
     section: '2. Attività Quotidiane e Sportive',
     question: '7a. Salire le scale:',
     type: 'single_choice',
+    isScored: true,
     options: [
       { label: 'Nessuna difficoltà (4 pt)', points: 4 },
       { label: 'Lieve difficoltà (3 pt)', points: 3 },
@@ -123,6 +130,7 @@ export const IKDC_QUESTIONS = [
     section: '2. Attività Quotidiane e Sportive',
     question: '7b. Scendere le scale:',
     type: 'single_choice',
+    isScored: true,
     options: [
       { label: 'Nessuna difficoltà (4 pt)', points: 4 },
       { label: 'Lieve difficoltà (3 pt)', points: 3 },
@@ -136,6 +144,7 @@ export const IKDC_QUESTIONS = [
     section: '2. Attività Quotidiane e Sportive',
     question: '7c. Accovacciarsi / Piegarsi sulle ginocchia:',
     type: 'single_choice',
+    isScored: true,
     options: [
       { label: 'Nessuna difficoltà (4 pt)', points: 4 },
       { label: 'Lieve difficoltà (3 pt)', points: 3 },
@@ -149,6 +158,7 @@ export const IKDC_QUESTIONS = [
     section: '2. Attività Quotidiane e Sportive',
     question: '7d. Inginocchiarsi:',
     type: 'single_choice',
+    isScored: true,
     options: [
       { label: 'Nessuna difficoltà (4 pt)', points: 4 },
       { label: 'Lieve difficoltà (3 pt)', points: 3 },
@@ -158,10 +168,11 @@ export const IKDC_QUESTIONS = [
     ]
   },
   {
-    id: 'q7e_rising_chair',
+    id: 'q7e_sitting_bent',
     section: '2. Attività Quotidiane e Sportive',
-    question: '7e. Rialzarsi da una sedia bassa:',
+    question: '7e. Stare seduti con il ginocchio piegato:',
     type: 'single_choice',
+    isScored: true,
     options: [
       { label: 'Nessuna difficoltà (4 pt)', points: 4 },
       { label: 'Lieve difficoltà (3 pt)', points: 3 },
@@ -171,10 +182,11 @@ export const IKDC_QUESTIONS = [
     ]
   },
   {
-    id: 'q7f_running_straight',
+    id: 'q7f_rising_chair',
     section: '2. Attività Quotidiane e Sportive',
-    question: '7f. Correre in linea retta:',
+    question: '7f. Rialzarsi da una sedia bassa:',
     type: 'single_choice',
+    isScored: true,
     options: [
       { label: 'Nessuna difficoltà (4 pt)', points: 4 },
       { label: 'Lieve difficoltà (3 pt)', points: 3 },
@@ -184,10 +196,11 @@ export const IKDC_QUESTIONS = [
     ]
   },
   {
-    id: 'q7g_jumping',
+    id: 'q7g_running_straight',
     section: '2. Attività Quotidiane e Sportive',
-    question: '7g. Saltare e ricadere sulla gamba lesionata:',
+    question: '7g. Correre in linea retta:',
     type: 'single_choice',
+    isScored: true,
     options: [
       { label: 'Nessuna difficoltà (4 pt)', points: 4 },
       { label: 'Lieve difficoltà (3 pt)', points: 3 },
@@ -197,10 +210,25 @@ export const IKDC_QUESTIONS = [
     ]
   },
   {
-    id: 'q7h_pivoting',
+    id: 'q7h_jumping',
     section: '2. Attività Quotidiane e Sportive',
-    question: '7h. Cambiare direzione bruscamente (pivoting):',
+    question: '7h. Saltare e ricadere sulla gamba lesionata:',
     type: 'single_choice',
+    isScored: true,
+    options: [
+      { label: 'Nessuna difficoltà (4 pt)', points: 4 },
+      { label: 'Lieve difficoltà (3 pt)', points: 3 },
+      { label: 'Moderata difficoltà (2 pt)', points: 2 },
+      { label: 'Forte difficoltà (1 pt)', points: 1 },
+      { label: 'Impossibile (0 pt)', points: 0 }
+    ]
+  },
+  {
+    id: 'q7i_pivoting',
+    section: '2. Attività Quotidiane e Sportive',
+    question: '7i. Cambiare direzione bruscamente (pivoting / cutting):',
+    type: 'single_choice',
+    isScored: true,
     options: [
       { label: 'Nessuna difficoltà (4 pt)', points: 4 },
       { label: 'Lieve difficoltà (3 pt)', points: 3 },
@@ -210,14 +238,36 @@ export const IKDC_QUESTIONS = [
     ]
   },
 
-  // SEZIONE 3: FUNZIONE GENERALE DEL GINOCCHIO
+  // SEZIONE 3: FUNZIONE GENERALE DEL GINOCCHIO (3 Domande)
   {
     id: 'q8_overall_function',
     section: '3. Funzione Generale del Ginocchio',
-    question: '8. Valuta la funzione attuale del tuo ginocchio (da 0 a 10):',
+    question: '8. Valuta la funzione ATTUALE del tuo ginocchio (da 0 a 10):',
     type: 'scale_0_10',
+    isScored: true,
     options: [
       { label: '10 - Normale e perfetta', points: 10 },
+      { label: '9', points: 9 },
+      { label: '8', points: 8 },
+      { label: '7', points: 7 },
+      { label: '6', points: 6 },
+      { label: '5 - Moderata', points: 5 },
+      { label: '4', points: 4 },
+      { label: '3', points: 3 },
+      { label: '2', points: 2 },
+      { label: '1', points: 1 },
+      { label: '0 - Incapacità totale', points: 0 }
+    ]
+  },
+  {
+    id: 'q10_pre_injury_function',
+    section: '3. Funzione Generale del Ginocchio',
+    question: '10. Valuta la funzione del ginocchio PRIMA DELL\'INFORTUNIO (0-10): [Baseline clinica non inclusa nello score]',
+    type: 'scale_0_10',
+    isScored: false,
+    excludeFromScore: true,
+    options: [
+      { label: '10 - Normale e perfetta (Baseline pre-infortunio)', points: 10 },
       { label: '9', points: 9 },
       { label: '8', points: 8 },
       { label: '7', points: 7 },
@@ -232,44 +282,56 @@ export const IKDC_QUESTIONS = [
   }
 ];
 
-// FUNZIONE ALGORITMO UFFICIALE CALCOLO SCORE IKDC (0-100)
+// FUNZIONE ALGORITMO UFFICIALE CALCOLO SCORE IKDC (0-100) (Irrgang et al., 2001)
 export function calculateIKDCScore(answers) {
-  const answeredKeys = Object.keys(answers).filter(k => answers[k] !== undefined && answers[k] !== null);
-  const totalQuestions = IKDC_QUESTIONS.length;
-  const answeredCount = answeredKeys.length;
+  // Domande valide ai fini dello score (esclusa Domanda 10 pre-infortunio)
+  const scoredQuestions = IKDC_QUESTIONS.filter(q => !q.excludeFromScore && q.isScored !== false);
 
-  // Validazione: almeno 12 su 15 domande devono essere compilate
-  const isValid = answeredCount >= 12;
+  // Risposte fornite per le domande valide ai fini del calcolo
+  const answeredScoredKeys = scoredQuestions
+    .map(q => q.id)
+    .filter(id => answers[id] !== undefined && answers[id] !== null);
 
-  let totalPointsObtained = 0;
-  let maxTheoreticalPoints = 0;
+  const answeredCount = answeredScoredKeys.length;
+  const totalScoredQuestions = scoredQuestions.length;
 
-  IKDC_QUESTIONS.forEach(q => {
+  // Soglia di validità scientifica: almeno 16 risposte sulle domande previste
+  const MIN_REQUIRED_ANSWERS = 16;
+  const isValid = answeredCount >= MIN_REQUIRED_ANSWERS;
+
+  let rawScore = 0; // Punteggio Grezzo
+  let theoreticalMaxScore = 0; // Punteggio Massimo Teorico per le domande compilate
+
+  scoredQuestions.forEach(q => {
     const selectedOptionIndex = answers[q.id];
     if (selectedOptionIndex !== undefined && selectedOptionIndex !== null) {
       const option = q.options[selectedOptionIndex];
-      if (option) {
-        totalPointsObtained += option.points;
+      if (option && typeof option.points === 'number') {
+        rawScore += option.points;
         const maxPointsForQuestion = Math.max(...q.options.map(o => o.points));
-        maxTheoreticalPoints += maxPointsForQuestion;
+        theoreticalMaxScore += maxPointsForQuestion;
       }
     }
   });
 
-  if (!isValid || maxTheoreticalPoints === 0) {
+  // Se risposte valide < 16 o max teorico = 0, imposta score su null
+  if (!isValid || theoreticalMaxScore === 0) {
     return {
       isValid: false,
       answeredCount,
-      totalQuestions,
-      minRequired: 12,
-      score: 0,
-      classification: 'Incompleto'
+      totalScoredQuestions,
+      minRequired: MIN_REQUIRED_ANSWERS,
+      score: null,
+      errorMessage: 'Il questionario richiede almeno 16 risposte per essere valido',
+      classification: 'Incompleto',
+      classColor: 'text-red-400',
+      badgeBg: 'bg-red-950/80 border-red-500/50 text-red-300'
     };
   }
 
-  // Formula Ufficiale IKDC: (Punti Ottenuti / Max Teorico) * 100
-  const rawScore = (totalPointsObtained / maxTheoreticalPoints) * 100;
-  const ikdcScore = Number(rawScore.toFixed(1));
+  // Formula Ufficiale IKDC Trasformato (0-100): (Raw_Score / Theoretical_Max_Score) * 100
+  const ikdcScoreRaw = (rawScore / theoreticalMaxScore) * 100;
+  const ikdcScore = Number(ikdcScoreRaw.toFixed(1));
 
   let classification = 'Scarso';
   let classColor = 'text-red-400';
@@ -292,11 +354,11 @@ export function calculateIKDCScore(answers) {
   return {
     isValid: true,
     answeredCount,
-    totalQuestions,
-    minRequired: 12,
+    totalScoredQuestions,
+    minRequired: MIN_REQUIRED_ANSWERS,
     score: ikdcScore,
-    totalPointsObtained: Number(totalPointsObtained.toFixed(1)),
-    maxTheoreticalPoints: Number(maxTheoreticalPoints.toFixed(1)),
+    totalPointsObtained: Number(rawScore.toFixed(1)),
+    maxTheoreticalPoints: Number(theoreticalMaxScore.toFixed(1)),
     classification,
     classColor,
     badgeBg
@@ -600,8 +662,8 @@ export default function ModalIKDC({ isOpen, onClose, patient, onSaveIKDC }) {
                 <AlertCircle className="w-10 h-10 text-red-400 mx-auto" />
                 <h4 className="text-base font-bold text-white">Questionario Incompleto</h4>
                 <p className="text-xs text-red-200 leading-relaxed">
-                  Per garantire la validità scientifica del questionario IKDC Soggettivo, è necessario rispondere ad almeno <strong>12 su 15 domande</strong>.
-                  Hai risposto a {result?.answeredCount || 0} domande.
+                  Il questionario richiede almeno 16 risposte per essere valido (soglia 90% Irrgang et al., 2001).
+                  Hai risposto a {result?.answeredCount || 0} domande su 18.
                 </p>
                 <button
                   type="button"
