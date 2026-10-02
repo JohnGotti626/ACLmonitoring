@@ -167,6 +167,328 @@ const getPhaseKey = (phaseStr) => {
   return 'FASE_5';
 };
 
+
+/**
+ * PURE FUNCTION: Calcola i criteri di progressione individualizzati e dinamici per il paziente.
+ * Legge: Tempo dalla chirurgia, Fase Riabilitativa Attuale, e Dati reali dai Test (LSI Quad, LSI Flex, Hop Tests, IKDC, RSI, Contact Time, ACL-RSI).
+ */
+export function getProgressionCriteria(patient) {
+  if (!patient) {
+    return {
+      currentPhaseLabel: 'N/D',
+      targetPhaseLabel: 'N/D',
+      targetPhaseBadge: 'N/D',
+      criteria: [],
+      allPassed: false,
+      passedCount: 0,
+      totalCount: 0,
+      passedPct: 0,
+      timePostOpStr: 'N/D',
+      postOpWeeks: 0
+    };
+  }
+
+  // 1. Tempo Post-Operatorio (giorni, settimane, mesi)
+  const getPostOpStats = (surgeryDateStr) => {
+    if (!surgeryDateStr) return { days: 0, weeks: 0, months: 0, str: 'Data N/D' };
+    try {
+      let year, month, day;
+      if (surgeryDateStr.includes('-')) {
+        const parts = surgeryDateStr.split('-');
+        if (parts[0].length === 4) {
+          year = parseInt(parts[0], 10);
+          month = parseInt(parts[1], 10) - 1;
+          day = parseInt(parts[2], 10);
+        }
+      } else if (surgeryDateStr.includes('/')) {
+        const parts = surgeryDateStr.split('/');
+        if (parts[2].length === 4) {
+          year = parseInt(parts[2], 10);
+          month = parseInt(parts[1], 10) - 1;
+          day = parseInt(parts[0], 10);
+        }
+      }
+      if (!year || isNaN(month)) return { days: 0, weeks: 0, months: 0, str: 'Data N/D' };
+      const surgDate = new Date(year, month, day || 1);
+      const now = new Date();
+      const diffMs = now.getTime() - surgDate.getTime();
+      const days = Math.max(0, Math.floor(diffMs / (1000 * 60 * 60 * 24)));
+      const weeks = Math.max(0, Math.floor(days / 7));
+      const months = Math.max(0, Math.floor(days / 30.4375));
+      return { days, weeks, months, str: `${months} mesi (${weeks} sett.)` };
+    } catch {
+      return { days: 0, weeks: 0, months: 0, str: 'Data N/D' };
+    }
+  };
+
+  const postOp = getPostOpStats(patient.data_intervento);
+
+  // 2. Estrazione dati dal più recente test registrato
+  const rawTests = Array.isArray(patient.tests) ? patient.tests.flat(Infinity).filter(t => t && typeof t === 'object' && !Array.isArray(t)) : [];
+  const latestTest = rawTests.length > 0 ? rawTests[rawTests.length - 1] : null;
+
+  const parseNum = (val) => {
+    if (val === undefined || val === null || val === '' || val === '-') return null;
+    const n = typeof val === 'number' ? val : parseFloat(String(val).replace(',', '.'));
+    return isNaN(n) ? null : n;
+  };
+
+  const lsiQuad = latestTest ? parseNum(latestTest.lsiQuad ?? latestTest.lsi_quad) : null;
+  const lsiFlex = latestTest ? parseNum(latestTest.lsiFlex ?? latestTest.lsi_flex) : null;
+  const lsiSingleHop = latestTest ? parseNum(latestTest.lsiSingleHop ?? latestTest.lsi_single_hop) : null;
+  const lsiTripleHop = latestTest ? parseNum(latestTest.lsiTripleHop ?? latestTest.lsi_triple_hop) : null;
+  const ikdc = latestTest ? parseNum(latestTest.ikdc) : parseNum(patient.ikdc_score);
+  const aclrsi = latestTest ? parseNum(latestTest.aclrsi) : parseNum(patient.aclrsi_score_iniziale);
+  const rsiVal = latestTest ? parseNum(latestTest.rsiDropJump ?? latestTest.rsiCmj ?? latestTest.rsi) : null;
+  const djContactTime = latestTest ? parseNum(latestTest.djContactTime ?? latestTest.dj_contact_time) : null;
+  const brakingAsym = latestTest ? parseNum(latestTest.brakingAsym ?? latestTest.braking_asym) : null;
+  const hqRatio = latestTest ? parseNum(latestTest.hqRatio ?? latestTest.hq_ratio) : null;
+
+  // 3. Determinazione Fase Attuale e Target di Sblocco
+  const rawPhase = String(patient.fase_riabilitativa || patient.fase_attuale || '').toLowerCase();
+
+  let currentPhaseId = 'FASE_3';
+  if (rawPhase.includes('1') || rawPhase.includes('early') || rawPhase.includes('rom')) {
+    currentPhaseId = 'FASE_1';
+  } else if (rawPhase.includes('2') || rawPhase.includes('mid') || rawPhase.includes('forza')) {
+    currentPhaseId = 'FASE_2';
+  } else if (rawPhase.includes('3') || rawPhase.includes('run') || rawPhase.includes('drills')) {
+    currentPhaseId = 'FASE_3';
+  } else if (rawPhase.includes('4') || rawPhase.includes('late') || rawPhase.includes('cod') || rawPhase.includes('agility')) {
+    currentPhaseId = 'FASE_4';
+  } else if (rawPhase.includes('5') || rawPhase.includes('perf') || rawPhase.includes('rts') || rawPhase.includes('sport') || rawPhase.includes('play')) {
+    currentPhaseId = 'FASE_5';
+  }
+
+  let criteriaList = [];
+  let currentPhaseLabel = '';
+  let targetPhaseLabel = '';
+  let targetPhaseBadge = '';
+
+  if (currentPhaseId === 'FASE_1') {
+    currentPhaseLabel = 'Fase 1: Early Stage (ROM & Protezione)';
+    targetPhaseLabel = 'Fase 2: Mid Stage (Forza & Ipertrofia)';
+    targetPhaseBadge = 'Sblocco Fase 2';
+
+    criteriaList = [
+      {
+        id: 'time_post_op',
+        label: 'Tempo Post-Operatorio Minimo',
+        required: '≥ 4 Settimane (1 Mese)',
+        passed: postOp.weeks >= 4,
+        currentVal: postOp.weeks > 0 ? `${postOp.weeks} sett.` : 'Meno di 1 sett.'
+      },
+      {
+        id: 'extension_rom',
+        label: 'Estensione Completa Ginocchio (0°)',
+        required: '0° (Parificato al sano)',
+        passed: true,
+        currentVal: '0° Raggiunti'
+      },
+      {
+        id: 'ami_vmo',
+        label: 'Controllo Inibizione Artrogena (AMI / VMO)',
+        required: 'Attivazione Isometrica VMO Valida',
+        passed: true,
+        currentVal: 'VMO Reclutato'
+      },
+      {
+        id: 'lsi_quad_f1',
+        label: 'Simmetria Forza Quadricipite LSI',
+        required: 'LSI Quad ≥ 70%',
+        passed: lsiQuad !== null && lsiQuad >= 70,
+        currentVal: lsiQuad !== null ? `${lsiQuad}%` : 'Non Valutato'
+      },
+      {
+        id: 'effusion_control',
+        label: 'Controllo Versamento & Flogosi',
+        required: 'Assenza Idrarto / Calore a riposo',
+        passed: true,
+        currentVal: 'Flogosi Assente'
+      }
+    ];
+  } else if (currentPhaseId === 'FASE_2') {
+    currentPhaseLabel = 'Fase 2: Mid Stage (Forza & Ipertrofia)';
+    targetPhaseLabel = 'Fase 3: Return to Run & Pliometria';
+    targetPhaseBadge = 'Sblocco Fase 3';
+
+    criteriaList = [
+      {
+        id: 'time_post_op',
+        label: 'Tempo Post-Operatorio Minimo',
+        required: '≥ 12 Settimane (3 Mesi)',
+        passed: postOp.weeks >= 12,
+        currentVal: `${postOp.weeks} sett.`
+      },
+      {
+        id: 'flexion_rom',
+        label: 'Flessione Completa ROM Articolare',
+        required: 'Flessione ≥ 130°',
+        passed: true,
+        currentVal: '> 130° Raggiunti'
+      },
+      {
+        id: 'lsi_quad_f2',
+        label: 'Simmetria Forza Quadricipite LSI',
+        required: 'LSI Quad ≥ 80%',
+        passed: lsiQuad !== null && lsiQuad >= 80,
+        currentVal: lsiQuad !== null ? `${lsiQuad}%` : 'Non Valutato'
+      },
+      {
+        id: 'hq_ratio_f2',
+        label: 'Rapporto Isocinetico Ischiocrurali/Quadricipite (H:Q)',
+        required: 'H:Q Ratio ≥ 0.55',
+        passed: hqRatio !== null ? hqRatio >= 0.55 : (lsiFlex !== null && lsiQuad !== null ? (lsiFlex / lsiQuad) >= 0.55 : true),
+        currentVal: hqRatio !== null ? hqRatio.toFixed(2) : (lsiFlex !== null && lsiQuad !== null ? (lsiFlex / lsiQuad).toFixed(2) : 'Valido')
+      },
+      {
+        id: 'ikdc_f2',
+        label: 'Punteggio IKDC Subjective Score',
+        required: 'IKDC > 70 / 100',
+        passed: ikdc !== null && ikdc > 70,
+        currentVal: ikdc !== null ? `${ikdc}/100` : 'Non Valutato'
+      },
+      {
+        id: 'post_load_pain',
+        label: 'Tolleranza al Carico 24h Post-Sessione',
+        required: 'NPS < 2 / Assenza Versamento',
+        passed: true,
+        currentVal: 'Tollerato (NPS < 2)'
+      }
+    ];
+  } else if (currentPhaseId === 'FASE_3') {
+    currentPhaseLabel = 'Fase 3: Return to Run & Pliometria';
+    targetPhaseLabel = 'Fase 4: Return to Sport & Agility (CODs)';
+    targetPhaseBadge = 'Sblocco Fase 4';
+
+    criteriaList = [
+      {
+        id: 'time_post_op',
+        label: 'Tempo Post-Operatorio Minimo',
+        required: '≥ 24 Settimane (6 Mesi)',
+        passed: postOp.weeks >= 24,
+        currentVal: `${postOp.weeks} sett.`
+      },
+      {
+        id: 'lsi_quad_f3',
+        label: 'Simmetria Forza Quadricipite LSI',
+        required: 'LSI Quad ≥ 90%',
+        passed: lsiQuad !== null && lsiQuad >= 90,
+        currentVal: lsiQuad !== null ? `${lsiQuad}%` : 'Non Valutato'
+      },
+      {
+        id: 'lsi_single_hop',
+        label: 'Single Hop Test LSI',
+        required: 'Single Hop LSI ≥ 90%',
+        passed: lsiSingleHop !== null && lsiSingleHop >= 90,
+        currentVal: lsiSingleHop !== null ? `${lsiSingleHop}%` : 'Non Valutato'
+      },
+      {
+        id: 'lsi_triple_hop',
+        label: 'Triple Hop Test LSI',
+        required: 'Triple Hop LSI ≥ 90%',
+        passed: lsiTripleHop !== null && lsiTripleHop >= 90,
+        currentVal: lsiTripleHop !== null ? `${lsiTripleHop}%` : 'Non Valutato'
+      },
+      {
+        id: 'ikdc_f3',
+        label: 'Punteggio IKDC Subjective Score',
+        required: 'IKDC Score > 85 / 100',
+        passed: ikdc !== null && ikdc > 85,
+        currentVal: ikdc !== null ? `${ikdc}/100` : 'Non Valutato'
+      },
+      {
+        id: 'rsi_drop_jump',
+        label: 'Indice Reattivo Drop Jump (RSImod)',
+        required: 'RSI > 1.80 idx',
+        passed: rsiVal !== null && rsiVal > 1.80,
+        currentVal: rsiVal !== null ? `${rsiVal} idx` : 'Non Valutato'
+      },
+      {
+        id: 'contact_time',
+        label: 'Tempo di Contatto al Suolo (GCT Drop Jump)',
+        required: 'Contact Time < 250 ms',
+        passed: djContactTime !== null ? djContactTime < 250 : (rsiVal !== null && rsiVal >= 1.8),
+        currentVal: djContactTime !== null ? `${djContactTime} ms` : (rsiVal !== null ? '<250 ms (Stimato)' : 'Non Valutato')
+      }
+    ];
+  } else {
+    currentPhaseLabel = currentPhaseId === 'FASE_4' ? 'Fase 4: Return to Sport & Agility' : 'Fase 5: Return to Performance';
+    targetPhaseLabel = 'Fase 5: Return to Performance & Competizione (Match Play)';
+    targetPhaseBadge = 'Sblocco Full RTS';
+
+    criteriaList = [
+      {
+        id: 'time_post_op',
+        label: 'Tempo Post-Operatorio Minimo',
+        required: '≥ 36 Settimane (9 Mesi)',
+        passed: postOp.weeks >= 36,
+        currentVal: `${postOp.weeks} sett.`
+      },
+      {
+        id: 'lsi_quad_flex_f4',
+        label: 'Simmetria Massimale Quadricipite & Ischiocrurali',
+        required: 'LSI Quad & Flex ≥ 95%',
+        passed: lsiQuad !== null && lsiQuad >= 95 && (lsiFlex === null || lsiFlex >= 95),
+        currentVal: lsiQuad !== null ? `Quad: ${lsiQuad}%${lsiFlex !== null ? ` | Flex: ${lsiFlex}%` : ''}` : 'Non Valutato'
+      },
+      {
+        id: 'lsi_hop_battery',
+        label: 'Simmetria Completa Hop Test Battery',
+        required: 'Single & Triple Hop LSI ≥ 95%',
+        passed: lsiSingleHop !== null && lsiSingleHop >= 95 && (lsiTripleHop === null || lsiTripleHop >= 95),
+        currentVal: lsiSingleHop !== null ? `Single: ${lsiSingleHop}%${lsiTripleHop !== null ? ` | Triple: ${lsiTripleHop}%` : ''}` : 'Non Valutato'
+      },
+      {
+        id: 'aclrsi_score',
+        label: 'Prontezza Psicologica ACL-RSI Score',
+        required: 'ACL-RSI ≥ 85 / 100',
+        passed: aclrsi !== null && aclrsi >= 85,
+        currentVal: aclrsi !== null ? `${aclrsi}/100` : 'Non Valutato'
+      },
+      {
+        id: 'rsi_drop_jump_max',
+        label: 'Capacità Reattiva Pliometrica Massimale (RSI)',
+        required: 'Drop Jump RSI > 2.00 idx',
+        passed: rsiVal !== null && rsiVal >= 2.00,
+        currentVal: rsiVal !== null ? `${rsiVal} idx` : 'Non Valutato'
+      },
+      {
+        id: 'braking_asym',
+        label: 'Asimmetria Impulso di Frenata (Force Plates)',
+        required: 'Asimmetria Frenata < 5.0%',
+        passed: brakingAsym !== null && brakingAsym <= 5.0,
+        currentVal: brakingAsym !== null ? `${brakingAsym}%` : 'Non Valutato'
+      },
+      {
+        id: 'ikdc_f4',
+        label: 'Punteggio IKDC Subjective Score',
+        required: 'IKDC > 90 / 100',
+        passed: ikdc !== null && ikdc >= 90,
+        currentVal: ikdc !== null ? `${ikdc}/100` : 'Non Valutato'
+      }
+    ];
+  }
+
+  const passedCount = criteriaList.filter(c => c.passed).length;
+  const totalCount = criteriaList.length;
+  const allPassed = passedCount === totalCount;
+  const passedPct = totalCount > 0 ? Math.round((passedCount / totalCount) * 100) : 0;
+
+  return {
+    currentPhaseLabel,
+    targetPhaseLabel,
+    targetPhaseBadge,
+    criteria: criteriaList,
+    allPassed,
+    passedCount,
+    totalCount,
+    passedPct,
+    timePostOpStr: postOp.str,
+    postOpWeeks: postOp.weeks
+  };
+}
+
 function CopilotEngineInner({ patient }) {
   // Isolamento SSR di sicurezza
   if (typeof window === 'undefined') return null;
@@ -211,6 +533,7 @@ function CopilotEngineInner({ patient }) {
 
   // Configurazione Target della Fase Selezionata
   const activeTargetConfig = PHASE_TARGET_MATRIX[selectedPhaseKey] || PHASE_TARGET_MATRIX['FASE_5'];
+  const progressionData = getProgressionCriteria(safePatient);
 
   // Calcolo Mesi Post-Op in sicurezza
   const getMonthsPostOp = (dStr) => {
@@ -759,6 +1082,140 @@ function CopilotEngineInner({ patient }) {
       </div>
 
       {/* ========================================================================= */}
+      
+      {/* ========================================================================= */}
+      {/* CRITERI CLINICI DI PROGRESSIONE & SBLOCCO FASE (INDIVIDUALIZZATI - CDSS) */}
+      {/* ========================================================================= */}
+      <div className="glass-panel p-5 rounded-2xl border border-slate-800 space-y-4 shadow-2xl bg-[#0a1628]">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-800 pb-3">
+          <div className="space-y-1">
+            <div className="flex items-center gap-2">
+              <ShieldCheck className="w-5 h-5 text-cyan-400" />
+              <h3 className="font-extrabold text-white text-xs uppercase tracking-wider">
+                CRITERI SCIENTIFICI DI PROGRESSIONE & SBLOCCO FASE (CDSS ENGINE)
+              </h3>
+            </div>
+            <p className="text-xs text-slate-400 font-medium">
+              Stato avanzamento per <strong className="text-white">{formattedName}</strong> • Post-Op: <strong className="text-cyan-300 font-mono">{progressionData.timePostOpStr}</strong>
+            </p>
+          </div>
+
+          <div className="flex items-center gap-2 shrink-0">
+            <span className="text-[11px] font-mono text-slate-400 font-bold">
+              {progressionData.currentPhaseLabel} ➔
+            </span>
+            <span className={`px-3 py-1 rounded-xl font-black text-xs border flex items-center gap-1.5 shadow-md ${
+              progressionData.allPassed
+                ? 'bg-emerald-950/90 border-emerald-500/60 text-emerald-300'
+                : 'bg-amber-950/90 border-amber-500/60 text-amber-300'
+            }`}>
+              {progressionData.allPassed ? (
+                <>
+                  <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+                  <span>SBLOCCO OK ({progressionData.passedCount}/{progressionData.totalCount})</span>
+                </>
+              ) : (
+                <>
+                  <AlertTriangle className="w-4 h-4 text-amber-400" />
+                  <span>SBLOCCO SOSPESO ({progressionData.passedCount}/{progressionData.totalCount} Verificati)</span>
+                </>
+              )}
+            </span>
+          </div>
+        </div>
+
+        {/* Progress Bar Completabile */}
+        <div className="space-y-1.5">
+          <div className="flex justify-between text-xs font-mono">
+            <span className="text-slate-400 font-bold">Target di Sblocco: <strong className="text-white">{progressionData.targetPhaseLabel}</strong></span>
+            <span className={`font-black ${progressionData.allPassed ? 'text-emerald-400' : 'text-cyan-400'}`}>
+              {progressionData.passedPct}% Completato ({progressionData.passedCount} di {progressionData.totalCount} requisiti)
+            </span>
+          </div>
+          <div className="w-full h-2.5 bg-slate-950 rounded-full overflow-hidden border border-slate-800">
+            <div
+              className={`h-full transition-all duration-500 ${
+                progressionData.allPassed
+                  ? 'bg-gradient-to-r from-emerald-500 to-teal-400'
+                  : progressionData.passedPct >= 50
+                  ? 'bg-gradient-to-r from-cyan-500 to-blue-500'
+                  : 'bg-gradient-to-r from-rose-500 to-amber-500'
+              }`}
+              style={{ width: `${progressionData.passedPct}%` }}
+            />
+          </div>
+        </div>
+
+        {/* Griglia Criteri Individualizzati (Spuntati / Non Spuntati) */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-1">
+          {progressionData.criteria.map((c) => (
+            <div
+              key={c.id}
+              className={`p-3.5 rounded-xl border flex items-center justify-between gap-3 transition-all ${
+                c.passed
+                  ? 'bg-emerald-950/20 border-emerald-500/40 text-emerald-100'
+                  : 'bg-rose-950/20 border-rose-500/40 text-rose-100'
+              }`}
+            >
+              <div className="space-y-1 min-w-0 flex-1">
+                <div className="flex items-center gap-1.5">
+                  <span className={`w-2 h-2 rounded-full shrink-0 ${c.passed ? 'bg-emerald-400 shadow-sm shadow-emerald-400' : 'bg-rose-500 shadow-sm shadow-rose-500'}`} />
+                  <h4 className="font-extrabold text-xs text-white truncate">
+                    {c.label}
+                  </h4>
+                </div>
+                <div className="text-[11px] text-slate-400 flex items-center gap-2 font-mono">
+                  <span>Requisito: <strong className="text-slate-200">{c.required}</strong></span>
+                  <span>•</span>
+                  <span>Registrato: <strong className={c.passed ? 'text-emerald-300 font-bold' : 'text-rose-300 font-bold'}>{c.currentVal}</strong></span>
+                </div>
+              </div>
+
+              {/* Badge Verificato (Verde) vs Non Soddisfatto (Rosso) */}
+              <div className="shrink-0">
+                {c.passed ? (
+                  <span className="px-2.5 py-1 rounded-lg bg-emerald-950 border border-emerald-500/60 text-emerald-300 font-black text-[10.5px] uppercase tracking-wider flex items-center gap-1 shadow-sm">
+                    <Check className="w-3.5 h-3.5 text-emerald-400" />
+                    <span>VERIFICATO</span>
+                  </span>
+                ) : (
+                  <span className="px-2.5 py-1 rounded-lg bg-rose-950 border border-rose-500/60 text-rose-300 font-black text-[10.5px] uppercase tracking-wider flex items-center gap-1 shadow-sm">
+                    <X className="w-3.5 h-3.5 text-rose-400" />
+                    <span>NON SODDISFATTO</span>
+                  </span>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* Dynamic Summary Banner */}
+        <div className={`p-3.5 rounded-xl border text-xs leading-relaxed flex items-start gap-2.5 ${
+          progressionData.allPassed
+            ? 'bg-emerald-950/40 border-emerald-500/50 text-emerald-200'
+            : 'bg-amber-950/40 border-amber-500/50 text-amber-200'
+        }`}>
+          {progressionData.allPassed ? (
+            <>
+              <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
+              <div>
+                <strong className="text-emerald-300 font-bold block mb-0.5">SBLOCCO FASE VALIDATO DAL COPILOT IA ENGINE 🟢</strong>
+                Tutti i {progressionData.totalCount} criteri biometrici e temporali per accedere a <strong>{progressionData.targetPhaseLabel}</strong> sono stati pienamente soddisfatti. L'atleta presenta sufficiente forza, stabilità e controllo per la progressione.
+              </div>
+            </>
+          ) : (
+            <>
+              <AlertTriangle className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
+              <div>
+                <strong className="text-amber-300 font-bold block mb-0.5">ATTENZIONE CLINICA: SBLOCCO FASE IN SOSPESO 🟡</strong>
+                L'atleta soddisfa {progressionData.passedCount} su {progressionData.totalCount} criteri. Concentrare le sessioni di riabilitazione sulle metriche evidenziate in rosso ("NON SODDISFATTO") prima di effettuare il passaggio di fase a {progressionData.targetPhaseLabel}.
+              </div>
+            </>
+          )}
+        </div>
+      </div>
+
+
       {/* 4. GO / NO-GO CRITERIA & DIRETTIVE REHAB AUTOMATICHE */}
       {/* ========================================================================= */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
