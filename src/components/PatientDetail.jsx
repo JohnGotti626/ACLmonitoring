@@ -22,7 +22,7 @@ import TabVistaMobile from './tabs/TabVistaMobile';
 import TabCopilotPdf from './tabs/TabCopilotPdf';
 import ModalNuovaValutazione from './ModalNuovaValutazione';
 import ModalIKDC from './ModalIKDC';
-import { createTestObject, saveTestToSupabase } from '../utils/testUtils';
+import { createTestObject, saveTestToSupabase, sortTestsByDate } from '../utils/testUtils';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import { normalizePhaseForDb } from '../utils/phaseUtils';
 
@@ -208,7 +208,7 @@ export default function PatientDetail({ patient, onBack, onUpdatePatient }) {
               } else {
                 updatedTests = [...currentTests, testData];
               }
-              const cleanTests = updatedTests.filter(t => t && typeof t === 'object' && !Array.isArray(t));
+              const cleanTests = sortTestsByDate(updatedTests);
               onUpdatePatient({ ...patient, tests: cleanTests });
             }}
           />

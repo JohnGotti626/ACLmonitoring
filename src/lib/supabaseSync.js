@@ -1,5 +1,6 @@
 import { supabase, isSupabaseConfigured } from './supabase';
 import { normalizePhaseForDb } from '../utils/phaseUtils';
+import { sortTestsByDate } from '../utils/testUtils';
 
 /**
  * Carica tutti i pazienti da Supabase Cloud
@@ -21,6 +22,9 @@ export async function fetchPatientsFromCloud() {
       // Mappa i record del database adattando la struttura per l'app React
       return data.map(row => {
         const normPhase = normalizePhaseForDb(row.fase_riabilitativa || row.fase_attuale);
+        const rawTests = Array.isArray(row.tests) ? row.tests : (typeof row.tests === 'string' ? JSON.parse(row.tests) : []);
+        const sortedTests = sortTestsByDate(rawTests);
+
         return {
           id: row.id,
           nome: row.nome,
@@ -44,7 +48,7 @@ export async function fetchPatientsFromCloud() {
           note_operative: row.note_operative || '',
           esercizi_prescritti: row.esercizi_prescritti || '',
           alert_compenso: row.alert_compenso || '',
-          tests: Array.isArray(row.tests) ? row.tests : (typeof row.tests === 'string' ? JSON.parse(row.tests) : []),
+          tests: sortedTests,
           deficits_list: Array.isArray(row.deficits_list) ? row.deficits_list : [],
           exercises_list: Array.isArray(row.exercises_list) ? row.exercises_list : []
         };
@@ -64,6 +68,7 @@ export async function savePatientToCloud(patient) {
   if (!isSupabaseConfigured || !patient) return false;
   try {
     const normPhase = normalizePhaseForDb(patient.fase_riabilitativa || patient.fase_attuale);
+    const sortedTests = sortTestsByDate(patient.tests || []);
     const payload = {
       id: patient.id,
       nome: patient.nome,
@@ -86,7 +91,7 @@ export async function savePatientToCloud(patient) {
       note_operative: patient.note_operative || '',
       esercizi_prescritti: patient.esercizi_prescritti || '',
       alert_compenso: patient.alert_compenso || '',
-      tests: patient.tests || [],
+      tests: sortedTests,
       deficits_list: patient.deficits_list || [],
       exercises_list: patient.exercises_list || [],
       updated_at: new Date().toISOString()

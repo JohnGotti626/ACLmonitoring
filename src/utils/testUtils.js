@@ -236,3 +236,92 @@ export async function saveTestToSupabase(newTest) {
     console.warn('Eccezione Supabase evaluations:', err);
   }
 }
+
+/**
+ * Ricava il timestamp Unix in ms dalla data del test (data_valutazione, date o created_at)
+ */
+export function getTestTimestamp(t) {
+  if (!t) return 0;
+  // 1. data_valutazione (YYYY-MM-DD)
+  if (t.data_valutazione && typeof t.data_valutazione === 'string') {
+    const d = new Date(t.data_valutazione);
+    if (!isNaN(d.getTime())) return d.getTime();
+  }
+  // 2. date (DD/MM/YYYY o YYYY-MM-DD)
+  if (t.date && typeof t.date === 'string') {
+    if (t.date.includes('/')) {
+      const parts = t.date.split('/');
+      if (parts.length === 3) {
+        const day = parseInt(parts[0], 10);
+        const month = parseInt(parts[1], 10) - 1;
+        const year = parseInt(parts[2], 10);
+        const d = new Date(year, month, day);
+        if (!isNaN(d.getTime())) return d.getTime();
+      }
+    } else if (t.date.includes('-')) {
+      const d = new Date(t.date);
+      if (!isNaN(d.getTime())) return d.getTime();
+    }
+  }
+  // 3. created_at
+  if (t.created_at) {
+    const d = new Date(t.created_at);
+    if (!isNaN(d.getTime())) return d.getTime();
+  }
+  return 0;
+}
+
+/**
+ * Ordina automaticamente una lista di test in ordine CRONOLOGICO CRESCENTE per data di esecuzione.
+ * Ricalcola automaticamente i numeri di test (num: 1, 2, 3...), le etichette ("Test #1", "Test #2"...) e i delta LSI.
+ */
+export function sortTestsByDate(tests) {
+  if (!Array.isArray(tests)) return [];
+  const flat = tests.flat(Infinity).filter(t => t && typeof t === 'object' && !Array.isArray(t));
+  if (flat.length === 0) return [];
+
+  // Ordina in modo strettamente crescente per data di esecuzione del test
+  const sorted = [...flat].sort((a, b) => getTestTimestamp(a) - getTestTimestamp(b));
+
+  // Ricalcola numeri di test, etichette e delta LSI rispetto al test cronologico precedente
+  return sorted.map((t, idx) => {
+    const num = idx + 1;
+    let label = t.label;
+    if (!label || /^Test #\d+/.test(label)) {
+      const match = (label || '').match(/(\(.*\))/);
+      const suffix = match ? ` ${match[1]}` : '';
+      label = `Test #${num}${suffix}`;
+    }
+
+    let lsiQuadDelta = t.lsiQuadDelta || '-';
+    let lsiFlexDelta = t.lsiFlexDelta || '-';
+
+    if (idx === 0) {
+      lsiQuadDelta = '-';
+      lsiFlexDelta = '-';
+    } else {
+      const prevTest = sorted[idx - 1];
+      const curQuad = typeof t.lsiQuad === 'number' ? t.lsiQuad : parseFloat(t.lsiQuad);
+      const prevQuad = typeof prevTest.lsiQuad === 'number' ? prevTest.lsiQuad : parseFloat(prevTest.lsiQuad);
+      if (!isNaN(curQuad) && !isNaN(prevQuad) && prevQuad > 0) {
+        const diff = (curQuad - prevQuad).toFixed(1);
+        lsiQuadDelta = diff >= 0 ? `+${diff}%` : `${diff}%`;
+      }
+
+      const curFlex = typeof t.lsiFlex === 'number' ? t.lsiFlex : parseFloat(t.lsiFlex);
+      const prevFlex = typeof prevTest.lsiFlex === 'number' ? prevTest.lsiFlex : parseFloat(prevTest.lsiFlex);
+      if (!isNaN(curFlex) && !isNaN(prevFlex) && prevFlex > 0) {
+        const diff = (curFlex - prevFlex).toFixed(1);
+        lsiFlexDelta = diff >= 0 ? `+${diff}%` : `${diff}%`;
+      }
+    }
+
+    return {
+      ...t,
+      num,
+      label,
+      lsiQuadDelta,
+      lsiFlexDelta
+    };
+  });
+}

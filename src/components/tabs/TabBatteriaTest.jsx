@@ -22,7 +22,7 @@ import {
 import { useAuth } from '../../context/AuthContext';
 import ModalNuovaValutazione from '../ModalNuovaValutazione';
 import GraficoMultimetrica from '../GraficoMultimetrica';
-import { createTestObject, saveTestToSupabase } from '../../utils/testUtils';
+import { createTestObject, saveTestToSupabase, sortTestsByDate } from '../../utils/testUtils';
 import { UIErrorBoundary } from '../UIErrorBoundary';
 
 // Helper di sicurezza per parsing numerico senza crash di runtime
@@ -106,21 +106,18 @@ export default function TabBatteriaTest({ patient, activePhase, onChangePhase, o
     weeklyLoadTolerance: true  
   });
 
-  // STORICO TEST REGISTRATI NEL TEMPO (filtrati rigorosamente per il paziente attivo, senza array annidati)
+  // STORICO TEST REGISTRATI NEL TEMPO (ordinati cronologicamente per data di esecuzione)
   const [testsHistory, setTestsHistory] = useState(() => {
-    const rawTests = Array.isArray(patient?.tests) ? patient.tests.flat(Infinity) : [];
-    return rawTests.filter(t => t && typeof t === 'object' && !Array.isArray(t));
+    return sortTestsByDate(patient?.tests);
   });
   const [selectedTestId, setSelectedTestId] = useState(() => {
-    const rawTests = Array.isArray(patient?.tests) ? patient.tests.flat(Infinity) : [];
-    const cleanTests = rawTests.filter(t => t && typeof t === 'object' && !Array.isArray(t));
+    const cleanTests = sortTestsByDate(patient?.tests);
     return cleanTests.length > 0 ? cleanTests[cleanTests.length - 1].id : null;
   });
 
   // Sincronizzazione dinamica quando cambia il paziente o i suoi test
   React.useEffect(() => {
-    const rawTests = Array.isArray(patient?.tests) ? patient.tests.flat(Infinity) : [];
-    const cleanTests = rawTests.filter(t => t && typeof t === 'object' && !Array.isArray(t));
+    const cleanTests = sortTestsByDate(patient?.tests);
     setTestsHistory(cleanTests);
     if (cleanTests.length > 0) {
       setSelectedTestId(cleanTests[cleanTests.length - 1].id);

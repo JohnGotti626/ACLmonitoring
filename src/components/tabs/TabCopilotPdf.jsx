@@ -28,6 +28,7 @@ import {
   Search
 } from 'lucide-react';
 import ModalLibreriaScientifica from '../ModalLibreriaScientifica';
+import { sortTestsByDate } from '../../utils/testUtils';
 
 // Error Boundary per prevenire Schermata Nera / Crash React
 class CopilotErrorBoundary extends React.Component {
@@ -567,8 +568,8 @@ function CopilotEngineInner({ patient }) {
 
   const monthsPostOp = getMonthsPostOp(safePatient.data_intervento);
 
-  // Estrazione rigorosa dei test del paziente attivo (senza ereditare dati di altri pazienti)
-  const patientTests = Array.isArray(safePatient?.tests) ? safePatient.tests : [];
+  // Estrazione rigorosa dei test del paziente attivo (ordinati cronologicamente per data di esecuzione)
+  const patientTests = sortTestsByDate(safePatient?.tests);
   const latestTest = patientTests.length > 0 ? patientTests[patientTests.length - 1] : null;
   const hasTests = latestTest !== null;
 
