@@ -1,5 +1,32 @@
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
 
+/**
+ * Cerca a ritroso nei test del paziente (dal più recente al più vecchio)
+ * il primo valore valido (non-null, non-undefined, non-NaN e non stringa vuota) per una lista di chiavi metriche alternative.
+ */
+export function getLastValidMetricValue(tests, metricKeys) {
+  if (!Array.isArray(tests) || tests.length === 0) return null;
+  const keys = Array.isArray(metricKeys) ? metricKeys : [metricKeys];
+
+  // Ordina i test in ordine cronologico decrescente (dal più recente al più vecchio)
+  const sortedDesc = [...tests].sort((a, b) => getTestTimestamp(b) - getTestTimestamp(a));
+
+  for (const test of sortedDesc) {
+    if (!test || typeof test !== 'object') continue;
+    for (const key of keys) {
+      const val = test[key];
+      if (val !== null && val !== undefined && val !== '' && val !== '-') {
+        const num = typeof val === 'number' ? val : parseFloat(String(val).replace(',', '.'));
+        if (!isNaN(num)) {
+          return num;
+        }
+      }
+    }
+  }
+
+  return null;
+}
+
 export const createTestObject = (newValData, patientId, testIndex = 1) => {
   const newNum = testIndex;
   const parseVal = (v) => (v !== null && v !== undefined && v !== '' ? (typeof v === 'number' ? v : parseFloat(v)) : null);
@@ -18,20 +45,20 @@ export const createTestObject = (newValData, patientId, testIndex = 1) => {
 
   // Compute LSI if not pre-calculated
   let calcLsiQuad = lsiQuadCalc;
-  if (calcLsiQuad === null && isoExtSx && isoExtDx) {
+  if (calcLsiQuad === null && isoExtSx !== null && isoExtDx !== null && isoExtSx > 0 && isoExtDx > 0) {
     calcLsiQuad = parseFloat(((Math.min(isoExtSx, isoExtDx) / Math.max(isoExtSx, isoExtDx)) * 100).toFixed(1));
   }
   let calcLsiFlex = lsiFlexCalc;
-  if (calcLsiFlex === null && isoCurlSx && isoCurlDx) {
+  if (calcLsiFlex === null && isoCurlSx !== null && isoCurlDx !== null && isoCurlSx > 0 && isoCurlDx > 0) {
     calcLsiFlex = parseFloat(((Math.min(isoCurlSx, isoCurlDx) / Math.max(isoCurlSx, isoCurlDx)) * 100).toFixed(1));
   }
 
-  const quadOpVal = isoExtDx || isoExtSx || 0;
-  const quadOpNmKgVal = quadOpVal ? parseFloat((quadOpVal / 150).toFixed(2)) : 0;
+  const quadOpVal = isoExtDx ?? isoExtSx ?? null;
+  const quadOpNmKgVal = quadOpVal !== null ? parseFloat((quadOpVal / 150).toFixed(2)) : null;
 
   // Drop Jump Bilaterale Metrics & Automatic Derivations
   const djBoxHeight = newValData.dj_box_height || '30 cm';
-  const djJumpHeight = parseVal(newValData.dj_jump_height) || parseVal(newValData.jump_height_cm) || null;
+  const djJumpHeight = parseVal(newValData.dj_jump_height) ?? parseVal(newValData.jump_height_cm) ?? null;
   const djContactTime = parseVal(newValData.dj_contact_time);
 
   let djRSI = parseVal(newValData.dj_rsi);
@@ -47,14 +74,14 @@ export const createTestObject = (newValData, patientId, testIndex = 1) => {
   const djLandingPeakSX = parseVal(newValData.dj_landing_peak_sx);
   const djLandingPeakDX = parseVal(newValData.dj_landing_peak_dx);
   let djLandingPeakLsi = parseVal(newValData.dj_landing_peak_lsi);
-  if (djLandingPeakLsi === null && djLandingPeakSX && djLandingPeakDX) {
+  if (djLandingPeakLsi === null && djLandingPeakSX !== null && djLandingPeakDX !== null && djLandingPeakSX > 0 && djLandingPeakDX > 0) {
     djLandingPeakLsi = parseFloat(((Math.min(djLandingPeakSX, djLandingPeakDX) / Math.max(djLandingPeakSX, djLandingPeakDX)) * 100).toFixed(1));
   }
 
   const djConcImpulseSX = parseVal(newValData.dj_conc_impulse_sx);
   const djConcImpulseDX = parseVal(newValData.dj_conc_impulse_dx);
   let djConcImpulseLsi = parseVal(newValData.dj_conc_impulse_lsi);
-  if (djConcImpulseLsi === null && djConcImpulseSX && djConcImpulseDX) {
+  if (djConcImpulseLsi === null && djConcImpulseSX !== null && djConcImpulseDX !== null && djConcImpulseSX > 0 && djConcImpulseDX > 0) {
     djConcImpulseLsi = parseFloat(((Math.min(djConcImpulseSX, djConcImpulseDX) / Math.max(djConcImpulseSX, djConcImpulseDX)) * 100).toFixed(1));
   }
 
@@ -107,12 +134,12 @@ export const createTestObject = (newValData, patientId, testIndex = 1) => {
     data_valutazione: newValData.data_valutazione || new Date().toISOString().split('T')[0],
     
     // Simmetria & LSI
-    lsiQuad: calcLsiQuad !== null ? calcLsiQuad : 0,
+    lsiQuad: calcLsiQuad !== null ? calcLsiQuad : null,
     lsiQuadDelta: '-',
-    lsiFlex: calcLsiFlex !== null ? calcLsiFlex : 0,
+    lsiFlex: calcLsiFlex !== null ? calcLsiFlex : null,
     lsiFlexDelta: '-',
-    lsiSingleHop: parseVal(newValData.lsi_single_hop) || 0,
-    lsiTripleHop: parseVal(newValData.lsi_triple_hop) || 0,
+    lsiSingleHop: parseVal(newValData.lsi_single_hop) ?? parseVal(newValData.lsiSingleHop) ?? null,
+    lsiTripleHop: parseVal(newValData.lsi_triple_hop) ?? parseVal(newValData.lsiTripleHop) ?? null,
     
     // Forza
     quadOpNmKg: quadOpNmKgVal,
@@ -159,10 +186,10 @@ export const createTestObject = (newValData, patientId, testIndex = 1) => {
     eccBrakingDX: parseVal(newValData.ecc_braking_dx) ?? parseVal(newValData.eccBrakingDX) ?? null,
     ecc_braking_dx: parseVal(newValData.ecc_braking_dx) ?? parseVal(newValData.eccBrakingDX) ?? null,
 
-    brakingAsym: newValData.ecc_braking_asym_calculated || newValData.brakingAsym || '0',
+    brakingAsym: newValData.ecc_braking_asym_calculated || parseVal(newValData.brakingAsym) || null,
     cmjImpulseLsi: newValData.ecc_braking_asym_calculated 
       ? parseFloat((100 - parseFloat(newValData.ecc_braking_asym_calculated)).toFixed(1)) 
-      : (parseVal(newValData.cmjImpulseLsi) ?? 0),
+      : (parseVal(newValData.cmjImpulseLsi) ?? null),
 
     concImpulseSX: parseVal(newValData.conc_impulse_sx) ?? parseVal(newValData.concImpulseSX) ?? null,
     conc_impulse_sx: parseVal(newValData.conc_impulse_sx) ?? parseVal(newValData.concImpulseSX) ?? null,
@@ -170,7 +197,7 @@ export const createTestObject = (newValData, patientId, testIndex = 1) => {
     concImpulseDX: parseVal(newValData.conc_impulse_dx) ?? parseVal(newValData.concImpulseDX) ?? null,
     conc_impulse_dx: parseVal(newValData.conc_impulse_dx) ?? parseVal(newValData.concImpulseDX) ?? null,
 
-    concImpulseAsym: newValData.conc_impulse_asym_calculated || newValData.concImpulseAsym || '0',
+    concImpulseAsym: newValData.conc_impulse_asym_calculated || parseVal(newValData.concImpulseAsym) || null,
 
     // CMJ Monopodalico
     slCmjHeightSX: parseVal(newValData.sl_cmj_height_sx) ?? parseVal(newValData.slCmjHeightSX) ?? null,
@@ -185,8 +212,8 @@ export const createTestObject = (newValData, patientId, testIndex = 1) => {
     slCmjDepthDX: parseVal(newValData.sl_cmj_depth_dx) ?? parseVal(newValData.slCmjDepthDX) ?? null,
     slCmjEccImpulseSX: parseVal(newValData.sl_cmj_ecc_impulse_sx) ?? parseVal(newValData.slCmjEccImpulseSX) ?? null,
     slCmjEccImpulseDX: parseVal(newValData.sl_cmj_ecc_impulse_dx) ?? parseVal(newValData.slCmjEccImpulseDX) ?? null,
-    slCmjHeightLsi: parseVal(newValData.lsi_sl_cmj_height_calculated) ?? parseVal(newValData.slCmjHeightLsi) ?? 0,
-    slCmjDepthLsi: parseVal(newValData.lsi_sl_cmj_depth_calculated) ?? parseVal(newValData.slCmjDepthLsi) ?? 0,
+    slCmjHeightLsi: parseVal(newValData.lsi_sl_cmj_height_calculated) ?? parseVal(newValData.slCmjHeightLsi) ?? null,
+    slCmjDepthLsi: parseVal(newValData.lsi_sl_cmj_depth_calculated) ?? parseVal(newValData.slCmjDepthLsi) ?? null,
 
     // Drop Jump Bilaterale (RTP Specialist Metriche Temporali & Dual Load Cells)
     djBoxHeight,
@@ -216,8 +243,8 @@ export const createTestObject = (newValData, patientId, testIndex = 1) => {
     slDjHeightDX: parseVal(newValData.sl_dj_height_dx),
     slDjBrakingSX: parseVal(newValData.sl_dj_braking_sx),
     slDjBrakingDX: parseVal(newValData.sl_dj_braking_dx),
-    slDjRsiLsi: parseVal(newValData.lsi_sl_dj_rsi_calculated) || 0,
-    aclrsi: parseVal(newValData.aclrsi) || 80
+    slDjRsiLsi: parseVal(newValData.lsi_sl_dj_rsi_calculated) ?? parseVal(newValData.slDjRsiLsi) ?? null,
+    aclrsi: parseVal(newValData.aclrsi) ?? null
   };
 
   return newTest;
