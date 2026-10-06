@@ -146,19 +146,12 @@ function MainApp() {
     async function loadCloudData() {
       let cloudPatients = await fetchPatientsFromCloud();
 
-      // Assicurati che i pazienti di base siano presenti su Supabase Cloud
+      // Inizializza i pazienti di prova solo se il database Cloud è completamente vuoto
       if (!cloudPatients || cloudPatients.length === 0) {
         for (const p of INITIAL_PATIENTS) {
           await savePatientToCloud(p);
         }
         cloudPatients = await fetchPatientsFromCloud();
-      } else {
-        // Se un paziente iniziale manca su Supabase Cloud (es: Francesco Gabbani), assegnalo subito
-        const gabbani = cloudPatients.find(p => p.id === INITIAL_PATIENTS[0].id);
-        if (!gabbani) {
-          await savePatientToCloud(INITIAL_PATIENTS[0]);
-          cloudPatients = await fetchPatientsFromCloud();
-        }
       }
 
       if (cloudPatients && cloudPatients.length > 0) {
