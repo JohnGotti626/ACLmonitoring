@@ -1,0 +1,24 @@
+{
+  "name": "N Rehab - Diario Allenamento LCA",
+  "short_name": "N Rehab Log",
+  "description": "Portale Paziente Mobile per il monitoraggio carichi e riabilitazione LCA",
+  "start_url": "/?portal=client",
+  "display": "standalone",
+  "background_color": "#020617",
+  "theme_color": "#06b6d4",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "/logo-n-personal-fit.jpg",
+      "sizes": "192x192",
+      "type": "image/jpeg",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/logo-n-personal-fit.jpg",
+      "sizes": "512x512",
+      "type": "image/jpeg",
+      "purpose": "any maskable"
+    }
+  ]
+}

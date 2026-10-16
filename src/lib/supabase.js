@@ -1,26 +1,25 @@
 import { createClient } from '@supabase/supabase-js';
 
-const supabaseUrl = 
-  import.meta.env.VITE_SUPABASE_URL || 
-  import.meta.env.NEXT_PUBLIC_SUPABASE_URL || 
-  'https://jvuinqtpnubsozrnamze.supabase.co';
+// Estrazione URL e ANON KEY dalle variabili di ambiente Vite
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://jvuinqtpnubsozrnamze.supabase.co';
+const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || 'sb_publishable_Fxas-EXPeF_KXZtu9lj6eg_6Snfm6zY';
 
-const supabaseAnonKey = 
-  import.meta.env.VITE_SUPABASE_ANON_KEY || 
-  import.meta.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 
-  'sb_publishable_Fxas-EXPeF_KXZtu9lj6eg_6Snfm6zY';
+// Controllo di sicurezza sulle chiavi Supabase: segnala se le variabili d'ambiente non sono configurate
+if (!supabaseUrl || !supabaseAnonKey) {
+  console.error('❌ ERRORE CRITICO SUPABASE: VITE_SUPABASE_URL o VITE_SUPABASE_ANON_KEY non definite o non valide! Impossibile connettersi al Cloud Supabase.');
+}
 
 export const isSupabaseConfigured = Boolean(
   supabaseUrl && 
   supabaseAnonKey &&
-  !supabaseUrl.includes('your-supabase-project-url') &&
-  !supabaseUrl.includes('your-project')
+  !supabaseUrl.includes('your-supabase-project-url')
 );
 
+// Inizializzazione unificata del client Supabase Cloud
 export const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
 /**
- * Registra un evento di audit log su Supabase (es: Login, Accesso, Cambiamento dati)
+ * Registra un evento di audit log su Supabase
  */
 export async function createAuditLog({ userId, userEmail, role, event, details = {} }) {
   const timestamp = new Date().toISOString();

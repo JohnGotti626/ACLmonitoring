@@ -243,4 +243,84 @@ INSERT INTO public.test_valutazioni (
     'COPILOT IA: Criteri per il Return to Sport sbloccati con successo. Tutti i bicchieri prestativi superano la soglia del 90% LSI con RSImod elevato (0.52) e asimmetria di frenata nei limiti di sicurezza (<8%). Idonea per reingresso in gruppo.'
 );
 
+-- ====================================================================
+-- 9. PORTALE PAZIENTE MOBILE (CLIENT WORKOUT LOG) & RLS POLICIES
+-- ====================================================================
+
+-- Aggiunta colonna email e user_id opzionale alla tabella pazienti (per collegamento con Magic Link)
+ALTER TABLE public.pazienti ADD COLUMN IF NOT EXISTS email TEXT;
+ALTER TABLE public.pazienti ADD COLUMN IF NOT EXISTS auth_user_id UUID REFERENCES auth.users(id) ON DELETE SET NULL;
+
+-- Creazione Tabella WORKOUT_LOGS (Rilevazioni Carichi Paziente)
+CREATE TABLE IF NOT EXISTS public.workout_logs (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    patient_id TEXT NOT NULL,
+    patient_email TEXT,
+    exercise_name TEXT NOT NULL,
+    sets INTEGER NOT NULL DEFAULT 3,
+    reps TEXT NOT NULL DEFAULT '10',
+    weight_kg NUMERIC(6,2) NOT NULL DEFAULT 0,
+    tempo_speed TEXT,
+    notes TEXT,
+    rpe INTEGER CHECK (rpe >= 1 AND rpe <= 10),
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_workout_logs_patient_id ON public.workout_logs(patient_id);
+CREATE INDEX IF NOT EXISTS idx_workout_logs_created_at ON public.workout_logs(created_at DESC);
+
+-- Abilita Row Level Security (RLS) su workout_logs
+ALTER TABLE public.workout_logs ENABLE ROW LEVEL SECURITY;
+
+-- Policy 1: Il Paziente (role = 'patient') può leggere SOLO i propri log (tramite email o patient_id)
+-- I Terapisti/Staff (ADMIN o STAFF) possono leggere tutti i workout_logs
+DROP POLICY IF EXISTS "Pazienti leggono solo i propri workout_logs e Staff legge tutto" ON public.workout_logs;
+CREATE POLICY "Pazienti leggono solo i propri workout_logs e Staff legge tutto"
+    ON public.workout_logs FOR SELECT
+    TO public
+    USING (
+        -- Consenti accesso a terapisti o se l'email JWT corrisponde a patient_email / paziente collegato
+        (auth.jwt() ->> 'email' IS NOT NULL AND LOWER(auth.jwt() ->> 'email') = LOWER(patient_email))
+        OR EXISTS (
+            SELECT 1 FROM public.pazienti p
+            WHERE p.id::text = workout_logs.patient_id
+              AND (p.auth_user_id = auth.uid() OR LOWER(p.email) = LOWER(auth.jwt() ->> 'email'))
+        )
+        OR COALESCE(auth.jwt() -> 'user_metadata' ->> 'role', '') != 'patient'
+    );
+
+-- Policy 2: Il Paziente può inserire SOLO i propri allenamenti nel diario
+DROP POLICY IF EXISTS "Pazienti e Terapisti possono inserire workout_logs" ON public.workout_logs;
+CREATE POLICY "Pazienti e Terapisti possono inserire workout_logs"
+    ON public.workout_logs FOR INSERT
+    TO public
+    WITH CHECK (
+        (auth.jwt() ->> 'email' IS NOT NULL AND LOWER(auth.jwt() ->> 'email') = LOWER(patient_email))
+        OR COALESCE(auth.jwt() -> 'user_metadata' ->> 'role', '') != 'patient'
+        OR auth.uid() IS NOT NULL
+    );
+
+-- Policy 3: Eliminazione consentita al proprietario del log o al Terapista
+DROP POLICY IF EXISTS "Eliminazione workout_logs per proprietario o Terapista" ON public.workout_logs;
+CREATE POLICY "Eliminazione workout_logs per proprietario o Terapista"
+    ON public.workout_logs FOR DELETE
+    TO public
+    USING (
+        (auth.jwt() ->> 'email' IS NOT NULL AND LOWER(auth.jwt() ->> 'email') = LOWER(patient_email))
+        OR COALESCE(auth.jwt() -> 'user_metadata' ->> 'role', '') != 'patient'
+    );
+
+-- Policy RLS su tabella PAZIENTI per isolare gli utenti con ruolo 'patient'
+DROP POLICY IF EXISTS "Isolamento RLS Pazienti: paziente vede solo la propria scheda" ON public.pazienti;
+CREATE POLICY "Isolamento RLS Pazienti: paziente vede solo la propria scheda"
+    ON public.pazienti FOR SELECT
+    TO public
+    USING (
+        COALESCE(auth.jwt() -> 'user_metadata' ->> 'role', '') != 'patient'
+        OR auth_user_id = auth.uid()
+        OR LOWER(email) = LOWER(auth.jwt() ->> 'email')
+        OR id::text = (auth.jwt() -> 'user_metadata' ->> 'patient_id')
+    );
+
 -- FINE SCRIPT SQL
+

@@ -6,11 +6,7 @@ import {
   Smartphone, 
   Bot, 
   ArrowLeft, 
-  Activity, 
-  Calendar, 
-  Stethoscope,
-  ShieldCheck,
-  CheckCircle2,
+  Dumbbell,
   Plus,
   FileText
 } from 'lucide-react';
@@ -20,6 +16,8 @@ import TabBatteriaTest from './tabs/TabBatteriaTest';
 import TabDirettiveOperative from './tabs/TabDirettiveOperative';
 import TabVistaMobile from './tabs/TabVistaMobile';
 import TabCopilotPdf from './tabs/TabCopilotPdf';
+import RilevazioniCarichiTab from './tabs/RilevazioniCarichiTab';
+import ClientPortal from './ClientPortal';
 import ModalNuovaValutazione from './ModalNuovaValutazione';
 import ModalIKDC from './ModalIKDC';
 import { createTestObject, saveTestToSupabase, sortTestsByDate } from '../utils/testUtils';
@@ -32,6 +30,7 @@ export default function PatientDetail({ patient, onBack, onUpdatePatient }) {
   const [activePhase, setActivePhase] = useState(() => normalizePhaseForDb(patient?.fase_riabilitativa || patient?.fase_attuale));
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isIKDCModalOpen, setIsIKDCModalOpen] = useState(false);
+  const [isSimulatingPatientPortal, setIsSimulatingPatientPortal] = useState(false);
 
   // Sincronizzazione automatica con i dati reali restituiti da Supabase
   React.useEffect(() => {
@@ -43,15 +42,36 @@ export default function PatientDetail({ patient, onBack, onUpdatePatient }) {
 
   if (!patient) return null;
 
+  // Se il terapista ha attivato "Simula Vista Paziente / Test Rapido", mostra il Portale Paziente Mobile
+  if (isSimulatingPatientPortal) {
+    return (
+      <ClientPortal
+        patient={patient}
+        isSimulationMode={true}
+        onExitSimulation={() => {
+          setIsSimulatingPatientPortal(false);
+          setActiveTab('tab6'); // Ritorna direttamente alla tab Rilevazioni Carichi per vedere i dati inseriti
+        }}
+        onNewLogSaved={(newEntry, updatedList) => {
+          onUpdatePatient({
+            ...patient,
+            workout_logs: updatedList
+          });
+        }}
+      />
+    );
+  }
+
   const tabs = [
     { id: 'tab1', label: '1. Anagrafica & Chirurgia', icon: User },
     { id: 'tab4', label: '2. Vista Mobile Colleghi', icon: Smartphone, badge: 'Sola Lettura' },
     { id: 'tab3', label: '3. Direttive Operative', icon: ClipboardList },
     { id: 'tab2', label: '4. Batteria Test & Bicchieri', icon: Gauge },
-    { id: 'tab5', label: '5. Copilot IA Engine', icon: Bot }
+    { id: 'tab6', label: '5. Rilevazioni Carichi', icon: Dumbbell, badge: 'Client Log' },
+    { id: 'tab5', label: '6. Copilot IA Engine', icon: Bot }
   ];
 
-  // 3. Persistenza dei Cambiamenti di Fase su Supabase
+  // Persistenza dei Cambiamenti di Fase su Supabase
   const handlePhaseChange = async (newPhaseInput) => {
     const normPhase = normalizePhaseForDb(newPhaseInput);
 
@@ -96,7 +116,15 @@ export default function PatientDetail({ patient, onBack, onUpdatePatient }) {
             <span>Torna al Database Pazienti</span>
           </button>
 
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              onClick={() => setIsSimulatingPatientPortal(true)}
+              className="px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-400 hover:to-orange-500 text-slate-950 font-black text-xs flex items-center gap-1.5 shadow-md transition-all cursor-pointer"
+            >
+              <Smartphone className="w-4 h-4" />
+              <span>Simula Portale Paziente</span>
+            </button>
+
             <button
               onClick={() => setIsIKDCModalOpen(true)}
               className="px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-cyan-600 to-emerald-600 hover:from-cyan-500 hover:to-emerald-500 text-white font-extrabold text-xs flex items-center gap-1.5 shadow-md border border-cyan-400/50 transition-all cursor-pointer"
@@ -152,7 +180,7 @@ export default function PatientDetail({ patient, onBack, onUpdatePatient }) {
         </div>
       </div>
 
-      {/* 5-Tab Navigation Bar (High Contrast Active vs Inactive Tabs) */}
+      {/* 6-Tab Navigation Bar */}
       <div className="p-1.5 bg-slate-900 rounded-2xl border border-slate-700/80 flex items-center gap-2 overflow-x-auto scrollbar-none shadow-xl">
         {tabs.map((tab) => {
           const Icon = tab.icon;
@@ -246,6 +274,13 @@ export default function PatientDetail({ patient, onBack, onUpdatePatient }) {
           <TabVistaMobile patient={patient} />
         )}
 
+        {activeTab === 'tab6' && (
+          <RilevazioniCarichiTab
+            patient={patient}
+            onOpenSimulation={() => setIsSimulatingPatientPortal(true)}
+          />
+        )}
+
         {activeTab === 'tab5' && (
           <TabCopilotPdf patient={patient} />
         )}
@@ -260,8 +295,6 @@ export default function PatientDetail({ patient, onBack, onUpdatePatient }) {
           const currentTests = Array.isArray(patient.tests) ? patient.tests : [];
           const newNum = currentTests.length + 1;
           const newTest = createTestObject(evalData, patient.id, newNum);
-
-          console.log("Dati inviati:", newTest);
 
           await saveTestToSupabase(newTest);
 
