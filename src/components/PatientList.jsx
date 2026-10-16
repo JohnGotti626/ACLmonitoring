@@ -70,7 +70,7 @@ export default function PatientList({
 
   const handleSoftDelete = (e, patient) => {
     e.stopPropagation();
-    if (window.confirm(`Spostare il paziente ${patient.nome} ${patient.cognome} nel Cestino?\n\nIl paziente rimarrà recuperabile per 30 giorni prima dell'eliminazione definitiva.`)) {
+    if (window.confirm(`Vuoi eliminare definitivamente il paziente ${patient.nome} ${patient.cognome} dal database Cloud Supabase?`)) {
       if (onDeletePatient) onDeletePatient(patient.id);
     }
   };
@@ -82,7 +82,7 @@ export default function PatientList({
 
   const handlePermanentDelete = (e, patient) => {
     e.stopPropagation();
-    if (window.confirm(`Sei sicuro di voler eliminare DEFINITIVAMENTE il paziente ${patient.nome} ${patient.cognome}?\n\nQuesta azione cancellerà in modo permanente tutti i test e i dati clinici e non potrà essere annullata.`)) {
+    if (window.confirm(`Sei sicuro di voler eliminare DEFINITIVAMENTE il paziente ${patient.nome} ${patient.cognome} dal database Supabase?`)) {
       if (onPermanentDeletePatient) onPermanentDeletePatient(patient.id);
     }
   };

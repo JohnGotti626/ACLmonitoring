@@ -28,14 +28,37 @@ export default function TabAnagrafica({ patient, onUpdatePatient }) {
 
   const [savedSuccess, setSavedSuccess] = useState(false);
 
+  React.useEffect(() => {
+    if (!patient) return;
+    setFormData({
+      nome: patient.nome || '',
+      cognome: patient.cognome || '',
+      data_nascita: patient.data_nascita || '',
+      codice_fiscale: patient.codice_fiscale || '',
+      genere: patient.genere || 'M',
+      sport: patient.sport || '',
+      ruolo_sportivo: patient.ruolo_sportivo || '',
+      livello: patient.livello || 'Professionista',
+      lato_lesione: patient.lato_lesione || 'Sx',
+      data_intervento: patient.data_intervento || '',
+      tipo_innesto: patient.tipo_innesto || 'STG',
+      chirurgo: patient.chirurgo || '',
+      note_chirurgiche: patient.note_chirurgiche || '',
+      complicanze: patient.complicanze || '',
+      aclrsi_score_iniziale: patient.aclrsi_score_iniziale ?? 45.0,
+      fase_riabilitativa: patient.fase_riabilitativa || 'Return to Run',
+      prossimo_controllo: patient.prossimo_controllo || ''
+    });
+  }, [patient?.id, patient?.updated_at]);
+
   const handleChange = (field, val) => {
     setFormData(prev => ({ ...prev, [field]: val }));
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     if (!isAdmin) return;
-    onUpdatePatient({ ...patient, ...formData });
+    await onUpdatePatient({ ...patient, ...formData });
     setSavedSuccess(true);
     setTimeout(() => setSavedSuccess(false), 3000);
   };

@@ -327,7 +327,8 @@ CREATE POLICY "Eliminazione workout_logs per proprietario o Terapista"
         OR COALESCE(auth.jwt() -> 'user_metadata' ->> 'role', '') != 'patient'
     );
 
--- Policy RLS su tabella PAZIENTI per isolare gli utenti con ruolo 'patient'
+-- Policy RLS su tabella PAZIENTI per isolare gli utenti con ruolo 'patient' in lettura,
+-- e consentire al Terapista/Admin INSERT, UPDATE e DELETE completi tramite Primary Key id
 DROP POLICY IF EXISTS "Isolamento RLS Pazienti: paziente vede solo la propria scheda" ON public.pazienti;
 CREATE POLICY "Isolamento RLS Pazienti: paziente vede solo la propria scheda"
     ON public.pazienti FOR SELECT
@@ -338,6 +339,13 @@ CREATE POLICY "Isolamento RLS Pazienti: paziente vede solo la propria scheda"
         OR LOWER(email) = LOWER(auth.jwt() ->> 'email')
         OR id::text = (auth.jwt() -> 'user_metadata' ->> 'patient_id')
     );
+
+DROP POLICY IF EXISTS "Terapista può inserire modificare ed eliminare pazienti" ON public.pazienti;
+CREATE POLICY "Terapista può inserire modificare ed eliminare pazienti"
+    ON public.pazienti FOR ALL
+    TO public
+    USING (COALESCE(auth.jwt() -> 'user_metadata' ->> 'role', '') != 'patient')
+    WITH CHECK (COALESCE(auth.jwt() -> 'user_metadata' ->> 'role', '') != 'patient');
 
 -- FINE SCRIPT SQL
 
