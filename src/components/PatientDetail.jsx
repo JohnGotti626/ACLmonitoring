@@ -278,6 +278,7 @@ export default function PatientDetail({ patient, onBack, onUpdatePatient }) {
           <RilevazioniCarichiTab
             patient={patient}
             onOpenSimulation={() => setIsSimulatingPatientPortal(true)}
+            onUpdatePatient={onUpdatePatient}
           />
         )}
 

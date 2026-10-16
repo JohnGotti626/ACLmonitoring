@@ -13,14 +13,20 @@ import {
   ExternalLink,
   Mail,
   TrendingUp,
-  Search
+  Search,
+  Edit3,
+  Trash2,
+  Plus,
+  Save,
+  X
 } from 'lucide-react';
 import { supabase, isSupabaseConfigured } from '../../lib/supabase';
-import { getCategoryIcon } from '../ClientPortal';
+import { getCategoryIcon, EXERCISE_PRESETS, toDateInputValue } from '../ClientPortal';
 
 export default function RilevazioniCarichiTab({
   patient,
-  onOpenSimulation
+  onOpenSimulation,
+  onUpdatePatient
 }) {
   const [logs, setLogs] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -33,8 +39,38 @@ export default function RilevazioniCarichiTab({
   const [magicLinkStatus, setMagicLinkStatus] = useState('');
   const [copiedLink, setCopiedLink] = useState(false);
 
+  // Modal Modifica / Inserimento Manuale da parte del Terapista (può modificare qualsiasi cosa anche a posteriori)
+  const [editingModalOpen, setEditingModalOpen] = useState(false);
+  const [editingLog, setEditingLog] = useState(null);
+  const [formDate, setFormDate] = useState(() => new Date().toISOString().split('T')[0]);
+  const [formTime, setFormTime] = useState('15:00');
+  const [formExercise, setFormExercise] = useState('');
+  const [formIcon, setFormIcon] = useState('squat');
+  const [formSets, setFormSets] = useState('4');
+  const [formReps, setFormReps] = useState('8');
+  const [formWeightKg, setFormWeightKg] = useState('');
+  const [formTempo, setFormTempo] = useState('');
+  const [formNotes, setFormNotes] = useState('');
+  const [savingEdit, setSavingEdit] = useState(false);
+
   // URL diretto al Portale Paziente Mobile per questo specifico paziente
   const clientPortalUrl = `${window.location.origin}/?portal=client&patientId=${patient?.id || ''}`;
+
+  const syncLogsLocallyAndParent = (updatedList) => {
+    setLogs(updatedList);
+    if (patient?.id) {
+      const localKey = `acl_workout_logs_${patient.id}`;
+      try {
+        localStorage.setItem(localKey, JSON.stringify(updatedList));
+      } catch {}
+    }
+    if (onUpdatePatient && patient) {
+      onUpdatePatient({
+        ...patient,
+        workout_logs: updatedList
+      });
+    }
+  };
 
   // Caricamento rilevazioni carichi da Supabase ('workout_logs') + Realtime Sync
   const fetchPatientWorkoutLogs = async () => {
@@ -50,6 +86,10 @@ export default function RilevazioniCarichiTab({
 
         if (!error && Array.isArray(data) && data.length > 0) {
           setLogs(data);
+          const localKey = `acl_workout_logs_${patient.id}`;
+          try {
+            localStorage.setItem(localKey, JSON.stringify(data));
+          } catch {}
           setLoading(false);
           return;
         }
@@ -63,7 +103,6 @@ export default function RilevazioniCarichiTab({
       } else if (Array.isArray(patient?.workout_logs) && patient.workout_logs.length > 0) {
         setLogs(patient.workout_logs);
       } else {
-        // Seed iniziale dimostrativo per mostrare subito la struttura al terapista
         const demoSeed = [
           {
             id: 'seed-1',
@@ -71,7 +110,7 @@ export default function RilevazioniCarichiTab({
             exercise_name: 'Trap Bar Deadlift',
             category_icon: 'press',
             sets: 4,
-            reps: 6,
+            reps: '6',
             weight_kg: 95,
             tempo_execution: 'Esplosivo (0.68 m/s)',
             notes_rpe: 'Nessun dolore (0/10) - RPE 7.5/10',
@@ -83,7 +122,7 @@ export default function RilevazioniCarichiTab({
             exercise_name: 'Bulgarian Split Squat',
             category_icon: 'lunge',
             sets: 3,
-            reps: 8,
+            reps: '8',
             weight_kg: 44,
             tempo_execution: '3-1-1-0',
             notes_rpe: 'Stabilità ottima, zero fastidio rotuleo',
@@ -95,7 +134,7 @@ export default function RilevazioniCarichiTab({
             exercise_name: 'Leg Extension Monopodalica',
             category_icon: 'knee',
             sets: 4,
-            reps: 10,
+            reps: '10',
             weight_kg: 35,
             tempo_execution: '2-2-1-0',
             notes_rpe: 'Fatica muscolare 8/10, nessun dolore articolare',
@@ -137,6 +176,141 @@ export default function RilevazioniCarichiTab({
     };
   }, [patient?.id]);
 
+  // Apre il modal per modificare qualsiasi campo di una rilevazione esistente
+  const handleOpenEditModal = (log) => {
+    const dt = log.created_at ? new Date(log.created_at) : new Date();
+    const hours = String(dt.getHours()).padStart(2, '0');
+    const mins = String(dt.getMinutes()).padStart(2, '0');
+
+    setEditingLog(log);
+    setFormDate(toDateInputValue(log.created_at));
+    setFormTime(`${hours}:${mins}`);
+    setFormExercise(log.exercise_name || '');
+    setFormIcon(log.category_icon || 'squat');
+    setFormSets(String(log.sets ?? 4));
+    setFormReps(String(log.reps ?? 8));
+    setFormWeightKg(String(log.weight_kg ?? 0));
+    setFormTempo(log.tempo_execution || log.tempo_speed || '');
+    setFormNotes(log.notes_rpe || log.notes || '');
+    setEditingModalOpen(true);
+  };
+
+  // Apre il modal per inserire una nuova rilevazione da parte del Terapista
+  const handleOpenNewModal = () => {
+    const now = new Date();
+    const hours = String(now.getHours()).padStart(2, '0');
+    const mins = String(now.getMinutes()).padStart(2, '0');
+
+    setEditingLog(null);
+    setFormDate(now.toISOString().split('T')[0]);
+    setFormTime(`${hours}:${mins}`);
+    setFormExercise('');
+    setFormIcon('squat');
+    setFormSets('4');
+    setFormReps('8');
+    setFormWeightKg('');
+    setFormTempo('3-0-1-0');
+    setFormNotes('Nessun dolore (0/10)');
+    setEditingModalOpen(true);
+  };
+
+  // Salva la modifica o il nuovo inserimento effettuato dal Terapista
+  const handleSaveTherapistEdit = async (e) => {
+    e.preventDefault();
+    if (!formExercise.trim() || formWeightKg === '') return;
+
+    setSavingEdit(true);
+
+    let finalIso = new Date().toISOString();
+    try {
+      const [y, m, d] = formDate.split('-').map(Number);
+      const [hh, mm] = (formTime || '15:00').split(':').map(Number);
+      const composed = new Date(y, m - 1, d, hh || 15, mm || 0, 0);
+      if (!isNaN(composed.getTime())) {
+        finalIso = composed.toISOString();
+      }
+    } catch {}
+
+    const payload = {
+      id: editingLog?.id || (typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : `wlog-${Date.now()}`),
+      patient_id: patient?.id || 'demo-patient',
+      patient_email: patient?.email || null,
+      exercise_name: formExercise.trim(),
+      category_icon: formIcon,
+      sets: Number(formSets) || 1,
+      reps: String(formReps || '1'),
+      weight_kg: parseFloat(String(formWeightKg).replace(',', '.')) || 0,
+      tempo_execution: formTempo.trim() || 'Standard',
+      notes_rpe: formNotes.trim() || 'Nessun dolore',
+      created_at: finalIso
+    };
+
+    try {
+      if (editingLog) {
+        // Aggiorna su Supabase se presente
+        if (isSupabaseConfigured && editingLog.id && !String(editingLog.id).startsWith('seed-')) {
+          const { error } = await supabase
+            .from('workout_logs')
+            .update({
+              exercise_name: payload.exercise_name,
+              category_icon: payload.category_icon,
+              sets: payload.sets,
+              reps: payload.reps,
+              weight_kg: payload.weight_kg,
+              tempo_execution: payload.tempo_execution,
+              notes_rpe: payload.notes_rpe,
+              created_at: payload.created_at
+            })
+            .eq('id', editingLog.id);
+
+          if (error) {
+            console.warn('Info update Supabase workout_logs:', error.message);
+          }
+        }
+
+        const updatedList = logs
+          .map(item => (item.id === editingLog.id ? { ...item, ...payload } : item))
+          .sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+
+        syncLogsLocallyAndParent(updatedList);
+      } else {
+        // Nuovo inserimento da Terapista
+        if (isSupabaseConfigured && patient?.id) {
+          const { error } = await supabase.from('workout_logs').insert([payload]);
+          if (error) {
+            console.warn('Info insert Supabase workout_logs:', error.message);
+          }
+        }
+
+        const updatedList = [payload, ...logs].sort(
+          (a, b) => new Date(b.created_at) - new Date(a.created_at)
+        );
+        syncLogsLocallyAndParent(updatedList);
+      }
+
+      setEditingModalOpen(false);
+      setEditingLog(null);
+    } catch (err) {
+      console.error('Errore salvataggio modifica terapista:', err);
+    } finally {
+      setSavingEdit(false);
+    }
+  };
+
+  // Eliminazione di una riga da parte del Terapista
+  const handleDeleteLogByTherapist = async (logId) => {
+    const updatedList = logs.filter(item => item.id !== logId);
+    syncLogsLocallyAndParent(updatedList);
+
+    if (isSupabaseConfigured && logId && !String(logId).startsWith('seed-')) {
+      try {
+        await supabase.from('workout_logs').delete().eq('id', logId);
+      } catch (err) {
+        console.warn('Info delete Supabase workout_logs:', err);
+      }
+    }
+  };
+
   // Invio Magic Link (OTP via Email) tramite Supabase Auth direttamente dalla scheda Terapista
   const handleSendMagicLinkToPatient = async (e) => {
     e.preventDefault();
@@ -175,7 +349,7 @@ export default function RilevazioniCarichiTab({
 
   const handleShareWhatsApp = () => {
     const text = encodeURIComponent(
-      `Ciao ${patient?.nome || ''}! Ecco il tuo link personale per compilare il Diario Allenamento LCA da smartphone: ${clientPortalUrl}`
+      `Ciao ${patient?.nome || ''}! Ecco il tuo link personale permanente per compilare il Diario Allenamento LCA da smartphone: ${clientPortalUrl}`
     );
     window.open(`https://wa.me/?text=${text}`, '_blank');
   };
@@ -183,12 +357,12 @@ export default function RilevazioniCarichiTab({
   const filteredLogs = logs.filter(l =>
     !searchFilter.trim() ||
     l.exercise_name?.toLowerCase().includes(searchFilter.toLowerCase()) ||
-    l.notes_rpe?.toLowerCase().includes(searchFilter.toLowerCase())
+    (l.notes_rpe || l.notes || '')?.toLowerCase().includes(searchFilter.toLowerCase())
   );
 
   return (
     <div className="space-y-6">
-      {/* BARRA SUPERIORE TERAPISTA: AZIONI RAPIDE (MAGIC LINK / QR CODE & SIMULA VISTA PAZIENTE) */}
+      {/* BARRA SUPERIORE TERAPISTA: AZIONI RAPIDE (MAGIC LINK / QR CODE, AGGIUNGI E SIMULA VISTA PAZIENTE) */}
       <div className="glass-panel p-5 rounded-2xl border border-slate-700/80 flex flex-col lg:flex-row lg:items-center justify-between gap-4 shadow-xl">
         <div className="space-y-1">
           <div className="flex items-center gap-2">
@@ -197,16 +371,25 @@ export default function RilevazioniCarichiTab({
               Rilevazioni Carichi Remoti & Diario Paziente
             </h3>
             <span className="px-2.5 py-0.5 rounded-full bg-emerald-950 text-emerald-400 border border-emerald-500/30 font-mono text-[10px] font-extrabold">
-              Realtime Cloud Sync
+              Modificabile in ogni momento
             </span>
           </div>
           <p className="text-xs text-slate-400">
-            Monitora i carichi (Kg), le serie, la velocità esecutiva e i feedback sul dolore inseriti da smartphone da <strong>{patient?.nome} {patient?.cognome}</strong>.
+            Monitora e modifica liberamente data, esercizio, serie, carico (Kg), velocità e note di <strong>{patient?.nome} {patient?.cognome}</strong>.
           </p>
         </div>
 
-        {/* PULSANTI GENERATORE LINK/QR E TEST RAPIDO TERAPISTA */}
+        {/* PULSANTI GENERATORE LINK/QR, AGGIUNTA MANUALE E TEST RAPIDO TERAPISTA */}
         <div className="flex flex-wrap items-center gap-2.5">
+          <button
+            type="button"
+            onClick={handleOpenNewModal}
+            className="px-3.5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold text-xs flex items-center gap-1.5 shadow-md transition-all cursor-pointer"
+          >
+            <Plus className="w-4 h-4" />
+            <span>Aggiungi Carico Manuale</span>
+          </button>
+
           <button
             type="button"
             onClick={() => setShowInviteModal(true)}
@@ -269,12 +452,17 @@ export default function RilevazioniCarichiTab({
         </div>
       </div>
 
-      {/* TABELLA CRONOLOGICA RILEVAZIONI CARICHI INSERITE DAL PAZIENTE */}
+      {/* TABELLA CRONOLOGICA RILEVAZIONI CARICHI (COMPLETAMENTE MODIFICABILE DAL TERAPISTA) */}
       <div className="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden shadow-xl">
         <div className="p-4 border-b border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-          <h4 className="text-sm font-extrabold text-white flex items-center gap-2">
-            <span>Registro Cronologico Esercizi & Carichi</span>
-          </h4>
+          <div>
+            <h4 className="text-sm font-extrabold text-white flex items-center gap-2">
+              <span>Registro Cronologico Esercizi & Carichi</span>
+            </h4>
+            <p className="text-[11px] text-slate-400">
+              Clicca su "Modifica" a destra di qualsiasi riga per cambiare data, esercizio, serie, carico o note
+            </p>
+          </div>
 
           <div className="relative w-full sm:w-64">
             <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-2.5" />
@@ -298,13 +486,14 @@ export default function RilevazioniCarichiTab({
                 <th className="py-3 px-4 text-center">Carico (Kg)</th>
                 <th className="py-3 px-4">Velocità / Tempo</th>
                 <th className="py-3 px-4">Note Dolore / RPE</th>
+                <th className="py-3 px-4 text-right">Azioni Terapista</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-800/70">
               {filteredLogs.length === 0 ? (
                 <tr>
-                  <td colSpan="6" className="py-8 text-center text-slate-500 italic">
-                    Nessuna rilevazione carico trovata. Usa "Simula Vista Paziente" per fare un test rapido!
+                  <td colSpan="7" className="py-8 text-center text-slate-500 italic">
+                    Nessuna rilevazione carico trovata. Usa "Aggiungi Carico Manuale" o "Simula Vista Paziente"!
                   </td>
                 </tr>
               ) : (
@@ -342,13 +531,34 @@ export default function RilevazioniCarichiTab({
                     <td className="py-3.5 px-4">
                       <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-slate-950 border border-slate-800 text-cyan-300 font-mono text-[11px]">
                         <Clock className="w-3 h-3" />
-                        {log.tempo_execution || 'Standard'}
+                        {log.tempo_execution || log.tempo_speed || 'Standard'}
                       </span>
                     </td>
                     <td className="py-3.5 px-4 text-slate-300">
                       <div className="flex items-center gap-1.5">
                         <MessageSquare className="w-3.5 h-3.5 text-slate-500 shrink-0" />
-                        <span>{log.notes_rpe || 'Nessun dolore'}</span>
+                        <span>{log.notes_rpe || log.notes || 'Nessun dolore'}</span>
+                      </div>
+                    </td>
+                    <td className="py-3.5 px-4 text-right whitespace-nowrap">
+                      <div className="inline-flex items-center gap-1.5">
+                        <button
+                          type="button"
+                          onClick={() => handleOpenEditModal(log)}
+                          className="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-cyan-950 text-cyan-300 border border-cyan-500/30 font-bold text-[11px] inline-flex items-center gap-1 cursor-pointer transition-colors"
+                          title="Modifica qualsiasi dato di questa rilevazione"
+                        >
+                          <Edit3 className="w-3.5 h-3.5" />
+                          <span>Modifica</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleDeleteLogByTherapist(log.id)}
+                          className="p-1.5 rounded-lg bg-slate-950 hover:bg-rose-950 text-slate-400 hover:text-rose-400 border border-slate-800 cursor-pointer transition-colors"
+                          title="Elimina rilevazione"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
                       </div>
                     </td>
                   </tr>
@@ -358,6 +568,151 @@ export default function RilevazioniCarichiTab({
           </table>
         </div>
       </div>
+
+      {/* MODAL TERAPISTA: MODIFICA QUALSIASI CAMPO O AGGIUNGI NUOVA RILEVAZIONE */}
+      {editingModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md">
+          <div className="w-full max-w-lg bg-slate-900 border border-slate-700 rounded-3xl p-6 space-y-4 shadow-2xl">
+            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+              <div className="flex items-center gap-2">
+                <Edit3 className="w-5 h-5 text-cyan-400" />
+                <h3 className="text-base font-black text-white">
+                  {editingLog ? 'Modifica Rilevazione Carico (Terapista)' : 'Inserisci Rilevazione Carico'}
+                </h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setEditingModalOpen(false)}
+                className="text-slate-400 hover:text-white"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveTherapistEdit} className="space-y-3.5 text-xs">
+              {/* DATA E ORA */}
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-slate-300 font-bold mb-1">Data Seduta</label>
+                  <input
+                    type="date"
+                    required
+                    value={formDate}
+                    onChange={(e) => setFormDate(e.target.value)}
+                    className="w-full bg-slate-950 border border-slate-700 rounded-xl p-2.5 text-white font-mono"
+                  />
+                </div>
+                <div>
+                  <label className="block text-slate-300 font-bold mb-1">Orario</label>
+                  <input
+                    type="time"
+                    value={formTime}
+                    onChange={(e) => setFormTime(e.target.value)}
+                    className="w-full bg-slate-950 border border-slate-700 rounded-xl p-2.5 text-white font-mono"
+                  />
+                </div>
+              </div>
+
+              {/* NOME ESERCIZIO E CATEGORIA */}
+              <div>
+                <label className="block text-slate-300 font-bold mb-1">Esercizio</label>
+                <input
+                  type="text"
+                  required
+                  list="therapist-exercise-presets"
+                  value={formExercise}
+                  onChange={(e) => setFormExercise(e.target.value)}
+                  placeholder="Nome esercizio (es. Trap Bar Deadlift, Back Squat...)"
+                  className="w-full bg-slate-950 border border-slate-700 rounded-xl p-2.5 text-white font-bold"
+                />
+                <datalist id="therapist-exercise-presets">
+                  {EXERCISE_PRESETS.map((item, i) => (
+                    <option key={i} value={item.name} />
+                  ))}
+                </datalist>
+              </div>
+
+              {/* SERIE, RIPETIZIONI, CARICO KG */}
+              <div className="grid grid-cols-3 gap-3">
+                <div>
+                  <label className="block text-slate-300 font-bold mb-1">Serie (Sets)</label>
+                  <input
+                    type="number"
+                    min="1"
+                    required
+                    value={formSets}
+                    onChange={(e) => setFormSets(e.target.value)}
+                    className="w-full bg-slate-950 border border-slate-700 rounded-xl p-2.5 text-white font-mono text-center font-bold"
+                  />
+                </div>
+                <div>
+                  <label className="block text-slate-300 font-bold mb-1">Ripetizioni</label>
+                  <input
+                    type="text"
+                    required
+                    value={formReps}
+                    onChange={(e) => setFormReps(e.target.value)}
+                    className="w-full bg-slate-950 border border-slate-700 rounded-xl p-2.5 text-white font-mono text-center font-bold"
+                  />
+                </div>
+                <div>
+                  <label className="block text-emerald-400 font-extrabold mb-1">Carico (Kg)</label>
+                  <input
+                    type="number"
+                    step="0.5"
+                    required
+                    value={formWeightKg}
+                    onChange={(e) => setFormWeightKg(e.target.value)}
+                    className="w-full bg-emerald-950/30 border border-emerald-500/60 rounded-xl p-2.5 text-emerald-300 font-mono text-center font-black"
+                  />
+                </div>
+              </div>
+
+              {/* VELOCITÀ / TEMPO */}
+              <div>
+                <label className="block text-slate-300 font-bold mb-1">Velocità / Tempo Esecuzione</label>
+                <input
+                  type="text"
+                  value={formTempo}
+                  onChange={(e) => setFormTempo(e.target.value)}
+                  placeholder="es. 3-0-1-0, Esplosivo 0.65 m/s..."
+                  className="w-full bg-slate-950 border border-slate-700 rounded-xl p-2.5 text-white"
+                />
+              </div>
+
+              {/* NOTE DOLORE / RPE */}
+              <div>
+                <label className="block text-slate-300 font-bold mb-1">Note Cliniche / RPE / Dolore</label>
+                <input
+                  type="text"
+                  value={formNotes}
+                  onChange={(e) => setFormNotes(e.target.value)}
+                  placeholder="es. Nessun dolore (0/10), RPE 8/10..."
+                  className="w-full bg-slate-950 border border-slate-700 rounded-xl p-2.5 text-white"
+                />
+              </div>
+
+              <div className="pt-3 border-t border-slate-800 flex justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={() => setEditingModalOpen(false)}
+                  className="px-4 py-2 bg-slate-800 text-slate-300 rounded-xl font-bold cursor-pointer"
+                >
+                  Annulla
+                </button>
+                <button
+                  type="submit"
+                  disabled={savingEdit}
+                  className="px-5 py-2 bg-gradient-to-r from-cyan-600 to-emerald-600 hover:from-cyan-500 hover:to-emerald-500 text-white rounded-xl font-black flex items-center gap-1.5 shadow-lg cursor-pointer"
+                >
+                  <Save className="w-4 h-4" />
+                  <span>{savingEdit ? 'Salvataggio...' : 'Salva Modifiche'}</span>
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
 
       {/* MODAL GENERATORE DI LINK / QR CODE E INVIO MAGIC LINK */}
       {showInviteModal && (
@@ -403,7 +758,7 @@ export default function RilevazioniCarichiTab({
             {/* SEZIONE 2: COPIA LINK O INVIA SU WHATSAPP */}
             <div className="space-y-2">
               <label className="block text-xs font-bold text-slate-300">
-                Link Diretto Portale Paziente:
+                Link Diretto Permanente Portale Paziente:
               </label>
               <div className="flex gap-2">
                 <input

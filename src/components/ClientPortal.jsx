@@ -18,7 +18,11 @@ import {
   Smartphone,
   ShieldCheck,
   ArrowLeft,
-  Share
+  Share,
+  Calendar,
+  Edit3,
+  Trash2,
+  X
 } from 'lucide-react';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import LogoN from './LogoN';
@@ -66,12 +70,24 @@ export function getCategoryIcon(iconType, className = 'w-4 h-4') {
   }
 }
 
+export function toDateInputValue(isoString) {
+  if (!isoString) return new Date().toISOString().split('T')[0];
+  try {
+    return new Date(isoString).toISOString().split('T')[0];
+  } catch {
+    return new Date().toISOString().split('T')[0];
+  }
+}
+
 export default function ClientPortal({
   patient,
   isSimulationMode = false,
+  isSimulation = false,
   onExitSimulation,
   onNewLogSaved
 }) {
+  const effectiveSimMode = isSimulationMode || isSimulation;
+
   // Autenticazione Paziente (se non in modalità simulazione Terapista)
   const [authEmail, setAuthEmail] = useState('');
   const [magicLinkSent, setMagicLinkSent] = useState(false);
@@ -82,7 +98,9 @@ export default function ClientPortal({
   // Navigazione Interna Smartphone: 'log' (Segna Esercizio) | 'history' (Il Mio Storico)
   const [activeSection, setActiveSection] = useState('log');
 
-  // Form 'Segna Esercizio'
+  // Form 'Segna Esercizio' (e Modifica Esercizio esistente)
+  const [editingLogId, setEditingLogId] = useState(null);
+  const [workoutDate, setWorkoutDate] = useState(() => new Date().toISOString().split('T')[0]);
   const [exerciseQuery, setExerciseQuery] = useState('');
   const [selectedCategoryIcon, setSelectedCategoryIcon] = useState('squat');
   const [showSuggestions, setShowSuggestions] = useState(false);
@@ -92,7 +110,7 @@ export default function ClientPortal({
   const [tempo, setTempo] = useState('');
   const [notesRpe, setNotesRpe] = useState('');
   const [saving, setSaving] = useState(false);
-  const [saveSuccess, setSaveSuccess] = useState(false);
+  const [saveSuccess, setSaveSuccess] = useState('');
 
   // Storico Allenamenti del Paziente
   const [workoutLogs, setWorkoutLogs] = useState([]);
@@ -148,6 +166,10 @@ export default function ClientPortal({
 
         if (!error && Array.isArray(data) && data.length > 0) {
           setWorkoutLogs(data);
+          const localKey = `acl_workout_logs_${targetPatientId || 'default'}`;
+          try {
+            localStorage.setItem(localKey, JSON.stringify(data));
+          } catch {}
           setLoadingLogs(false);
           return;
         }
@@ -169,10 +191,10 @@ export default function ClientPortal({
   };
 
   useEffect(() => {
-    if (isSimulationMode || sessionUser || targetPatientId) {
+    if (effectiveSimMode || sessionUser || targetPatientId) {
       fetchMyWorkoutLogs();
     }
-  }, [targetPatientId, sessionUser, isSimulationMode]);
+  }, [targetPatientId, sessionUser, effectiveSimMode]);
 
   // Suggerimenti autocompletamento: combina esercizi passati del paziente + catalogo predefinito
   const suggestions = useMemo(() => {
@@ -216,66 +238,171 @@ export default function ClientPortal({
     }
   };
 
-  // Salvataggio Nuovo Esercizio Svolto
+  // Avvia la modifica di un esercizio già registrato
+  const handleStartEditLog = (log) => {
+    setEditingLogId(log.id);
+    setWorkoutDate(toDateInputValue(log.created_at));
+    setExerciseQuery(log.exercise_name || '');
+    setSelectedCategoryIcon(log.category_icon || 'squat');
+    setSets(String(log.sets || 4));
+    setReps(String(log.reps || 8));
+    setWeightKg(String(log.weight_kg ?? ''));
+    setTempo(log.tempo_execution || log.tempo_speed || '');
+    setNotesRpe(log.notes_rpe || log.notes || '');
+    setActiveSection('log');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const handleCancelEdit = () => {
+    setEditingLogId(null);
+    setWorkoutDate(new Date().toISOString().split('T')[0]);
+    setExerciseQuery('');
+    setWeightKg('');
+    setTempo('');
+    setNotesRpe('');
+  };
+
+  // Eliminazione di un esercizio dallo storico paziente
+  const handleDeleteLog = async (logId) => {
+    const updatedList = workoutLogs.filter(item => item.id !== logId);
+    setWorkoutLogs(updatedList);
+
+    const localKey = `acl_workout_logs_${targetPatientId || 'default'}`;
+    try {
+      localStorage.setItem(localKey, JSON.stringify(updatedList));
+    } catch {}
+
+    if (isSupabaseConfigured && logId) {
+      try {
+        await supabase.from('workout_logs').delete().eq('id', logId);
+      } catch (err) {
+        console.warn('Info eliminazione workout_logs:', err);
+      }
+    }
+
+    if (onNewLogSaved) {
+      onNewLogSaved(null, updatedList);
+    }
+  };
+
+  // Salvataggio Nuovo Esercizio o Aggiornamento Esercizio Esistente
   const handleSaveWorkout = async (e) => {
     e.preventDefault();
-    if (!exerciseQuery.trim() || !weightKg) return;
+    if (!exerciseQuery.trim() || weightKg === '') return;
 
     setSaving(true);
-    const newEntry = {
-      id: typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : `wlog-${Date.now()}`,
+
+    // Costruisce il timestamp mantenendo l'ora corrente (o l'ora originale se in modifica) con la data scelta
+    const now = new Date();
+    let finalIsoDate = now.toISOString();
+    if (workoutDate) {
+      const [y, m, d] = workoutDate.split('-').map(Number);
+      if (y && m && d) {
+        const composed = new Date(y, m - 1, d, now.getHours(), now.getMinutes(), now.getSeconds());
+        if (!isNaN(composed.getTime())) {
+          finalIsoDate = composed.toISOString();
+        }
+      }
+    }
+
+    const entryData = {
+      id: editingLogId || (typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : `wlog-${Date.now()}`),
       patient_id: targetPatientId || 'demo-patient',
+      patient_email: sessionUser?.email || patient?.email || null,
       user_id: sessionUser?.id || null,
       exercise_name: exerciseQuery.trim(),
       category_icon: selectedCategoryIcon,
       sets: Number(sets) || 1,
-      reps: Number(reps) || 1,
+      reps: String(reps || '1'),
       weight_kg: parseFloat(String(weightKg).replace(',', '.')) || 0,
       tempo_execution: tempo.trim() || 'Standard',
       notes_rpe: notesRpe.trim() || 'Nessun dolore',
-      created_at: new Date().toISOString()
+      created_at: finalIsoDate
     };
 
     try {
-      // 1. Salva nella tabella 'workout_logs' su Supabase Cloud
-      if (isSupabaseConfigured && targetPatientId) {
-        const { error } = await supabase.from('workout_logs').insert([
-          {
-            patient_id: newEntry.patient_id,
-            user_id: newEntry.user_id,
-            exercise_name: newEntry.exercise_name,
-            category_icon: newEntry.category_icon,
-            sets: newEntry.sets,
-            reps: newEntry.reps,
-            weight_kg: newEntry.weight_kg,
-            tempo_execution: newEntry.tempo_execution,
-            notes_rpe: newEntry.notes_rpe,
-            created_at: newEntry.created_at
+      if (editingLogId) {
+        // MODIFICA DI UN ESERCIZIO ESISTENTE
+        if (isSupabaseConfigured && targetPatientId) {
+          const { error } = await supabase
+            .from('workout_logs')
+            .update({
+              exercise_name: entryData.exercise_name,
+              category_icon: entryData.category_icon,
+              sets: entryData.sets,
+              reps: entryData.reps,
+              weight_kg: entryData.weight_kg,
+              tempo_execution: entryData.tempo_execution,
+              notes_rpe: entryData.notes_rpe,
+              created_at: entryData.created_at
+            })
+            .eq('id', editingLogId);
+
+          if (error) {
+            console.warn('Info update workout_logs (fallback attivo):', error.message);
           }
-        ]);
-        if (error) {
-          console.warn('Info salvataggio tabella workout_logs (fallback attivo):', error.message);
         }
+
+        const updatedList = workoutLogs
+          .map(item => (item.id === editingLogId ? { ...item, ...entryData } : item))
+          .sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+
+        setWorkoutLogs(updatedList);
+        const localKey = `acl_workout_logs_${targetPatientId || 'default'}`;
+        try {
+          localStorage.setItem(localKey, JSON.stringify(updatedList));
+        } catch {}
+
+        if (onNewLogSaved) {
+          onNewLogSaved(entryData, updatedList);
+        }
+
+        setEditingLogId(null);
+        setSaveSuccess('Modifica salvata e sincronizzata con successo!');
+      } else {
+        // INSERIMENTO NUOVO ESERCIZIO
+        if (isSupabaseConfigured && targetPatientId) {
+          const { error } = await supabase.from('workout_logs').insert([
+            {
+              id: entryData.id,
+              patient_id: entryData.patient_id,
+              patient_email: entryData.patient_email,
+              user_id: entryData.user_id,
+              exercise_name: entryData.exercise_name,
+              category_icon: entryData.category_icon,
+              sets: entryData.sets,
+              reps: entryData.reps,
+              weight_kg: entryData.weight_kg,
+              tempo_execution: entryData.tempo_execution,
+              notes_rpe: entryData.notes_rpe,
+              created_at: entryData.created_at
+            }
+          ]);
+          if (error) {
+            console.warn('Info salvataggio tabella workout_logs (fallback attivo):', error.message);
+          }
+        }
+
+        const updatedList = [entryData, ...workoutLogs].sort(
+          (a, b) => new Date(b.created_at) - new Date(a.created_at)
+        );
+        setWorkoutLogs(updatedList);
+
+        const localKey = `acl_workout_logs_${targetPatientId || 'default'}`;
+        try {
+          localStorage.setItem(localKey, JSON.stringify(updatedList));
+        } catch {}
+
+        if (onNewLogSaved) {
+          onNewLogSaved(entryData, updatedList);
+        }
+
+        setSaveSuccess('Esercizio salvato e sincronizzato con il tuo fisioterapista!');
       }
 
-      // 2. Aggiorna la lista locale e sincronizza col profilo paziente per la vista Terapista immediata
-      const updatedList = [newEntry, ...workoutLogs];
-      setWorkoutLogs(updatedList);
-
-      const localKey = `acl_workout_logs_${targetPatientId || 'default'}`;
-      try {
-        localStorage.setItem(localKey, JSON.stringify(updatedList));
-      } catch (e) {}
-
-      if (onNewLogSaved) {
-        onNewLogSaved(newEntry, updatedList);
-      }
-
-      // Reset rapido form e mostra feedback di conferma
       setWeightKg('');
       setNotesRpe('');
-      setSaveSuccess(true);
-      setTimeout(() => setSaveSuccess(false), 3000);
+      setTimeout(() => setSaveSuccess(''), 3000);
     } catch (err) {
       console.error('Errore salvataggio esercizio:', err);
     } finally {
@@ -294,7 +421,7 @@ export default function ClientPortal({
   };
 
   // SCHERMATA 1: LOGIN MAGIC LINK PAZIENTE (Se non autenticato e non in modalità Simulazione Terapista)
-  if (!isSimulationMode && !sessionUser) {
+  if (!effectiveSimMode && !sessionUser) {
     return (
       <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col justify-center items-center p-4 font-sans">
         <div className="w-full max-w-md bg-slate-900 border border-slate-800 rounded-3xl p-6 sm:p-8 shadow-2xl space-y-6">
@@ -363,15 +490,21 @@ export default function ClientPortal({
             </form>
           )}
 
-          {/* Pulsante Test Rapido / Accesso Immediato se aperto da invito paziente */}
+          {/* Pulsante Accesso Immediato se aperto dal Link Diretto del Paziente */}
           {patient && (
             <div className="pt-4 border-t border-slate-800 text-center">
               <button
                 type="button"
-                onClick={() => setSessionUser({ id: `pat-user-${patient.id}`, email: `${patient.nome?.toLowerCase()}@paziente.it`, user_metadata: { role: 'patient', patient_id: patient.id } })}
+                onClick={() =>
+                  setSessionUser({
+                    id: `pat-user-${patient.id}`,
+                    email: patient.email || `${patient.nome?.toLowerCase()}@paziente.it`,
+                    user_metadata: { role: 'patient', patient_id: patient.id }
+                  })
+                }
                 className="w-full py-2.5 bg-slate-800 hover:bg-slate-700 text-cyan-300 font-bold text-xs rounded-xl border border-cyan-500/30 transition-all cursor-pointer"
               >
-                ⚡ Entra Subito come {patient.nome} {patient.cognome} (Link Diretto)
+                ⚡ Entra Subito come {patient.nome} {patient.cognome} (Link Personale)
               </button>
             </div>
           )}
@@ -389,11 +522,11 @@ export default function ClientPortal({
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 pb-24 font-sans">
       {/* BANNER MODALITÀ SIMULAZIONE TERAPISTA */}
-      {isSimulationMode && (
+      {(effectiveSimMode || onExitSimulation) && (
         <div className="bg-gradient-to-r from-amber-600/90 to-orange-600/90 text-white px-4 py-2.5 text-xs font-extrabold flex items-center justify-between shadow-md sticky top-0 z-40">
           <div className="flex items-center gap-2">
             <Smartphone className="w-4 h-4" />
-            <span>MODALITÀ SIMULAZIONE PAZIENTE ATTIVA ({targetPatientName})</span>
+            <span>VISTA PORTALE PAZIENTE ({targetPatientName})</span>
           </div>
           {onExitSimulation && (
             <button
@@ -433,7 +566,7 @@ export default function ClientPortal({
               <span>Salva App</span>
             </button>
 
-            {!isSimulationMode && (
+            {!effectiveSimMode && (
               <button
                 type="button"
                 onClick={async () => {
@@ -474,7 +607,7 @@ export default function ClientPortal({
             }`}
           >
             <Plus className="w-4 h-4" />
-            <span>Segna Esercizio</span>
+            <span>{editingLogId ? 'Modifica Esercizio' : 'Segna Esercizio'}</span>
           </button>
 
           <button
@@ -491,17 +624,62 @@ export default function ClientPortal({
           </button>
         </div>
 
-        {/* SEZIONE A: SEGNA ESERCIZIO */}
+        {/* SEZIONE A: SEGNA ESERCIZIO (O MODIFICA ESERCIZIO) */}
         {activeSection === 'log' && (
           <form onSubmit={handleSaveWorkout} className="bg-slate-900 border border-slate-800 rounded-3xl p-5 space-y-4 shadow-xl">
+            {editingLogId && (
+              <div className="p-3 rounded-2xl bg-amber-950/80 border border-amber-500/40 flex items-center justify-between">
+                <div className="flex items-center gap-2 text-xs font-extrabold text-amber-300">
+                  <Edit3 className="w-4 h-4" />
+                  <span>Modalità Modifica Esercizio attiva</span>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleCancelEdit}
+                  className="px-2.5 py-1 rounded-lg bg-slate-900 text-slate-300 hover:text-white text-[11px] font-bold flex items-center gap-1 cursor-pointer"
+                >
+                  <X className="w-3.5 h-3.5" />
+                  <span>Annulla</span>
+                </button>
+              </div>
+            )}
+
             <div className="flex items-center justify-between border-b border-slate-800 pb-3">
               <div>
-                <h3 className="text-base font-black text-white">Nuova Rilevazione Carico</h3>
-                <p className="text-[11px] text-slate-400">Compila i dati della serie appena eseguita</p>
+                <h3 className="text-base font-black text-white">
+                  {editingLogId ? 'Modifica Rilevazione Carico' : 'Nuova Rilevazione Carico'}
+                </h3>
+                <p className="text-[11px] text-slate-400">
+                  Data impostata su oggi automaticamente (modificabile in qualsiasi momento)
+                </p>
               </div>
               <div className="p-2.5 rounded-2xl bg-slate-950 border border-slate-800">
                 {getCategoryIcon(selectedCategoryIcon, 'w-5 h-5')}
               </div>
+            </div>
+
+            {/* DATA SEDUTA (AUTOMATICA SU OGGI MA MODIFICABILE NEL TEMPO) */}
+            <div>
+              <label className="block text-xs font-bold text-slate-300 mb-1 flex items-center justify-between">
+                <span className="flex items-center gap-1.5">
+                  <Calendar className="w-3.5 h-3.5 text-cyan-400" />
+                  <span>Data Seduta Allenamento</span>
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setWorkoutDate(new Date().toISOString().split('T')[0])}
+                  className="text-[10px] text-cyan-400 hover:underline font-bold"
+                >
+                  Imposta Oggi
+                </button>
+              </label>
+              <input
+                type="date"
+                required
+                value={workoutDate}
+                onChange={(e) => setWorkoutDate(e.target.value)}
+                className="w-full bg-slate-950 border border-slate-700 focus:border-cyan-500 rounded-2xl py-2.5 px-3.5 text-xs font-mono font-bold text-white focus:outline-none"
+              />
             </div>
 
             {/* 1. RICERCA / SELEZIONE ESERCIZIO CON AUTOCOMPLETAMENTO & ICONE */}
@@ -618,10 +796,7 @@ export default function ClientPortal({
                   Ripetizioni
                 </label>
                 <input
-                  type="number"
-                  inputMode="numeric"
-                  min="1"
-                  max="100"
+                  type="text"
                   required
                   value={reps}
                   onChange={(e) => setReps(e.target.value)}
@@ -707,7 +882,7 @@ export default function ClientPortal({
             {saveSuccess && (
               <div className="p-3 rounded-2xl bg-emerald-950 border border-emerald-500/50 text-emerald-300 text-xs font-extrabold flex items-center justify-center gap-2 animate-pulse">
                 <CheckCircle2 className="w-4 h-4 text-emerald-400" />
-                <span>Esercizio salvato e sincronizzato con il tuo fisioterapista!</span>
+                <span>{saveSuccess}</span>
               </div>
             )}
 
@@ -718,18 +893,24 @@ export default function ClientPortal({
               className="w-full py-4 bg-gradient-to-r from-emerald-600 via-teal-600 to-cyan-600 hover:from-emerald-500 hover:to-cyan-500 text-white font-black rounded-2xl text-base flex items-center justify-center gap-2 shadow-xl shadow-emerald-500/20 transition-all cursor-pointer active:scale-[0.99]"
             >
               <CheckCircle2 className="w-5 h-5" />
-              <span>{saving ? 'Salvataggio in corso...' : 'Salva Esercizio'}</span>
+              <span>
+                {saving
+                  ? 'Salvataggio in corso...'
+                  : editingLogId
+                  ? 'Salva Modifiche Esercizio'
+                  : 'Salva Esercizio'}
+              </span>
             </button>
           </form>
         )}
 
-        {/* SEZIONE B: IL MIO STORICO CON PROGRESSIONE CARICHI */}
+        {/* SEZIONE B: IL MIO STORICO CON PROGRESSIONE CARICHI E MODIFICA IN QUALSIASI MOMENTO */}
         {activeSection === 'history' && (
           <div className="space-y-3">
             <div className="bg-slate-900 border border-slate-800 rounded-3xl p-4 flex items-center justify-between">
               <div>
                 <h3 className="text-sm font-black text-white">Cronologia & Progressione Carichi</h3>
-                <p className="text-[11px] text-slate-400">Tutti i tuoi allenamenti registrati</p>
+                <p className="text-[11px] text-slate-400">Tocca "Modifica" su qualsiasi esercizio per correggerlo</p>
               </div>
               <span className="px-3 py-1 rounded-xl bg-cyan-950 text-cyan-300 border border-cyan-500/30 font-mono text-xs font-black">
                 {workoutLogs.length} Serie
@@ -749,7 +930,6 @@ export default function ClientPortal({
             ) : (
               <div className="space-y-2.5">
                 {workoutLogs.map((log, idx) => {
-                  // Calcola differenza rispetto alla rilevazione precedente dello stesso esercizio
                   const olderSameExercise = workoutLogs
                     .slice(idx + 1)
                     .find(old => old.exercise_name?.toLowerCase() === log.exercise_name?.toLowerCase());
@@ -760,7 +940,7 @@ export default function ClientPortal({
                   return (
                     <div
                       key={log.id || idx}
-                      className="bg-slate-900 border border-slate-800 rounded-2xl p-4 space-y-2 shadow-md"
+                      className="bg-slate-900 border border-slate-800 rounded-2xl p-4 space-y-2.5 shadow-md"
                     >
                       <div className="flex items-start justify-between gap-2">
                         <div className="flex items-center gap-2.5">
@@ -794,15 +974,15 @@ export default function ClientPortal({
                       </div>
 
                       <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-slate-800/80 text-[11px]">
-                        <div className="flex items-center gap-2">
-                          {log.tempo_execution && (
+                        <div className="flex flex-wrap items-center gap-2">
+                          {(log.tempo_execution || log.tempo_speed) && (
                             <span className="px-2 py-0.5 rounded-lg bg-slate-950 border border-slate-800 text-cyan-300 font-mono text-[10px]">
-                              ⏱ {log.tempo_execution}
+                              ⏱ {log.tempo_execution || log.tempo_speed}
                             </span>
                           )}
-                          {log.notes_rpe && (
+                          {(log.notes_rpe || log.notes) && (
                             <span className="text-slate-300 italic">
-                              "{log.notes_rpe}"
+                              "{log.notes_rpe || log.notes}"
                             </span>
                           )}
                         </div>
@@ -818,6 +998,26 @@ export default function ClientPortal({
                             {diffKg > 0 ? `+${diffKg} kg vs prec.` : `${diffKg} kg`}
                           </span>
                         )}
+                      </div>
+
+                      {/* PULSANTI MODIFICA ED ELIMINA PER IL PAZIENTE */}
+                      <div className="flex items-center justify-end gap-2 pt-1.5 border-t border-slate-800/50">
+                        <button
+                          type="button"
+                          onClick={() => handleStartEditLog(log)}
+                          className="px-3 py-1 rounded-xl bg-slate-800 hover:bg-slate-700 text-cyan-300 border border-cyan-500/30 text-[11px] font-extrabold flex items-center gap-1.5 cursor-pointer"
+                        >
+                          <Edit3 className="w-3.5 h-3.5" />
+                          <span>Modifica</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleDeleteLog(log.id)}
+                          className="px-2.5 py-1 rounded-xl bg-slate-950 hover:bg-rose-950/80 text-slate-400 hover:text-rose-300 border border-slate-800 text-[11px] font-bold flex items-center gap-1 cursor-pointer"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                          <span>Elimina</span>
+                        </button>
                       </div>
                     </div>
                   );

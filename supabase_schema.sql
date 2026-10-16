@@ -256,11 +256,15 @@ CREATE TABLE IF NOT EXISTS public.workout_logs (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     patient_id TEXT NOT NULL,
     patient_email TEXT,
+    user_id UUID,
     exercise_name TEXT NOT NULL,
+    category_icon TEXT DEFAULT 'squat',
     sets INTEGER NOT NULL DEFAULT 3,
     reps TEXT NOT NULL DEFAULT '10',
     weight_kg NUMERIC(6,2) NOT NULL DEFAULT 0,
+    tempo_execution TEXT,
     tempo_speed TEXT,
+    notes_rpe TEXT,
     notes TEXT,
     rpe INTEGER CHECK (rpe >= 1 AND rpe <= 10),
     created_at TIMESTAMPTZ DEFAULT NOW()
@@ -279,7 +283,6 @@ CREATE POLICY "Pazienti leggono solo i propri workout_logs e Staff legge tutto"
     ON public.workout_logs FOR SELECT
     TO public
     USING (
-        -- Consenti accesso a terapisti o se l'email JWT corrisponde a patient_email / paziente collegato
         (auth.jwt() ->> 'email' IS NOT NULL AND LOWER(auth.jwt() ->> 'email') = LOWER(patient_email))
         OR EXISTS (
             SELECT 1 FROM public.pazienti p
@@ -289,7 +292,7 @@ CREATE POLICY "Pazienti leggono solo i propri workout_logs e Staff legge tutto"
         OR COALESCE(auth.jwt() -> 'user_metadata' ->> 'role', '') != 'patient'
     );
 
--- Policy 2: Il Paziente può inserire SOLO i propri allenamenti nel diario
+-- Policy 2: Il Paziente e i Terapisti possono inserire workout_logs
 DROP POLICY IF EXISTS "Pazienti e Terapisti possono inserire workout_logs" ON public.workout_logs;
 CREATE POLICY "Pazienti e Terapisti possono inserire workout_logs"
     ON public.workout_logs FOR INSERT
@@ -300,7 +303,21 @@ CREATE POLICY "Pazienti e Terapisti possono inserire workout_logs"
         OR auth.uid() IS NOT NULL
     );
 
--- Policy 3: Eliminazione consentita al proprietario del log o al Terapista
+-- Policy 3: Modifica (UPDATE) consentita in qualsiasi momento al Paziente (sui propri log) e al Terapista (su tutti i log)
+DROP POLICY IF EXISTS "Modifica workout_logs per proprietario o Terapista" ON public.workout_logs;
+CREATE POLICY "Modifica workout_logs per proprietario o Terapista"
+    ON public.workout_logs FOR UPDATE
+    TO public
+    USING (
+        (auth.jwt() ->> 'email' IS NOT NULL AND LOWER(auth.jwt() ->> 'email') = LOWER(patient_email))
+        OR COALESCE(auth.jwt() -> 'user_metadata' ->> 'role', '') != 'patient'
+    )
+    WITH CHECK (
+        (auth.jwt() ->> 'email' IS NOT NULL AND LOWER(auth.jwt() ->> 'email') = LOWER(patient_email))
+        OR COALESCE(auth.jwt() -> 'user_metadata' ->> 'role', '') != 'patient'
+    );
+
+-- Policy 4: Eliminazione consentita al proprietario del log o al Terapista
 DROP POLICY IF EXISTS "Eliminazione workout_logs per proprietario o Terapista" ON public.workout_logs;
 CREATE POLICY "Eliminazione workout_logs per proprietario o Terapista"
     ON public.workout_logs FOR DELETE
