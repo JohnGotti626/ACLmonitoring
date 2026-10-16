@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   Dumbbell,
   QrCode,
@@ -18,10 +18,19 @@ import {
   Trash2,
   Plus,
   Save,
-  X
+  X,
+  Package,
+  BarChart3,
+  ChevronRight
 } from 'lucide-react';
 import { supabase, isSupabaseConfigured } from '../../lib/supabase';
-import { getCategoryIcon, EXERCISE_PRESETS, toDateInputValue } from '../ClientPortal';
+import {
+  getCategoryIcon,
+  EXERCISE_PRESETS,
+  toDateInputValue,
+  formatDayLabel,
+  normalizeWorkoutLog
+} from '../ClientPortal';
 
 export default function RilevazioniCarichiTab({
   patient,
@@ -31,6 +40,12 @@ export default function RilevazioniCarichiTab({
   const [logs, setLogs] = useState([]);
   const [loading, setLoading] = useState(false);
   const [searchFilter, setSearchFilter] = useState('');
+
+  // Selettore Giornata nello Storico Terapista ('ALL', 'LATEST', o 'YYYY-MM-DD')
+  const [selectedDay, setSelectedDay] = useState('ALL');
+
+  // Esercizio selezionato per visualizzare il Grafico di Progressione nel Tempo
+  const [selectedExerciseProgression, setSelectedExerciseProgression] = useState(null);
 
   // Modal / Pannello Generatore Magic Link & QR Code
   const [showInviteModal, setShowInviteModal] = useState(false);
@@ -42,10 +57,9 @@ export default function RilevazioniCarichiTab({
   // Modal Modifica / Inserimento Manuale da parte del Terapista (può modificare qualsiasi cosa anche a posteriori)
   const [editingModalOpen, setEditingModalOpen] = useState(false);
   const [editingLog, setEditingLog] = useState(null);
-  const [formDate, setFormDate] = useState(() => new Date().toISOString().split('T')[0]);
+  const [formDate, setFormDate] = useState(() => toDateInputValue(new Date().toISOString()));
   const [formTime, setFormTime] = useState('15:00');
   const [formExercise, setFormExercise] = useState('');
-  const [formIcon, setFormIcon] = useState('squat');
   const [formSets, setFormSets] = useState('4');
   const [formReps, setFormReps] = useState('8');
   const [formWeightKg, setFormWeightKg] = useState('');
@@ -72,81 +86,46 @@ export default function RilevazioniCarichiTab({
     }
   };
 
-  // Caricamento rilevazioni carichi da Supabase ('workout_logs') + Realtime Sync
-  const fetchPatientWorkoutLogs = async () => {
+  // Caricamento rilevazioni carichi da Supabase ('workout_logs') + Realtime Sync + Live Polling
+  const fetchPatientWorkoutLogs = async (silent = false) => {
     if (!patient?.id) return;
-    setLoading(true);
+    if (!silent) setLoading(true);
     try {
       if (isSupabaseConfigured) {
         const { data, error } = await supabase
           .from('workout_logs')
           .select('*')
-          .eq('patient_id', patient.id)
+          .eq('patient_id', String(patient.id))
           .order('created_at', { ascending: false });
 
-        if (!error && Array.isArray(data) && data.length > 0) {
-          setLogs(data);
-          const localKey = `acl_workout_logs_${patient.id}`;
-          try {
-            localStorage.setItem(localKey, JSON.stringify(data));
-          } catch {}
-          setLoading(false);
-          return;
+        if (!error && Array.isArray(data)) {
+          if (data.length > 0) {
+            const normalized = data.map(normalizeWorkoutLog);
+            setLogs(normalized);
+            const localKey = `acl_workout_logs_${patient.id}`;
+            try {
+              localStorage.setItem(localKey, JSON.stringify(normalized));
+            } catch {}
+            if (!silent) setLoading(false);
+            return;
+          }
         }
       }
 
-      // Fallback locale o dati pre-caricati di esempio clinico
+      // Fallback locale se non ci sono ancora record cloud per questo paziente
       const localKey = `acl_workout_logs_${patient.id}`;
       const saved = localStorage.getItem(localKey);
       if (saved) {
-        setLogs(JSON.parse(saved));
+        setLogs(JSON.parse(saved).map(normalizeWorkoutLog));
       } else if (Array.isArray(patient?.workout_logs) && patient.workout_logs.length > 0) {
-        setLogs(patient.workout_logs);
+        setLogs(patient.workout_logs.map(normalizeWorkoutLog));
       } else {
-        const demoSeed = [
-          {
-            id: 'seed-1',
-            patient_id: patient.id,
-            exercise_name: 'Trap Bar Deadlift',
-            category_icon: 'press',
-            sets: 4,
-            reps: '6',
-            weight_kg: 95,
-            tempo_execution: 'Esplosivo (0.68 m/s)',
-            notes_rpe: 'Nessun dolore (0/10) - RPE 7.5/10',
-            created_at: new Date(Date.now() - 86400000 * 1).toISOString()
-          },
-          {
-            id: 'seed-2',
-            patient_id: patient.id,
-            exercise_name: 'Bulgarian Split Squat',
-            category_icon: 'lunge',
-            sets: 3,
-            reps: '8',
-            weight_kg: 44,
-            tempo_execution: '3-1-1-0',
-            notes_rpe: 'Stabilità ottima, zero fastidio rotuleo',
-            created_at: new Date(Date.now() - 86400000 * 3).toISOString()
-          },
-          {
-            id: 'seed-3',
-            patient_id: patient.id,
-            exercise_name: 'Leg Extension Monopodalica',
-            category_icon: 'knee',
-            sets: 4,
-            reps: '10',
-            weight_kg: 35,
-            tempo_execution: '2-2-1-0',
-            notes_rpe: 'Fatica muscolare 8/10, nessun dolore articolare',
-            created_at: new Date(Date.now() - 86400000 * 5).toISOString()
-          }
-        ];
-        setLogs(demoSeed);
+        setLogs([]);
       }
     } catch (err) {
       console.error('Errore lettura workout_logs:', err);
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
   };
 
@@ -155,26 +134,60 @@ export default function RilevazioniCarichiTab({
 
     if (!isSupabaseConfigured || !patient?.id) return;
 
+    // 1. Sottoscrizione Realtime su Supabase
     const channel = supabase
-      .channel(`workout_logs_${patient.id}`)
+      .channel(`therapist_workout_logs_${patient.id}`)
       .on(
         'postgres_changes',
         {
           event: '*',
           schema: 'public',
-          table: 'workout_logs',
-          filter: `patient_id=eq.${patient.id}`
+          table: 'workout_logs'
         },
         () => {
-          fetchPatientWorkoutLogs();
+          fetchPatientWorkoutLogs(true);
         }
       )
       .subscribe();
 
+    // 2. Aggiornamento Live automatico ogni 4 secondi per garantire sincronizzazione istantanea anche senza websocket
+    const liveInterval = setInterval(() => {
+      fetchPatientWorkoutLogs(true);
+    }, 4000);
+
     return () => {
+      clearInterval(liveInterval);
       supabase.removeChannel(channel);
     };
   }, [patient?.id]);
+
+  // Raggruppamento per Giornate ('YYYY-MM-DD')
+  const groupedByDay = useMemo(() => {
+    const map = {};
+    logs.forEach(log => {
+      const dayKey = toDateInputValue(log.created_at);
+      if (!map[dayKey]) {
+        map[dayKey] = [];
+      }
+      map[dayKey].push(log);
+    });
+    const sortedDays = Object.keys(map).sort((a, b) => b.localeCompare(a));
+    return { map, sortedDays };
+  }, [logs]);
+
+  // Elenco univoco esercizi svolti dal paziente (per selezione rapida progressione)
+  const uniqueExercises = useMemo(() => {
+    return Array.from(new Set(logs.map(l => l.exercise_name).filter(Boolean)));
+  }, [logs]);
+
+  // Dati cronologici di progressione per l'esercizio selezionato
+  const progressionSeries = useMemo(() => {
+    if (!selectedExerciseProgression) return [];
+    const target = selectedExerciseProgression.toLowerCase().trim();
+    return logs
+      .filter(l => l.exercise_name?.toLowerCase().trim() === target)
+      .sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
+  }, [selectedExerciseProgression, logs]);
 
   // Apre il modal per modificare qualsiasi campo di una rilevazione esistente
   const handleOpenEditModal = (log) => {
@@ -186,26 +199,24 @@ export default function RilevazioniCarichiTab({
     setFormDate(toDateInputValue(log.created_at));
     setFormTime(`${hours}:${mins}`);
     setFormExercise(log.exercise_name || '');
-    setFormIcon(log.category_icon || 'squat');
     setFormSets(String(log.sets ?? 4));
     setFormReps(String(log.reps ?? 8));
     setFormWeightKg(String(log.weight_kg ?? 0));
-    setFormTempo(log.tempo_execution || log.tempo_speed || '');
-    setFormNotes(log.notes_rpe || log.notes || '');
+    setFormTempo(log.tempo_speed || log.tempo_execution || '');
+    setFormNotes(log.notes || log.notes_rpe || '');
     setEditingModalOpen(true);
   };
 
-  // Apre il modal per inserire una nuova rilevazione da parte del Terapista
-  const handleOpenNewModal = () => {
+  // Apre il modal per inserire una nuova rilevazione da parte del Terapista (eventualmente in una giornata specifica)
+  const handleOpenNewModal = (presetDate = null) => {
     const now = new Date();
     const hours = String(now.getHours()).padStart(2, '0');
     const mins = String(now.getMinutes()).padStart(2, '0');
 
     setEditingLog(null);
-    setFormDate(now.toISOString().split('T')[0]);
+    setFormDate(presetDate && presetDate !== 'ALL' ? presetDate : toDateInputValue(now.toISOString()));
     setFormTime(`${hours}:${mins}`);
     setFormExercise('');
-    setFormIcon('squat');
     setFormSets('4');
     setFormReps('8');
     setFormWeightKg('');
@@ -231,58 +242,56 @@ export default function RilevazioniCarichiTab({
       }
     } catch {}
 
-    const payload = {
-      id: editingLog?.id || (typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : `wlog-${Date.now()}`),
-      patient_id: patient?.id || 'demo-patient',
+    const dbPayload = {
+      ...(editingLog?.id && !String(editingLog.id).startsWith('seed-') ? { id: editingLog.id } : {}),
+      patient_id: String(patient?.id || 'demo-patient'),
       patient_email: patient?.email || null,
       exercise_name: formExercise.trim(),
-      category_icon: formIcon,
       sets: Number(formSets) || 1,
       reps: String(formReps || '1'),
       weight_kg: parseFloat(String(formWeightKg).replace(',', '.')) || 0,
-      tempo_execution: formTempo.trim() || 'Standard',
-      notes_rpe: formNotes.trim() || 'Nessun dolore',
+      tempo_speed: formTempo.trim() || 'Standard',
+      notes: formNotes.trim() || 'Nessun dolore',
       created_at: finalIso
     };
 
     try {
       if (editingLog) {
-        // Aggiorna su Supabase se presente
         if (isSupabaseConfigured && editingLog.id && !String(editingLog.id).startsWith('seed-')) {
-          const { error } = await supabase
-            .from('workout_logs')
-            .update({
-              exercise_name: payload.exercise_name,
-              category_icon: payload.category_icon,
-              sets: payload.sets,
-              reps: payload.reps,
-              weight_kg: payload.weight_kg,
-              tempo_execution: payload.tempo_execution,
-              notes_rpe: payload.notes_rpe,
-              created_at: payload.created_at
-            })
-            .eq('id', editingLog.id);
-
+          // Delete + Insert con stesso UUID per garantire l'update su Supabase
+          await supabase.from('workout_logs').delete().eq('id', editingLog.id);
+          const { error } = await supabase.from('workout_logs').insert([dbPayload]);
           if (error) {
             console.warn('Info update Supabase workout_logs:', error.message);
           }
         }
 
+        const normalized = normalizeWorkoutLog({ ...editingLog, ...dbPayload });
         const updatedList = logs
-          .map(item => (item.id === editingLog.id ? { ...item, ...payload } : item))
+          .map(item => (item.id === editingLog.id ? normalized : item))
           .sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
 
         syncLogsLocallyAndParent(updatedList);
       } else {
-        // Nuovo inserimento da Terapista
+        let savedRow = normalizeWorkoutLog({
+          ...dbPayload,
+          id: typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : `wlog-${Date.now()}`
+        });
+
         if (isSupabaseConfigured && patient?.id) {
-          const { error } = await supabase.from('workout_logs').insert([payload]);
+          const { data, error } = await supabase
+            .from('workout_logs')
+            .insert([dbPayload])
+            .select();
+
           if (error) {
             console.warn('Info insert Supabase workout_logs:', error.message);
+          } else if (Array.isArray(data) && data.length > 0) {
+            savedRow = normalizeWorkoutLog(data[0]);
           }
         }
 
-        const updatedList = [payload, ...logs].sort(
+        const updatedList = [savedRow, ...logs].sort(
           (a, b) => new Date(b.created_at) - new Date(a.created_at)
         );
         syncLogsLocallyAndParent(updatedList);
@@ -354,40 +363,41 @@ export default function RilevazioniCarichiTab({
     window.open(`https://wa.me/?text=${text}`, '_blank');
   };
 
-  const filteredLogs = logs.filter(l =>
-    !searchFilter.trim() ||
-    l.exercise_name?.toLowerCase().includes(searchFilter.toLowerCase()) ||
-    (l.notes_rpe || l.notes || '')?.toLowerCase().includes(searchFilter.toLowerCase())
-  );
+  // Giorni filtrati da visualizzare
+  const daysToRender = useMemo(() => {
+    if (selectedDay === 'ALL') return groupedByDay.sortedDays;
+    if (groupedByDay.map[selectedDay]) return [selectedDay];
+    return groupedByDay.sortedDays;
+  }, [selectedDay, groupedByDay]);
 
   return (
     <div className="space-y-6">
-      {/* BARRA SUPERIORE TERAPISTA: AZIONI RAPIDE (MAGIC LINK / QR CODE, AGGIUNGI E SIMULA VISTA PAZIENTE) */}
+      {/* BARRA SUPERIORE TERAPISTA: AZIONI RAPIDE */}
       <div className="glass-panel p-5 rounded-2xl border border-slate-700/80 flex flex-col lg:flex-row lg:items-center justify-between gap-4 shadow-xl">
         <div className="space-y-1">
           <div className="flex items-center gap-2">
             <Dumbbell className="w-5 h-5 text-cyan-400" />
             <h3 className="text-lg font-black text-white tracking-tight">
-              Rilevazioni Carichi Remoti & Diario Paziente
+              Rilevazioni Carichi & Pacchetti Giornalieri
             </h3>
-            <span className="px-2.5 py-0.5 rounded-full bg-emerald-950 text-emerald-400 border border-emerald-500/30 font-mono text-[10px] font-extrabold">
-              Modificabile in ogni momento
+            <span className="px-2.5 py-0.5 rounded-full bg-emerald-950 text-emerald-400 border border-emerald-500/30 font-mono text-[10px] font-extrabold flex items-center gap-1">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping" />
+              <span>Live Sync Attivo</span>
             </span>
           </div>
           <p className="text-xs text-slate-400">
-            Monitora e modifica liberamente data, esercizio, serie, carico (Kg), velocità e note di <strong>{patient?.nome} {patient?.cognome}</strong>.
+            Seleziona una giornata per vedere il pacchetto di esercizi svolto da <strong>{patient?.nome} {patient?.cognome}</strong>, oppure clicca su un esercizio per vedere la progressione nel tempo.
           </p>
         </div>
 
-        {/* PULSANTI GENERATORE LINK/QR, AGGIUNTA MANUALE E TEST RAPIDO TERAPISTA */}
         <div className="flex flex-wrap items-center gap-2.5">
           <button
             type="button"
-            onClick={handleOpenNewModal}
+            onClick={() => handleOpenNewModal(selectedDay)}
             className="px-3.5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold text-xs flex items-center gap-1.5 shadow-md transition-all cursor-pointer"
           >
             <Plus className="w-4 h-4" />
-            <span>Aggiungi Carico Manuale</span>
+            <span>Aggiungi Esercizio Manuale</span>
           </button>
 
           <button
@@ -410,164 +420,391 @@ export default function RilevazioniCarichiTab({
         </div>
       </div>
 
-      {/* STATISTICHE SINTETICHE DEI CARICHI DEL PAZIENTE */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <div className="bg-slate-900/90 border border-slate-800 rounded-2xl p-4 flex items-center justify-between">
+      {/* SELETTORE GIORNATE DI ALLENAMENTO (PACCHETTI GIORNALIERI) */}
+      <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4 space-y-3 shadow-lg">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
           <div>
-            <span className="text-[11px] font-bold text-slate-400 uppercase">Sessioni Registrate</span>
-            <div className="text-2xl font-black text-white mt-0.5">{logs.length}</div>
-          </div>
-          <div className="p-3 rounded-xl bg-cyan-500/10 text-cyan-400 border border-cyan-500/20">
-            <Calendar className="w-5 h-5" />
-          </div>
-        </div>
-
-        <div className="bg-slate-900/90 border border-slate-800 rounded-2xl p-4 flex items-center justify-between">
-          <div>
-            <span className="text-[11px] font-bold text-slate-400 uppercase">Picco Massimo Registrato</span>
-            <div className="text-2xl font-black text-emerald-400 mt-0.5 font-mono">
-              {logs.length > 0 ? `${Math.max(...logs.map(l => Number(l.weight_kg) || 0))} kg` : 'N/D'}
-            </div>
-          </div>
-          <div className="p-3 rounded-xl bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
-            <TrendingUp className="w-5 h-5" />
-          </div>
-        </div>
-
-        <div className="bg-slate-900/90 border border-slate-800 rounded-2xl p-4 flex items-center justify-between">
-          <div>
-            <span className="text-[11px] font-bold text-slate-400 uppercase">Ultimo Esercizio Inviato</span>
-            <div className="text-sm font-black text-white mt-1 truncate max-w-[180px]">
-              {logs[0]?.exercise_name || 'Nessun dato'}
-            </div>
-          </div>
-          <button
-            type="button"
-            onClick={fetchPatientWorkoutLogs}
-            className="p-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 cursor-pointer"
-            title="Aggiorna ora"
-          >
-            <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin text-cyan-400' : ''}`} />
-          </button>
-        </div>
-      </div>
-
-      {/* TABELLA CRONOLOGICA RILEVAZIONI CARICHI (COMPLETAMENTE MODIFICABILE DAL TERAPISTA) */}
-      <div className="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden shadow-xl">
-        <div className="p-4 border-b border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-          <div>
-            <h4 className="text-sm font-extrabold text-white flex items-center gap-2">
-              <span>Registro Cronologico Esercizi & Carichi</span>
+            <h4 className="text-sm font-black text-white flex items-center gap-2">
+              <Calendar className="w-4 h-4 text-cyan-400" />
+              <span>Giornate di Allenamento Registrate ({groupedByDay.sortedDays.length} sedute)</span>
             </h4>
             <p className="text-[11px] text-slate-400">
-              Clicca su "Modifica" a destra di qualsiasi riga per cambiare data, esercizio, serie, carico o note
+              Clicca su una giornata per filtrare velocemente il pacchetto di esercizi eseguito in quella data
             </p>
           </div>
 
-          <div className="relative w-full sm:w-64">
-            <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-2.5" />
-            <input
-              type="text"
-              value={searchFilter}
-              onChange={(e) => setSearchFilter(e.target.value)}
-              placeholder="Filtra per esercizio o nota..."
-              className="w-full bg-slate-950 border border-slate-700 rounded-xl py-1.5 pl-8 pr-3 text-xs text-white focus:border-cyan-500 focus:outline-none"
-            />
+          <div className="flex items-center gap-2">
+            <div className="relative w-56">
+              <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-2.5" />
+              <input
+                type="text"
+                value={searchFilter}
+                onChange={(e) => setSearchFilter(e.target.value)}
+                placeholder="Cerca esercizio o nota..."
+                className="w-full bg-slate-950 border border-slate-700 rounded-xl py-1.5 pl-8 pr-3 text-xs text-white focus:border-cyan-500 focus:outline-none"
+              />
+            </div>
+            <button
+              type="button"
+              onClick={() => fetchPatientWorkoutLogs(false)}
+              className="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 cursor-pointer"
+              title="Sincronizza ora"
+            >
+              <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin text-cyan-400' : ''}`} />
+            </button>
           </div>
         </div>
 
-        <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse text-xs">
-            <thead>
-              <tr className="bg-slate-950 text-slate-400 border-b border-slate-800 uppercase text-[10px] font-extrabold tracking-wider">
-                <th className="py-3 px-4">Data & Ora</th>
-                <th className="py-3 px-4">Esercizio</th>
-                <th className="py-3 px-4 text-center">Serie × Rip</th>
-                <th className="py-3 px-4 text-center">Carico (Kg)</th>
-                <th className="py-3 px-4">Velocità / Tempo</th>
-                <th className="py-3 px-4">Note Dolore / RPE</th>
-                <th className="py-3 px-4 text-right">Azioni Terapista</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-800/70">
-              {filteredLogs.length === 0 ? (
-                <tr>
-                  <td colSpan="7" className="py-8 text-center text-slate-500 italic">
-                    Nessuna rilevazione carico trovata. Usa "Aggiungi Carico Manuale" o "Simula Vista Paziente"!
-                  </td>
-                </tr>
-              ) : (
-                filteredLogs.map((log, index) => (
-                  <tr key={log.id || index} className="hover:bg-slate-800/40 transition-colors">
-                    <td className="py-3.5 px-4 font-mono text-[11px] text-slate-300 whitespace-nowrap">
-                      {new Date(log.created_at).toLocaleDateString('it-IT', {
-                        day: '2-digit',
-                        month: '2-digit',
-                        year: 'numeric'
-                      })}{' '}
-                      <span className="text-slate-500">
-                        {new Date(log.created_at).toLocaleTimeString('it-IT', {
-                          hour: '2-digit',
-                          minute: '2-digit'
-                        })}
+        <div className="flex items-center gap-2.5 overflow-x-auto pb-1.5">
+          <button
+            type="button"
+            onClick={() => setSelectedDay('ALL')}
+            className={`px-4 py-2.5 rounded-2xl border text-left shrink-0 transition-all cursor-pointer ${
+              selectedDay === 'ALL'
+                ? 'bg-gradient-to-r from-cyan-950 to-emerald-950 border-cyan-400 text-white shadow-lg'
+                : 'bg-slate-950 border-slate-800 text-slate-400 hover:text-white'
+            }`}
+          >
+            <div className="text-xs font-black">Tutte le Giornate</div>
+            <div className="text-[10px] font-mono text-cyan-300 mt-0.5">
+              {groupedByDay.sortedDays.length} sedute • {logs.length} esercizi
+            </div>
+          </button>
+
+          {groupedByDay.sortedDays.map((dayKey) => {
+            const dayLogs = groupedByDay.map[dayKey] || [];
+            const isSelected = selectedDay === dayKey;
+            const maxKgDay = Math.max(...dayLogs.map(l => Number(l.weight_kg) || 0), 0);
+
+            return (
+              <button
+                type="button"
+                key={dayKey}
+                onClick={() => setSelectedDay(dayKey)}
+                className={`px-4 py-2.5 rounded-2xl border text-left shrink-0 transition-all cursor-pointer ${
+                  isSelected
+                    ? 'bg-gradient-to-r from-cyan-950 to-emerald-950 border-cyan-400 text-white shadow-lg'
+                    : 'bg-slate-950 border-slate-800 text-slate-300 hover:border-slate-700'
+                }`}
+              >
+                <div className="text-xs font-black flex items-center gap-1.5">
+                  <span>{formatDayLabel(dayKey)}</span>
+                </div>
+                <div className="text-[10px] font-mono text-emerald-400 mt-0.5">
+                  📦 {dayLogs.length} {dayLogs.length === 1 ? 'esercizio' : 'esercizi'} • Max {maxKgDay} kg
+                </div>
+              </button>
+            );
+          })}
+        </div>
+
+        {/* CHIP RAPIDI ESERCIZI PER VEDERE SUBITO LA PROGRESSIONE NEL TEMPO */}
+        {uniqueExercises.length > 0 && (
+          <div className="pt-2 border-t border-slate-800/80 flex items-center gap-2 overflow-x-auto">
+            <span className="text-[11px] font-extrabold text-cyan-400 shrink-0 flex items-center gap-1">
+              <BarChart3 className="w-3.5 h-3.5" />
+              <span>Progressione Esercizio:</span>
+            </span>
+            {uniqueExercises.map((exName, idx) => (
+              <button
+                type="button"
+                key={idx}
+                onClick={() =>
+                  setSelectedExerciseProgression(
+                    selectedExerciseProgression === exName ? null : exName
+                  )
+                }
+                className={`px-3 py-1 rounded-xl text-[11px] font-bold flex items-center gap-1.5 shrink-0 border transition-all cursor-pointer ${
+                  selectedExerciseProgression === exName
+                    ? 'bg-cyan-600 text-white border-cyan-400 shadow-md'
+                    : 'bg-slate-950 text-slate-300 border-slate-800 hover:border-cyan-500/50 hover:text-cyan-300'
+                }`}
+              >
+                {getCategoryIcon(exName, 'w-3 h-3')}
+                <span>{exName}</span>
+                <TrendingUp className="w-3 h-3 text-emerald-400" />
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* PANNELLO PROGRESSIONE NEL TEMPO DELL'ESERCIZIO CLICCATO (INLINE ESPANDIBILE) */}
+      {selectedExerciseProgression && (
+        <div className="bg-slate-900 border-2 border-cyan-500/50 rounded-3xl p-5 space-y-4 shadow-2xl">
+          <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+            <div className="flex items-center gap-3">
+              <div className="p-2.5 rounded-2xl bg-slate-950 border border-cyan-500/30">
+                {getCategoryIcon(selectedExerciseProgression, 'w-6 h-6')}
+              </div>
+              <div>
+                <span className="text-[10px] font-extrabold uppercase tracking-wider text-cyan-400 block">
+                  Analisi Progressione Carichi nel Tempo
+                </span>
+                <h4 className="text-lg font-black text-white">
+                  {selectedExerciseProgression}
+                </h4>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={() => setSelectedExerciseProgression(null)}
+              className="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white text-xs font-bold flex items-center gap-1 cursor-pointer"
+            >
+              <X className="w-4 h-4" />
+              <span>Chiudi Progressione</span>
+            </button>
+          </div>
+
+          {progressionSeries.length === 0 ? (
+            <p className="text-xs text-slate-400">Nessun dato disponibile per questo esercizio.</p>
+          ) : (
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+              {/* GRAFICO VISIVO DI PROGRESSIONE */}
+              <div className="lg:col-span-2 bg-slate-950 border border-slate-800 rounded-2xl p-4 space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-extrabold text-white">
+                    Curva di Progressione Carico (Kg) — {progressionSeries.length} Sedute
+                  </span>
+                  {(() => {
+                    const first = progressionSeries[0]?.weight_kg || 0;
+                    const last = progressionSeries[progressionSeries.length - 1]?.weight_kg || 0;
+                    const diff = +(last - first).toFixed(1);
+                    return (
+                      <span
+                        className={`px-2.5 py-0.5 rounded-full font-mono text-xs font-black ${
+                          diff >= 0
+                            ? 'bg-emerald-950 text-emerald-400 border border-emerald-500/30'
+                            : 'bg-amber-950 text-amber-400 border border-amber-500/30'
+                        }`}
+                      >
+                        {diff > 0 ? `+${diff} kg rispetto alla 1ª seduta` : `${diff} kg`}
                       </span>
-                    </td>
-                    <td className="py-3.5 px-4">
-                      <div className="flex items-center gap-2.5">
-                        <div className="p-1.5 rounded-lg bg-slate-950 border border-slate-800">
-                          {getCategoryIcon(log.category_icon)}
+                    );
+                  })()}
+                </div>
+
+                <div className="flex items-end gap-3 h-40 pt-6 px-2 overflow-x-auto">
+                  {progressionSeries.map((item, idx) => {
+                    const maxVal = Math.max(...progressionSeries.map(x => Number(x.weight_kg) || 1), 1);
+                    const pct = Math.max(Math.round(((Number(item.weight_kg) || 0) / maxVal) * 100), 15);
+                    return (
+                      <div key={item.id || idx} className="flex-1 min-w-[60px] flex flex-col items-center gap-1.5">
+                        <span className="text-xs font-mono font-black text-emerald-400">
+                          {item.weight_kg} kg
+                        </span>
+                        <span className="text-[10px] font-mono text-slate-400">
+                          {item.sets}×{item.reps}
+                        </span>
+                        <div className="w-full bg-slate-900 rounded-t-xl h-24 flex items-end overflow-hidden border border-slate-800 p-0.5">
+                          <div
+                            style={{ height: `${pct}%` }}
+                            className="w-full bg-gradient-to-t from-cyan-600 via-teal-500 to-emerald-400 rounded-t-lg transition-all"
+                          />
                         </div>
-                        <span className="font-extrabold text-white">{log.exercise_name}</span>
+                        <span className="text-[10px] font-mono font-bold text-slate-300">
+                          {new Date(item.created_at).toLocaleDateString('it-IT', {
+                            day: '2-digit',
+                            month: 'short'
+                          })}
+                        </span>
                       </div>
-                    </td>
-                    <td className="py-3.5 px-4 text-center font-mono font-bold text-slate-200">
-                      {log.sets} × {log.reps}
-                    </td>
-                    <td className="py-3.5 px-4 text-center">
-                      <span className="px-2.5 py-1 rounded-lg bg-emerald-950 text-emerald-400 border border-emerald-500/30 font-mono font-black text-xs">
-                        {log.weight_kg} kg
-                      </span>
-                    </td>
-                    <td className="py-3.5 px-4">
-                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-slate-950 border border-slate-800 text-cyan-300 font-mono text-[11px]">
-                        <Clock className="w-3 h-3" />
-                        {log.tempo_execution || log.tempo_speed || 'Standard'}
-                      </span>
-                    </td>
-                    <td className="py-3.5 px-4 text-slate-300">
-                      <div className="flex items-center gap-1.5">
-                        <MessageSquare className="w-3.5 h-3.5 text-slate-500 shrink-0" />
-                        <span>{log.notes_rpe || log.notes || 'Nessun dolore'}</span>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* STORICO DETTAGLIATO SEDUTE DI QUESTO ESERCIZIO */}
+              <div className="bg-slate-950 border border-slate-800 rounded-2xl p-4 space-y-2 max-h-60 overflow-y-auto">
+                <div className="text-xs font-extrabold text-cyan-400 sticky top-0 bg-slate-950 pb-1">
+                  Dettaglio Cronologico Sedute
+                </div>
+                {progressionSeries
+                  .slice()
+                  .reverse()
+                  .map((item, idx) => (
+                    <div
+                      key={item.id || idx}
+                      className="p-2.5 rounded-xl bg-slate-900 border border-slate-800 flex items-center justify-between text-xs"
+                    >
+                      <div>
+                        <div className="font-bold text-white">
+                          {formatDayLabel(toDateInputValue(item.created_at))}
+                        </div>
+                        <div className="text-[10px] text-slate-400 font-mono">
+                          {item.sets} serie × {item.reps} rip • {item.tempo_speed}
+                        </div>
                       </div>
-                    </td>
-                    <td className="py-3.5 px-4 text-right whitespace-nowrap">
-                      <div className="inline-flex items-center gap-1.5">
+                      <div className="flex items-center gap-2">
+                        <span className="font-mono font-black text-emerald-400 text-sm">
+                          {item.weight_kg} kg
+                        </span>
                         <button
                           type="button"
-                          onClick={() => handleOpenEditModal(log)}
-                          className="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-cyan-950 text-cyan-300 border border-cyan-500/30 font-bold text-[11px] inline-flex items-center gap-1 cursor-pointer transition-colors"
-                          title="Modifica qualsiasi dato di questa rilevazione"
+                          onClick={() => handleOpenEditModal(item)}
+                          className="p-1 text-cyan-400 hover:text-cyan-300 cursor-pointer"
+                          title="Modifica questa rilevazione"
                         >
                           <Edit3 className="w-3.5 h-3.5" />
-                          <span>Modifica</span>
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => handleDeleteLogByTherapist(log.id)}
-                          className="p-1.5 rounded-lg bg-slate-950 hover:bg-rose-950 text-slate-400 hover:text-rose-400 border border-slate-800 cursor-pointer transition-colors"
-                          title="Elimina rilevazione"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
                         </button>
                       </div>
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
+                    </div>
+                  ))}
+              </div>
+            </div>
+          )}
         </div>
-      </div>
+      )}
+
+      {/* ELENCO PACCHETTI DI ESERCIZI RAGGRUPPATI PER GIORNATA */}
+      {daysToRender.length === 0 ? (
+        <div className="bg-slate-900 border border-slate-800 rounded-2xl p-10 text-center space-y-3">
+          <Package className="w-10 h-10 text-slate-600 mx-auto" />
+          <div className="text-sm font-black text-white">
+            Nessun pacchetto di allenamento ancora registrato per {patient?.nome}
+          </div>
+          <p className="text-xs text-slate-400 max-w-md mx-auto">
+            Usa <strong>"Simula Vista Paziente / Test Rapido"</strong> oppure <strong>"Aggiungi Esercizio Manuale"</strong> per inserire il primo pacchetto di esercizi del giorno.
+          </p>
+        </div>
+      ) : (
+        <div className="space-y-4">
+          {daysToRender.map((dayKey) => {
+            const rawDayLogs = groupedByDay.map[dayKey] || [];
+            const dayLogs = rawDayLogs.filter(
+              l =>
+                !searchFilter.trim() ||
+                l.exercise_name?.toLowerCase().includes(searchFilter.toLowerCase()) ||
+                (l.notes || '')?.toLowerCase().includes(searchFilter.toLowerCase())
+            );
+
+            if (dayLogs.length === 0) return null;
+
+            return (
+              <div
+                key={dayKey}
+                className="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden shadow-xl"
+              >
+                {/* HEADER DELLA GIORNATA (PACCHETTO DEL GIORNO) */}
+                <div className="p-4 bg-slate-950/70 border-b border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 rounded-xl bg-cyan-500/10 border border-cyan-500/30 text-cyan-400">
+                      <Package className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <h4 className="text-sm font-black text-white">
+                          Pacchetto Seduta — {formatDayLabel(dayKey)}
+                        </h4>
+                        <span className="px-2.5 py-0.5 rounded-full bg-cyan-950 text-cyan-300 border border-cyan-500/30 font-mono text-[10px] font-extrabold">
+                          {dayLogs.length} {dayLogs.length === 1 ? 'esercizio' : 'esercizi'}
+                        </span>
+                      </div>
+                      <p className="text-[11px] text-slate-400">
+                        Clicca sul nome di un esercizio per vedere la sua progressione nel tempo
+                      </p>
+                    </div>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => handleOpenNewModal(dayKey)}
+                    className="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-emerald-300 border border-emerald-500/30 text-xs font-extrabold flex items-center gap-1.5 cursor-pointer self-start sm:self-auto"
+                  >
+                    <Plus className="w-3.5 h-3.5" />
+                    <span>Aggiungi esercizio a questa giornata</span>
+                  </button>
+                </div>
+
+                {/* TABELLA ESERCIZI DEL PACCHETTO GIORNALIERO */}
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left border-collapse text-xs">
+                    <thead>
+                      <tr className="bg-slate-950/40 text-slate-400 border-b border-slate-800 uppercase text-[10px] font-extrabold tracking-wider">
+                        <th className="py-2.5 px-4">Esercizio (Clicca per Progressione)</th>
+                        <th className="py-2.5 px-4 text-center">Serie × Rip</th>
+                        <th className="py-2.5 px-4 text-center">Carico (Kg)</th>
+                        <th className="py-2.5 px-4">Velocità / Tempo</th>
+                        <th className="py-2.5 px-4">Note Dolore / RPE</th>
+                        <th className="py-2.5 px-4 text-right">Azioni Terapista</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-800/70">
+                      {dayLogs.map((log, index) => (
+                        <tr key={log.id || index} className="hover:bg-slate-800/40 transition-colors">
+                          <td className="py-3 px-4">
+                            <button
+                              type="button"
+                              onClick={() => setSelectedExerciseProgression(log.exercise_name)}
+                              className="flex items-center gap-2.5 text-left group cursor-pointer"
+                              title="Clicca per vedere il grafico di progressione di questo esercizio"
+                            >
+                              <div className="p-1.5 rounded-lg bg-slate-950 border border-slate-800 group-hover:border-cyan-500/50">
+                                {getCategoryIcon(log.exercise_name)}
+                              </div>
+                              <div>
+                                <div className="font-extrabold text-white group-hover:text-cyan-300 flex items-center gap-1">
+                                  <span className="underline decoration-cyan-500/50 decoration-dotted underline-offset-4">
+                                    {log.exercise_name}
+                                  </span>
+                                  <ChevronRight className="w-3.5 h-3.5 text-cyan-400" />
+                                </div>
+                                <span className="text-[10px] text-cyan-400/80 font-semibold">
+                                  📈 Vedi progressione
+                                </span>
+                              </div>
+                            </button>
+                          </td>
+                          <td className="py-3 px-4 text-center font-mono font-bold text-slate-200">
+                            {log.sets} × {log.reps}
+                          </td>
+                          <td className="py-3 px-4 text-center">
+                            <span className="px-2.5 py-1 rounded-lg bg-emerald-950 text-emerald-400 border border-emerald-500/30 font-mono font-black text-xs">
+                              {log.weight_kg} kg
+                            </span>
+                          </td>
+                          <td className="py-3 px-4">
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-slate-950 border border-slate-800 text-cyan-300 font-mono text-[11px]">
+                              <Clock className="w-3 h-3" />
+                              {log.tempo_speed || log.tempo_execution || 'Standard'}
+                            </span>
+                          </td>
+                          <td className="py-3 px-4 text-slate-300">
+                            <div className="flex items-center gap-1.5">
+                              <MessageSquare className="w-3.5 h-3.5 text-slate-500 shrink-0" />
+                              <span>{log.notes || log.notes_rpe || 'Nessun dolore'}</span>
+                            </div>
+                          </td>
+                          <td className="py-3 px-4 text-right whitespace-nowrap">
+                            <div className="inline-flex items-center gap-1.5">
+                              <button
+                                type="button"
+                                onClick={() => handleOpenEditModal(log)}
+                                className="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-cyan-950 text-cyan-300 border border-cyan-500/30 font-bold text-[11px] inline-flex items-center gap-1 cursor-pointer transition-colors"
+                              >
+                                <Edit3 className="w-3.5 h-3.5" />
+                                <span>Modifica</span>
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleDeleteLogByTherapist(log.id)}
+                                className="p-1.5 rounded-lg bg-slate-950 hover:bg-rose-950 text-slate-400 hover:text-rose-400 border border-slate-800 cursor-pointer transition-colors"
+                                title="Elimina esercizio"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
 
       {/* MODAL TERAPISTA: MODIFICA QUALSIASI CAMPO O AGGIUNGI NUOVA RILEVAZIONE */}
       {editingModalOpen && (
@@ -577,7 +814,7 @@ export default function RilevazioniCarichiTab({
               <div className="flex items-center gap-2">
                 <Edit3 className="w-5 h-5 text-cyan-400" />
                 <h3 className="text-base font-black text-white">
-                  {editingLog ? 'Modifica Rilevazione Carico (Terapista)' : 'Inserisci Rilevazione Carico'}
+                  {editingLog ? 'Modifica Esercizio (Terapista)' : 'Aggiungi Esercizio al Pacchetto Giornaliero'}
                 </h3>
               </div>
               <button
@@ -590,10 +827,9 @@ export default function RilevazioniCarichiTab({
             </div>
 
             <form onSubmit={handleSaveTherapistEdit} className="space-y-3.5 text-xs">
-              {/* DATA E ORA */}
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-slate-300 font-bold mb-1">Data Seduta</label>
+                  <label className="block text-slate-300 font-bold mb-1">Data Giornata</label>
                   <input
                     type="date"
                     required
@@ -613,7 +849,6 @@ export default function RilevazioniCarichiTab({
                 </div>
               </div>
 
-              {/* NOME ESERCIZIO E CATEGORIA */}
               <div>
                 <label className="block text-slate-300 font-bold mb-1">Esercizio</label>
                 <input
@@ -632,7 +867,6 @@ export default function RilevazioniCarichiTab({
                 </datalist>
               </div>
 
-              {/* SERIE, RIPETIZIONI, CARICO KG */}
               <div className="grid grid-cols-3 gap-3">
                 <div>
                   <label className="block text-slate-300 font-bold mb-1">Serie (Sets)</label>
@@ -668,7 +902,6 @@ export default function RilevazioniCarichiTab({
                 </div>
               </div>
 
-              {/* VELOCITÀ / TEMPO */}
               <div>
                 <label className="block text-slate-300 font-bold mb-1">Velocità / Tempo Esecuzione</label>
                 <input
@@ -680,7 +913,6 @@ export default function RilevazioniCarichiTab({
                 />
               </div>
 
-              {/* NOTE DOLORE / RPE */}
               <div>
                 <label className="block text-slate-300 font-bold mb-1">Note Cliniche / RPE / Dolore</label>
                 <input
@@ -706,7 +938,7 @@ export default function RilevazioniCarichiTab({
                   className="px-5 py-2 bg-gradient-to-r from-cyan-600 to-emerald-600 hover:from-cyan-500 hover:to-emerald-500 text-white rounded-xl font-black flex items-center gap-1.5 shadow-lg cursor-pointer"
                 >
                   <Save className="w-4 h-4" />
-                  <span>{savingEdit ? 'Salvataggio...' : 'Salva Modifiche'}</span>
+                  <span>{savingEdit ? 'Salvataggio...' : 'Salva sul Cloud'}</span>
                 </button>
               </div>
             </form>
@@ -733,7 +965,6 @@ export default function RilevazioniCarichiTab({
               </button>
             </div>
 
-            {/* SEZIONE 1: QR CODE DAL VIVO PER SMARTPHONE */}
             <div className="bg-slate-950 border border-slate-800 rounded-2xl p-4 flex flex-col sm:flex-row items-center gap-4">
               <div className="bg-white p-2.5 rounded-2xl shrink-0 shadow-md">
                 <img
@@ -755,7 +986,6 @@ export default function RilevazioniCarichiTab({
               </div>
             </div>
 
-            {/* SEZIONE 2: COPIA LINK O INVIA SU WHATSAPP */}
             <div className="space-y-2">
               <label className="block text-xs font-bold text-slate-300">
                 Link Diretto Permanente Portale Paziente:
@@ -789,7 +1019,6 @@ export default function RilevazioniCarichiTab({
               </div>
             </div>
 
-            {/* SEZIONE 3: INVIA MAGIC LINK OTP VIA EMAIL TRAMITE SUPABASE */}
             <form onSubmit={handleSendMagicLinkToPatient} className="pt-3 border-t border-slate-800 space-y-2.5">
               <label className="block text-xs font-bold text-slate-300 flex items-center gap-1.5">
                 <Mail className="w-3.5 h-3.5 text-cyan-400" />
