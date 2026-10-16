@@ -1,14 +1,16 @@
 import React, { useState } from 'react';
-import { 
-  User, 
-  Gauge, 
-  ClipboardList, 
-  Smartphone, 
-  Bot, 
-  ArrowLeft, 
+import {
+  User,
+  Info,
+  Gauge,
+  ClipboardList,
+  Smartphone,
+  Bot,
+  ArrowLeft,
   Dumbbell,
   Plus,
-  FileText
+  FileText,
+  X
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import TabAnagrafica from './tabs/TabAnagrafica';
@@ -26,10 +28,13 @@ import { normalizePhaseForDb } from '../utils/phaseUtils';
 
 export default function PatientDetail({ patient, onBack, onUpdatePatient }) {
   const { role } = useAuth();
-  const [activeTab, setActiveTab] = useState('tab2'); // Default to Tab 2 (Batteria Test & Bicchieri)
-  const [activePhase, setActivePhase] = useState(() => normalizePhaseForDb(patient?.fase_riabilitativa || patient?.fase_attuale));
+  const [activeTab, setActiveTab] = useState('tab2'); // Default: Batteria Test & Bicchieri
+  const [activePhase, setActivePhase] = useState(() =>
+    normalizePhaseForDb(patient?.fase_riabilitativa || patient?.fase_attuale)
+  );
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isIKDCModalOpen, setIsIKDCModalOpen] = useState(false);
+  const [isAnagraficaModalOpen, setIsAnagraficaModalOpen] = useState(false);
   const [isSimulatingPatientPortal, setIsSimulatingPatientPortal] = useState(false);
 
   // Sincronizzazione automatica con i dati reali restituiti da Supabase
@@ -62,13 +67,13 @@ export default function PatientDetail({ patient, onBack, onUpdatePatient }) {
     );
   }
 
+  // Tab principali snellite: rimossa 'Anagrafica & Chirurgia' (spostata nel pulsante Info accanto al nome nell'Header)
   const tabs = [
-    { id: 'tab1', label: '1. Anagrafica & Chirurgia', icon: User },
-    { id: 'tab4', label: '2. Vista Mobile Colleghi', icon: Smartphone, badge: 'Sola Lettura' },
-    { id: 'tab3', label: '3. Direttive Operative', icon: ClipboardList },
-    { id: 'tab2', label: '4. Batteria Test & Bicchieri', icon: Gauge },
-    { id: 'tab6', label: '5. Rilevazioni Carichi', icon: Dumbbell, badge: 'Client Log' },
-    { id: 'tab5', label: '6. Copilot IA Engine', icon: Bot }
+    { id: 'tab4', label: '1. Vista Mobile Colleghi', icon: Smartphone, badge: 'Sola Lettura' },
+    { id: 'tab3', label: '2. Direttive Operative', icon: ClipboardList },
+    { id: 'tab2', label: '3. Batteria Test & Bicchieri', icon: Gauge },
+    { id: 'tab6', label: '4. Rilevazioni Carichi', icon: Dumbbell, badge: 'Client Log' },
+    { id: 'tab5', label: '5. Copilot IA Engine', icon: Bot }
   ];
 
   // Persistenza dei Cambiamenti di Fase su Supabase
@@ -79,16 +84,16 @@ export default function PatientDetail({ patient, onBack, onUpdatePatient }) {
       try {
         const { error } = await supabase
           .from('pazienti')
-          .update({ 
-            fase_riabilitativa: normPhase, 
+          .update({
+            fase_riabilitativa: normPhase,
             updated_at: new Date().toISOString()
           })
           .eq('id', patient.id);
 
         if (error) {
-          console.error("⚡ [Supabase Cloud] Errore aggiornamento fase su Supabase:", error.message);
+          console.error('⚡ [Supabase Cloud] Errore aggiornamento fase su Supabase:', error.message);
         } else {
-          console.log("⚡ [Supabase Cloud] Fase salvata con successo nel DB:", normPhase);
+          console.log('⚡ [Supabase Cloud] Fase salvata con successo nel DB:', normPhase);
         }
       } catch (err) {
         console.error("Eccezione durante l'aggiornamento fase:", err);
@@ -96,8 +101,8 @@ export default function PatientDetail({ patient, onBack, onUpdatePatient }) {
     }
 
     setActivePhase(normPhase);
-    onUpdatePatient({ 
-      ...patient, 
+    onUpdatePatient({
+      ...patient,
       fase_riabilitativa: normPhase,
       fase_attuale: normPhase
     });
@@ -110,7 +115,7 @@ export default function PatientDetail({ patient, onBack, onUpdatePatient }) {
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <button
             onClick={onBack}
-            className="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-bold text-slate-200 hover:text-cyan-300 border border-slate-700 transition-all shadow-sm"
+            className="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-bold text-slate-200 hover:text-cyan-300 border border-slate-700 transition-all shadow-sm cursor-pointer"
           >
             <ArrowLeft className="w-4 h-4 text-cyan-400" />
             <span>Torna al Database Pazienti</span>
@@ -150,37 +155,66 @@ export default function PatientDetail({ patient, onBack, onUpdatePatient }) {
           </div>
         </div>
 
-        {/* Patient Profile Bar */}
+        {/* Patient Profile Header Bar con Pulsante Info / Anagrafica accanto al Nome e Cognome */}
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pt-4 border-t border-slate-700/80">
           <div>
-            <div className="flex items-center gap-3">
+            <div className="flex flex-wrap items-center gap-3">
               <h2 className="text-3xl font-black text-white tracking-tight">
                 {patient.nome} {patient.cognome}
               </h2>
+
+              {/* PULSANTE INFO / ANAGRAFICA & CHIRURGIA ACCANTO AL NOME */}
+              <button
+                type="button"
+                onClick={() => setIsAnagraficaModalOpen(true)}
+                title="Visualizza e modifica Anagrafica e Dettagli Chirurgici"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-cyan-950 text-cyan-300 hover:text-cyan-200 border border-cyan-500/40 hover:border-cyan-400 text-xs font-extrabold shadow-md transition-all cursor-pointer group"
+              >
+                <Info className="w-4 h-4 text-cyan-400 group-hover:scale-110 transition-transform" />
+                <span>Info / Anagrafica</span>
+              </button>
+
               <span className="px-3 py-1 rounded-full bg-cyan-950 border border-cyan-500/50 text-cyan-300 font-mono text-xs font-black">
                 Lato {patient.lato_lesione}
               </span>
             </div>
 
             <div className="flex flex-wrap items-center gap-x-5 gap-y-1.5 text-xs text-slate-300 mt-2 font-medium">
-              <span>Sport: <strong className="text-white bg-slate-800 px-2 py-0.5 rounded border border-slate-700">{patient.sport} ({patient.ruolo_sportivo || 'Atleta'})</strong></span>
-              <span>Livello: <strong className="text-slate-100">{patient.livello}</strong></span>
-              <span>Innesto: <strong className="text-cyan-300 font-bold">{patient.tipo_innesto}</strong></span>
-              <span>Data Chirurgia: <strong className="text-slate-100 font-mono">{patient.data_intervento}</strong></span>
-              <span>Chirurgo: <strong className="text-slate-100">{patient.chirurgo || 'N/D'}</strong></span>
+              <span>
+                Sport:{' '}
+                <strong className="text-white bg-slate-800 px-2 py-0.5 rounded border border-slate-700">
+                  {patient.sport} ({patient.ruolo_sportivo || 'Atleta'})
+                </strong>
+              </span>
+              <span>
+                Livello: <strong className="text-slate-100">{patient.livello}</strong>
+              </span>
+              <span>
+                Innesto: <strong className="text-cyan-300 font-bold">{patient.tipo_innesto}</strong>
+              </span>
+              <span>
+                Data Chirurgia: <strong className="text-slate-100 font-mono">{patient.data_intervento}</strong>
+              </span>
+              <span>
+                Chirurgo: <strong className="text-slate-100">{patient.chirurgo || 'N/D'}</strong>
+              </span>
             </div>
           </div>
 
           <div className="flex items-center gap-3">
             <div className="p-3 bg-slate-950 rounded-xl border border-slate-700 text-right hidden sm:block">
-              <div className="text-[11px] text-slate-400 uppercase tracking-wider font-bold">ACL-RSI Iniziale</div>
-              <div className="text-2xl font-black text-emerald-400">{patient.aclrsi_score_iniziale}%</div>
+              <div className="text-[11px] text-slate-400 uppercase tracking-wider font-bold">
+                ACL-RSI Iniziale
+              </div>
+              <div className="text-2xl font-black text-emerald-400">
+                {patient.aclrsi_score_iniziale}%
+              </div>
             </div>
           </div>
         </div>
       </div>
 
-      {/* 6-Tab Navigation Bar */}
+      {/* 5-Tab Operational Navigation Bar */}
       <div className="p-1.5 bg-slate-900 rounded-2xl border border-slate-700/80 flex items-center gap-2 overflow-x-auto scrollbar-none shadow-xl">
         {tabs.map((tab) => {
           const Icon = tab.icon;
@@ -192,20 +226,19 @@ export default function PatientDetail({ patient, onBack, onUpdatePatient }) {
               onClick={() => setActiveTab(tab.id)}
               className={`
                 flex items-center gap-2.5 px-4 py-3 rounded-xl text-xs font-black transition-all whitespace-nowrap flex-shrink-0 cursor-pointer
-                ${isActive
-                  ? 'tab-active shadow-lg'
-                  : 'tab-inactive'
-                }
+                ${isActive ? 'tab-active shadow-lg' : 'tab-inactive'}
               `}
             >
               <Icon className={`w-4 h-4 ${isActive ? 'text-white' : 'text-slate-400'}`} />
               <span>{tab.label}</span>
               {tab.badge && (
-                <span className={`text-[10px] px-2 py-0.5 rounded font-mono font-extrabold ${
-                  isActive
-                    ? 'bg-white/20 text-white border border-white/30'
-                    : 'bg-emerald-950 text-emerald-400 border border-emerald-500/40'
-                }`}>
+                <span
+                  className={`text-[10px] px-2 py-0.5 rounded font-mono font-extrabold ${
+                    isActive
+                      ? 'bg-white/20 text-white border border-white/30'
+                      : 'bg-emerald-950 text-emerald-400 border border-emerald-500/40'
+                  }`}
+                >
                   {tab.badge}
                 </span>
               )}
@@ -216,16 +249,9 @@ export default function PatientDetail({ patient, onBack, onUpdatePatient }) {
 
       {/* Tab Content Display */}
       <div className="transition-all duration-200">
-        {activeTab === 'tab1' && (
-          <TabAnagrafica 
-            patient={patient} 
-            onUpdatePatient={onUpdatePatient} 
-          />
-        )}
-
         {activeTab === 'tab2' && (
-          <TabBatteriaTest 
-            patient={patient} 
+          <TabBatteriaTest
+            patient={patient}
             activePhase={activePhase}
             onChangePhase={handlePhaseChange}
             onSaveTest={(testData) => {
@@ -243,7 +269,7 @@ export default function PatientDetail({ patient, onBack, onUpdatePatient }) {
         )}
 
         {activeTab === 'tab3' && (
-          <TabDirettiveOperative 
+          <TabDirettiveOperative
             patient={patient}
             onChangePhase={handlePhaseChange}
             onSaveDirectives={async (directives) => {
@@ -253,14 +279,17 @@ export default function PatientDetail({ patient, onBack, onUpdatePatient }) {
               };
               if (isSupabaseConfigured && patient?.id) {
                 try {
-                  await supabase.from('pazienti').update({
-                    note_operative: updatedPatient.note_operative || '',
-                    esercizi_prescritti: updatedPatient.esercizi_prescritti || '',
-                    ...(directives.fase_riabilitativa ? { fase_riabilitativa: directives.fase_riabilitativa } : {}),
-                    ...(directives.alert_compenso ? { alert_compenso: directives.alert_compenso } : {}),
-                    ...(directives.deficits_list ? { deficits_list: directives.deficits_list } : {}),
-                    ...(directives.exercises_list ? { exercises_list: directives.exercises_list } : {})
-                  }).eq('id', patient.id);
+                  await supabase
+                    .from('pazienti')
+                    .update({
+                      note_operative: updatedPatient.note_operative || '',
+                      esercizi_prescritti: updatedPatient.esercizi_prescritti || '',
+                      ...(directives.fase_riabilitativa ? { fase_riabilitativa: directives.fase_riabilitativa } : {}),
+                      ...(directives.alert_compenso ? { alert_compenso: directives.alert_compenso } : {}),
+                      ...(directives.deficits_list ? { deficits_list: directives.deficits_list } : {}),
+                      ...(directives.exercises_list ? { exercises_list: directives.exercises_list } : {})
+                    })
+                    .eq('id', patient.id);
                 } catch (err) {
                   console.error('Errore aggiornamento direttive su Supabase:', err);
                 }
@@ -270,9 +299,7 @@ export default function PatientDetail({ patient, onBack, onUpdatePatient }) {
           />
         )}
 
-        {activeTab === 'tab4' && (
-          <TabVistaMobile patient={patient} />
-        )}
+        {activeTab === 'tab4' && <TabVistaMobile patient={patient} />}
 
         {activeTab === 'tab6' && (
           <RilevazioniCarichiTab
@@ -282,10 +309,74 @@ export default function PatientDetail({ patient, onBack, onUpdatePatient }) {
           />
         )}
 
-        {activeTab === 'tab5' && (
-          <TabCopilotPdf patient={patient} />
-        )}
+        {activeTab === 'tab5' && <TabCopilotPdf patient={patient} />}
       </div>
+
+      {/* MODALE A COMPARSA: ANAGRAFICA CLINICA & DETTAGLI CHIRURGICI */}
+      {isAnagraficaModalOpen && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/85 backdrop-blur-md"
+          onClick={() => setIsAnagraficaModalOpen(false)}
+        >
+          <div
+            className="w-full max-w-4xl max-h-[90vh] overflow-y-auto bg-slate-900 border border-slate-700 rounded-3xl p-6 shadow-2xl space-y-4"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between border-b border-slate-800 pb-3 sticky top-0 bg-slate-900 z-10">
+              <div className="flex items-center gap-2.5">
+                <div className="p-2 rounded-xl bg-cyan-950 border border-cyan-500/40 text-cyan-400">
+                  <User className="w-5 h-5" />
+                </div>
+                <div>
+                  <span className="text-[10px] font-extrabold uppercase tracking-wider text-cyan-400 block">
+                    Scheda Paziente & Dettagli Chirurgici
+                  </span>
+                  <h3 className="text-lg font-black text-white">
+                    {patient.nome} {patient.cognome}
+                  </h3>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setIsAnagraficaModalOpen(false)}
+                className="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white text-xs font-bold flex items-center gap-1.5 cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+                <span>Chiudi</span>
+              </button>
+            </div>
+
+            {/* RIEPILOGO SINTETICO RAPIDO IN TESTA AL MODALE */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 bg-slate-950 border border-slate-800 rounded-2xl p-4 text-xs">
+              <div>
+                <span className="text-slate-400 block text-[10px] uppercase font-bold">Data di Nascita</span>
+                <strong className="text-white font-mono">{patient.data_nascita || 'N/D'}</strong>
+              </div>
+              <div>
+                <span className="text-slate-400 block text-[10px] uppercase font-bold">Codice Fiscale</span>
+                <strong className="text-cyan-300 font-mono uppercase">{patient.codice_fiscale || 'N/D'}</strong>
+              </div>
+              <div>
+                <span className="text-slate-400 block text-[10px] uppercase font-bold">Sport & Ruolo</span>
+                <strong className="text-white">{patient.sport} ({patient.ruolo_sportivo || 'N/D'})</strong>
+              </div>
+              <div>
+                <span className="text-slate-400 block text-[10px] uppercase font-bold">Innesto & Lato</span>
+                <strong className="text-emerald-400">{patient.tipo_innesto} • Lato {patient.lato_lesione}</strong>
+              </div>
+            </div>
+
+            {/* FORM COMPLETO DI ANAGRAFICA & CHIRURGIA (VISUALIZZAZIONE E MODIFICA) */}
+            <TabAnagrafica
+              patient={patient}
+              onUpdatePatient={async (updated) => {
+                await onUpdatePatient(updated);
+              }}
+            />
+          </div>
+        </div>
+      )}
 
       {/* Modal Nuova Valutazione Clinica LCA */}
       <ModalNuovaValutazione
