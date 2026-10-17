@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import { createPortal } from 'react-dom';
 import {
   X,
   Printer,
@@ -1364,6 +1365,19 @@ export default function PrintConfiguratorModal({ isOpen, onClose, patient, patie
     }
   }, [selectedPatientId, selectedSessionId, selectedTest, activePatientObj]);
 
+  // Isola completamente il report in stampa nascondendo #root tramite body.print-modal-open
+  useEffect(() => {
+    if (typeof document === 'undefined') return;
+    if (isOpen) {
+      document.body.classList.add('print-modal-open');
+    } else {
+      document.body.classList.remove('print-modal-open');
+    }
+    return () => {
+      document.body.classList.remove('print-modal-open');
+    };
+  }, [isOpen]);
+
   if (!isOpen) return null;
 
   // Aggiornamento Rationale / Citazione
@@ -1451,7 +1465,7 @@ export default function PrintConfiguratorModal({ isOpen, onClose, patient, patie
     window.print();
   };
 
-  return (
+  const modalContent = (
     <div className="print-modal-backdrop fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-slate-950/85 backdrop-blur-md overflow-y-auto font-sans">
       {/* MODAL WRAPPER CONTAINER */}
       <div className="w-full max-w-7xl bg-slate-900 border border-slate-700/80 rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[94vh] print-modal-container">
@@ -1877,4 +1891,8 @@ export default function PrintConfiguratorModal({ isOpen, onClose, patient, patie
       />
     </div>
   );
+
+  return typeof document !== 'undefined'
+    ? createPortal(modalContent, document.body)
+    : modalContent;
 }

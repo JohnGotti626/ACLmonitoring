@@ -146,7 +146,7 @@ body textarea:not(.print-report-container *)::placeholder {
 }
 
 /* ============================================================================
-   FORMATO A4 E ISOLAMENTO TOTALE DEL REPORT IN STAMPA (@media print)
+   3. FORMATTAZIONE A4 E ISOLAMENTO TOTALE DEL REPORT (@media print)
    ============================================================================ */
 @page {
   size: A4 portrait;
@@ -154,7 +154,7 @@ body textarea:not(.print-report-container *)::placeholder {
 }
 
 @media print {
-  /* 1. Forza il mantenimento fedele di colori, sfondi card, badge e grafici SVG */
+  /* Forza il mantenimento dei colori e dei background delle card durante la stampa */
   html,
   body,
   .print-report-container,
@@ -164,11 +164,13 @@ body textarea:not(.print-report-container *)::placeholder {
     color-adjust: exact !important;
   }
 
-  /* Reset completo di html, body e #root per eliminare altezze residue o pagine bianche */
+  /* Reset totale di html, body e #root per evitare altezze min-h-screen o sfondi scuri */
   html,
   body,
-  #root {
+  #root,
+  #root > div {
     background: #ffffff !important;
+    background-color: #ffffff !important;
     color: #0f172a !important;
     margin: 0 !important;
     padding: 0 !important;
@@ -177,15 +179,43 @@ body textarea:not(.print-report-container *)::placeholder {
     min-height: 0 !important;
     max-height: none !important;
     overflow: visible !important;
+    display: block !important;
+    position: static !important;
   }
 
-  /* 2. Isolamento Totale: nascondi tutti gli elementi della pagina web tranne il report */
+  /* 1. Isolamento Totale del Report: nascondi tutti gli elementi della pagina web tranne il report */
   body * {
     visibility: hidden;
   }
 
-  /* Rimuovi completamente dal flusso di layout gli elementi UI di sfondo e i controlli no-print
-     così non occupano spazio verticale e non generano pagine bianche iniziali */
+  .print-report-container,
+  .print-report-container * {
+    visibility: visible;
+  }
+
+  .print-report-container {
+    position: absolute !important;
+    left: 0 !important;
+    top: 0 !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    background: #ffffff !important;
+    color: #0f172a !important;
+    border: none !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+    /* 2. Eliminazione Pagine Bianche iniziali e finali */
+    page-break-before: avoid !important;
+    break-before: avoid !important;
+    page-break-after: avoid !important;
+    break-after: avoid !important;
+  }
+
+  /* Quando il modal di stampa A4 è aperto (montato via Portal su body),
+     collassa #root a 0px così l'interfaccia di sfondo non genera pagine vuote */
+  body.print-modal-open > #root,
   .no-print,
   header,
   nav,
@@ -193,12 +223,12 @@ body textarea:not(.print-report-container *)::placeholder {
   .app-shell-when-modal-print {
     display: none !important;
     height: 0 !important;
+    min-height: 0 !important;
     margin: 0 !important;
     padding: 0 !important;
   }
 
-  /* Neutralizza posizionamenti fixed, scroll container e backdrop-filter degli involucri modali
-     (backdrop-filter/transform creerebbero altrimenti un containing block sfalsato) */
+  /* Neutralizza gli involucri del modal in stampa (nessun backdrop-filter, scroll o altezza fissa) */
   .print-modal-backdrop,
   .print-modal-container,
   .print-modal-body,
@@ -222,39 +252,12 @@ body textarea:not(.print-report-container *)::placeholder {
     filter: none !important;
   }
 
-  /* Rendi visibile ESCLUSIVAMENTE il contenitore del report e i suoi elementi figli */
-  .print-report-container,
-  .print-report-container * {
-    visibility: visible;
-  }
-
-  /* Posiziona il contenitore del report all'origine (0, 0) della prima pagina A4
-     ed evita qualsiasi interruzione di pagina prima del report */
-  .print-report-container {
-    position: absolute !important;
-    left: 0 !important;
-    top: 0 !important;
-    width: 100% !important;
-    max-width: 100% !important;
-    margin: 0 !important;
-    padding: 0 !important;
-    background: #ffffff !important;
-    color: #0f172a !important;
-    border: none !important;
-    border-radius: 0 !important;
-    box-shadow: none !important;
-    page-break-before: avoid !important;
-    break-before: avoid !important;
-    page-break-after: avoid !important;
-    break-after: avoid !important;
-  }
-
-  /* Nascondi in stampa i controlli interattivi interni al report (es. select/button/textarea live) */
+  /* Nascondi i controlli interattivi dentro il report durante la stampa */
   .print-report-container .no-print {
     display: none !important;
   }
 
-  /* Mostra in stampa gli elementi sostitutivi statici (es. label parametro e testo note) */
+  /* Mostra le etichette statiche di stampa dentro il report */
   .print-report-container .print-only-block {
     display: block !important;
   }
@@ -263,14 +266,14 @@ body textarea:not(.print-report-container *)::placeholder {
     display: inline-block !important;
   }
 
-  /* Mantieni la griglia a 2 colonne per le schede metriche sul foglio A4 */
+  /* Griglia a 2 colonne fisse su foglio A4 */
   .print-report-container .print-cards-grid {
     display: grid !important;
     grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
-    gap: 10px !important;
+    gap: 8px !important;
   }
 
-  /* 3. Impedisci che singole schede o sezioni del report vengano spezzate a metà tra due pagine */
+  /* 2. Impedisci che singole schede o sezioni vengano spezzate a metà tra due pagine */
   .print-report-card,
   .report-card-vald,
   .print-report-section,

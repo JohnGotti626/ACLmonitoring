@@ -753,7 +753,15 @@ function CopilotEngineInner({ patient }) {
   };
 
   return (
-    <div className="space-y-6 font-sans no-print-wrapper">
+    <div
+      style={{
+        pageBreakBefore: 'avoid',
+        breakBefore: 'avoid',
+        WebkitPrintColorAdjust: 'exact',
+        printColorAdjust: 'exact'
+      }}
+      className="print-report-container space-y-6 font-sans"
+    >
       
       {/* ========================================================================= */}
       {/* 1. HEADER BANNER PAZIENTE & READINESS SCORE (0-100) */}
