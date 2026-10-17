@@ -242,7 +242,7 @@ function MainApp() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col">
+    <div className="min-h-screen bg-slate-50 text-slate-900 flex flex-col">
       {/* Header Bar */}
       <Header
         onToggleMobileSidebar={() => setMobileOpen(!mobileOpen)}
@@ -252,14 +252,14 @@ function MainApp() {
 
       {/* Eventuale Banner Errore Permessi Database Supabase */}
       {dbErrorBanner && (
-        <div className="bg-rose-950/90 border-b border-rose-500/50 px-4 py-3 text-xs text-rose-200 flex items-center justify-between max-w-7xl w-full mx-auto mt-2 rounded-xl">
+        <div className="bg-rose-50 border border-rose-200 px-4 py-3 text-xs text-rose-800 flex items-center justify-between max-w-7xl w-full mx-auto mt-2 rounded-xl shadow-xs">
           <div className="flex items-center gap-2 font-bold">
-            <AlertTriangle className="w-4 h-4 text-rose-400 shrink-0" />
+            <AlertTriangle className="w-4 h-4 text-rose-600 shrink-0" />
             <span>{dbErrorBanner}</span>
           </div>
           <button
             onClick={() => setDbErrorBanner('')}
-            className="text-rose-300 hover:text-white font-black ml-4"
+            className="text-rose-600 hover:text-rose-900 font-black ml-4"
           >
             ✕
           </button>
@@ -324,13 +324,13 @@ function MainApp() {
 
       {/* Modal Inserimento Nuovo Paziente (Solo ADMIN) */}
       {showNewPatientModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md">
-          <div className="w-full max-w-lg bg-slate-900 border border-slate-800 rounded-2xl p-6 space-y-4 shadow-2xl">
-            <div className="flex items-center justify-between pb-3 border-b border-slate-800">
-              <h3 className="font-extrabold text-white text-base">Inserimento Nuovo Paziente LCA</h3>
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm">
+          <div className="w-full max-w-lg bg-white border border-slate-200 rounded-2xl p-6 space-y-4 shadow-xl">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-200">
+              <h3 className="font-extrabold text-slate-900 text-base">Inserimento Nuovo Paziente LCA</h3>
               <button
                 onClick={() => setShowNewPatientModal(false)}
-                className="text-slate-400 hover:text-white"
+                className="text-slate-400 hover:text-slate-700"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -339,44 +339,44 @@ function MainApp() {
             <form onSubmit={handleAddPatientSubmit} className="space-y-3 text-xs">
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-slate-400 mb-1">Nome</label>
+                  <label className="block text-slate-600 font-semibold mb-1">Nome</label>
                   <input
                     type="text"
                     required
                     value={newPatientForm.nome}
                     onChange={(e) => setNewPatientForm({ ...newPatientForm, nome: e.target.value })}
-                    className="w-full bg-slate-950 border border-slate-700 rounded-lg p-2 text-white"
+                    className="w-full bg-white border border-slate-300 rounded-lg p-2 text-slate-900"
                   />
                 </div>
                 <div>
-                  <label className="block text-slate-400 mb-1">Cognome</label>
+                  <label className="block text-slate-600 font-semibold mb-1">Cognome</label>
                   <input
                     type="text"
                     required
                     value={newPatientForm.cognome}
                     onChange={(e) => setNewPatientForm({ ...newPatientForm, cognome: e.target.value })}
-                    className="w-full bg-slate-950 border border-slate-700 rounded-lg p-2 text-white"
+                    className="w-full bg-white border border-slate-300 rounded-lg p-2 text-slate-900"
                   />
                 </div>
               </div>
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-slate-400 mb-1">Sport</label>
+                  <label className="block text-slate-600 font-semibold mb-1">Sport</label>
                   <input
                     type="text"
                     required
                     value={newPatientForm.sport}
                     onChange={(e) => setNewPatientForm({ ...newPatientForm, sport: e.target.value })}
-                    className="w-full bg-slate-950 border border-slate-700 rounded-lg p-2 text-white"
+                    className="w-full bg-white border border-slate-300 rounded-lg p-2 text-slate-900"
                   />
                 </div>
                 <div>
-                  <label className="block text-slate-400 mb-1">Tipo Innesto</label>
+                  <label className="block text-slate-600 font-semibold mb-1">Tipo Innesto</label>
                   <select
                     value={newPatientForm.tipo_innesto}
                     onChange={(e) => setNewPatientForm({ ...newPatientForm, tipo_innesto: e.target.value })}
-                    className="w-full bg-slate-950 border border-slate-700 rounded-lg p-2 text-white"
+                    className="w-full bg-white border border-slate-300 rounded-lg p-2 text-slate-900"
                   >
                     <option value="STG">STG (Semitendinoso/Gracile)</option>
                     <option value="Rotuleo">Tendine Rotuleo</option>
@@ -388,37 +388,37 @@ function MainApp() {
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-slate-400 mb-1">Data Intervento</label>
+                  <label className="block text-slate-600 font-semibold mb-1">Data Intervento</label>
                   <input
                     type="date"
                     required
                     value={newPatientForm.data_intervento}
                     onChange={(e) => setNewPatientForm({ ...newPatientForm, data_intervento: e.target.value })}
-                    className="w-full bg-slate-950 border border-slate-700 rounded-lg p-2 text-white font-mono"
+                    className="w-full bg-white border border-slate-300 rounded-lg p-2 text-slate-900 font-mono"
                   />
                 </div>
                 <div>
-                  <label className="block text-slate-400 mb-1">Chirurgo Ortopedico</label>
+                  <label className="block text-slate-600 font-semibold mb-1">Chirurgo Ortopedico</label>
                   <input
                     type="text"
                     value={newPatientForm.chirurgo}
                     onChange={(e) => setNewPatientForm({ ...newPatientForm, chirurgo: e.target.value })}
-                    className="w-full bg-slate-950 border border-slate-700 rounded-lg p-2 text-white"
+                    className="w-full bg-white border border-slate-300 rounded-lg p-2 text-slate-900"
                   />
                 </div>
               </div>
 
-              <div className="pt-3 border-t border-slate-800 flex justify-end gap-2">
+              <div className="pt-3 border-t border-slate-200 flex justify-end gap-2">
                 <button
                   type="button"
                   onClick={() => setShowNewPatientModal(false)}
-                  className="px-4 py-2 bg-slate-800 text-slate-300 rounded-xl font-bold"
+                  className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl font-bold"
                 >
                   Annulla
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-2 bg-cyan-600 text-white rounded-xl font-bold flex items-center gap-1.5"
+                  className="px-4 py-2 bg-sky-600 hover:bg-sky-700 text-white rounded-xl font-bold flex items-center gap-1.5"
                 >
                   <Save className="w-4 h-4" />
                   <span>Salva in Database</span>

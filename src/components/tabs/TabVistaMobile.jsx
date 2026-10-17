@@ -17,6 +17,7 @@ import {
   Info
 } from 'lucide-react';
 import { supabase, isSupabaseConfigured } from '../../lib/supabase';
+import { getLastValidMetricValue, sortTestsByDate } from '../../utils/testUtils';
 
 export default function TabVistaMobile({ patient }) {
   // Sotto-Tab Interna Mobile (Default: Scheda Operativa & Esercizi)
@@ -104,16 +105,29 @@ export default function TabVistaMobile({ patient }) {
   const phaseSubtitle = phaseInfo.subtitle;
   const targetLsi = phaseInfo.targetLsi;
 
-  // Estrai i test specifici del paziente attivo
-  const patientTests = Array.isArray(activePatient?.tests) ? activePatient.tests : [];
+  // Estrai i test specifici del paziente attivo ordinati cronologicamente
+  const patientTests = sortTestsByDate(activePatient?.tests);
   const latestTest = patientTests.length > 0 ? patientTests[patientTests.length - 1] : null;
-  const hasTests = latestTest !== null;
+  const hasTests = patientTests.length > 0;
 
   const safeFixedMobile = (val, decimals = 1, suffix = '') => {
     if (val === undefined || val === null || val === '' || val === '-') return 'N/D';
     const num = Number(val);
     return isNaN(num) ? 'N/D' : `${num.toFixed(decimals)}${suffix}`;
   };
+
+  // Recupero persistente dell'ultimo valore valido in ordine cronologico temporale
+  const lastLsiQuad = getLastValidMetricValue(patientTests, ['lsiQuad', 'lsi_quad_calculated']);
+  const lastQuadOpNmKg = getLastValidMetricValue(patientTests, ['quadOpNmKg', 'quad_rel_op']);
+  const lastLsiFlex = getLastValidMetricValue(patientTests, ['lsiFlex', 'lsi_curl_calculated']);
+  const lastQuadOp = getLastValidMetricValue(patientTests, ['quadOp', 'iso_leg_ext_dx', 'iso_leg_ext_sx']);
+  const lastQuadSano = getLastValidMetricValue(patientTests, ['quadSano', 'iso_leg_ext_sx']);
+  const lastFlexOp = getLastValidMetricValue(patientTests, ['flexOp', 'iso_leg_curl_dx', 'iso_leg_curl_sx']);
+  const lastHqRatio = (lastQuadOp !== null && lastFlexOp !== null && lastQuadOp > 0)
+    ? lastFlexOp / lastQuadOp
+    : null;
+  const lastIkdc = getLastValidMetricValue(patientTests, ['ikdc', 'ikdc_score']);
+  const lastRsiDropJump = getLastValidMetricValue(patientTests, ['rsiDropJump', 'djRSI', 'dj_rsi', 'rsi_drop_jump']);
 
   // Sincronizzazione dinamica dei deficit con le Direttive Operative
   const deficits = (Array.isArray(activePatient?.deficits_list) && activePatient.deficits_list.length > 0)
@@ -125,11 +139,11 @@ export default function TabVistaMobile({ patient }) {
         actionPlan: d.actionPlan || 'Piano di monitoraggio standard.'
       }))
     : (hasTests ? [
-        ...(latestTest?.lsiQuad && typeof latestTest.lsiQuad === 'number' && latestTest.lsiQuad < targetLsi ? [{
+        ...(lastLsiQuad !== null && lastLsiQuad < targetLsi ? [{
           id: 1,
           severity: 'Rosso',
-          title: `Deficit Forza Quadricipite LSI (${latestTest.lsiQuad.toFixed(1)}%)`,
-          detail: `Forza dinamometrica Iso Push: ${latestTest.quadOp || 'N/D'}N (Arto Operato) vs ${latestTest.quadSano || 'N/D'}N (Arto Sano). Target Fase: ≥${targetLsi}%.`,
+          title: `Deficit Forza Quadricipite LSI (${lastLsiQuad.toFixed(1)}%)`,
+          detail: `Forza dinamometrica Iso Push: ${lastQuadOp ?? 'N/D'}N (Arto Operato) vs ${lastQuadSano ?? 'N/D'}N (Arto Sano). Target Fase: ≥${targetLsi}%.`,
           actionPlan: 'Piano Azione: Potenziamento selettivo concentrico/eccentrico.'
         }] : []),
         {
@@ -174,60 +188,60 @@ export default function TabVistaMobile({ patient }) {
         }
       ]);
 
-  // Data per Bicchieri Prestativi sincronizzati con la Fase del Paziente
+  // Data per Bicchieri Prestativi sincronizzati con l'ultimo test cronologico disponibile
   const cups = [
     { 
       id: 1, 
       name: 'LSI QUADRICIPITE', 
-      val: hasTests ? safeFixedMobile(latestTest?.lsiQuad, 1, '%') : 'N/D', 
+      val: lastLsiQuad !== null ? safeFixedMobile(lastLsiQuad, 1, '%') : 'N/D', 
       target: `Target: >${targetLsi}%`, 
-      pct: hasTests && Number(latestTest?.lsiQuad) ? Math.min(100, Math.round((Number(latestTest.lsiQuad) / targetLsi) * 100)) : 0, 
-      isOk: hasTests && Number(latestTest?.lsiQuad) >= targetLsi, 
+      pct: lastLsiQuad !== null ? Math.min(100, Math.round((lastLsiQuad / targetLsi) * 100)) : 0, 
+      isOk: lastLsiQuad !== null && lastLsiQuad >= targetLsi, 
       note: 'Iso Push Leg Extension' 
     },
     { 
       id: 2, 
       name: 'FORZA REL. QUAD OP', 
-      val: hasTests ? safeFixedMobile(latestTest?.quadOpNmKg, 2, ' Nm/kg') : 'N/D', 
+      val: lastQuadOpNmKg !== null ? safeFixedMobile(lastQuadOpNmKg, 2, ' Nm/kg') : 'N/D', 
       target: 'Target: >2.0 Nm/kg', 
-      pct: hasTests && Number(latestTest?.quadOpNmKg) ? Math.min(100, Math.round((Number(latestTest.quadOpNmKg) / 2.0) * 100)) : 0, 
-      isOk: hasTests && Number(latestTest?.quadOpNmKg) >= 2.0, 
+      pct: lastQuadOpNmKg !== null ? Math.min(100, Math.round((lastQuadOpNmKg / 2.0) * 100)) : 0, 
+      isOk: lastQuadOpNmKg !== null && lastQuadOpNmKg >= 2.0, 
       note: 'Torque Relativo Corporeo' 
     },
     { 
       id: 3, 
       name: 'LSI HAMSTRING', 
-      val: hasTests ? safeFixedMobile(latestTest?.lsiFlex, 1, '%') : 'N/D', 
+      val: lastLsiFlex !== null ? safeFixedMobile(lastLsiFlex, 1, '%') : 'N/D', 
       target: `Target: >${targetLsi}%`, 
-      pct: hasTests && Number(latestTest?.lsiFlex) ? Math.min(100, Math.round((Number(latestTest.lsiFlex) / targetLsi) * 100)) : 0, 
-      isOk: hasTests && Number(latestTest?.lsiFlex) >= targetLsi, 
+      pct: lastLsiFlex !== null ? Math.min(100, Math.round((lastLsiFlex / targetLsi) * 100)) : 0, 
+      isOk: lastLsiFlex !== null && lastLsiFlex >= targetLsi, 
       note: 'Iso Push Leg Curl' 
     },
     { 
       id: 4, 
       name: 'H/Q RATIO ISOMETRICO', 
-      val: hasTests && Number(latestTest?.quadOp) > 0 && Number(latestTest?.flexOp) > 0 ? (Number(latestTest.flexOp) / Number(latestTest.quadOp)).toFixed(2) : 'N/D', 
+      val: lastHqRatio !== null ? lastHqRatio.toFixed(2) : 'N/D', 
       target: 'Target: >0.55', 
-      pct: hasTests && Number(latestTest?.quadOp) > 0 && Number(latestTest?.flexOp) > 0 ? Math.min(100, Math.round(((Number(latestTest.flexOp) / Number(latestTest.quadOp)) / 0.55) * 100)) : 0, 
-      isOk: hasTests && Number(latestTest?.quadOp) > 0 && (Number(latestTest.flexOp) / Number(latestTest.quadOp)) >= 0.55, 
+      pct: lastHqRatio !== null ? Math.min(100, Math.round((lastHqRatio / 0.55) * 100)) : 0, 
+      isOk: lastHqRatio !== null && lastHqRatio >= 0.55, 
       note: 'Rapporto Flessori / Estensori' 
     },
     { 
       id: 5, 
       name: 'SCORE IKDC', 
-      val: hasTests ? safeFixedMobile(latestTest?.ikdc, 0, ' pts') : 'N/D', 
+      val: lastIkdc !== null ? safeFixedMobile(lastIkdc, 0, ' pts') : 'N/D', 
       target: 'Target: >70 pts', 
-      pct: hasTests && Number(latestTest?.ikdc) ? Math.min(100, Math.round((Number(latestTest.ikdc) / 70) * 100)) : 0, 
-      isOk: hasTests && Number(latestTest?.ikdc) >= 70, 
+      pct: lastIkdc !== null ? Math.min(100, Math.round((lastIkdc / 70) * 100)) : 0, 
+      isOk: lastIkdc !== null && lastIkdc >= 70, 
       note: 'Prontitudine Clinica Soggettiva' 
     },
     { 
       id: 6, 
       name: 'RSI DROP JUMP', 
-      val: hasTests ? safeFixedMobile(latestTest?.rsiDropJump, 2, ' rsi') : 'N/D', 
+      val: lastRsiDropJump !== null ? safeFixedMobile(lastRsiDropJump, 2, ' rsi') : 'N/D', 
       target: 'Target: >1.50 rsi', 
-      pct: hasTests && Number(latestTest?.rsiDropJump) ? Math.min(100, Math.round((Number(latestTest.rsiDropJump) / 1.5) * 100)) : 0, 
-      isOk: hasTests && Number(latestTest?.rsiDropJump) >= 1.5, 
+      pct: lastRsiDropJump !== null ? Math.min(100, Math.round((lastRsiDropJump / 1.5) * 100)) : 0, 
+      isOk: lastRsiDropJump !== null && lastRsiDropJump >= 1.5, 
       note: 'Contact Time < 250ms' 
     }
   ];

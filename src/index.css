@@ -4,57 +4,143 @@
 
 @layer base {
   body {
-    @apply bg-slate-950 text-slate-100 font-sans selection:bg-cyan-500 selection:text-white antialiased;
+    @apply bg-slate-50 text-slate-900 font-sans selection:bg-sky-500 selection:text-white antialiased;
   }
 }
 
-/* Custom scrollbars */
+/* Custom scrollbars - Light/Clean UI */
 ::-webkit-scrollbar {
   width: 7px;
   height: 7px;
 }
 ::-webkit-scrollbar-track {
-  background: #090d16;
+  background: #f1f5f9;
 }
 ::-webkit-scrollbar-thumb {
-  background: #1e293b;
+  background: #cbd5e1;
   border-radius: 4px;
-  border: 1px solid #334155;
+  border: 1px solid #e2e8f0;
 }
 ::-webkit-scrollbar-thumb:hover {
   background: #0284c7;
 }
 
-/* High-Contrast Glass Panels & Cards */
+/* Light/Clean Clinical Panels & Cards */
 .glass-panel {
-  background: rgba(15, 23, 42, 0.92);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
-  border: 1px solid rgba(51, 65, 85, 0.8);
-  box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.5);
+  background: #ffffff !important;
+  border: 1px solid #e2e8f0 !important;
+  box-shadow: 0 4px 20px -2px rgba(15, 23, 42, 0.06), 0 2px 6px -1px rgba(15, 23, 42, 0.04) !important;
+  color: #0f172a;
 }
 
 .glass-card {
-  background: rgba(30, 41, 59, 0.85);
-  backdrop-filter: blur(12px);
-  border: 1px solid rgba(71, 85, 105, 0.7);
-  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+  background: #ffffff !important;
+  border: 1px solid #e2e8f0 !important;
+  box-shadow: 0 2px 10px -1px rgba(15, 23, 42, 0.05) !important;
+  color: #0f172a;
 }
 
 .card-contrast {
-  background: #0b1329;
-  border: 1px solid #1e293b;
+  background: #f8fafc !important;
+  border: 1px solid #e2e8f0 !important;
+  color: #0f172a;
+}
+
+/* Adattamento automatico superfici legacy scure -> Light/Clean UI ad alto contrasto */
+.bg-slate-950:not(.fixed),
+.bg-\[\#050c17\],
+.bg-\[\#020914\],
+.bg-\[\#070b14\] {
+  background-color: #f8fafc !important;
+  color: #0f172a;
+}
+
+.bg-slate-900:not(.fixed),
+.bg-slate-900\/95,
+.bg-slate-900\/90,
+.bg-slate-900\/80,
+.bg-slate-900\/60,
+.bg-slate-900\/50,
+.bg-\[\#0a1628\],
+.bg-\[\#090e1c\] {
+  background-color: #ffffff !important;
+  color: #0f172a;
+}
+
+.bg-slate-800,
+.bg-slate-800\/90,
+.bg-slate-800\/80,
+.bg-slate-800\/60,
+.bg-slate-800\/50 {
+  background-color: #f1f5f9 !important;
+  color: #0f172a;
+}
+
+.border-slate-800,
+.border-slate-800\/90,
+.border-slate-800\/80,
+.border-slate-800\/60,
+.border-slate-800\/50,
+.border-slate-700,
+.border-slate-700\/80,
+.border-slate-700\/60,
+.border-slate-600 {
+  border-color: #e2e8f0 !important;
+}
+
+.divide-slate-800 > :not([hidden]) ~ :not([hidden]),
+.divide-slate-800\/80 > :not([hidden]) ~ :not([hidden]),
+.divide-slate-800\/60 > :not([hidden]) ~ :not([hidden]),
+.divide-slate-800\/50 > :not([hidden]) ~ :not([hidden]),
+.divide-slate-700 > :not([hidden]) ~ :not([hidden]) {
+  border-color: #e2e8f0 !important;
+}
+
+/* Contrasto tipografico leggibile su sfondi chiari */
+.text-slate-100,
+.text-slate-200 {
+  color: #1e293b !important;
+}
+
+.text-slate-300 {
+  color: #334155 !important;
+}
+
+.text-slate-400 {
+  color: #475569 !important;
+}
+
+/* Ripristino testo bianco solo per titoli/testi che usavano text-white su card ora bianche */
+.glass-panel .text-white:not(button):not(button *):not(.tab-active):not(.tab-active *),
+.glass-card .text-white:not(button):not(button *),
+.bg-white .text-white:not(button):not(button *),
+.bg-slate-900 .text-white:not(button):not(button *),
+.bg-slate-950 .text-white:not(button):not(button *) {
+  color: #0f172a !important;
+}
+
+/* Input, Select e Textarea chiari e ad alto contrasto */
+input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
+select,
+textarea {
+  background-color: #ffffff !important;
+  color: #0f172a !important;
+  border-color: #cbd5e1 !important;
+}
+input::placeholder,
+textarea::placeholder {
+  color: #94a3b8 !important;
 }
 
 /* Bicchieri Prestativi Glow Effects */
 @keyframes pulse-emerald-glow {
-  0%, 100% { box-shadow: 0 0 18px rgba(16, 185, 129, 0.5); }
-  50% { box-shadow: 0 0 30px rgba(16, 185, 129, 0.9); }
+  0%, 100% { box-shadow: 0 0 12px rgba(16, 185, 129, 0.25); }
+  50% { box-shadow: 0 0 20px rgba(16, 185, 129, 0.45); }
 }
 
 @keyframes pulse-red-alert {
-  0%, 100% { box-shadow: 0 0 12px rgba(239, 68, 68, 0.4); }
-  50% { box-shadow: 0 0 22px rgba(239, 68, 68, 0.8); }
+  0%, 100% { box-shadow: 0 0 10px rgba(239, 68, 68, 0.25); }
+  50% { box-shadow: 0 0 18px rgba(239, 68, 68, 0.45); }
 }
 
 .cup-unlocked {
@@ -65,23 +151,23 @@
   animation: pulse-red-alert 2s infinite;
 }
 
-/* High Contrast Tab Active Pill */
+/* High Contrast Tab Active Pill - Light/Clean UI */
 .tab-active {
-  background: linear-gradient(135deg, #0284c7 0%, #2563eb 100%);
+  background: linear-gradient(135deg, #0284c7 0%, #2563eb 100%) !important;
   color: #ffffff !important;
-  box-shadow: 0 0 20px rgba(2, 132, 199, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.3);
-  border: 1px solid #38bdf8 !important;
+  box-shadow: 0 4px 12px rgba(2, 132, 199, 0.25) !important;
+  border: 1px solid #0284c7 !important;
 }
 
 .tab-inactive {
-  background: rgba(15, 23, 42, 0.8);
-  color: #94a3b8;
-  border: 1px solid rgba(51, 65, 85, 0.6);
+  background: #f8fafc !important;
+  color: #475569 !important;
+  border: 1px solid #e2e8f0 !important;
 }
 .tab-inactive:hover {
-  background: rgba(30, 41, 59, 0.9);
-  color: #f8fafc;
-  border-color: #0284c7;
+  background: #f1f5f9 !important;
+  color: #0f172a !important;
+  border-color: #94a3b8 !important;
 }
 
 /* Print CSS setup for PDF Reports & Clean A4 Output */

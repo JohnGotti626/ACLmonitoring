@@ -1,31 +1,159 @@
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
 
 /**
- * Cerca a ritroso nei test del paziente (dal più recente al più vecchio)
- * il primo valore valido (non-null, non-undefined, non-NaN e non stringa vuota) per una lista di chiavi metriche alternative.
+ * Estrae o calcola dinamicamente una metrica da una singola sessione di test.
+ * Gestisce sia i campi salvati direttamente sia le metriche derivate dai dati grezzi
+ * (es. LSI Quad da quadSano/quadOp, LSI Flex da flexSano/flexOp, H:Q ratio, RSI, ecc.)
  */
-export function getLastValidMetricValue(tests, metricKeys) {
-  if (!Array.isArray(tests) || tests.length === 0) return null;
-  const keys = Array.isArray(metricKeys) ? metricKeys : [metricKeys];
+function extractMetricFromSingleTest(test, keys, allowZero = false) {
+  if (!test || typeof test !== 'object') return null;
 
-  // Ordina i test in ordine cronologico decrescente (dal più recente al più vecchio)
-  const sortedDesc = [...tests].sort((a, b) => getTestTimestamp(b) - getTestTimestamp(a));
+  const toValidNum = (v) => {
+    if (v === null || v === undefined || v === '' || v === '-') return null;
+    const n = typeof v === 'number' ? v : parseFloat(String(v).replace('%', '').replace(',', '.').trim());
+    if (isNaN(n)) return null;
+    if (!allowZero && n <= 0) return null;
+    if (allowZero && n < 0) return null;
+    return n;
+  };
 
-  for (const test of sortedDesc) {
-    if (!test || typeof test !== 'object') continue;
-    for (const key of keys) {
-      const val = test[key];
-      if (val !== null && val !== undefined && val !== '' && val !== '-') {
-        const num = typeof val === 'number' ? val : parseFloat(String(val).replace(',', '.'));
-        if (!isNaN(num)) {
-          return num;
-        }
-      }
+  // 1. Ricerca diretta sulle chiavi richieste
+  for (const key of keys) {
+    const num = toValidNum(test[key]);
+    if (num !== null) return num;
+  }
+
+  // 2. Derivazione intelligente se il test storico ha i valori grezzi per arto ma non l'indice derivato
+  const keySet = new Set(keys);
+
+  // LSI Quadricipite da quadSano / quadOp o iso_leg_ext_sx / dx
+  if (keySet.has('lsiQuad') || keySet.has('lsi_quad_calculated')) {
+    const sx = toValidNum(test.quadSano ?? test.iso_leg_ext_sx);
+    const dx = toValidNum(test.quadOp ?? test.iso_leg_ext_dx);
+    if (sx !== null && dx !== null && sx > 0 && dx > 0) {
+      return parseFloat(((Math.min(sx, dx) / Math.max(sx, dx)) * 100).toFixed(1));
+    }
+  }
+
+  // LSI Flessori da flexSano / flexOp o iso_leg_curl_sx / dx
+  if (keySet.has('lsiFlex') || keySet.has('lsi_curl_calculated')) {
+    const sx = toValidNum(test.flexSano ?? test.iso_leg_curl_sx);
+    const dx = toValidNum(test.flexOp ?? test.iso_leg_curl_dx);
+    if (sx !== null && dx !== null && sx > 0 && dx > 0) {
+      return parseFloat(((Math.min(sx, dx) / Math.max(sx, dx)) * 100).toFixed(1));
+    }
+  }
+
+  // Forza Relativa Quadricipite (Nm/kg) da quadOp o quadSano
+  if (keySet.has('quadOpNmKg')) {
+    const qOp = toValidNum(test.quadOp ?? test.iso_leg_ext_dx ?? test.quadSano ?? test.iso_leg_ext_sx);
+    if (qOp !== null && qOp > 0) {
+      return parseFloat((qOp / 150).toFixed(2));
+    }
+  }
+
+  // H:Q Ratio da flexOp/quadOp o flexSano/quadSano
+  if (keySet.has('hqRatio')) {
+    const fOp = toValidNum(test.flexOp ?? test.iso_leg_curl_dx);
+    const qOp = toValidNum(test.quadOp ?? test.iso_leg_ext_dx);
+    if (fOp !== null && qOp !== null && qOp > 0) {
+      return parseFloat(((fOp / qOp) * 100).toFixed(1));
+    }
+    const fSano = toValidNum(test.flexSano ?? test.iso_leg_curl_sx);
+    const qSano = toValidNum(test.quadSano ?? test.iso_leg_ext_sx);
+    if (fSano !== null && qSano !== null && qSano > 0) {
+      return parseFloat(((fSano / qSano) * 100).toFixed(1));
+    }
+  }
+
+  // Simmetria Impulso Frenante CMJ da eccBrakingSX/DX o brakingAsym
+  if (keySet.has('cmjImpulseLsi')) {
+    const sx = toValidNum(test.eccBrakingSX ?? test.ecc_braking_sx);
+    const dx = toValidNum(test.eccBrakingDX ?? test.ecc_braking_dx);
+    if (sx !== null && dx !== null && sx > 0 && dx > 0) {
+      return parseFloat(((Math.min(sx, dx) / Math.max(sx, dx)) * 100).toFixed(1));
+    }
+    const asym = toValidNum(test.brakingAsym ?? test.ecc_braking_asym_calculated, true);
+    if (asym !== null && asym >= 0 && asym < 100) {
+      return parseFloat((100 - asym).toFixed(1));
+    }
+  }
+
+  // LSI Altezza SL CMJ da slCmjHeightSX / slCmjHeightDX
+  if (keySet.has('slCmjHeightLsi') || keySet.has('lsi_sl_cmj_height_calculated')) {
+    const sx = toValidNum(test.slCmjHeightSX ?? test.sl_cmj_height_sx);
+    const dx = toValidNum(test.slCmjHeightDX ?? test.sl_cmj_height_dx);
+    if (sx !== null && dx !== null && sx > 0 && dx > 0) {
+      return parseFloat(((Math.min(sx, dx) / Math.max(sx, dx)) * 100).toFixed(1));
+    }
+  }
+
+  // RSI Drop Jump da djJumpHeight e djContactTime
+  if (keySet.has('rsiDropJump') || keySet.has('dj_rsi')) {
+    const h = toValidNum(test.djJumpHeight ?? test.dj_jump_height);
+    const ct = toValidNum(test.djContactTime ?? test.dj_contact_time);
+    if (h !== null && ct !== null && ct > 0) {
+      return parseFloat(((h / 100) / (ct / 1000)).toFixed(2));
+    }
+  }
+
+  // RSI CMJ da jumpHeight e contractionTime
+  if (keySet.has('rsiCmj') || keySet.has('rsi_cmj') || keySet.has('rsi_mod')) {
+    const h = toValidNum(test.jumpHeight ?? test.jump_height_cm ?? test.altezza_salto);
+    const ct = toValidNum(test.contractionTime ?? test.contraction_time_ms ?? test.tempo_contrazione);
+    if (h !== null && ct !== null && ct > 0) {
+      return parseFloat(((h / 100) / (ct / 1000)).toFixed(2));
     }
   }
 
   return null;
 }
+
+/**
+ * Cerca a ritroso nei test del paziente in ordine CRONOLOGICO TEMPORALE (dal più recente al più vecchio)
+ * l'ultimo valore valido registrato (> 0 per default) e restituisce anche i metadati della sessione
+ * (data del test, label, flag isHistorical se proviene da un test precedente all'ultimo).
+ */
+export function getLastValidMetricWithMeta(tests, metricKeys, options = {}) {
+  if (!Array.isArray(tests) || tests.length === 0) return null;
+  const keys = Array.isArray(metricKeys) ? metricKeys : [metricKeys];
+  const allowZero = Boolean(options.allowZero);
+
+  const flat = tests.flat(Infinity).filter(t => t && typeof t === 'object' && !Array.isArray(t));
+  if (flat.length === 0) return null;
+
+  // Ordina i test in ordine cronologico decrescente (dal più recente al più vecchio)
+  const sortedDesc = [...flat].sort((a, b) => getTestTimestamp(b) - getTestTimestamp(a));
+
+  for (let i = 0; i < sortedDesc.length; i++) {
+    const test = sortedDesc[i];
+    const val = extractMetricFromSingleTest(test, keys, allowZero);
+    if (val !== null) {
+      const formattedDate = test.date || (test.data_valutazione ? test.data_valutazione.split('-').reverse().join('/') : null);
+      return {
+        value: val,
+        testDate: formattedDate,
+        testLabel: test.label || (test.num ? `Test #${test.num}` : 'Test'),
+        testNum: test.num || (sortedDesc.length - i),
+        isHistorical: i > 0, // true se il dato è stato recuperato da un test precedente rispetto all'ultima sessione
+      };
+    }
+  }
+
+  return null;
+}
+
+/**
+ * Cerca a ritroso nei test del paziente (dal più recente al più vecchio)
+ * il primo valore valido (> 0 per default, non-null, non-undefined, non-NaN) per una lista di chiavi metriche alternative.
+ * Garantisce che se un paziente ha svolto un test a Marzo 2026 e a Agosto 2026 non ha ripetuto quella metrica,
+ * le barre di progresso mantengano in modo persistente il valore di Marzo senza azzerarsi a 0.0%.
+ */
+export function getLastValidMetricValue(tests, metricKeys, options = {}) {
+  const meta = getLastValidMetricWithMeta(tests, metricKeys, options);
+  return meta ? meta.value : null;
+}
+
 
 export const createTestObject = (newValData, patientId, testIndex = 1) => {
   const newNum = testIndex;

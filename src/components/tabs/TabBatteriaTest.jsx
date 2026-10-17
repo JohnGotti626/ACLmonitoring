@@ -22,7 +22,7 @@ import {
 import { useAuth } from '../../context/AuthContext';
 import ModalNuovaValutazione from '../ModalNuovaValutazione';
 import GraficoMultimetrica from '../GraficoMultimetrica';
-import { createTestObject, saveTestToSupabase, sortTestsByDate, getLastValidMetricValue } from '../../utils/testUtils';
+import { createTestObject, saveTestToSupabase, sortTestsByDate, getLastValidMetricValue, getLastValidMetricWithMeta } from '../../utils/testUtils';
 import { UIErrorBoundary } from '../UIErrorBoundary';
 
 // Helper di sicurezza per parsing numerico senza crash di runtime
@@ -176,13 +176,20 @@ export default function TabBatteriaTest({ patient, activePhase, onChangePhase, o
       }
     ];
   } else if (currentPhase.isPhase2) {
-    const lsiQuadVal = getLastValidMetricValue(testsHistory, ['lsiQuad', 'lsi_quad_calculated']);
-    const quadOpNmKgVal = getLastValidMetricValue(testsHistory, ['quadOpNmKg', 'quad_rel_op']);
-    const lsiFlexVal = getLastValidMetricValue(testsHistory, ['lsiFlex', 'lsi_curl_calculated']);
-    const quadOpVal = getLastValidMetricValue(testsHistory, ['quadOp', 'iso_leg_ext_dx', 'iso_leg_ext_sx']);
-    const flexOpVal = getLastValidMetricValue(testsHistory, ['flexOp', 'iso_leg_curl_dx', 'iso_leg_curl_sx']);
+    const lsiQuadMeta = getLastValidMetricWithMeta(testsHistory, ['lsiQuad', 'lsi_quad_calculated']);
+    const quadOpNmKgMeta = getLastValidMetricWithMeta(testsHistory, ['quadOpNmKg', 'quad_rel_op']);
+    const lsiFlexMeta = getLastValidMetricWithMeta(testsHistory, ['lsiFlex', 'lsi_curl_calculated']);
+    const quadOpMeta = getLastValidMetricWithMeta(testsHistory, ['quadOp', 'iso_leg_ext_dx', 'iso_leg_ext_sx']);
+    const flexOpMeta = getLastValidMetricWithMeta(testsHistory, ['flexOp', 'iso_leg_curl_dx', 'iso_leg_curl_sx']);
+    const ikdcMeta = getLastValidMetricWithMeta(testsHistory, ['ikdc', 'ikdc_score']);
+
+    const lsiQuadVal = lsiQuadMeta?.value ?? null;
+    const quadOpNmKgVal = quadOpNmKgMeta?.value ?? null;
+    const lsiFlexVal = lsiFlexMeta?.value ?? null;
+    const quadOpVal = quadOpMeta?.value ?? null;
+    const flexOpVal = flexOpMeta?.value ?? null;
     const hqRatioVal = (quadOpVal !== null && flexOpVal !== null && quadOpVal > 0) ? flexOpVal / quadOpVal : null;
-    const ikdcVal = getLastValidMetricValue(testsHistory, ['ikdc', 'ikdc_score']);
+    const ikdcVal = ikdcMeta?.value ?? null;
 
     cupsData = [
       {
@@ -190,6 +197,7 @@ export default function TabBatteriaTest({ patient, activePhase, onChangePhase, o
         title: 'LSI QUADRICIPITE',
         subtitle: '(ISO Push Leg Ext...)',
         value: lsiQuadVal,
+        meta: lsiQuadMeta,
         displayVal: lsiQuadVal !== null ? `${safeFixed(lsiQuadVal, 1)}%` : 'N/D',
         targetLabel: 'Target: >70%',
         percentageAchieved: lsiQuadVal !== null ? Math.round((lsiQuadVal / 70) * 100) : 0,
@@ -200,6 +208,7 @@ export default function TabBatteriaTest({ patient, activePhase, onChangePhase, o
         title: 'FORZA REL. QUAD OP',
         subtitle: '(Nm/kg Peso Corporeo)',
         value: quadOpNmKgVal,
+        meta: quadOpNmKgMeta,
         displayVal: quadOpNmKgVal !== null ? `${safeFixed(quadOpNmKgVal, 2)} Nm/kg` : 'N/D',
         targetLabel: 'Target: >2.0 Nm/kg',
         percentageAchieved: quadOpNmKgVal !== null ? Math.round((quadOpNmKgVal / 2.0) * 100) : 0,
@@ -210,6 +219,7 @@ export default function TabBatteriaTest({ patient, activePhase, onChangePhase, o
         title: 'LSI HAMSTRING',
         subtitle: '(ISO Push Leg Curl...)',
         value: lsiFlexVal,
+        meta: lsiFlexMeta,
         displayVal: lsiFlexVal !== null ? `${safeFixed(lsiFlexVal, 1)}%` : 'N/D',
         targetLabel: 'Target: >70%',
         percentageAchieved: lsiFlexVal !== null ? Math.round((lsiFlexVal / 70) * 100) : 0,
@@ -220,6 +230,7 @@ export default function TabBatteriaTest({ patient, activePhase, onChangePhase, o
         title: 'H/Q RATIO ISOMETRICO',
         subtitle: '(Flex OP / Quad OP)',
         value: hqRatioVal,
+        meta: flexOpMeta || quadOpMeta,
         displayVal: hqRatioVal !== null ? `${safeFixed(hqRatioVal, 2)}` : 'N/D',
         targetLabel: 'Target: >0.55',
         percentageAchieved: hqRatioVal !== null ? Math.round((hqRatioVal / 0.55) * 100) : 0,
@@ -230,6 +241,7 @@ export default function TabBatteriaTest({ patient, activePhase, onChangePhase, o
         title: 'SCORE IKDC',
         subtitle: '(Prontitudine Clinica)',
         value: ikdcVal,
+        meta: ikdcMeta,
         displayVal: ikdcVal !== null ? `${safeFixed(ikdcVal, 1)}/100` : 'N/D',
         targetLabel: 'Target: >64/100',
         percentageAchieved: ikdcVal !== null ? Math.round((ikdcVal / 64) * 100) : 0,
@@ -237,11 +249,17 @@ export default function TabBatteriaTest({ patient, activePhase, onChangePhase, o
       }
     ];
   } else if (currentPhase.isPhase3) {
-    const lsiQuadVal = getLastValidMetricValue(testsHistory, ['lsiQuad', 'lsi_quad_calculated']);
-    const lsiFlexVal = getLastValidMetricValue(testsHistory, ['lsiFlex', 'lsi_curl_calculated']);
-    const cmjImpulseLsiVal = getLastValidMetricValue(testsHistory, ['cmjImpulseLsi', 'lsi_cmj_braking']);
-    const slCmjHeightLsiVal = getLastValidMetricValue(testsHistory, ['slCmjHeightLsi', 'lsi_sl_cmj_height_calculated']);
-    const rsiDropJumpVal = getLastValidMetricValue(testsHistory, ['rsiDropJump', 'djRSI', 'dj_rsi', 'rsi_drop_jump']);
+    const lsiQuadMeta = getLastValidMetricWithMeta(testsHistory, ['lsiQuad', 'lsi_quad_calculated']);
+    const lsiFlexMeta = getLastValidMetricWithMeta(testsHistory, ['lsiFlex', 'lsi_curl_calculated']);
+    const cmjImpulseLsiMeta = getLastValidMetricWithMeta(testsHistory, ['cmjImpulseLsi', 'lsi_cmj_braking']);
+    const slCmjHeightLsiMeta = getLastValidMetricWithMeta(testsHistory, ['slCmjHeightLsi', 'lsi_sl_cmj_height_calculated']);
+    const rsiDropJumpMeta = getLastValidMetricWithMeta(testsHistory, ['rsiDropJump', 'djRSI', 'dj_rsi', 'rsi_drop_jump']);
+
+    const lsiQuadVal = lsiQuadMeta?.value ?? null;
+    const lsiFlexVal = lsiFlexMeta?.value ?? null;
+    const cmjImpulseLsiVal = cmjImpulseLsiMeta?.value ?? null;
+    const slCmjHeightLsiVal = slCmjHeightLsiMeta?.value ?? null;
+    const rsiDropJumpVal = rsiDropJumpMeta?.value ?? null;
 
     cupsData = [
       {
@@ -249,6 +267,7 @@ export default function TabBatteriaTest({ patient, activePhase, onChangePhase, o
         title: 'LSI QUADRICIPITE',
         subtitle: '(Iso Push Leg Ext)',
         value: lsiQuadVal,
+        meta: lsiQuadMeta,
         displayVal: lsiQuadVal !== null ? `${safeFixed(lsiQuadVal, 1)}%` : 'N/D',
         targetLabel: 'Target: >80%',
         percentageAchieved: lsiQuadVal !== null ? Math.round((lsiQuadVal / 80) * 100) : 0,
@@ -259,6 +278,7 @@ export default function TabBatteriaTest({ patient, activePhase, onChangePhase, o
         title: 'LSI HAMSTRING',
         subtitle: '(Iso Push Leg Curl)',
         value: lsiFlexVal,
+        meta: lsiFlexMeta,
         displayVal: lsiFlexVal !== null ? `${safeFixed(lsiFlexVal, 1)}%` : 'N/D',
         targetLabel: 'Target: >80%',
         percentageAchieved: lsiFlexVal !== null ? Math.round((lsiFlexVal / 80) * 100) : 0,
@@ -269,6 +289,7 @@ export default function TabBatteriaTest({ patient, activePhase, onChangePhase, o
         title: 'LSI BRAKING IMPULSE',
         subtitle: '(CMJ Braking Imp)',
         value: cmjImpulseLsiVal,
+        meta: cmjImpulseLsiMeta,
         displayVal: cmjImpulseLsiVal !== null ? `${safeFixed(cmjImpulseLsiVal, 1)}%` : 'N/D',
         targetLabel: 'Target: >80%',
         percentageAchieved: cmjImpulseLsiVal !== null ? Math.round((cmjImpulseLsiVal / 80) * 100) : 0,
@@ -279,6 +300,7 @@ export default function TabBatteriaTest({ patient, activePhase, onChangePhase, o
         title: 'SL CMJ HEIGHT LSI',
         subtitle: '(Single Leg Jump)',
         value: slCmjHeightLsiVal,
+        meta: slCmjHeightLsiMeta,
         displayVal: slCmjHeightLsiVal !== null ? `${safeFixed(slCmjHeightLsiVal, 1)}%` : 'N/D',
         targetLabel: 'Target: >80%',
         percentageAchieved: slCmjHeightLsiVal !== null ? Math.round((slCmjHeightLsiVal / 80) * 100) : 0,
@@ -289,6 +311,7 @@ export default function TabBatteriaTest({ patient, activePhase, onChangePhase, o
         title: 'DL DROP JUMP RSI',
         subtitle: '(Double Leg Box)',
         value: rsiDropJumpVal,
+        meta: rsiDropJumpMeta,
         displayVal: rsiDropJumpVal !== null ? `${safeFixed(rsiDropJumpVal, 2)} idx` : 'N/D',
         targetLabel: 'Target: >1.20 idx',
         percentageAchieved: rsiDropJumpVal !== null ? Math.round((rsiDropJumpVal / 1.20) * 100) : 0,
@@ -296,18 +319,19 @@ export default function TabBatteriaTest({ patient, activePhase, onChangePhase, o
       }
     ];
   } else if (currentPhase.isPhase4) {
-    const lsiQuadVal = getLastValidMetricValue(testsHistory, ['lsiQuad', 'lsi_quad_calculated']);
-    const lsiFlexVal = getLastValidMetricValue(testsHistory, ['lsiFlex', 'lsi_curl_calculated']);
-    
-    const eccAsymVal = getLastValidMetricValue(testsHistory, ['eccBrakingAsym', 'brakingAsym', 'ecc_braking_asym_calculated']);
-    let cmjAsymLsi = getLastValidMetricValue(testsHistory, ['cmjImpulseLsi']);
-    if (cmjAsymLsi === null && eccAsymVal !== null) {
-      cmjAsymLsi = parseFloat((100 - eccAsymVal).toFixed(1));
-    }
+    const lsiQuadMeta = getLastValidMetricWithMeta(testsHistory, ['lsiQuad', 'lsi_quad_calculated']);
+    const lsiFlexMeta = getLastValidMetricWithMeta(testsHistory, ['lsiFlex', 'lsi_curl_calculated']);
+    const cmjAsymLsiMeta = getLastValidMetricWithMeta(testsHistory, ['cmjImpulseLsi', 'lsi_cmj_braking']);
+    const slCmjHeightLsiMeta = getLastValidMetricWithMeta(testsHistory, ['slCmjHeightLsi', 'lsi_sl_cmj_height_calculated']);
+    const rsiDropJumpMeta = getLastValidMetricWithMeta(testsHistory, ['rsiDropJump', 'djRSI', 'dj_rsi', 'rsi_drop_jump']);
+    const aclrsiMeta = getLastValidMetricWithMeta(testsHistory, ['aclrsi', 'acl_rsi']);
 
-    const slCmjHeightLsiVal = getLastValidMetricValue(testsHistory, ['slCmjHeightLsi', 'lsi_sl_cmj_height_calculated']);
-    const rsiDropJumpVal = getLastValidMetricValue(testsHistory, ['rsiDropJump', 'djRSI', 'dj_rsi', 'rsi_drop_jump']);
-    const aclrsiVal = getLastValidMetricValue(testsHistory, ['aclrsi', 'acl_rsi']);
+    const lsiQuadVal = lsiQuadMeta?.value ?? null;
+    const lsiFlexVal = lsiFlexMeta?.value ?? null;
+    const cmjAsymLsi = cmjAsymLsiMeta?.value ?? null;
+    const slCmjHeightLsiVal = slCmjHeightLsiMeta?.value ?? null;
+    const rsiDropJumpVal = rsiDropJumpMeta?.value ?? null;
+    const aclrsiVal = aclrsiMeta?.value ?? null;
 
     cupsData = [
       {
@@ -315,6 +339,7 @@ export default function TabBatteriaTest({ patient, activePhase, onChangePhase, o
         title: 'LSI QUADRICIPITE',
         subtitle: '(Iso Push Leg Ext)',
         value: lsiQuadVal,
+        meta: lsiQuadMeta,
         displayVal: lsiQuadVal !== null ? `${safeFixed(lsiQuadVal, 1)}%` : 'N/D',
         targetLabel: 'Target: >85%',
         percentageAchieved: lsiQuadVal !== null ? Math.round((lsiQuadVal / 85) * 100) : 0,
@@ -325,6 +350,7 @@ export default function TabBatteriaTest({ patient, activePhase, onChangePhase, o
         title: 'LSI HAMSTRING',
         subtitle: '(Iso Push Leg Curl)',
         value: lsiFlexVal,
+        meta: lsiFlexMeta,
         displayVal: lsiFlexVal !== null ? `${safeFixed(lsiFlexVal, 1)}%` : 'N/D',
         targetLabel: 'Target: >85%',
         percentageAchieved: lsiFlexVal !== null ? Math.round((lsiFlexVal / 85) * 100) : 0,
@@ -335,6 +361,7 @@ export default function TabBatteriaTest({ patient, activePhase, onChangePhase, o
         title: 'LSI BRAKING IMPULSE',
         subtitle: '(CMJ Braking Imp)',
         value: cmjAsymLsi,
+        meta: cmjAsymLsiMeta,
         displayVal: cmjAsymLsi !== null ? `${safeFixed(cmjAsymLsi, 1)}% LSI` : 'N/D',
         targetLabel: 'Target: >85%',
         percentageAchieved: cmjAsymLsi !== null ? Math.round((cmjAsymLsi / 85) * 100) : 0,
@@ -345,6 +372,7 @@ export default function TabBatteriaTest({ patient, activePhase, onChangePhase, o
         title: 'SL CMJ HEIGHT LSI',
         subtitle: '(Single Leg Jump)',
         value: slCmjHeightLsiVal,
+        meta: slCmjHeightLsiMeta,
         displayVal: slCmjHeightLsiVal !== null ? `${safeFixed(slCmjHeightLsiVal, 1)}%` : 'N/D',
         targetLabel: 'Target: >85%',
         percentageAchieved: slCmjHeightLsiVal !== null ? Math.round((slCmjHeightLsiVal / 85) * 100) : 0,
@@ -355,6 +383,7 @@ export default function TabBatteriaTest({ patient, activePhase, onChangePhase, o
         title: 'DL DROP JUMP RSI',
         subtitle: '(Double Leg Box)',
         value: rsiDropJumpVal,
+        meta: rsiDropJumpMeta,
         displayVal: rsiDropJumpVal !== null ? `${safeFixed(rsiDropJumpVal, 2)} idx` : 'N/D',
         targetLabel: 'Target: >1.30 idx',
         percentageAchieved: rsiDropJumpVal !== null ? Math.round((rsiDropJumpVal / 1.30) * 100) : 0,
@@ -365,6 +394,7 @@ export default function TabBatteriaTest({ patient, activePhase, onChangePhase, o
         title: 'SCORE ACL-RSI',
         subtitle: '(Prontitudine Psico)',
         value: aclrsiVal,
+        meta: aclrsiMeta,
         displayVal: aclrsiVal !== null ? `${safeFixed(aclrsiVal, 1)}/100` : 'N/D',
         targetLabel: 'Target: >65/100',
         percentageAchieved: aclrsiVal !== null ? Math.round((aclrsiVal / 65) * 100) : 0,
@@ -372,9 +402,14 @@ export default function TabBatteriaTest({ patient, activePhase, onChangePhase, o
       }
     ];
   } else {
-    const lsiQuadVal = getLastValidMetricValue(testsHistory, ['lsiQuad', 'lsi_quad_calculated']);
-    const quadOpNmKgVal = getLastValidMetricValue(testsHistory, ['quadOpNmKg', 'quad_rel_op']);
-    const rsiDropJumpVal = getLastValidMetricValue(testsHistory, ['rsiDropJump', 'djRSI', 'dj_rsi', 'rsi_drop_jump']);
+    const lsiQuadMeta = getLastValidMetricWithMeta(testsHistory, ['lsiQuad', 'lsi_quad_calculated']);
+    const quadOpNmKgMeta = getLastValidMetricWithMeta(testsHistory, ['quadOpNmKg', 'quad_rel_op']);
+    const rsiDropJumpMeta = getLastValidMetricWithMeta(testsHistory, ['rsiDropJump', 'djRSI', 'dj_rsi', 'rsi_drop_jump']);
+
+    const lsiQuadVal = lsiQuadMeta?.value ?? null;
+    const quadOpNmKgVal = quadOpNmKgMeta?.value ?? null;
+    const rsiDropJumpVal = rsiDropJumpMeta?.value ?? null;
+
     const targetQuadLSI = currentPhase.targetLSIQuad || 95;
     const targetNmKg = currentPhase.targetQuadNmKg || 3.0;
     const targetRsi = currentPhase.targetRSI || 2.0;
@@ -385,6 +420,7 @@ export default function TabBatteriaTest({ patient, activePhase, onChangePhase, o
         title: 'LSI QUADRICIPITE',
         subtitle: '(Iso Push Leg Ext)',
         value: lsiQuadVal,
+        meta: lsiQuadMeta,
         displayVal: lsiQuadVal !== null ? `${safeFixed(lsiQuadVal, 1)}%` : 'N/D',
         targetLabel: `Target: >${targetQuadLSI}%`,
         percentageAchieved: lsiQuadVal !== null ? Math.round((lsiQuadVal / targetQuadLSI) * 100) : 0,
@@ -395,6 +431,7 @@ export default function TabBatteriaTest({ patient, activePhase, onChangePhase, o
         title: 'FORZA RELATIVA QUAD',
         subtitle: '(Nm/kg peso corporeo)',
         value: quadOpNmKgVal,
+        meta: quadOpNmKgMeta,
         displayVal: quadOpNmKgVal !== null ? `${safeFixed(quadOpNmKgVal, 2)} Nm/kg` : 'N/D',
         targetLabel: `Target: >${targetNmKg} Nm/kg`,
         percentageAchieved: quadOpNmKgVal !== null ? Math.round((quadOpNmKgVal / targetNmKg) * 100) : 0,
@@ -405,6 +442,7 @@ export default function TabBatteriaTest({ patient, activePhase, onChangePhase, o
         title: 'RSI DROP JUMP',
         subtitle: '(Contact Time <250ms)',
         value: rsiDropJumpVal,
+        meta: rsiDropJumpMeta,
         displayVal: rsiDropJumpVal !== null ? `${safeFixed(rsiDropJumpVal, 2)} rsi` : 'N/D',
         targetLabel: `Target: >${targetRsi} rsi`,
         percentageAchieved: rsiDropJumpVal !== null ? Math.round((rsiDropJumpVal / targetRsi) * 100) : 0,
@@ -413,77 +451,80 @@ export default function TabBatteriaTest({ patient, activePhase, onChangePhase, o
     ];
   }
 
-  // Gestore salvataggio o modifica test da Modal
+  // Gestore salvataggio o modifica test da Modal (preserva SEMPRE i valori esistenti se il campo non è compilato)
   const handleModalSave = async (newValData) => {
     const targetId = newValData.id || editingTest?.id;
     const isEditing = !!targetId;
 
+    const keepIfValid = (newVal, existingVal) => {
+      if (newVal === null || newVal === undefined || newVal === '') return existingVal;
+      const num = typeof newVal === 'number' ? newVal : parseFloat(String(newVal).replace(',', '.'));
+      return !isNaN(num) && num > 0 ? num : existingVal;
+    };
+
     if (isEditing) {
       const updated = testsHistory.map((existingTest) => {
         if (existingTest.id === targetId) {
-          const parseLSI = (val) => (val !== null && val !== undefined && val !== '' ? parseFloat(val) : null);
-          const lsiQuadCalc = parseLSI(newValData.lsi_quad_calculated);
-          const lsiFlexCalc = parseLSI(newValData.lsi_curl_calculated);
-
           const updatedTest = {
             ...existingTest,
             patient_id: patient?.id || existingTest.patient_id,
             patientId: patient?.id || existingTest.patientId,
             date: newValData.data_valutazione ? newValData.data_valutazione.split('-').reverse().join('/') : existingTest.date,
-            lsiQuad: lsiQuadCalc !== null ? lsiQuadCalc : existingTest.lsiQuad,
-            lsiFlex: lsiFlexCalc !== null ? lsiFlexCalc : existingTest.lsiFlex,
-            quadSano: newValData.iso_leg_ext_sx !== null ? newValData.iso_leg_ext_sx : existingTest.quadSano,
-            quadOp: newValData.iso_leg_ext_dx !== null ? newValData.iso_leg_ext_dx : existingTest.quadOp,
-            flexSano: newValData.iso_leg_curl_sx !== null ? newValData.iso_leg_curl_sx : existingTest.flexSano,
-            flexOp: newValData.iso_leg_curl_dx !== null ? newValData.iso_leg_curl_dx : existingTest.flexOp,
-            calfRaiseSX: newValData.calf_raise_sx !== null ? newValData.calf_raise_sx : existingTest.calfRaiseSX,
-            calfRaiseDX: newValData.calf_raise_dx !== null ? newValData.calf_raise_dx : existingTest.calfRaiseDX,
-            soleoSX: newValData.soleo_sx !== null ? newValData.soleo_sx : existingTest.soleoSX,
-            soleoDX: newValData.soleo_dx !== null ? newValData.soleo_dx : existingTest.soleoDX,
-            bulgarianSX: newValData.bulgarian_sx !== null ? newValData.bulgarian_sx : existingTest.bulgarianSX,
-            bulgarianDX: newValData.bulgarian_dx !== null ? newValData.bulgarian_dx : existingTest.bulgarianDX,
-            imtpForce: newValData.imtp_peak_force !== null ? newValData.imtp_peak_force : existingTest.imtpForce,
-            jumpHeight: newValData.jump_height_cm !== null ? newValData.jump_height_cm : existingTest.jumpHeight,
-            contractionTime: newValData.contraction_time_ms !== null ? newValData.contraction_time_ms : existingTest.contractionTime,
-            peakPower: newValData.peak_power_w !== null ? newValData.peak_power_w : existingTest.peakPower,
-            cmjDepth: newValData.cmj_depth !== null ? newValData.cmj_depth : existingTest.cmjDepth,
-            eccBrakingRfd: newValData.ecc_braking_rfd !== null ? newValData.ecc_braking_rfd : existingTest.eccBrakingRfd,
-            rsiCmj: newValData.rsi_cmj !== null ? newValData.rsi_cmj : existingTest.rsiCmj,
-            eccBrakingSX: newValData.ecc_braking_sx !== null ? newValData.ecc_braking_sx : existingTest.eccBrakingSX,
-            eccBrakingDX: newValData.ecc_braking_dx !== null ? newValData.ecc_braking_dx : existingTest.eccBrakingDX,
-            concImpulseSX: newValData.conc_impulse_sx !== null ? newValData.conc_impulse_sx : existingTest.concImpulseSX,
-            concImpulseDX: newValData.conc_impulse_dx !== null ? newValData.conc_impulse_dx : existingTest.concImpulseDX,
-            slCmjHeightSX: newValData.sl_cmj_height_sx !== null ? newValData.sl_cmj_height_sx : existingTest.slCmjHeightSX,
-            slCmjHeightDX: newValData.sl_cmj_height_dx !== null ? newValData.sl_cmj_height_dx : existingTest.slCmjHeightDX,
-            slCmjCtSX: newValData.sl_cmj_ct_sx !== null ? newValData.sl_cmj_ct_sx : existingTest.slCmjCtSX,
-            slCmjCtDX: newValData.sl_cmj_ct_dx !== null ? newValData.sl_cmj_ct_dx : existingTest.slCmjCtDX,
-            slCmjPeakPowerSX: newValData.sl_cmj_peak_power_sx !== null ? newValData.sl_cmj_peak_power_sx : existingTest.slCmjPeakPowerSX,
-            slCmjPeakPowerDX: newValData.sl_cmj_peak_power_dx !== null ? newValData.sl_cmj_peak_power_dx : existingTest.slCmjPeakPowerDX,
-            slCmjRsiSX: newValData.sl_cmj_rsi_sx !== null ? newValData.sl_cmj_rsi_sx : existingTest.slCmjRsiSX,
-            slCmjRsiDX: newValData.sl_cmj_rsi_dx !== null ? newValData.sl_cmj_rsi_dx : existingTest.slCmjRsiDX,
-            slCmjDepthSX: newValData.sl_cmj_depth_sx !== null ? newValData.sl_cmj_depth_sx : existingTest.slCmjDepthSX,
-            slCmjDepthDX: newValData.sl_cmj_depth_dx !== null ? newValData.sl_cmj_depth_dx : existingTest.slCmjDepthDX,
-            slCmjEccImpulseSX: newValData.sl_cmj_ecc_impulse_sx !== null ? newValData.sl_cmj_ecc_impulse_sx : existingTest.slCmjEccImpulseSX,
-            slCmjEccImpulseDX: newValData.sl_cmj_ecc_impulse_dx !== null ? newValData.sl_cmj_ecc_impulse_dx : existingTest.slCmjEccImpulseDX,
+            data_valutazione: newValData.data_valutazione || existingTest.data_valutazione,
+            lsiQuad: keepIfValid(newValData.lsi_quad_calculated, existingTest.lsiQuad),
+            lsiFlex: keepIfValid(newValData.lsi_curl_calculated, existingTest.lsiFlex),
+            quadSano: keepIfValid(newValData.iso_leg_ext_sx, existingTest.quadSano),
+            quadOp: keepIfValid(newValData.iso_leg_ext_dx, existingTest.quadOp),
+            flexSano: keepIfValid(newValData.iso_leg_curl_sx, existingTest.flexSano),
+            flexOp: keepIfValid(newValData.iso_leg_curl_dx, existingTest.flexOp),
+            calfRaiseSX: keepIfValid(newValData.calf_raise_sx, existingTest.calfRaiseSX),
+            calfRaiseDX: keepIfValid(newValData.calf_raise_dx, existingTest.calfRaiseDX),
+            soleoSX: keepIfValid(newValData.soleo_sx, existingTest.soleoSX),
+            soleoDX: keepIfValid(newValData.soleo_dx, existingTest.soleoDX),
+            bulgarianSX: keepIfValid(newValData.bulgarian_sx, existingTest.bulgarianSX),
+            bulgarianDX: keepIfValid(newValData.bulgarian_dx, existingTest.bulgarianDX),
+            imtpForce: keepIfValid(newValData.imtp_peak_force, existingTest.imtpForce),
+            jumpHeight: keepIfValid(newValData.jump_height_cm, existingTest.jumpHeight),
+            contractionTime: keepIfValid(newValData.contraction_time_ms, existingTest.contractionTime),
+            peakPower: keepIfValid(newValData.peak_power_w, existingTest.peakPower),
+            cmjDepth: keepIfValid(newValData.cmj_depth, existingTest.cmjDepth),
+            eccBrakingRfd: keepIfValid(newValData.ecc_braking_rfd, existingTest.eccBrakingRfd),
+            rsiCmj: keepIfValid(newValData.rsi_cmj, existingTest.rsiCmj),
+            eccBrakingSX: keepIfValid(newValData.ecc_braking_sx, existingTest.eccBrakingSX),
+            eccBrakingDX: keepIfValid(newValData.ecc_braking_dx, existingTest.eccBrakingDX),
+            concImpulseSX: keepIfValid(newValData.conc_impulse_sx, existingTest.concImpulseSX),
+            concImpulseDX: keepIfValid(newValData.conc_impulse_dx, existingTest.concImpulseDX),
+            slCmjHeightSX: keepIfValid(newValData.sl_cmj_height_sx, existingTest.slCmjHeightSX),
+            slCmjHeightDX: keepIfValid(newValData.sl_cmj_height_dx, existingTest.slCmjHeightDX),
+            slCmjCtSX: keepIfValid(newValData.sl_cmj_ct_sx, existingTest.slCmjCtSX),
+            slCmjCtDX: keepIfValid(newValData.sl_cmj_ct_dx, existingTest.slCmjCtDX),
+            slCmjPeakPowerSX: keepIfValid(newValData.sl_cmj_peak_power_sx, existingTest.slCmjPeakPowerSX),
+            slCmjPeakPowerDX: keepIfValid(newValData.sl_cmj_peak_power_dx, existingTest.slCmjPeakPowerDX),
+            slCmjRsiSX: keepIfValid(newValData.sl_cmj_rsi_sx, existingTest.slCmjRsiSX),
+            slCmjRsiDX: keepIfValid(newValData.sl_cmj_rsi_dx, existingTest.slCmjRsiDX),
+            slCmjDepthSX: keepIfValid(newValData.sl_cmj_depth_sx, existingTest.slCmjDepthSX),
+            slCmjDepthDX: keepIfValid(newValData.sl_cmj_depth_dx, existingTest.slCmjDepthDX),
+            slCmjEccImpulseSX: keepIfValid(newValData.sl_cmj_ecc_impulse_sx, existingTest.slCmjEccImpulseSX),
+            slCmjEccImpulseDX: keepIfValid(newValData.sl_cmj_ecc_impulse_dx, existingTest.slCmjEccImpulseDX),
             djBoxHeight: newValData.dj_box_height || existingTest.djBoxHeight,
-            djContactTime: newValData.dj_contact_time !== null ? newValData.dj_contact_time : existingTest.djContactTime,
-            rsiDropJump: newValData.dj_rsi !== null ? newValData.dj_rsi : existingTest.rsiDropJump,
-            djBrakingForce: newValData.dj_braking_force !== null ? newValData.dj_braking_force : existingTest.djBrakingForce,
-            djBrakingImpulse: newValData.dj_braking_impulse !== null ? newValData.dj_braking_impulse : existingTest.djBrakingImpulse,
+            djContactTime: keepIfValid(newValData.dj_contact_time, existingTest.djContactTime),
+            rsiDropJump: keepIfValid(newValData.dj_rsi, existingTest.rsiDropJump),
+            djBrakingForce: keepIfValid(newValData.dj_braking_force, existingTest.djBrakingForce),
+            djBrakingImpulse: keepIfValid(newValData.dj_braking_impulse, existingTest.djBrakingImpulse),
             slDjBoxHeight: newValData.sl_dj_box_height || existingTest.slDjBoxHeight,
-            slDjCtSX: newValData.sl_dj_ct_sx !== null ? newValData.sl_dj_ct_sx : existingTest.slDjCtSX,
-            slDjCtDX: newValData.sl_dj_ct_dx !== null ? newValData.sl_dj_ct_dx : existingTest.slDjCtDX,
-            slDjRsiSX: newValData.sl_dj_rsi_sx !== null ? newValData.sl_dj_rsi_sx : existingTest.slDjRsiSX,
-            slDjRsiDX: newValData.sl_dj_rsi_dx !== null ? newValData.sl_dj_rsi_dx : existingTest.slDjRsiDX,
-            slDjHeightSX: newValData.sl_dj_height_sx !== null ? newValData.sl_dj_height_sx : existingTest.slDjHeightSX,
-            slDjHeightDX: newValData.sl_dj_height_dx !== null ? newValData.sl_dj_height_dx : existingTest.slDjHeightDX,
-            slDjBrakingSX: newValData.sl_dj_braking_sx !== null ? newValData.sl_dj_braking_sx : existingTest.slDjBrakingSX,
-            slDjBrakingDX: newValData.sl_dj_braking_dx !== null ? newValData.sl_dj_braking_dx : existingTest.slDjBrakingDX,
-            brakingAsym: newValData.ecc_braking_asym_calculated || existingTest.brakingAsym,
-            cmjImpulseLsi: newValData.ecc_braking_asym_calculated ? (100 - parseFloat(newValData.ecc_braking_asym_calculated)).toFixed(1) : existingTest.cmjImpulseLsi,
-            slCmjHeightLsi: newValData.lsi_sl_cmj_height_calculated || existingTest.slCmjHeightLsi,
-            slCmjDepthLsi: newValData.lsi_sl_cmj_depth_calculated || existingTest.slCmjDepthLsi,
-            slDjRsiLsi: newValData.lsi_sl_dj_rsi_calculated || existingTest.slDjRsiLsi
+            slDjCtSX: keepIfValid(newValData.sl_dj_ct_sx, existingTest.slDjCtSX),
+            slDjCtDX: keepIfValid(newValData.sl_dj_ct_dx, existingTest.slDjCtDX),
+            slDjRsiSX: keepIfValid(newValData.sl_dj_rsi_sx, existingTest.slDjRsiSX),
+            slDjRsiDX: keepIfValid(newValData.sl_dj_rsi_dx, existingTest.slDjRsiDX),
+            slDjHeightSX: keepIfValid(newValData.sl_dj_height_sx, existingTest.slDjHeightSX),
+            slDjHeightDX: keepIfValid(newValData.sl_dj_height_dx, existingTest.slDjHeightDX),
+            slDjBrakingSX: keepIfValid(newValData.sl_dj_braking_sx, existingTest.slDjBrakingSX),
+            slDjBrakingDX: keepIfValid(newValData.sl_dj_braking_dx, existingTest.slDjBrakingDX),
+            brakingAsym: keepIfValid(newValData.ecc_braking_asym_calculated, existingTest.brakingAsym),
+            cmjImpulseLsi: newValData.ecc_braking_asym_calculated ? parseFloat((100 - parseFloat(newValData.ecc_braking_asym_calculated)).toFixed(1)) : existingTest.cmjImpulseLsi,
+            slCmjHeightLsi: keepIfValid(newValData.lsi_sl_cmj_height_calculated, existingTest.slCmjHeightLsi),
+            slCmjDepthLsi: keepIfValid(newValData.lsi_sl_cmj_depth_calculated, existingTest.slCmjDepthLsi),
+            slDjRsiLsi: keepIfValid(newValData.lsi_sl_dj_rsi_calculated, existingTest.slDjRsiLsi)
           };
           console.log("Dati inviati (modifica test):", updatedTest);
           saveTestToSupabase(updatedTest);
@@ -492,12 +533,13 @@ export default function TabBatteriaTest({ patient, activePhase, onChangePhase, o
         return existingTest;
       });
 
-      setTestsHistory(updated);
+      const sortedUpdated = sortTestsByDate(updated);
+      setTestsHistory(sortedUpdated);
       setSelectedTestId(targetId);
       setEditingTest(null);
 
       if (onSaveTest) {
-        onSaveTest(updated);
+        onSaveTest(sortedUpdated);
       }
     } else {
       const newNum = testsHistory.length + 1;
@@ -507,12 +549,13 @@ export default function TabBatteriaTest({ patient, activePhase, onChangePhase, o
 
       await saveTestToSupabase(newTest);
 
-      setTestsHistory(prev => [...prev, newTest]);
+      const sortedAll = sortTestsByDate([...testsHistory, newTest]);
+      setTestsHistory(sortedAll);
       setSelectedTestId(newTest.id);
       setEditingTest(null);
 
       if (onSaveTest) {
-        onSaveTest([...testsHistory, newTest]);
+        onSaveTest(sortedAll);
       }
     }
   };
@@ -843,18 +886,18 @@ export default function TabBatteriaTest({ patient, activePhase, onChangePhase, o
       {/* ========================================================================= */}
       {/* SEZIONE SINISTRA: TABELLA LONGITUDINALE (COL 8/12 - 70% LARGHEZZA) */}
       {/* ========================================================================= */}
-      <div className="lg:col-span-8 glass-panel p-4 sm:p-5 rounded-3xl border border-slate-800/90 space-y-3 shadow-2xl bg-[#0a1628] w-full flex flex-col justify-between">
+      <div className="lg:col-span-8 bg-white p-4 sm:p-5 rounded-3xl border border-slate-200 space-y-3 shadow-sm w-full flex flex-col justify-between">
         
         {/* Header Tabella Pulita */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-2.5 border-b border-slate-800">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-2.5 border-b border-slate-200">
           <div>
             <div className="flex items-center gap-2">
-              <Flame className="w-4 h-4 text-emerald-400" />
-              <h3 className="font-extrabold text-white text-sm tracking-wide uppercase">
+              <Flame className="w-4 h-4 text-emerald-600" />
+              <h3 className="font-extrabold text-slate-900 text-sm tracking-wide uppercase">
                 TABELLA DATI RACCOLTI PER TIPO DI TEST
               </h3>
             </div>
-            <p className="text-[10.5px] text-slate-400 font-medium mt-0.5">
+            <p className="text-[11px] text-slate-500 font-medium mt-0.5">
               Seleziona 1 tipo di test per isolare i dati assoluti e il confronto col test precedente
             </p>
           </div>
@@ -866,9 +909,9 @@ export default function TabBatteriaTest({ patient, activePhase, onChangePhase, o
                   setEditingTest(activeTest);
                   setIsModalOpen(true);
                 }}
-                className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-cyan-300 font-extrabold rounded-xl text-xs flex items-center gap-1.5 border border-cyan-500/40 transition-all cursor-pointer shrink-0"
+                className="px-3 py-1.5 bg-sky-50 hover:bg-sky-100 text-sky-700 font-extrabold rounded-xl text-xs flex items-center gap-1.5 border border-sky-200 transition-all cursor-pointer shrink-0 shadow-xs"
               >
-                <Edit3 className="w-3.5 h-3.5 text-cyan-400" />
+                <Edit3 className="w-3.5 h-3.5 text-sky-600" />
                 <span>Modifica {activeTest.label}</span>
               </button>
             )}
@@ -878,16 +921,16 @@ export default function TabBatteriaTest({ patient, activePhase, onChangePhase, o
                 setEditingTest(null);
                 setIsModalOpen(true);
               }}
-              className="px-3.5 py-1.5 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-black rounded-xl text-xs flex items-center gap-1.5 shadow-md border border-emerald-400/50 transition-all cursor-pointer shrink-0"
+              className="px-3.5 py-1.5 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-black rounded-xl text-xs flex items-center gap-1.5 shadow-sm border border-emerald-500 transition-all cursor-pointer shrink-0"
             >
-              <Plus className="w-4 h-4 text-[#39FF14]" />
+              <Plus className="w-4 h-4 text-white" />
               <span>+ Nuova Valutazione</span>
             </button>
           </div>
         </div>
 
         {/* 6 Pills Sotto-Tab (Tutte le Sezioni di Salto Sincronizzate - FLEX NOWRAP COMPATTO) */}
-        <div className="flex items-center gap-1.5 flex-nowrap overflow-x-auto scrollbar-none p-1 bg-[#050c17] rounded-xl border border-slate-800/80">
+        <div className="flex items-center gap-1.5 flex-nowrap overflow-x-auto scrollbar-none p-1 bg-slate-100 rounded-xl border border-slate-200">
           {[
             { id: 'LSI', label: '⚡ Simmetrie & LSI (%)' },
             { id: 'FORZA', label: '🔥 Dominio della Forza' },
@@ -903,8 +946,8 @@ export default function TabBatteriaTest({ patient, activePhase, onChangePhase, o
                 onClick={() => setActiveSubTab(tab.id)}
                 className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all whitespace-nowrap cursor-pointer shrink-0 ${
                   isActive
-                    ? 'bg-[#0f2d3a] text-cyan-300 border border-cyan-400 font-extrabold shadow-md'
-                    : 'text-slate-400 hover:text-white hover:bg-slate-900 border border-transparent'
+                    ? 'bg-white text-sky-700 border border-sky-300 font-extrabold shadow-xs'
+                    : 'text-slate-600 hover:text-slate-900 hover:bg-white/70 border border-transparent'
                 }`}
               >
                 {tab.label}
@@ -914,11 +957,11 @@ export default function TabBatteriaTest({ patient, activePhase, onChangePhase, o
         </div>
 
         {/* TABELLA STORICO LONGITUDINALE MULTI-SEDUTA (COMPATTA - py-1.5) */}
-        <div className="overflow-x-auto overflow-y-auto max-h-[460px] rounded-2xl border border-slate-800/80 bg-[#050c17]/90 shadow-inner w-full scrollbar-thin scrollbar-thumb-slate-700">
+        <div className="overflow-x-auto overflow-y-auto max-h-[460px] rounded-2xl border border-slate-200 bg-white shadow-inner w-full scrollbar-thin scrollbar-thumb-slate-300">
           <table className="w-full min-w-max text-left border-collapse">
             <thead>
-              <tr className="border-b border-slate-800 text-[10px] font-mono font-extrabold text-slate-400 uppercase tracking-wider">
-                <th className="sticky top-0 left-0 z-40 bg-[#0a1628] border-b border-r border-slate-800 py-2 px-3 text-slate-200 font-black min-w-[210px] w-[215px]">
+              <tr className="border-b border-slate-200 text-[10px] font-mono font-extrabold text-slate-600 uppercase tracking-wider bg-slate-50">
+                <th className="sticky top-0 left-0 z-40 bg-slate-100 border-b border-r border-slate-200 py-2.5 px-3 text-slate-800 font-black min-w-[210px] w-[215px]">
                   Parametro Metrica
                 </th>
 
@@ -928,10 +971,10 @@ export default function TabBatteriaTest({ patient, activePhase, onChangePhase, o
                     <th 
                       key={t.id}
                       onClick={() => setSelectedTestId(t.id)}
-                      className={`sticky top-0 z-30 py-2 px-2 text-center cursor-pointer transition-all border-b border-slate-800 min-w-[95px] w-[100px] ${
+                      className={`sticky top-0 z-30 py-2 px-2 text-center cursor-pointer transition-all border-b border-slate-200 min-w-[95px] w-[100px] ${
                         isSelected 
-                          ? 'bg-cyan-950/60 text-cyan-300 font-black border-t-2 border-x border-cyan-400 shadow-lg' 
-                          : 'bg-[#050c17] hover:bg-slate-900 text-slate-300'
+                          ? 'bg-sky-50 text-sky-900 font-black border-t-2 border-x border-sky-400 shadow-xs' 
+                          : 'bg-slate-50 hover:bg-slate-100 text-slate-700'
                       }`}
                     >
                       <div className="flex items-center justify-center gap-1">
@@ -944,41 +987,41 @@ export default function TabBatteriaTest({ patient, activePhase, onChangePhase, o
                             setIsModalOpen(true);
                           }}
                           title={`Modifica ${t.label}`}
-                          className="p-1 hover:bg-cyan-900/60 rounded transition-colors text-slate-400 hover:text-cyan-300"
+                          className="p-1 hover:bg-sky-100 rounded transition-colors text-slate-500 hover:text-sky-700"
                         >
-                          <Edit3 className="w-3 h-3 text-cyan-400" />
+                          <Edit3 className="w-3 h-3 text-sky-600" />
                         </button>
                       </div>
-                      <div className="text-[9.5px] text-cyan-400 font-mono font-bold mt-0.5">{t.date}</div>
+                      <div className="text-[9.5px] text-sky-700 font-mono font-bold mt-0.5">{t.date}</div>
                     </th>
                   );
                 })}
               </tr>
             </thead>
 
-            <tbody className="divide-y divide-slate-800/50 text-xs font-semibold">
+            <tbody className="divide-y divide-slate-200 text-xs font-semibold">
               {testsHistory.length === 0 ? (
                 <tr>
-                  <td colSpan={10} className="py-12 text-center text-slate-400 font-medium bg-[#050c17]/50">
+                  <td colSpan={10} className="py-12 text-center text-slate-500 font-medium bg-slate-50/50">
                     <div className="space-y-2 max-w-sm mx-auto">
-                      <Activity className="w-8 h-8 text-cyan-500/40 mx-auto" />
-                      <p className="text-sm font-extrabold text-white">Nessuna valutazione registrata per {patient?.nome} {patient?.cognome}</p>
-                      <p className="text-xs text-slate-400">Clicca sul pulsante in alto <strong className="text-cyan-400 font-bold">"+ Nuova Valutazione"</strong> per inserire i dati del primo test clinico.</p>
+                      <Activity className="w-8 h-8 text-sky-500/60 mx-auto" />
+                      <p className="text-sm font-extrabold text-slate-800">Nessuna valutazione registrata per {patient?.nome} {patient?.cognome}</p>
+                      <p className="text-xs text-slate-500">Clicca sul pulsante in alto <strong className="text-emerald-600 font-bold">"+ Nuova Valutazione"</strong> per inserire i dati del primo test clinico.</p>
                     </div>
                   </td>
                 </tr>
               ) : (
                 rows.map((row) => (
-                <tr key={row.key} className="hover:bg-slate-900/50 transition-colors">
+                <tr key={row.key} className="hover:bg-slate-50 transition-colors">
                   
                   {/* Colonna 1: Parametro Metrica Sticky */}
-                  <td className="sticky left-0 z-20 bg-[#0a1628] border-r border-slate-800 py-1.5 px-2.5 min-w-[210px] w-[215px] font-bold text-slate-200">
+                  <td className="sticky left-0 z-20 bg-white border-r border-slate-200 py-2 px-2.5 min-w-[210px] w-[215px] font-bold text-slate-800">
                     <div className="flex items-center gap-1.5">
-                      <span className={`w-2 h-2 rounded-full ${row.dotColor || 'bg-emerald-400'} shrink-0 shadow-sm`}></span>
-                      <span className="truncate text-xs font-bold text-white">
+                      <span className={`w-2 h-2 rounded-full ${row.dotColor || 'bg-emerald-500'} shrink-0 shadow-xs`}></span>
+                      <span className="truncate text-xs font-bold text-slate-800">
                         {row.label}
                         {row.unit && row.unit !== '-' && (
-                          <span className="ml-1 text-slate-400 font-normal text-[10px] font-mono opacity-80">
+                          <span className="ml-1 text-slate-500 font-normal text-[10px] font-mono">
                             ({row.unit})
                           </span>
                         )}
@@ -997,17 +1040,17 @@ export default function TabBatteriaTest({ patient, activePhase, onChangePhase, o
                       <td 
                         key={t.id}
                         onClick={() => setSelectedTestId(t.id)}
-                        className={`relative group py-1.5 px-2 text-center font-mono cursor-pointer transition-all min-w-[95px] w-[100px] ${
-                          isSelected ? 'bg-cyan-950/30 font-black border-x border-cyan-500/30' : 'hover:bg-slate-900/70'
+                        className={`relative group py-2 px-2 text-center font-mono cursor-pointer transition-all min-w-[95px] w-[100px] ${
+                          isSelected ? 'bg-sky-50/70 font-black border-x border-sky-200' : 'hover:bg-slate-50'
                         }`}
                       >
                         <div className="flex items-center justify-center gap-1">
-                          <span className="font-extrabold text-xs text-white">
+                          <span className="font-extrabold text-xs text-slate-900">
                             {displayVal}
                           </span>
                           {delta && (
-                            <span className={`text-[8.5px] font-black font-mono px-0.5 py-0.2 rounded ${
-                              delta.startsWith('+') ? 'text-emerald-300 bg-emerald-950/80 border border-emerald-500/40' : 'text-red-400 bg-red-950/80 border border-red-500/40'
+                            <span className={`text-[8.5px] font-black font-mono px-1 py-0.5 rounded ${
+                              delta.startsWith('+') ? 'text-emerald-700 bg-emerald-50 border border-emerald-200' : 'text-rose-700 bg-rose-50 border border-rose-200'
                             }`}>
                               {delta}
                             </span>
@@ -1016,28 +1059,28 @@ export default function TabBatteriaTest({ patient, activePhase, onChangePhase, o
 
                         {/* HOVER TOOLTIP INTERATTIVO */}
                         {tooltipData && (
-                          <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 hidden group-hover:flex flex-col z-50 w-60 p-3 rounded-2xl bg-slate-950 border border-slate-700 shadow-2xl text-[11px] font-sans pointer-events-none text-left">
-                            <div className="font-extrabold text-white text-xs border-b border-slate-800 pb-1.5 mb-1.5 flex items-center justify-between">
+                          <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 hidden group-hover:flex flex-col z-50 w-60 p-3 rounded-2xl bg-white border border-slate-200 shadow-xl text-[11px] font-sans pointer-events-none text-left">
+                            <div className="font-extrabold text-slate-900 text-xs border-b border-slate-200 pb-1.5 mb-1.5 flex items-center justify-between">
                               <span>{tooltipData.title}</span>
-                              <span className="text-[9px] font-mono text-slate-400">{t.date}</span>
+                              <span className="text-[9px] font-mono text-slate-500">{t.date}</span>
                             </div>
-                            <div className="flex justify-between items-center text-slate-300 py-0.5">
+                            <div className="flex justify-between items-center text-slate-700 py-0.5">
                               <span className="flex items-center gap-1">
-                                <span className="w-1.5 h-1.5 rounded-full bg-[#00e5ff]"></span>
+                                <span className="w-1.5 h-1.5 rounded-full bg-sky-500"></span>
                                 Gamba SX:
                               </span>
-                              <strong className="text-[#00e5ff] font-mono">{tooltipData.sx}</strong>
+                              <strong className="text-sky-700 font-mono">{tooltipData.sx}</strong>
                             </div>
-                            <div className="flex justify-between items-center text-slate-300 py-0.5">
+                            <div className="flex justify-between items-center text-slate-700 py-0.5">
                               <span className="flex items-center gap-1">
-                                <span className="w-1.5 h-1.5 rounded-full bg-pink-400"></span>
+                                <span className="w-1.5 h-1.5 rounded-full bg-pink-500"></span>
                                 Gamba DX:
                               </span>
-                              <strong className="text-pink-400 font-mono">{tooltipData.dx}</strong>
+                              <strong className="text-pink-600 font-mono">{tooltipData.dx}</strong>
                             </div>
-                            <div className="flex justify-between items-center text-slate-200 border-t border-slate-800 pt-1.5 mt-1 font-bold">
+                            <div className="flex justify-between items-center text-slate-800 border-t border-slate-200 pt-1.5 mt-1 font-bold">
                               <span>Confronto:</span>
-                              <strong className={tooltipData.isRed ? 'text-red-400 font-mono' : 'text-emerald-400 font-mono'}>
+                              <strong className={tooltipData.isRed ? 'text-rose-600 font-mono' : 'text-emerald-600 font-mono'}>
                                 {tooltipData.asym}
                               </strong>
                             </div>
@@ -1058,32 +1101,35 @@ export default function TabBatteriaTest({ patient, activePhase, onChangePhase, o
       {/* ========================================================================= */}
       {/* SEZIONE DESTRA: BARRE TARGET PRESTATIVI & CHECKLIST QUALITATIVA (COL 4/12) */}
       {/* ========================================================================= */}
-      <div className="lg:col-span-4 glass-panel p-2.5 rounded-2xl border border-slate-800/90 space-y-2 shadow-2xl bg-[#0a1628] w-full flex flex-col justify-between">
+      <div className="lg:col-span-4 bg-white p-3.5 rounded-3xl border border-slate-200 space-y-2.5 shadow-sm w-full flex flex-col justify-between">
         
         {/* Header Barre Target */}
-        <div className="flex items-center justify-between pb-1.5 border-b border-slate-800">
+        <div className="flex items-center justify-between pb-2 border-b border-slate-200">
           <div className="flex items-center gap-2">
-            <div className="p-1 bg-[#050c17] border border-cyan-500/40 rounded-lg text-cyan-400 shadow-sm">
-              <Trophy className="w-3.5 h-3.5 text-cyan-400" />
+            <div className="p-1.5 bg-sky-50 border border-sky-200 rounded-lg text-sky-600 shadow-xs">
+              <Trophy className="w-4 h-4 text-sky-600" />
             </div>
             <div>
-              <h3 className="font-extrabold text-white text-xs tracking-wide uppercase">
+              <h3 className="font-extrabold text-slate-900 text-xs tracking-wide uppercase">
                 BARRE TARGET & PROGRESSO
               </h3>
+              <p className="text-[10px] text-slate-500 font-medium">
+                Ultimo dato valido registrato nel tempo
+              </p>
             </div>
           </div>
 
-          <span className="px-2 py-0.5 rounded-full bg-emerald-950/80 border border-emerald-500/50 text-emerald-400 text-[9px] font-black uppercase flex items-center gap-1 shrink-0">
-            <span className="w-1 h-1 rounded-full bg-emerald-400 animate-pulse"></span>
-            Target OK
+          <span className="px-2 py-0.5 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-700 text-[9px] font-black uppercase flex items-center gap-1 shrink-0">
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+            Persistente
           </span>
         </div>
 
         {/* Selezione Fase Target (Pillole Ultra-Chiare F1, F2, F3, F4, F5) */}
-        <div className="space-y-1 bg-[#050c17] p-1.5 rounded-xl border border-slate-800/80">
+        <div className="space-y-1.5 bg-slate-50 p-2 rounded-xl border border-slate-200">
           <div className="flex items-center justify-between text-[10px] font-bold">
-            <span className="text-slate-400 uppercase tracking-wider text-[9px]">TARGET FASE:</span>
-            <span className="text-emerald-400 font-black text-[10px]">{selectedPhase}</span>
+            <span className="text-slate-500 uppercase tracking-wider text-[9px]">TARGET FASE:</span>
+            <span className="text-emerald-700 font-black text-[10.5px]">{selectedPhase}</span>
           </div>
 
           <div className="grid grid-cols-5 gap-1 text-xs font-black">
@@ -1101,10 +1147,10 @@ export default function TabBatteriaTest({ patient, activePhase, onChangePhase, o
                   onClick={() => {
                     setSelectedPhase(pObj.key);
                   }}
-                  className={`py-1 px-1 rounded-lg text-[10px] font-black transition-all cursor-pointer text-center ${
+                  className={`py-1.5 px-1 rounded-lg text-[10px] font-black transition-all cursor-pointer text-center ${
                     isActive
-                      ? 'bg-emerald-400 text-slate-950 font-black shadow-md shadow-emerald-400/30 ring-1 ring-emerald-300'
-                      : 'bg-slate-900 text-slate-400 hover:text-white hover:bg-slate-800'
+                      ? 'bg-emerald-600 text-white font-black shadow-xs ring-1 ring-emerald-500'
+                      : 'bg-white text-slate-600 border border-slate-200 hover:text-slate-900 hover:bg-slate-100'
                   }`}
                 >
                   {pObj.label}
@@ -1114,17 +1160,17 @@ export default function TabBatteriaTest({ patient, activePhase, onChangePhase, o
           </div>
         </div>
 
-        {/* BARRE DI PROGRESSO ORIZZONTALI COMPATTE CON TARGET */}
-        <div className="space-y-1.5 pt-0.5">
+        {/* BARRE DI PROGRESSO ORIZZONTALI COMPATTE CON TARGET & DATA ULTIMO TEST */}
+        <div className="space-y-2 pt-0.5">
           {cupsData.map((cup) => {
             if (cup.earlyNote) {
               return (
-                <div key={cup.id} className="p-2 rounded-xl bg-[#050c17] border border-amber-500/50 text-amber-300 text-[10px] font-medium space-y-1">
-                  <div className="font-black text-[11px] text-white flex items-center gap-1">
-                    <ShieldCheck className="w-3.5 h-3.5 text-amber-400" />
+                <div key={cup.id} className="p-2.5 rounded-xl bg-amber-50 border border-amber-200 text-amber-900 text-[10.5px] font-medium space-y-1">
+                  <div className="font-black text-[11px] text-amber-950 flex items-center gap-1">
+                    <ShieldCheck className="w-3.5 h-3.5 text-amber-600" />
                     <span>{cup.title} - {cup.subtitle}</span>
                   </div>
-                  <p className="text-[10px]">{cup.earlyNote}</p>
+                  <p className="text-[10.5px] text-amber-800">{cup.earlyNote}</p>
                 </div>
               );
             }
@@ -1132,41 +1178,54 @@ export default function TabBatteriaTest({ patient, activePhase, onChangePhase, o
             const isEvaluated = cup.value !== null && cup.value !== undefined;
             const fillPct = isEvaluated ? Math.min(100, Math.max(8, cup.percentageAchieved)) : 0;
             const isTargetOk = cup.isOk;
+            const refDate = cup.meta?.testDate;
 
             return (
               <div 
                 key={cup.id}
-                className="p-1.5 px-2 rounded-xl bg-[#050c17] border border-slate-800/90 space-y-1 shadow-sm hover:border-slate-700 transition-all"
+                className="p-2 px-2.5 rounded-xl bg-slate-50 border border-slate-200 space-y-1.5 shadow-2xs hover:border-slate-300 transition-all"
               >
-                {/* Riga 1: Nome Metrica + Target di riferimento ben visibile */}
-                <div className="flex items-center justify-between text-[10.5px] font-bold">
-                  <span className="text-white font-extrabold tracking-tight">
-                    {cup.title}
-                  </span>
-                  <span className="text-cyan-400 font-mono text-[9.5px] font-bold">
+                {/* Riga 1: Nome Metrica + Data Ultimo Test + Target di riferimento */}
+                <div className="flex items-center justify-between gap-1 text-[10.5px] font-bold">
+                  <div className="flex items-center gap-1.5 min-w-0">
+                    <span className="text-slate-900 font-extrabold tracking-tight truncate">
+                      {cup.title}
+                    </span>
+                    {isEvaluated && refDate && (
+                      <span
+                        title={`Valore rilevato in ${cup.meta?.testLabel || 'Test'} del ${refDate}`}
+                        className="px-1.5 py-0.5 rounded bg-white border border-slate-200 text-slate-500 font-mono text-[8.5px] font-bold shrink-0"
+                      >
+                        {refDate}
+                      </span>
+                    )}
+                  </div>
+                  <span className="text-sky-700 font-mono text-[9.5px] font-bold shrink-0">
                     {cup.targetLabel}
                   </span>
                 </div>
 
                 {/* Riga 2: Barra di avanzamento orizzontale a riempimento fluido */}
                 <div className="flex items-center gap-2">
-                  <div className="relative flex-1 h-5 bg-[#020914] rounded-md border border-slate-800 overflow-hidden p-0.5 shadow-inner">
-                    {/* Riempimento fluido Ciano/Verde brillante vs Ambra vs Grigio Neutrale */}
+                  <div className="relative flex-1 h-5.5 bg-slate-200/80 rounded-lg border border-slate-300/80 overflow-hidden p-0.5 shadow-inner">
+                    {/* Riempimento fluido Verde/Ciano vs Ambra vs Grigio Neutrale */}
                     <div 
-                      className={`h-full rounded relative transition-all duration-700 ease-out ${
+                      className={`h-full rounded-md relative transition-all duration-700 ease-out ${
                         !isEvaluated
-                          ? 'bg-slate-800/60 shadow-none'
+                          ? 'bg-slate-200 shadow-none'
                           : isTargetOk
-                          ? 'bg-gradient-to-r from-cyan-600 via-cyan-400 to-emerald-400 shadow-[0_0_8px_rgba(0,229,255,0.4)]'
-                          : 'bg-gradient-to-r from-amber-600 via-amber-500 to-yellow-400 shadow-[0_0_8px_rgba(245,158,11,0.4)]'
+                          ? 'bg-gradient-to-r from-teal-600 via-emerald-500 to-emerald-400'
+                          : 'bg-gradient-to-r from-amber-500 via-amber-400 to-yellow-400'
                       }`}
                       style={{ width: `${isEvaluated ? fillPct : 100}%` }}
-                    >
-                      {isEvaluated && <div className="absolute top-0 bottom-0 right-0 w-1 bg-white/80 shadow-[0_0_4px_#ffffff] rounded-r"></div>}
-                    </div>
+                    />
 
-                    {/* Valore % bianco ben visibile sovrapposto al centro */}
-                    <div className="absolute inset-0 flex items-center justify-center text-[10px] font-black font-mono text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)]">
+                    {/* Valore % ad alto contrasto sovrapposto al centro */}
+                    <div className={`absolute inset-0 flex items-center justify-center text-[10px] font-black font-mono ${
+                      !isEvaluated
+                        ? 'text-slate-500'
+                        : 'text-slate-950 drop-shadow-[0_1px_1px_rgba(255,255,255,0.85)]'
+                    }`}>
                       {isEvaluated ? `${cup.displayVal} (${cup.percentageAchieved}%)` : 'Non Valutato (N/D)'}
                     </div>
                   </div>
@@ -1174,16 +1233,16 @@ export default function TabBatteriaTest({ patient, activePhase, onChangePhase, o
                   {/* Badge a destra */}
                   <div className="shrink-0">
                     {!isEvaluated ? (
-                      <span className="px-1.5 py-0.5 rounded bg-slate-900 border border-slate-700 text-slate-400 text-[8.5px] font-black uppercase flex items-center gap-0.5 shadow-sm">
+                      <span className="px-1.5 py-0.5 rounded-md bg-slate-100 border border-slate-300 text-slate-500 text-[8.5px] font-black uppercase flex items-center gap-0.5">
                         NON VALUTATO
                       </span>
                     ) : isTargetOk ? (
-                      <span className="px-1.5 py-0.5 rounded bg-emerald-950 border border-emerald-400 text-emerald-300 text-[8.5px] font-black uppercase flex items-center gap-0.5 shadow-sm">
-                        <CheckCircle2 className="w-2.5 h-2.5 text-emerald-300 shrink-0" />
+                      <span className="px-1.5 py-0.5 rounded-md bg-emerald-50 border border-emerald-300 text-emerald-700 text-[8.5px] font-black uppercase flex items-center gap-0.5">
+                        <CheckCircle2 className="w-2.5 h-2.5 text-emerald-600 shrink-0" />
                         TARGET OK
                       </span>
                     ) : (
-                      <span className="px-1.5 py-0.5 rounded bg-amber-950 border border-amber-400 text-amber-300 text-[8.5px] font-black uppercase flex items-center gap-0.5 shadow-sm">
+                      <span className="px-1.5 py-0.5 rounded-md bg-amber-50 border border-amber-300 text-amber-800 text-[8.5px] font-black uppercase flex items-center gap-0.5">
                         IN CORSO
                       </span>
                     )}
@@ -1196,39 +1255,39 @@ export default function TabBatteriaTest({ patient, activePhase, onChangePhase, o
         </div>
 
         {/* CHECKLIST QUALITATIVA (GRIGLIA VERTICALE ORDINATA 1 COLONNA CON TESTI COMPLETI) */}
-        <div className="p-2.5 rounded-2xl bg-[#050c17] border border-slate-800 space-y-1.5 shadow-xl mt-1.5">
-          <div className="flex items-center justify-between border-b border-slate-800 pb-1.5">
+        <div className="p-3 rounded-2xl bg-slate-50 border border-slate-200 space-y-2 shadow-xs mt-1.5">
+          <div className="flex items-center justify-between border-b border-slate-200 pb-1.5">
             <div className="flex items-center gap-1.5">
-              <CheckSquare className="w-3.5 h-3.5 text-emerald-400" />
-              <span className="font-black text-white text-[11px] uppercase tracking-wider">
+              <CheckSquare className="w-3.5 h-3.5 text-emerald-600" />
+              <span className="font-black text-slate-800 text-[11px] uppercase tracking-wider">
                 Checklist Qualitativa ({selectedPhase})
               </span>
             </div>
-            <span className="text-[9.5px] font-mono text-emerald-400 font-black bg-emerald-950 px-2 py-0.5 rounded-lg border border-emerald-500/40">
+            <span className="text-[9.5px] font-mono text-emerald-700 font-black bg-emerald-50 px-2 py-0.5 rounded-lg border border-emerald-200">
               {Object.values(currentChecklistState).filter(Boolean).length}/{currentChecklistItems.length} OK
             </span>
           </div>
 
-          <div className="grid grid-cols-1 gap-1 text-xs font-bold">
+          <div className="grid grid-cols-1 gap-1.5 text-xs font-bold">
             {currentChecklistItems.map((item) => {
               const isChecked = currentChecklistState[item.id];
               return (
                 <div 
                   key={item.id}
                   onClick={() => setCurrentChecklistState(prev => ({ ...prev, [item.id]: !prev[item.id] }))}
-                  className={`p-1.5 px-2.5 rounded-lg border flex items-center justify-between cursor-pointer transition-all ${
+                  className={`p-2 px-2.5 rounded-xl border flex items-center justify-between cursor-pointer transition-all ${
                     isChecked 
-                      ? 'bg-emerald-950/80 border-emerald-400 text-emerald-300 font-black shadow-md ring-1 ring-emerald-500/30' 
-                      : 'bg-slate-900/90 border-slate-800 text-slate-300 hover:text-white hover:bg-slate-800'
+                      ? 'bg-emerald-50/90 border-emerald-300 text-emerald-900 font-black shadow-2xs' 
+                      : 'bg-white border-slate-200 text-slate-600 hover:text-slate-900 hover:bg-slate-100'
                   }`}
                 >
                   <span className="text-[11px] font-extrabold whitespace-normal leading-snug">
-                    {item.label} {isChecked ? '✓' : ''}
+                    {item.label}
                   </span>
-                  <div className={`w-3.5 h-3.5 rounded border flex items-center justify-center shrink-0 ml-2 transition-colors ${
-                    isChecked ? 'bg-emerald-400 border-emerald-300 text-slate-950' : 'border-slate-700 bg-slate-950'
+                  <div className={`w-4 h-4 rounded border flex items-center justify-center shrink-0 ml-2 transition-colors ${
+                    isChecked ? 'bg-emerald-600 border-emerald-600 text-white' : 'border-slate-300 bg-white'
                   }`}>
-                    {isChecked && <Check className="w-2.5 h-2.5 stroke-[3]" />}
+                    {isChecked && <Check className="w-3 h-3 stroke-[3]" />}
                   </div>
                 </div>
               );

@@ -1,5 +1,12 @@
 import React, { useState } from 'react';
-import { TrendingUp, Percent, BarChart2, Info } from 'lucide-react';
+import { TrendingUp, Percent, BarChart2 } from 'lucide-react';
+import { sortTestsByDate } from '../utils/testUtils';
+
+const parsePositiveNum = (v) => {
+  if (v === null || v === undefined || v === '' || v === '-') return null;
+  const n = typeof v === 'number' ? v : parseFloat(String(v).replace('%', '').replace(',', '.').trim());
+  return !isNaN(n) && n > 0 ? n : null;
+};
 
 const METRIC_CONFIG = [
   {
@@ -7,10 +14,16 @@ const METRIC_CONFIG = [
     cleanKey: 'lsi_quad',
     label: 'LSI Quadricipite',
     unit: '%',
-    color: '#06b6d4', // Cyan
-    getValue: (t) => {
-      const val = parseFloat(t?.lsiQuad);
-      return !isNaN(val) ? val : 0;
+    color: '#0284c7', // Sky Blue
+    getRawValue: (t) => {
+      const direct = parsePositiveNum(t?.lsiQuad ?? t?.lsi_quad_calculated);
+      if (direct !== null) return direct;
+      const sx = parsePositiveNum(t?.quadSano ?? t?.iso_leg_ext_sx);
+      const dx = parsePositiveNum(t?.quadOp ?? t?.iso_leg_ext_dx);
+      if (sx !== null && dx !== null) {
+        return parseFloat(((Math.min(sx, dx) / Math.max(sx, dx)) * 100).toFixed(1));
+      }
+      return null;
     }
   },
   {
@@ -18,21 +31,24 @@ const METRIC_CONFIG = [
     cleanKey: 'cmj_height',
     label: 'Altezza CMJ',
     unit: 'cm',
-    color: '#10b981', // Emerald Green
-    getValue: (t) => {
-      const val = parseFloat(t?.jumpHeight);
-      return !isNaN(val) ? val : 0;
-    }
+    color: '#059669', // Emerald Green
+    getRawValue: (t) => parsePositiveNum(t?.jumpHeight ?? t?.jump_height_cm ?? t?.altezza_salto)
   },
   {
     id: 'rsiCmj',
     cleanKey: 'rsi_mod',
     label: 'RSImod',
     unit: 'm/s',
-    color: '#f59e0b', // Amber Gold
-    getValue: (t) => {
-      const val = parseFloat(t?.rsiCmj);
-      return !isNaN(val) ? val : 0;
+    color: '#d97706', // Amber
+    getRawValue: (t) => {
+      const direct = parsePositiveNum(t?.rsiCmj ?? t?.rsi_cmj ?? t?.rsi_mod);
+      if (direct !== null) return direct;
+      const h = parsePositiveNum(t?.jumpHeight ?? t?.jump_height_cm ?? t?.altezza_salto);
+      const ct = parsePositiveNum(t?.contractionTime ?? t?.contraction_time_ms ?? t?.tempo_contrazione);
+      if (h !== null && ct !== null) {
+        return parseFloat(((h / 100) / (ct / 1000)).toFixed(2));
+      }
+      return null;
     }
   },
   {
@@ -40,43 +56,40 @@ const METRIC_CONFIG = [
     cleanKey: 'single_hop',
     label: 'Single Hop LSI',
     unit: '%',
-    color: '#ec4899', // Neon Pink
-    getValue: (t) => {
-      const val = parseFloat(t?.lsiSingleHop);
-      return !isNaN(val) ? val : 0;
-    }
+    color: '#db2777', // Pink
+    getRawValue: (t) => parsePositiveNum(t?.lsiSingleHop ?? t?.lsi_single_hop)
   },
   {
     id: 'peakPower',
     cleanKey: 'peak_power',
     label: 'Peak Power',
     unit: 'W/kg',
-    color: '#a855f7', // Purple
-    getValue: (t) => {
-      const val = parseFloat(t?.peakPower);
-      return !isNaN(val) ? val : 0;
-    }
+    color: '#7c3aed', // Violet
+    getRawValue: (t) => parsePositiveNum(t?.peakPower ?? t?.peak_power_w ?? t?.potenza_picco)
   },
   {
     id: 'eccBrakingSX',
     cleanKey: 'ecc_braking',
     label: 'Eccentric Impulse SX',
     unit: 'N·s',
-    color: '#f97316', // Orange
-    getValue: (t) => {
-      const val = parseFloat(t?.eccBrakingSX);
-      return !isNaN(val) ? val : 0;
-    }
+    color: '#ea580c', // Orange
+    getRawValue: (t) => parsePositiveNum(t?.eccBrakingSX ?? t?.ecc_braking_sx)
   },
   {
     id: 'lsiFlex',
     cleanKey: 'lsi_flex',
     label: 'LSI Ischiocrurali',
     unit: '%',
-    color: '#3b82f6', // Blue
-    getValue: (t) => {
-      const val = parseFloat(t?.lsiFlex);
-      return !isNaN(val) ? val : 0;
+    color: '#2563eb', // Blue
+    getRawValue: (t) => {
+      const direct = parsePositiveNum(t?.lsiFlex ?? t?.lsi_curl_calculated);
+      if (direct !== null) return direct;
+      const sx = parsePositiveNum(t?.flexSano ?? t?.iso_leg_curl_sx);
+      const dx = parsePositiveNum(t?.flexOp ?? t?.iso_leg_curl_dx);
+      if (sx !== null && dx !== null) {
+        return parseFloat(((Math.min(sx, dx) / Math.max(sx, dx)) * 100).toFixed(1));
+      }
+      return null;
     }
   }
 ];
@@ -86,21 +99,21 @@ export default function GraficoMultimetrica({ tests = [] }) {
   const [activeMetrics, setActiveMetrics] = useState(['lsiQuad', 'jumpHeight']);
   const [hoveredPoint, setHoveredPoint] = useState(null);
 
-  if (!tests || tests.length === 0) {
+  const rawTests = sortTestsByDate(tests);
+
+  if (!rawTests || rawTests.length === 0) {
     return (
-      <div className="w-full p-8 bg-[#0a1628] rounded-2xl border border-slate-800 text-center space-y-2 no-print shadow-lg">
-        <TrendingUp className="w-8 h-8 text-cyan-500/50 mx-auto" />
-        <h3 className="font-extrabold text-white text-xs uppercase tracking-wide">
-          Grafico Multimetrico (Nessun Dati)
+      <div className="w-full p-8 bg-white rounded-2xl border border-slate-200 text-center space-y-2 no-print shadow-xs">
+        <TrendingUp className="w-8 h-8 text-sky-500/60 mx-auto" />
+        <h3 className="font-extrabold text-slate-900 text-xs uppercase tracking-wide">
+          Grafico Multimetrico (Nessun Dato)
         </h3>
-        <p className="text-slate-400 text-xs max-w-md mx-auto">
+        <p className="text-slate-500 text-xs max-w-md mx-auto">
           Nessuna valutazione clinica registrata per questo paziente. Registra la prima valutazione per visualizzare l'andamento multimetrico nel tempo.
         </p>
       </div>
     );
   }
-
-  const rawTests = tests;
 
   const toggleMetric = (id) => {
     if (activeMetrics.includes(id)) {
@@ -114,11 +127,27 @@ export default function GraficoMultimetrica({ tests = [] }) {
 
   const activeMetricDefs = METRIC_CONFIG.filter(m => activeMetrics.includes(m.id));
 
-  // Baseline values (Test #1)
+  // Serie storiche con persistenza cronologica (Carry-Forward dell'ultimo valore valido)
+  const seriesByMetric = {};
   const baselines = {};
+
   activeMetricDefs.forEach(m => {
-    const val = m.getValue(rawTests[0]);
-    baselines[m.id] = val !== 0 ? val : 1;
+    let lastValid = null;
+    const rawValues = rawTests.map(t => m.getRawValue(t));
+    const firstValid = rawValues.find(v => v !== null) ?? 0;
+    baselines[m.id] = firstValid > 0 ? firstValid : 1;
+
+    seriesByMetric[m.id] = rawValues.map((v) => {
+      if (v !== null) {
+        lastValid = v;
+        return { absVal: v, isCarriedForward: false };
+      }
+      // Se in una data successiva il test non è stato ripetuto, mantiene l'ultimo valore valido registrato
+      if (lastValid !== null) {
+        return { absVal: lastValid, isCarriedForward: true };
+      }
+      return { absVal: firstValid, isCarriedForward: true };
+    });
   });
 
   // Coordinate SVG per viewBox "0 0 1000 200"
@@ -127,8 +156,8 @@ export default function GraficoMultimetrica({ tests = [] }) {
   const numTests = rawTests.length;
 
   const metricLinesData = activeMetricDefs.map(m => {
-    const values = rawTests.map(t => {
-      const absVal = m.getValue(t);
+    const series = seriesByMetric[m.id] || [];
+    const values = series.map(({ absVal }) => {
       if (viewMode === 'relative') {
         const baseVal = baselines[m.id];
         return baseVal !== 0 ? ((absVal - baseVal) / baseVal) * 100 : 0;
@@ -142,14 +171,15 @@ export default function GraficoMultimetrica({ tests = [] }) {
 
     const points = values.map((val, idx) => {
       const x = numTests > 1 ? startX + (idx / (numTests - 1)) * (endX - startX) : startX + (endX - startX) / 2;
-      // Y axis: 25 at top, 160 at bottom
       const y = 160 - ((val - minV) / range) * 135;
-      const absVal = m.getValue(rawTests[idx]);
+      const absVal = series[idx]?.absVal ?? 0;
+      const isCarriedForward = series[idx]?.isCarriedForward ?? false;
       return {
         x,
         y,
         val: Number(val.toFixed(1)),
         absVal,
+        isCarriedForward,
         testLabel: rawTests[idx].label || `TEST #${idx + 1}`,
         date: rawTests[idx].date || ''
       };
@@ -165,34 +195,34 @@ export default function GraficoMultimetrica({ tests = [] }) {
   });
 
   return (
-    <div className="block w-full space-y-3 no-print font-sans text-slate-100">
+    <div className="block w-full space-y-3 no-print font-sans text-slate-900">
       
       {/* ========================================================================= */}
       {/* 1. BLOCCO SUPERIORE: FILTRI E SELEZIONE METRICHE */}
       {/* ========================================================================= */}
-      <div className="w-full bg-[#0a1628] p-3.5 rounded-xl border border-slate-800 shadow-md space-y-2.5">
+      <div className="w-full bg-white p-4 rounded-2xl border border-slate-200 shadow-xs space-y-2.5">
         
         {/* Intestazione Titolo + Pulsanti Toggle Modalità */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-2 border-b border-slate-800">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-2.5 border-b border-slate-200">
           <div className="flex items-center gap-2">
-            <div className="p-1.5 bg-gradient-to-br from-cyan-500/20 to-blue-500/10 border border-cyan-500/40 rounded-lg text-cyan-400">
+            <div className="p-1.5 bg-sky-50 border border-sky-200 rounded-lg text-sky-600">
               <TrendingUp className="w-4 h-4" />
             </div>
             <div>
-              <h3 className="font-extrabold text-white text-xs uppercase tracking-wide">
-                GRAFICO MULTIMETRICA
+              <h3 className="font-extrabold text-slate-900 text-xs uppercase tracking-wide">
+                GRAFICO MULTIMETRICA (ANDAMENTO STORICO PERSISTENTE)
               </h3>
             </div>
           </div>
 
           {/* Pulsanti [% Variazione Relativa | Valori Assoluti] */}
-          <div className="flex items-center gap-1 bg-slate-950 p-1 rounded-lg border border-slate-800 shadow-inner self-start sm:self-auto">
+          <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-xl border border-slate-200 self-start sm:self-auto">
             <button
               onClick={() => setViewMode('relative')}
-              className={`px-2.5 py-1 rounded-md text-[11px] font-black transition-all flex items-center gap-1 cursor-pointer ${
+              className={`px-2.5 py-1 rounded-lg text-[11px] font-black transition-all flex items-center gap-1 cursor-pointer ${
                 viewMode === 'relative'
-                  ? 'bg-gradient-to-r from-cyan-600 to-blue-600 text-white shadow-sm border border-cyan-400/50'
-                  : 'text-slate-400 hover:text-white'
+                  ? 'bg-sky-600 text-white shadow-xs'
+                  : 'text-slate-600 hover:text-slate-900'
               }`}
             >
               <Percent className="w-3 h-3" />
@@ -201,10 +231,10 @@ export default function GraficoMultimetrica({ tests = [] }) {
 
             <button
               onClick={() => setViewMode('absolute')}
-              className={`px-2.5 py-1 rounded-md text-[11px] font-black transition-all flex items-center gap-1 cursor-pointer ${
+              className={`px-2.5 py-1 rounded-lg text-[11px] font-black transition-all flex items-center gap-1 cursor-pointer ${
                 viewMode === 'absolute'
-                  ? 'bg-gradient-to-r from-cyan-600 to-blue-600 text-white shadow-md border border-cyan-400/50'
-                  : 'text-slate-400 hover:text-white'
+                  ? 'bg-sky-600 text-white shadow-xs'
+                  : 'text-slate-600 hover:text-slate-900'
               }`}
             >
               <BarChart2 className="w-3 h-3" />
@@ -213,7 +243,7 @@ export default function GraficoMultimetrica({ tests = [] }) {
           </div>
         </div>
 
-        {/* Pillole delle Metriche Selezionabili (flex-row flex-wrap gap-1.5) */}
+        {/* Pillole delle Metriche Selezionabili */}
         <div className="flex flex-row flex-wrap items-center gap-1.5">
           {METRIC_CONFIG.map(m => {
             const isActive = activeMetrics.includes(m.id);
@@ -221,17 +251,17 @@ export default function GraficoMultimetrica({ tests = [] }) {
               <button
                 key={m.id}
                 onClick={() => toggleMetric(m.id)}
-                className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition-all flex items-center gap-1.5 cursor-pointer border shadow-sm ${
+                className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition-all flex items-center gap-1.5 cursor-pointer border ${
                   isActive
-                    ? 'bg-slate-900 font-extrabold shadow-sm border-cyan-500/60'
-                    : 'bg-slate-950/60 text-slate-500 border-slate-800 opacity-60 hover:opacity-100'
+                    ? 'bg-white font-extrabold shadow-xs border-slate-300'
+                    : 'bg-slate-50 text-slate-500 border-slate-200 opacity-75 hover:opacity-100'
                 }`}
                 style={{
-                  color: isActive ? m.color : '#94a3b8'
+                  color: isActive ? m.color : '#64748b'
                 }}
               >
                 <div
-                  className="w-2 h-2 rounded-full shrink-0 shadow-sm"
+                  className="w-2 h-2 rounded-full shrink-0"
                   style={{ backgroundColor: m.color }}
                 />
                 <span>{isActive ? `✓ ${m.label}` : m.label}</span>
@@ -244,14 +274,12 @@ export default function GraficoMultimetrica({ tests = [] }) {
       </div>
 
       {/* ========================================================================= */}
-      {/* 2. BLOCCO INFERIORE: ESCLUSIVO PER IL GRAFICO (block, w-full, max h-[260px]) */}
+      {/* 2. BLOCCO INFERIORE: GRAFICO */}
       {/* ========================================================================= */}
-      <div className="block w-full h-[260px] min-h-[250px] bg-[#0a1628] p-3 rounded-2xl border border-slate-800 shadow-xl relative">
+      <div className="block w-full h-[260px] min-h-[250px] bg-white p-3.5 rounded-2xl border border-slate-200 shadow-xs relative">
         
-        {/* Div pulito h-[235px] w-full */}
         <div className="w-full h-[235px] flex flex-col justify-between relative">
           
-          {/* SVG del Grafico (width="100%" height="190px" viewBox="0 0 1000 200" preserveAspectRatio="none") */}
           <div className="w-full h-[190px] relative">
             <svg
               width="100%"
@@ -261,9 +289,9 @@ export default function GraficoMultimetrica({ tests = [] }) {
               className="overflow-visible"
             >
               {/* Griglie Orizzontali Dash */}
-              <line x1="20" y1="30" x2="980" y2="30" stroke="#334155" strokeDasharray="4 4" strokeWidth="1" />
-              <line x1="20" y1="95" x2="980" y2="95" stroke="#334155" strokeDasharray="4 4" strokeWidth="1" />
-              <line x1="20" y1="160" x2="980" y2="160" stroke="#334155" strokeDasharray="4 4" strokeWidth="1" />
+              <line x1="20" y1="30" x2="980" y2="30" stroke="#e2e8f0" strokeDasharray="4 4" strokeWidth="1" />
+              <line x1="20" y1="95" x2="980" y2="95" stroke="#e2e8f0" strokeDasharray="4 4" strokeWidth="1" />
+              <line x1="20" y1="160" x2="980" y2="160" stroke="#e2e8f0" strokeDasharray="4 4" strokeWidth="1" />
 
               {/* Render delle Linee Multi-Metrica */}
               {metricLinesData.map((mLine) => (
@@ -285,7 +313,7 @@ export default function GraficoMultimetrica({ tests = [] }) {
                         cy={pt.y}
                         r="6"
                         fill={mLine.def.color}
-                        stroke="#020617"
+                        stroke="#ffffff"
                         strokeWidth="2"
                         onMouseEnter={() => setHoveredPoint({ ...pt, metricLabel: mLine.def.label, color: mLine.def.color, unit: mLine.def.unit })}
                         onMouseLeave={() => setHoveredPoint(null)}
@@ -311,26 +339,31 @@ export default function GraficoMultimetrica({ tests = [] }) {
 
             {/* Tooltip Hover */}
             {hoveredPoint && (
-              <div className="absolute top-1 right-2 bg-slate-900 border border-slate-700 p-2 rounded-xl shadow-2xl text-[11px] space-y-0.5 font-sans pointer-events-none z-30">
-                <div className="text-white font-black flex items-center justify-between gap-3 border-b border-slate-800 pb-0.5">
+              <div className="absolute top-1 right-2 bg-white border border-slate-200 p-2.5 rounded-xl shadow-lg text-[11px] space-y-0.5 font-sans pointer-events-none z-30">
+                <div className="text-slate-900 font-black flex items-center justify-between gap-3 border-b border-slate-200 pb-1">
                   <span>{hoveredPoint.testLabel}</span>
-                  <span className="text-[10px] text-cyan-400 font-mono font-bold">{hoveredPoint.date}</span>
+                  <span className="text-[10px] text-sky-700 font-mono font-bold">{hoveredPoint.date}</span>
                 </div>
                 <div className="flex items-center gap-1.5 pt-0.5">
                   <span className="w-2 h-2 rounded-full" style={{ backgroundColor: hoveredPoint.color }} />
-                  <span className="text-slate-200 font-bold">{hoveredPoint.metricLabel}:</span>
-                  <span className="text-white font-mono font-black text-[11px]">{hoveredPoint.absVal} {hoveredPoint.unit}</span>
+                  <span className="text-slate-600 font-bold">{hoveredPoint.metricLabel}:</span>
+                  <span className="text-slate-900 font-mono font-black text-[11px]">{hoveredPoint.absVal} {hoveredPoint.unit}</span>
                 </div>
+                {hoveredPoint.isCarriedForward && (
+                  <div className="text-[9.5px] text-amber-700 font-semibold">
+                    Dato persistente da test precedente
+                  </div>
+                )}
               </div>
             )}
           </div>
 
-          {/* Riga Orizzontale Ben Spaziata delle Etichette Date/Test Sotto l'SVG */}
-          <div className="w-full flex justify-between text-xs font-mono font-bold text-slate-200 px-4 pt-1.5 border-t border-slate-800/90">
+          {/* Riga Orizzontale Etichette Date/Test Sotto l'SVG */}
+          <div className="w-full flex justify-between text-xs font-mono font-bold text-slate-700 px-4 pt-1.5 border-t border-slate-200">
             {rawTests.map((t, idx) => (
               <div key={idx} className="text-center">
-                <span className="block text-slate-100 font-black">{t.label || `TEST #${idx + 1}`}</span>
-                <span className="block text-[10px] text-cyan-400 font-semibold">{t.date || ''}</span>
+                <span className="block text-slate-900 font-black">{t.label || `TEST #${idx + 1}`}</span>
+                <span className="block text-[10px] text-sky-700 font-semibold">{t.date || ''}</span>
               </div>
             ))}
           </div>
@@ -342,3 +375,4 @@ export default function GraficoMultimetrica({ tests = [] }) {
     </div>
   );
 }
+

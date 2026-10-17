@@ -28,7 +28,7 @@ import {
   Search
 } from 'lucide-react';
 import ModalLibreriaScientifica from '../ModalLibreriaScientifica';
-import { sortTestsByDate } from '../../utils/testUtils';
+import { sortTestsByDate, getLastValidMetricValue } from '../../utils/testUtils';
 
 // Error Boundary per prevenire Schermata Nera / Crash React
 class CopilotErrorBoundary extends React.Component {
@@ -224,8 +224,8 @@ export function getProgressionCriteria(patient) {
 
   const postOp = getPostOpStats(patient.data_intervento);
 
-  // 2. Estrazione dati dal più recente test registrato
-  const rawTests = Array.isArray(patient.tests) ? patient.tests.flat(Infinity).filter(t => t && typeof t === 'object' && !Array.isArray(t)) : [];
+  // 2. Estrazione dati persistenti dall'ultimo test valido in ordine cronologico temporale
+  const rawTests = sortTestsByDate(patient.tests);
   const latestTest = rawTests.length > 0 ? rawTests[rawTests.length - 1] : null;
 
   const parseNum = (val) => {
@@ -234,16 +234,16 @@ export function getProgressionCriteria(patient) {
     return isNaN(n) ? null : n;
   };
 
-  const lsiQuad = latestTest ? parseNum(latestTest.lsiQuad ?? latestTest.lsi_quad) : null;
-  const lsiFlex = latestTest ? parseNum(latestTest.lsiFlex ?? latestTest.lsi_flex) : null;
-  const lsiSingleHop = latestTest ? parseNum(latestTest.lsiSingleHop ?? latestTest.lsi_single_hop) : null;
-  const lsiTripleHop = latestTest ? parseNum(latestTest.lsiTripleHop ?? latestTest.lsi_triple_hop) : null;
-  const ikdc = latestTest ? parseNum(latestTest.ikdc) : parseNum(patient.ikdc_score);
-  const aclrsi = latestTest ? parseNum(latestTest.aclrsi) : parseNum(patient.aclrsi_score_iniziale);
-  const rsiVal = latestTest ? parseNum(latestTest.rsiDropJump ?? latestTest.rsiCmj ?? latestTest.rsi) : null;
-  const djContactTime = latestTest ? parseNum(latestTest.djContactTime ?? latestTest.dj_contact_time) : null;
-  const brakingAsym = latestTest ? parseNum(latestTest.brakingAsym ?? latestTest.braking_asym) : null;
-  const hqRatio = latestTest ? parseNum(latestTest.hqRatio ?? latestTest.hq_ratio) : null;
+  const lsiQuad = getLastValidMetricValue(rawTests, ['lsiQuad', 'lsi_quad', 'lsi_quad_calculated']);
+  const lsiFlex = getLastValidMetricValue(rawTests, ['lsiFlex', 'lsi_flex', 'lsi_curl_calculated']);
+  const lsiSingleHop = getLastValidMetricValue(rawTests, ['lsiSingleHop', 'lsi_single_hop']);
+  const lsiTripleHop = getLastValidMetricValue(rawTests, ['lsiTripleHop', 'lsi_triple_hop']);
+  const ikdc = getLastValidMetricValue(rawTests, ['ikdc', 'ikdc_score']) ?? parseNum(patient.ikdc_score);
+  const aclrsi = getLastValidMetricValue(rawTests, ['aclrsi', 'acl_rsi']) ?? parseNum(patient.aclrsi_score_iniziale);
+  const rsiVal = getLastValidMetricValue(rawTests, ['rsiDropJump', 'djRSI', 'dj_rsi', 'rsiCmj', 'rsi_cmj', 'rsi']);
+  const djContactTime = getLastValidMetricValue(rawTests, ['djContactTime', 'dj_contact_time']);
+  const brakingAsym = getLastValidMetricValue(rawTests, ['brakingAsym', 'braking_asym', 'ecc_braking_asym_calculated'], { allowZero: true });
+  const hqRatio = getLastValidMetricValue(rawTests, ['hqRatio', 'hq_ratio']);
 
   // 3. Determinazione Fase Attuale e Target di Sblocco
   const rawPhase = String(patient.fase_riabilitativa || patient.fase_attuale || '').toLowerCase();

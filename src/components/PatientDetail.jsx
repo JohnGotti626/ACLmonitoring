@@ -111,20 +111,20 @@ export default function PatientDetail({ patient, onBack, onUpdatePatient }) {
   return (
     <div className="space-y-6">
       {/* Top Navigation & Patient Header Card */}
-      <div className="glass-panel p-6 rounded-2xl border border-slate-700 space-y-4 shadow-xl">
+      <div className="bg-white p-6 rounded-2xl border border-slate-200 space-y-4 shadow-xs">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <button
             onClick={onBack}
-            className="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-bold text-slate-200 hover:text-cyan-300 border border-slate-700 transition-all shadow-sm cursor-pointer"
+            className="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-xs font-bold text-slate-700 hover:text-sky-700 border border-slate-200 transition-all shadow-2xs cursor-pointer"
           >
-            <ArrowLeft className="w-4 h-4 text-cyan-400" />
+            <ArrowLeft className="w-4 h-4 text-sky-600" />
             <span>Torna al Database Pazienti</span>
           </button>
 
           <div className="flex flex-wrap items-center gap-2">
             <button
               onClick={() => setIsSimulatingPatientPortal(true)}
-              className="px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-400 hover:to-orange-500 text-slate-950 font-black text-xs flex items-center gap-1.5 shadow-md transition-all cursor-pointer"
+              className="px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-500 text-white font-black text-xs flex items-center gap-1.5 shadow-sm transition-all cursor-pointer"
             >
               <Smartphone className="w-4 h-4" />
               <span>Simula Portale Paziente</span>
@@ -132,23 +132,23 @@ export default function PatientDetail({ patient, onBack, onUpdatePatient }) {
 
             <button
               onClick={() => setIsIKDCModalOpen(true)}
-              className="px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-cyan-600 to-emerald-600 hover:from-cyan-500 hover:to-emerald-500 text-white font-extrabold text-xs flex items-center gap-1.5 shadow-md border border-cyan-400/50 transition-all cursor-pointer"
+              className="px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-sky-600 to-cyan-600 hover:from-sky-500 hover:to-cyan-500 text-white font-extrabold text-xs flex items-center gap-1.5 shadow-sm border border-sky-500 transition-all cursor-pointer"
             >
-              <FileText className="w-4 h-4 text-[#39FF14]" />
+              <FileText className="w-4 h-4 text-white" />
               <span>Questionario IKDC iPad</span>
             </button>
 
             <button
               onClick={() => setIsModalOpen(true)}
-              className="px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-extrabold text-xs flex items-center gap-1.5 shadow-md border border-emerald-400/50 transition-all cursor-pointer"
+              className="px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-extrabold text-xs flex items-center gap-1.5 shadow-sm border border-emerald-500 transition-all cursor-pointer"
             >
-              <Plus className="w-4 h-4 text-[#39FF14]" />
+              <Plus className="w-4 h-4 text-white" />
               <span>+ Nuova Valutazione Clinica</span>
             </button>
 
-            <div className="flex items-center gap-2 bg-slate-950 px-3 py-1.5 rounded-xl border border-slate-700">
-              <span className="text-xs text-slate-400 font-semibold">Fase Attuale:</span>
-              <span className="px-3 py-1 rounded-lg bg-cyan-950 border border-cyan-500/50 text-cyan-300 font-black text-xs uppercase tracking-wider">
+            <div className="flex items-center gap-2 bg-slate-50 px-3 py-1.5 rounded-xl border border-slate-200">
+              <span className="text-xs text-slate-500 font-semibold">Fase Attuale:</span>
+              <span className="px-3 py-1 rounded-lg bg-sky-50 border border-sky-200 text-sky-700 font-black text-xs uppercase tracking-wider">
                 {activePhase}
               </span>
             </div>
@@ -156,10 +156,10 @@ export default function PatientDetail({ patient, onBack, onUpdatePatient }) {
         </div>
 
         {/* Patient Profile Header Bar con Pulsante Info / Anagrafica accanto al Nome e Cognome */}
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pt-4 border-t border-slate-700/80">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pt-4 border-t border-slate-200">
           <div>
             <div className="flex flex-wrap items-center gap-3">
-              <h2 className="text-3xl font-black text-white tracking-tight">
+              <h2 className="text-3xl font-black text-slate-900 tracking-tight">
                 {patient.nome} {patient.cognome}
               </h2>
 
@@ -168,45 +168,45 @@ export default function PatientDetail({ patient, onBack, onUpdatePatient }) {
                 type="button"
                 onClick={() => setIsAnagraficaModalOpen(true)}
                 title="Visualizza e modifica Anagrafica e Dettagli Chirurgici"
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-cyan-950 text-cyan-300 hover:text-cyan-200 border border-cyan-500/40 hover:border-cyan-400 text-xs font-extrabold shadow-md transition-all cursor-pointer group"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-sky-50 hover:bg-sky-100 text-sky-700 hover:text-sky-800 border border-sky-200 hover:border-sky-300 text-xs font-extrabold shadow-2xs transition-all cursor-pointer group"
               >
-                <Info className="w-4 h-4 text-cyan-400 group-hover:scale-110 transition-transform" />
+                <Info className="w-4 h-4 text-sky-600 group-hover:scale-110 transition-transform" />
                 <span>Info / Anagrafica</span>
               </button>
 
-              <span className="px-3 py-1 rounded-full bg-cyan-950 border border-cyan-500/50 text-cyan-300 font-mono text-xs font-black">
+              <span className="px-3 py-1 rounded-full bg-slate-100 border border-slate-200 text-slate-700 font-mono text-xs font-black">
                 Lato {patient.lato_lesione}
               </span>
             </div>
 
-            <div className="flex flex-wrap items-center gap-x-5 gap-y-1.5 text-xs text-slate-300 mt-2 font-medium">
+            <div className="flex flex-wrap items-center gap-x-5 gap-y-1.5 text-xs text-slate-600 mt-2 font-medium">
               <span>
                 Sport:{' '}
-                <strong className="text-white bg-slate-800 px-2 py-0.5 rounded border border-slate-700">
+                <strong className="text-slate-900 bg-slate-100 px-2 py-0.5 rounded border border-slate-200">
                   {patient.sport} ({patient.ruolo_sportivo || 'Atleta'})
                 </strong>
               </span>
               <span>
-                Livello: <strong className="text-slate-100">{patient.livello}</strong>
+                Livello: <strong className="text-slate-800">{patient.livello}</strong>
               </span>
               <span>
-                Innesto: <strong className="text-cyan-300 font-bold">{patient.tipo_innesto}</strong>
+                Innesto: <strong className="text-sky-700 font-bold">{patient.tipo_innesto}</strong>
               </span>
               <span>
-                Data Chirurgia: <strong className="text-slate-100 font-mono">{patient.data_intervento}</strong>
+                Data Chirurgia: <strong className="text-slate-800 font-mono">{patient.data_intervento}</strong>
               </span>
               <span>
-                Chirurgo: <strong className="text-slate-100">{patient.chirurgo || 'N/D'}</strong>
+                Chirurgo: <strong className="text-slate-800">{patient.chirurgo || 'N/D'}</strong>
               </span>
             </div>
           </div>
 
           <div className="flex items-center gap-3">
-            <div className="p-3 bg-slate-950 rounded-xl border border-slate-700 text-right hidden sm:block">
-              <div className="text-[11px] text-slate-400 uppercase tracking-wider font-bold">
+            <div className="p-3 bg-slate-50 rounded-xl border border-slate-200 text-right hidden sm:block">
+              <div className="text-[11px] text-slate-500 uppercase tracking-wider font-bold">
                 ACL-RSI Iniziale
               </div>
-              <div className="text-2xl font-black text-emerald-400">
+              <div className="text-2xl font-black text-emerald-600">
                 {patient.aclrsi_score_iniziale}%
               </div>
             </div>
@@ -215,7 +215,7 @@ export default function PatientDetail({ patient, onBack, onUpdatePatient }) {
       </div>
 
       {/* 5-Tab Operational Navigation Bar */}
-      <div className="p-1.5 bg-slate-900 rounded-2xl border border-slate-700/80 flex items-center gap-2 overflow-x-auto scrollbar-none shadow-xl">
+      <div className="p-1.5 bg-white rounded-2xl border border-slate-200 flex items-center gap-2 overflow-x-auto scrollbar-none shadow-xs">
         {tabs.map((tab) => {
           const Icon = tab.icon;
           const isActive = activeTab === tab.id;
@@ -226,17 +226,17 @@ export default function PatientDetail({ patient, onBack, onUpdatePatient }) {
               onClick={() => setActiveTab(tab.id)}
               className={`
                 flex items-center gap-2.5 px-4 py-3 rounded-xl text-xs font-black transition-all whitespace-nowrap flex-shrink-0 cursor-pointer
-                ${isActive ? 'tab-active shadow-lg' : 'tab-inactive'}
+                ${isActive ? 'tab-active shadow-sm' : 'tab-inactive'}
               `}
             >
-              <Icon className={`w-4 h-4 ${isActive ? 'text-white' : 'text-slate-400'}`} />
+              <Icon className={`w-4 h-4 ${isActive ? 'text-white' : 'text-slate-500'}`} />
               <span>{tab.label}</span>
               {tab.badge && (
                 <span
                   className={`text-[10px] px-2 py-0.5 rounded font-mono font-extrabold ${
                     isActive
                       ? 'bg-white/20 text-white border border-white/30'
-                      : 'bg-emerald-950 text-emerald-400 border border-emerald-500/40'
+                      : 'bg-emerald-50 text-emerald-700 border border-emerald-200'
                   }`}
                 >
                   {tab.badge}
@@ -315,23 +315,23 @@ export default function PatientDetail({ patient, onBack, onUpdatePatient }) {
       {/* MODALE A COMPARSA: ANAGRAFICA CLINICA & DETTAGLI CHIRURGICI */}
       {isAnagraficaModalOpen && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/85 backdrop-blur-md"
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm"
           onClick={() => setIsAnagraficaModalOpen(false)}
         >
           <div
-            className="w-full max-w-4xl max-h-[90vh] overflow-y-auto bg-slate-900 border border-slate-700 rounded-3xl p-6 shadow-2xl space-y-4"
+            className="w-full max-w-4xl max-h-[90vh] overflow-y-auto bg-white border border-slate-200 rounded-3xl p-6 shadow-2xl space-y-4"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="flex items-center justify-between border-b border-slate-800 pb-3 sticky top-0 bg-slate-900 z-10">
+            <div className="flex items-center justify-between border-b border-slate-200 pb-3 sticky top-0 bg-white z-10">
               <div className="flex items-center gap-2.5">
-                <div className="p-2 rounded-xl bg-cyan-950 border border-cyan-500/40 text-cyan-400">
+                <div className="p-2 rounded-xl bg-sky-50 border border-sky-200 text-sky-600">
                   <User className="w-5 h-5" />
                 </div>
                 <div>
-                  <span className="text-[10px] font-extrabold uppercase tracking-wider text-cyan-400 block">
+                  <span className="text-[10px] font-extrabold uppercase tracking-wider text-sky-700 block">
                     Scheda Paziente & Dettagli Chirurgici
                   </span>
-                  <h3 className="text-lg font-black text-white">
+                  <h3 className="text-lg font-black text-slate-900">
                     {patient.nome} {patient.cognome}
                   </h3>
                 </div>
@@ -340,7 +340,7 @@ export default function PatientDetail({ patient, onBack, onUpdatePatient }) {
               <button
                 type="button"
                 onClick={() => setIsAnagraficaModalOpen(false)}
-                className="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white text-xs font-bold flex items-center gap-1.5 cursor-pointer"
+                className="px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 hover:text-slate-900 text-xs font-bold flex items-center gap-1.5 cursor-pointer"
               >
                 <X className="w-4 h-4" />
                 <span>Chiudi</span>
@@ -348,22 +348,22 @@ export default function PatientDetail({ patient, onBack, onUpdatePatient }) {
             </div>
 
             {/* RIEPILOGO SINTETICO RAPIDO IN TESTA AL MODALE */}
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 bg-slate-950 border border-slate-800 rounded-2xl p-4 text-xs">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 bg-slate-50 border border-slate-200 rounded-2xl p-4 text-xs">
               <div>
-                <span className="text-slate-400 block text-[10px] uppercase font-bold">Data di Nascita</span>
-                <strong className="text-white font-mono">{patient.data_nascita || 'N/D'}</strong>
+                <span className="text-slate-500 block text-[10px] uppercase font-bold">Data di Nascita</span>
+                <strong className="text-slate-900 font-mono">{patient.data_nascita || 'N/D'}</strong>
               </div>
               <div>
-                <span className="text-slate-400 block text-[10px] uppercase font-bold">Codice Fiscale</span>
-                <strong className="text-cyan-300 font-mono uppercase">{patient.codice_fiscale || 'N/D'}</strong>
+                <span className="text-slate-500 block text-[10px] uppercase font-bold">Codice Fiscale</span>
+                <strong className="text-sky-700 font-mono uppercase">{patient.codice_fiscale || 'N/D'}</strong>
               </div>
               <div>
-                <span className="text-slate-400 block text-[10px] uppercase font-bold">Sport & Ruolo</span>
-                <strong className="text-white">{patient.sport} ({patient.ruolo_sportivo || 'N/D'})</strong>
+                <span className="text-slate-500 block text-[10px] uppercase font-bold">Sport & Ruolo</span>
+                <strong className="text-slate-900">{patient.sport} ({patient.ruolo_sportivo || 'N/D'})</strong>
               </div>
               <div>
-                <span className="text-slate-400 block text-[10px] uppercase font-bold">Innesto & Lato</span>
-                <strong className="text-emerald-400">{patient.tipo_innesto} • Lato {patient.lato_lesione}</strong>
+                <span className="text-slate-500 block text-[10px] uppercase font-bold">Innesto & Lato</span>
+                <strong className="text-emerald-700">{patient.tipo_innesto} • Lato {patient.lato_lesione}</strong>
               </div>
             </div>
 
