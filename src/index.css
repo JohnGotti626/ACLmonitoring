@@ -273,6 +273,14 @@ body textarea:not(.print-report-container *)::placeholder {
     gap: 8px !important;
   }
 
+  .print-report-container .print-col-span-2 {
+    grid-column: span 2 / span 2 !important;
+  }
+
+  .print-report-container .print-col-span-1 {
+    grid-column: span 1 / span 1 !important;
+  }
+
   /* 2. Impedisci che singole schede o sezioni vengano spezzate a metà tra due pagine */
   .print-report-card,
   .report-card-vald,

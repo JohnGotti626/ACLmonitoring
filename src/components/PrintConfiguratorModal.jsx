@@ -19,7 +19,13 @@ import {
   Trash2,
   Edit3,
   Save,
-  RefreshCw
+  RefreshCw,
+  ArrowUp,
+  ArrowDown,
+  GripVertical,
+  FileText,
+  Columns,
+  Maximize2
 } from 'lucide-react';
 import LogoN from './LogoN';
 import ModalLibreriaScientifica, { DEFAULT_BIBLIO_SOURCES } from './ModalLibreriaScientifica';
@@ -938,10 +944,19 @@ function CardTrendChartSvg({ metricData }) {
 }
 
 // ============================================================================
-// 5. SCHEDA METRICA IN STILE VALD / FORCEDECKS CON RATIONALE MODIFICABILE
+// 5. SCHEDA METRICA IN STILE VALD / FORCEDECKS CON CONTROLLI DI ORDINAMENTO
 // ============================================================================
+const ICON_BY_KEY = {
+  TrendingDown,
+  Footprints,
+  Zap,
+  Activity
+};
+
 function ValdMetricCard({
   card,
+  index,
+  totalBlocks,
   tests,
   selectedTest,
   bodyMassKg,
@@ -949,10 +964,21 @@ function ValdMetricCard({
   citationsMap,
   onUpdateCitation,
   onChangeParam,
-  onRemoveCard
+  onChangeTitle,
+  onMoveBlock,
+  onToggleColSpan,
+  onInsertNoteAfter,
+  onRemoveCard,
+  onDragStart,
+  onDragOver,
+  onDrop
 }) {
   const [isEditingRationale, setIsEditingRationale] = useState(false);
-  const IconComp = card.icon || Activity;
+  const IconComp = card.icon || ICON_BY_KEY[card.iconKey] || Activity;
+  const allParams =
+    Array.isArray(card.parameters) && card.parameters.length > 0
+      ? card.parameters
+      : DEFAULT_REPORT_CARDS.flatMap((c) => c.parameters);
 
   const citation =
     (citationsMap && citationsMap[card.citationKey]) ||
@@ -976,20 +1002,44 @@ function ValdMetricCard({
     isHistoricalFallback
   } = metricData;
 
+  const spanClass =
+    card.colSpan === 2
+      ? 'sm:col-span-2 print:col-span-2 print-col-span-2'
+      : 'col-span-1 print-col-span-1';
+
   return (
     <div
+      draggable
+      onDragStart={() => onDragStart && onDragStart(index)}
+      onDragOver={(e) => onDragOver && onDragOver(e, index)}
+      onDrop={() => onDrop && onDrop(index)}
       style={{ breakInside: 'avoid', pageBreakInside: 'avoid' }}
-      className="print-report-card report-card-vald bg-white border border-slate-300 rounded-xl p-3 shadow-sm space-y-2 flex flex-col justify-between break-inside-avoid text-slate-900 font-sans"
+      className={`print-report-card report-card-vald ${spanClass} bg-white border border-slate-300 rounded-xl p-3 shadow-sm space-y-2 flex flex-col justify-between break-inside-avoid text-slate-900 font-sans transition-all`}
     >
       {/* HEADER CARD */}
-      <div className="flex items-start justify-between border-b border-slate-200 pb-1.5">
-        <div className="flex items-center gap-2">
-          <div className="p-1 rounded-md bg-slate-100 border border-slate-300 text-slate-700 shrink-0">
+      <div className="flex items-start justify-between border-b border-slate-200 pb-1.5 gap-1">
+        <div className="flex items-center gap-2 min-w-0 flex-1">
+          <div
+            className="p-1 rounded-md bg-slate-100 border border-slate-300 text-slate-700 shrink-0 cursor-grab no-print"
+            title="Trascina per riordinare la scheda"
+          >
+            <GripVertical className="w-3.5 h-3.5" />
+          </div>
+          <div className="hidden print-only-inline p-1 rounded-md bg-slate-100 border border-slate-300 text-slate-700 shrink-0">
             <IconComp className="w-3.5 h-3.5" />
           </div>
-          <div>
-            <div className="flex items-center gap-1.5">
-              <h4 className="text-xs font-black text-slate-900 leading-tight">{card.title}</h4>
+          <div className="min-w-0 flex-1">
+            <div className="flex items-center gap-1.5 flex-wrap">
+              <input
+                type="text"
+                value={card.title}
+                onChange={(e) => onChangeTitle && onChangeTitle(card.id, e.target.value)}
+                className="text-xs font-black text-slate-900 leading-tight bg-transparent border-b border-transparent hover:border-slate-300 focus:border-cyan-600 focus:outline-none w-full max-w-[210px] no-print"
+                title="Clicca per modificare il titolo della scheda"
+              />
+              <h4 className="hidden print-only-inline text-xs font-black text-slate-900 leading-tight">
+                {card.title}
+              </h4>
               {isHistoricalFallback && sourceDate && (
                 <span
                   className="text-[7px] font-mono font-bold px-1 py-0.2 bg-amber-50 text-amber-800 border border-amber-300 rounded"
@@ -1007,28 +1057,67 @@ function ValdMetricCard({
                 onChange={(e) => onChangeParam(card.id, e.target.value)}
                 className="bg-slate-100 hover:bg-slate-200 text-slate-800 text-[8.5px] font-bold border border-slate-300 rounded px-1 py-0.5 focus:outline-none focus:border-cyan-500 cursor-pointer no-print"
               >
-                {card.parameters.map((p) => (
+                {allParams.map((p) => (
                   <option key={p.id} value={p.id}>
                     {p.label}
                   </option>
                 ))}
               </select>
               <span className="hidden print-only-inline text-[8.5px] font-bold text-slate-700 bg-slate-100 px-1.5 py-0.5 rounded border border-slate-300">
-                {card.parameters.find((p) => p.id === card.selectedParam)?.label || card.selectedParam}
+                {allParams.find((p) => p.id === card.selectedParam)?.label || card.selectedParam}
               </span>
             </div>
           </div>
         </div>
 
-        {onRemoveCard && (
+        {/* TOOLBAR RAPIDA ORDINAMENTO E INSERIMENTO NOTA (SOLO SCHERMO) */}
+        <div className="flex items-center gap-0.5 no-print shrink-0">
           <button
-            onClick={() => onRemoveCard(card.id)}
-            title="Rimuovi Scheda"
-            className="text-slate-400 hover:text-rose-500 p-0.5 no-print cursor-pointer"
+            type="button"
+            onClick={() => onMoveBlock && onMoveBlock(index, -1)}
+            disabled={index === 0}
+            title="Sposta Su"
+            className="p-1 rounded hover:bg-slate-100 text-slate-500 hover:text-slate-900 disabled:opacity-25 cursor-pointer"
           >
-            <Trash2 className="w-3.5 h-3.5" />
+            <ArrowUp className="w-3 h-3" />
           </button>
-        )}
+          <button
+            type="button"
+            onClick={() => onMoveBlock && onMoveBlock(index, 1)}
+            disabled={index === totalBlocks - 1}
+            title="Sposta Giù"
+            className="p-1 rounded hover:bg-slate-100 text-slate-500 hover:text-slate-900 disabled:opacity-25 cursor-pointer"
+          >
+            <ArrowDown className="w-3 h-3" />
+          </button>
+          <button
+            type="button"
+            onClick={() => onToggleColSpan && onToggleColSpan(card.id)}
+            title={card.colSpan === 2 ? 'Riduci a 1 Colonna' : 'Espandi a 2 Colonne (Larghezza Intera)'}
+            className="px-1 py-0.5 rounded bg-slate-100 hover:bg-slate-200 text-slate-700 font-mono text-[7.5px] font-bold cursor-pointer"
+          >
+            {card.colSpan === 2 ? '2Col' : '1Col'}
+          </button>
+          <button
+            type="button"
+            onClick={() => onInsertNoteAfter && onInsertNoteAfter(index)}
+            title="Inserisci una Nota subito sotto questa scheda"
+            className="px-1.5 py-0.5 rounded bg-cyan-50 hover:bg-cyan-100 text-cyan-800 border border-cyan-300 font-bold text-[7.5px] flex items-center gap-0.5 cursor-pointer"
+          >
+            <Plus className="w-2.5 h-2.5" />
+            <span>Nota</span>
+          </button>
+          {onRemoveCard && (
+            <button
+              type="button"
+              onClick={() => onRemoveCard(card.id)}
+              title="Rimuovi Scheda"
+              className="text-slate-400 hover:text-rose-500 p-0.5 cursor-pointer"
+            >
+              <Trash2 className="w-3.5 h-3.5" />
+            </button>
+          )}
+        </div>
       </div>
 
       {/* BODY CARD: VALORI REALI SUPABASE + UNITA' DI MISURA A SINISTRA vs GRAFICO A DESTRA */}
@@ -1165,6 +1254,51 @@ function ValdMetricCard({
   );
 }
 
+// Costruisce la sequenza predefinita di blocchi completamente ordinabili
+function buildDefaultReportBlocks(initialFinalComment = '') {
+  const metricBlocks = DEFAULT_REPORT_CARDS.map((c) => ({
+    id: c.id,
+    type: 'metric',
+    title: c.title,
+    iconKey:
+      c.icon === TrendingDown
+        ? 'TrendingDown'
+        : c.icon === Footprints
+        ? 'Footprints'
+        : c.icon === Zap
+        ? 'Zap'
+        : 'Activity',
+    citationKey: c.citationKey,
+    selectedParam: c.selectedParam,
+    parameters: c.parameters,
+    colSpan: 1
+  }));
+
+  return [
+    {
+      id: 'block-ikdc',
+      type: 'ikdc',
+      title: 'Punteggio Questionario Soggettivo IKDC',
+      colSpan: 2
+    },
+    ...metricBlocks,
+    {
+      id: 'block-final-comment',
+      type: 'final_comment',
+      title: 'Commento Finale & Conclusioni del Fisioterapista',
+      subtitle: 'Valutazione Funzionale & Indicazioni Operative',
+      content: initialFinalComment || '',
+      colSpan: 2
+    },
+    {
+      id: 'block-bibliography',
+      type: 'bibliography',
+      title: 'Note & Riferimenti Bibliografici Scientifici (Evidence-Based ACL RTS)',
+      colSpan: 2
+    }
+  ];
+}
+
 // ============================================================================
 // 6. COMPONENTE PRINCIPALE: CONFIGURATORE REPORT STAMPA VALD / FORCEDECKS A4
 // ============================================================================
@@ -1182,20 +1316,20 @@ export default function PrintConfiguratorModal({ isOpen, onClose, patient, patie
     patient?.id || activePatients[0]?.id || ''
   );
   const [selectedSessionId, setSelectedSessionId] = useState('');
-  const [reportCards, setReportCards] = useState(DEFAULT_REPORT_CARDS);
+
+  // Lista unificata e liberamente ordinabile di tutti i blocchi del Report
+  const [reportBlocks, setReportBlocks] = useState(() => buildDefaultReportBlocks(''));
+  const [draggedBlockIdx, setDraggedBlockIdx] = useState(null);
 
   // Stato test caricati direttamente da Supabase (`evaluations` + `patient.tests`)
   const [supabaseTests, setSupabaseTests] = useState([]);
   const [isLoadingTests, setIsLoadingTests] = useState(false);
 
-  // Stato Note / Commento Clinico del Fisioterapista (sincronizzato e modificabile)
-  const [showPhysioNotes, setShowPhysioNotes] = useState(true);
-  const [physioNotes, setPhysioNotes] = useState('');
+  // Stato salvataggio note su Supabase
   const [isSavingNotes, setIsSavingNotes] = useState(false);
   const [notesSavedToast, setNotesSavedToast] = useState(false);
 
   // Stato IKDC & Citazioni Scientifiche Modificabili
-  const [showIkdc, setShowIkdc] = useState(true);
   const [ikdcScore, setIkdcScore] = useState('');
   const [showCitations, setShowCitations] = useState(true);
   const [isBiblioModalOpen, setIsBiblioModalOpen] = useState(false);
@@ -1235,6 +1369,63 @@ export default function PrintConfiguratorModal({ isOpen, onClose, patient, patie
     activePatients.find((p) => String(p.id) === String(selectedPatientId)) ||
     (patient?.nome ? patient : activePatients[0]);
 
+  // Carica la struttura ordinata dei blocchi del paziente (o inizializza con le note del paziente)
+  useEffect(() => {
+    if (!activePatientObj?.id) return;
+    const blocksKey = `acl_report_blocks_v3_${activePatientObj.id}`;
+    const legacyNoteKey = `acl_report_notes_${activePatientObj.id}`;
+    const fallbackNote =
+      localStorage.getItem(legacyNoteKey) ?? activePatientObj.note_operative ?? '';
+
+    try {
+      const savedBlocks = localStorage.getItem(blocksKey);
+      if (savedBlocks) {
+        const parsed = JSON.parse(savedBlocks);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          // Ricollega l'elenco parametri alle schede metriche
+          const hydrated = parsed.map((b) => {
+            if (b.type === 'metric') {
+              const matchDefault = DEFAULT_REPORT_CARDS.find((d) => d.id === b.id);
+              return {
+                ...b,
+                parameters:
+                  matchDefault?.parameters ||
+                  b.parameters ||
+                  DEFAULT_REPORT_CARDS.flatMap((c) => c.parameters)
+              };
+            }
+            return b;
+          });
+          setReportBlocks(hydrated);
+          return;
+        }
+      }
+    } catch (e) {
+      console.warn('Errore caricamento blocchi report:', e);
+    }
+
+    setReportBlocks(buildDefaultReportBlocks(fallbackNote));
+  }, [activePatientObj?.id]);
+
+  // Salva automaticamente l'ordine e il contenuto dei blocchi in localStorage a ogni modifica
+  const persistBlocks = (nextBlocks) => {
+    setReportBlocks(nextBlocks);
+    if (activePatientObj?.id) {
+      try {
+        localStorage.setItem(
+          `acl_report_blocks_v3_${activePatientObj.id}`,
+          JSON.stringify(nextBlocks)
+        );
+        const finalCommentBlock = nextBlocks.find((b) => b.type === 'final_comment');
+        if (finalCommentBlock) {
+          localStorage.setItem(`acl_report_notes_${activePatientObj.id}`, finalCommentBlock.content || '');
+        }
+      } catch (e) {
+        console.warn(e);
+      }
+    }
+  };
+
   // Caricamento diretto e sincronizzazione con la tabella `evaluations` di Supabase
   useEffect(() => {
     let isMounted = true;
@@ -1265,7 +1456,6 @@ export default function PrintConfiguratorModal({ isOpen, onClose, patient, patie
 
         if (!error && Array.isArray(data) && data.length > 0) {
           const mappedFromDb = data.map((row, idx) => createTestObject(row, activePatientObj.id, idx + 1));
-          // Unisci evitando duplicati per ID o data
           const byId = new Map();
           localTests.forEach((t) => byId.set(String(t.id), t));
           mappedFromDb.forEach((t) => byId.set(String(t.id), t));
@@ -1288,40 +1478,22 @@ export default function PrintConfiguratorModal({ isOpen, onClose, patient, patie
     };
   }, [activePatientObj?.id, activePatientObj?.tests]);
 
-  // Inizializza Note del Fisioterapista dal paziente selezionato (localStorage o campo note_operative Supabase)
-  useEffect(() => {
-    if (!activePatientObj?.id) return;
-    const storageKey = `acl_report_notes_${activePatientObj.id}`;
-    const savedCustomNote = localStorage.getItem(storageKey);
-    if (savedCustomNote !== null) {
-      setPhysioNotes(savedCustomNote);
-    } else if (activePatientObj.note_operative) {
-      setPhysioNotes(activePatientObj.note_operative);
-    } else {
-      setPhysioNotes('');
-    }
-  }, [activePatientObj?.id, activePatientObj?.note_operative]);
-
-  const handleNotesChange = (val) => {
-    setPhysioNotes(val);
-    if (activePatientObj?.id) {
-      try {
-        localStorage.setItem(`acl_report_notes_${activePatientObj.id}`, val);
-      } catch (e) {
-        console.warn(e);
-      }
-    }
-  };
-
+  // Salva il Commento Finale e le Note sul profilo paziente in Supabase
   const handleSaveNotesToSupabase = async () => {
     if (!activePatientObj?.id) return;
     setIsSavingNotes(true);
     try {
-      localStorage.setItem(`acl_report_notes_${activePatientObj.id}`, physioNotes);
+      const finalBlock = reportBlocks.find((b) => b.type === 'final_comment');
+      const noteTextToSave = finalBlock?.content || '';
+      localStorage.setItem(`acl_report_notes_${activePatientObj.id}`, noteTextToSave);
+      localStorage.setItem(
+        `acl_report_blocks_v3_${activePatientObj.id}`,
+        JSON.stringify(reportBlocks)
+      );
       if (isSupabaseConfigured && supabase) {
         await supabase
           .from('pazienti')
-          .update({ note_operative: physioNotes })
+          .update({ note_operative: noteTextToSave })
           .eq('id', activePatientObj.id);
       }
       setNotesSavedToast(true);
@@ -1435,35 +1607,168 @@ export default function PrintConfiguratorModal({ isOpen, onClose, patient, patie
   const dataIntervento = formatDate(activePatientObj?.data_intervento);
   const bodyMassKg = parseNum(activePatientObj?.peso_kg ?? activePatientObj?.peso) || 75;
 
-  const handleCardParamChange = (cardId, newParamId) => {
-    setReportCards((prev) =>
-      prev.map((c) => (c.id === cardId ? { ...c, selectedParam: newParamId } : c))
+  // ==========================================================================
+  // FUNZIONI DI GESTIONE E ORDINAMENTO LIBERO DEI BLOCCHI DEL REPORT
+  // ==========================================================================
+  const handleMoveBlock = (index, direction) => {
+    const targetIdx = index + direction;
+    if (targetIdx < 0 || targetIdx >= reportBlocks.length) return;
+    const next = [...reportBlocks];
+    const [moved] = next.splice(index, 1);
+    next.splice(targetIdx, 0, moved);
+    persistBlocks(next);
+  };
+
+  const handleDragStart = (index) => {
+    setDraggedBlockIdx(index);
+  };
+
+  const handleDragOver = (e) => {
+    e.preventDefault();
+  };
+
+  const handleDrop = (targetIdx) => {
+    if (draggedBlockIdx === null || draggedBlockIdx === targetIdx) {
+      setDraggedBlockIdx(null);
+      return;
+    }
+    const next = [...reportBlocks];
+    const [moved] = next.splice(draggedBlockIdx, 1);
+    next.splice(targetIdx, 0, moved);
+    setDraggedBlockIdx(null);
+    persistBlocks(next);
+  };
+
+  const handleRemoveBlock = (blockId) => {
+    persistBlocks(reportBlocks.filter((b) => b.id !== blockId));
+  };
+
+  const handleToggleColSpan = (blockId) => {
+    persistBlocks(
+      reportBlocks.map((b) =>
+        b.id === blockId ? { ...b, colSpan: b.colSpan === 2 ? 1 : 2 } : b
+      )
     );
   };
 
-  const handleRemoveCard = (cardId) => {
-    setReportCards((prev) => prev.filter((c) => c.id !== cardId));
+  const handleUpdateBlockField = (blockId, field, value) => {
+    persistBlocks(
+      reportBlocks.map((b) => (b.id === blockId ? { ...b, [field]: value } : b))
+    );
   };
 
-  const handleAddCard = () => {
+  const handleCardParamChange = (cardId, newParamId) => {
+    handleUpdateBlockField(cardId, 'selectedParam', newParamId);
+  };
+
+  const handleCardTitleChange = (cardId, newTitle) => {
+    handleUpdateBlockField(cardId, 'title', newTitle);
+  };
+
+  // Aggiunge una Nota Libera in una posizione specifica (es. in cima, dopo un blocco, o prima del commento finale)
+  const handleAddNoteBlock = (insertAtIndex = null, colSpan = 2) => {
+    const newNote = {
+      id: `note-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+      type: 'note',
+      title: 'Nota Clinica / Osservazione',
+      content: '',
+      colSpan
+    };
+    const next = [...reportBlocks];
+    if (typeof insertAtIndex === 'number' && insertAtIndex >= 0 && insertAtIndex <= next.length) {
+      next.splice(insertAtIndex, 0, newNote);
+    } else {
+      // Inserisci prima del commento finale o in fondo
+      const finalIdx = next.findIndex((b) => b.type === 'final_comment');
+      if (finalIdx >= 0) {
+        next.splice(finalIdx, 0, newNote);
+      } else {
+        next.push(newNote);
+      }
+    }
+    persistBlocks(next);
+  };
+
+  // Aggiunge o riporta in vista il blocco Commento Finale
+  const handleAddFinalCommentBlock = () => {
+    const newFinal = {
+      id: `final-comment-${Date.now()}`,
+      type: 'final_comment',
+      title: 'Commento Finale & Conclusioni del Fisioterapista',
+      subtitle: 'Valutazione Funzionale & Indicazioni Operative',
+      content: activePatientObj?.note_operative || '',
+      colSpan: 2
+    };
+    const next = [...reportBlocks];
+    const biblioIdx = next.findIndex((b) => b.type === 'bibliography');
+    if (biblioIdx >= 0) {
+      next.splice(biblioIdx, 0, newFinal);
+    } else {
+      next.push(newFinal);
+    }
+    persistBlocks(next);
+  };
+
+  // Aggiunge una nuova Scheda Metrica
+  const handleAddMetricCard = () => {
     const newCard = {
       id: `card-${Date.now()}`,
+      type: 'metric',
       title: 'Scheda Metrica Personalizzata',
-      icon: Activity,
+      iconKey: 'Activity',
       citationKey: 'lsiQuad',
       selectedParam: 'quad_max_force_lr',
-      parameters: DEFAULT_REPORT_CARDS.flatMap((c) => c.parameters)
+      parameters: DEFAULT_REPORT_CARDS.flatMap((c) => c.parameters),
+      colSpan: 1
     };
-    setReportCards([...reportCards, newCard]);
+    const next = [...reportBlocks];
+    const finalIdx = next.findIndex((b) => b.type === 'final_comment' || b.type === 'bibliography');
+    if (finalIdx >= 0) {
+      next.splice(finalIdx, 0, newCard);
+    } else {
+      next.push(newCard);
+    }
+    persistBlocks(next);
   };
 
-  const handleResetCards = () => {
-    setReportCards(DEFAULT_REPORT_CARDS);
+  const handleToggleSpecialBlock = (blockType) => {
+    const exists = reportBlocks.some((b) => b.type === blockType);
+    if (exists) {
+      persistBlocks(reportBlocks.filter((b) => b.type !== blockType));
+    } else if (blockType === 'ikdc') {
+      persistBlocks([
+        {
+          id: `block-ikdc-${Date.now()}`,
+          type: 'ikdc',
+          title: 'Punteggio Questionario Soggettivo IKDC',
+          colSpan: 2
+        },
+        ...reportBlocks
+      ]);
+    } else if (blockType === 'bibliography') {
+      persistBlocks([
+        ...reportBlocks,
+        {
+          id: `block-biblio-${Date.now()}`,
+          type: 'bibliography',
+          title: 'Note & Riferimenti Bibliografici Scientifici (Evidence-Based ACL RTS)',
+          colSpan: 2
+        }
+      ]);
+    }
+  };
+
+  const handleResetBlocks = () => {
+    const defaultList = buildDefaultReportBlocks(activePatientObj?.note_operative || '');
+    persistBlocks(defaultList);
   };
 
   const handlePrint = () => {
     window.print();
   };
+
+  const hasIkdcBlock = reportBlocks.some((b) => b.type === 'ikdc');
+  const hasBiblioBlock = reportBlocks.some((b) => b.type === 'bibliography');
 
   const modalContent = (
     <div className="print-modal-backdrop fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-slate-950/85 backdrop-blur-md overflow-y-auto font-sans">
@@ -1480,11 +1785,11 @@ export default function PrintConfiguratorModal({ isOpen, onClose, patient, patie
               <h3 className="text-base font-extrabold text-white flex items-center gap-2">
                 <span>Report VALD / ForceDecks Dashboard</span>
                 <span className="text-[10px] px-2 py-0.5 rounded-full bg-cyan-950 text-cyan-400 border border-cyan-500/40 font-mono">
-                  Dati Reali Supabase • Live A4
+                  Blocchi & Note Liberamente Ordinabili • A4
                 </span>
               </h3>
               <p className="text-xs text-slate-400">
-                Lettura diretta dalle tabelle Supabase, unità di misura biomeccaniche certificate, commento clinico e Rationale personalizzabile.
+                Aggiungi note dove vuoi, riordina liberamente ogni scheda, nota o commento finale con le frecce ↑↓ o trascinandoli.
               </p>
             </div>
           </div>
@@ -1520,7 +1825,7 @@ export default function PrintConfiguratorModal({ isOpen, onClose, patient, patie
         {/* MODAL BODY: CONTROLLI A SINISTRA vs ANTEPRIMA REPORT A4 A DESTRA */}
         <div className="print-modal-body flex-1 grid grid-cols-1 lg:grid-cols-12 overflow-hidden">
           
-          {/* PANNELLO DI SINISTRA: CONTROLLI CLINICI, NOTE FISIOTERAPISTA & RATIONALE (no-print) */}
+          {/* PANNELLO DI SINISTRA: AGGIUNTA E ORDINAMENTO LIBERO DI TUTTI GLI ELEMENTI (no-print) */}
           <div className="lg:col-span-4 p-5 bg-slate-900 border-r border-slate-800 overflow-y-auto space-y-4 no-print text-xs">
             
             {/* 1. SELEZIONE PAZIENTE & SESSIONE SUPABASE */}
@@ -1553,7 +1858,7 @@ export default function PrintConfiguratorModal({ isOpen, onClose, patient, patie
                 <label className="block font-bold text-slate-200 mb-1 flex items-center justify-between">
                   <span className="flex items-center gap-1.5">
                     <Calendar className="w-3.5 h-3.5 text-cyan-400" />
-                    <span>2. Sessione Riferimento (Supabase):</span>
+                    <span>2. Dati Test da caricare (Supabase):</span>
                   </span>
                   {isLoadingTests && (
                     <RefreshCw className="w-3 h-3 text-cyan-400 animate-spin" />
@@ -1577,106 +1882,212 @@ export default function PrintConfiguratorModal({ isOpen, onClose, patient, patie
               </div>
             </div>
 
-            {/* 2. SEZIONE NOTE / COMMENTO DEL FISIOTERAPISTA */}
+            {/* 2. PULSANTI RAPIDI PER AGGIUNGERE NOTE DOVE VUOI, COMMENTO FINALE E SCHEDE */}
             <div className="bg-slate-950 p-3.5 rounded-xl border border-cyan-500/30 space-y-2.5">
               <div className="flex items-center justify-between border-b border-slate-800 pb-2">
-                <label className="font-extrabold text-cyan-400 flex items-center gap-1.5 uppercase tracking-wide cursor-pointer">
-                  <MessageSquare className="w-4 h-4 text-cyan-400" />
-                  <span>Note / Commento del Fisioterapista</span>
-                </label>
-                <input
-                  type="checkbox"
-                  checked={showPhysioNotes}
-                  onChange={(e) => setShowPhysioNotes(e.target.checked)}
-                  title="Mostra/Nascondi nel Report A4"
-                  className="w-4 h-4 accent-cyan-500 rounded cursor-pointer"
-                />
-              </div>
-
-              <textarea
-                rows={4}
-                value={physioNotes}
-                onChange={(e) => handleNotesChange(e.target.value)}
-                placeholder="Inserisci qui osservazioni cliniche, indicazioni riabilitative per il medico/preparatore o sintesi sui progressi dell'atleta..."
-                className="w-full bg-slate-900 text-slate-100 text-xs border border-slate-700 rounded-xl p-2.5 focus:border-cyan-500 focus:outline-none leading-relaxed resize-y"
-              />
-
-              <div className="flex items-center justify-between gap-2 pt-1">
+                <span className="font-extrabold text-cyan-400 flex items-center gap-1.5 uppercase tracking-wide">
+                  <Plus className="w-4 h-4 text-cyan-400" />
+                  <span>Aggiungi Elementi al Report</span>
+                </span>
                 <button
                   type="button"
                   onClick={handleSaveNotesToSupabase}
                   disabled={isSavingNotes}
-                  className="px-3 py-1.5 bg-cyan-500/15 hover:bg-cyan-500/25 text-cyan-300 border border-cyan-500/30 rounded-lg font-bold text-[11px] flex items-center gap-1.5 transition-all cursor-pointer"
+                  className="px-2.5 py-1 bg-cyan-500/15 hover:bg-cyan-500/25 text-cyan-300 border border-cyan-500/30 rounded-lg font-bold text-[10px] flex items-center gap-1 transition-all cursor-pointer"
                 >
-                  <Save className="w-3.5 h-3.5" />
-                  <span>{isSavingNotes ? 'Salvataggio...' : 'Salva su Profilo Paziente'}</span>
+                  <Save className="w-3 h-3" />
+                  <span>{isSavingNotes ? 'Salvataggio...' : 'Salva Note'}</span>
+                </button>
+              </div>
+
+              {notesSavedToast && (
+                <div className="text-[10px] font-bold text-emerald-400 flex items-center gap-1 bg-emerald-950/60 px-2.5 py-1 rounded-lg border border-emerald-500/30">
+                  <CheckCircle2 className="w-3.5 h-3.5" /> Layout e Note salvate sul profilo paziente!
+                </div>
+              )}
+
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={() => handleAddNoteBlock(0, 2)}
+                  className="py-2 px-2.5 bg-slate-900 hover:bg-slate-800 text-cyan-300 border border-cyan-500/40 font-extrabold rounded-xl flex items-center justify-center gap-1.5 cursor-pointer transition-all"
+                  title="Aggiunge una nota libera in cima al report (spostabile ovunque)"
+                >
+                  <MessageSquare className="w-3.5 h-3.5 text-cyan-400 shrink-0" />
+                  <span>+ Nota in Cima</span>
                 </button>
 
-                {notesSavedToast && (
-                  <span className="text-[10px] font-bold text-emerald-400 flex items-center gap-1">
-                    <CheckCircle2 className="w-3.5 h-3.5" /> Salvato!
-                  </span>
-                )}
+                <button
+                  type="button"
+                  onClick={() => handleAddNoteBlock( null, 2)}
+                  className="py-2 px-2.5 bg-slate-900 hover:bg-slate-800 text-teal-300 border border-teal-500/40 font-extrabold rounded-xl flex items-center justify-center gap-1.5 cursor-pointer transition-all"
+                  title="Aggiunge una nota libera (spostabile tra qualsiasi scheda)"
+                >
+                  <Plus className="w-3.5 h-3.5 text-teal-400 shrink-0" />
+                  <span>+ Nota Libera</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={handleAddFinalCommentBlock}
+                  className="py-2 px-2.5 bg-slate-900 hover:bg-slate-800 text-emerald-300 border border-emerald-500/40 font-extrabold rounded-xl flex items-center justify-center gap-1.5 cursor-pointer transition-all"
+                  title="Aggiunge un blocco Commento Finale / Conclusioni"
+                >
+                  <FileText className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+                  <span>+ Commento Finale</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={handleAddMetricCard}
+                  className="py-2 px-2.5 bg-slate-900 hover:bg-slate-800 text-white border border-slate-700 font-extrabold rounded-xl flex items-center justify-center gap-1.5 cursor-pointer transition-all"
+                  title="Aggiunge una nuova scheda grafico VALD"
+                >
+                  <Activity className="w-3.5 h-3.5 text-cyan-400 shrink-0" />
+                  <span>+ Scheda Grafico</span>
+                </button>
               </div>
+              <p className="text-[10px] text-slate-400 leading-snug">
+                💡 Puoi anche cliccare <strong>"+ Nota"</strong> direttamente sopra qualsiasi scheda nel foglio A4 per inserire una nota subito sotto quella scheda.
+              </p>
             </div>
 
-            {/* 3. GESTIONE GRIGLIA SCHEDE METRICHE */}
+            {/* 3. ORDINE COMPLETO DEI BLOCCHI (TUTTO ORDINABILE CON FRECCE ↑↓ O DRAG & DROP) */}
             <div className="bg-slate-950 p-3.5 rounded-xl border border-slate-800 space-y-3">
               <div className="flex items-center justify-between border-b border-slate-800 pb-2">
                 <span className="font-extrabold text-cyan-400 flex items-center gap-1.5 uppercase tracking-wide">
                   <Sliders className="w-4 h-4 text-cyan-400" />
-                  <span>Griglia Schede Metriche</span>
+                  <span>Ordine Elementi nel Report ({reportBlocks.length})</span>
                 </span>
-                <span className="text-[10px] text-slate-400 font-mono">
-                  {reportCards.length} Schede
-                </span>
-              </div>
-
-              <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
-                {reportCards.map((card) => (
-                  <div key={card.id} className="p-2 rounded-lg bg-slate-900 border border-slate-800 space-y-1">
-                    <div className="flex items-center justify-between font-bold text-slate-200">
-                      <span>{card.title}</span>
-                      <button
-                        onClick={() => handleRemoveCard(card.id)}
-                        className="text-slate-500 hover:text-rose-400 cursor-pointer"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
-                    </div>
-
-                    <select
-                      value={card.selectedParam}
-                      onChange={(e) => handleCardParamChange(card.id, e.target.value)}
-                      className="w-full bg-slate-950 text-cyan-300 border border-slate-700 rounded p-1 text-[11px] font-bold"
-                    >
-                      {card.parameters.map((p) => (
-                        <option key={p.id} value={p.id}>
-                          {p.label}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                ))}
-              </div>
-
-              <div className="flex gap-2 pt-1 border-t border-slate-800">
                 <button
                   type="button"
-                  onClick={handleAddCard}
-                  className="flex-1 py-1.5 bg-slate-800 hover:bg-slate-700 text-cyan-400 font-bold rounded-lg flex items-center justify-center gap-1 cursor-pointer"
+                  onClick={handleResetBlocks}
+                  title="Ripristina l'ordine e i blocchi predefiniti"
+                  className="text-[10px] text-slate-400 hover:text-white flex items-center gap-1 cursor-pointer"
                 >
-                  <Plus className="w-3.5 h-3.5" />
-                  <span>Aggiungi Scheda</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={handleResetCards}
-                  className="py-1.5 px-3 bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold rounded-lg flex items-center justify-center gap-1 cursor-pointer"
-                >
-                  <RotateCcw className="w-3.5 h-3.5" />
+                  <RotateCcw className="w-3 h-3" />
                   <span>Reset</span>
                 </button>
+              </div>
+
+              <div className="space-y-2 max-h-[340px] overflow-y-auto pr-1">
+                {reportBlocks.map((block, index) => {
+                  const isNote = block.type === 'note';
+                  const isFinal = block.type === 'final_comment';
+                  const isMetric = block.type === 'metric';
+                  const isIkdc = block.type === 'ikdc';
+                  const isBiblio = block.type === 'bibliography';
+
+                  return (
+                    <div
+                      key={block.id}
+                      draggable
+                      onDragStart={() => handleDragStart(index)}
+                      onDragOver={handleDragOver}
+                      onDrop={() => handleDrop(index)}
+                      className={`p-2.5 rounded-xl border space-y-2 transition-all ${
+                        isNote
+                          ? 'bg-cyan-950/25 border-cyan-500/40'
+                          : isFinal
+                          ? 'bg-emerald-950/25 border-emerald-500/40'
+                          : 'bg-slate-900 border-slate-800'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between gap-1.5">
+                        <div className="flex items-center gap-1.5 min-w-0 flex-1">
+                          <GripVertical className="w-3.5 h-3.5 text-slate-500 shrink-0 cursor-grab" />
+                          <span className="px-1.5 py-0.5 rounded bg-slate-950 text-cyan-400 font-mono text-[9px] font-black shrink-0">
+                            #{index + 1}
+                          </span>
+                          <input
+                            type="text"
+                            value={block.title || ''}
+                            onChange={(e) => handleUpdateBlockField(block.id, 'title', e.target.value)}
+                            className="w-full bg-transparent text-white font-bold text-xs focus:outline-none focus:border-b focus:border-cyan-500 truncate"
+                            placeholder="Titolo blocco..."
+                          />
+                        </div>
+
+                        <div className="flex items-center gap-1 shrink-0">
+                          <button
+                            type="button"
+                            onClick={() => handleMoveBlock(index, -1)}
+                            disabled={index === 0}
+                            title="Sposta Su"
+                            className="p-1 rounded bg-slate-950 hover:bg-slate-800 text-slate-300 disabled:opacity-30 cursor-pointer"
+                          >
+                            <ArrowUp className="w-3 h-3" />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleMoveBlock(index, 1)}
+                            disabled={index === reportBlocks.length - 1}
+                            title="Sposta Giù"
+                            className="p-1 rounded bg-slate-950 hover:bg-slate-800 text-slate-300 disabled:opacity-30 cursor-pointer"
+                          >
+                            <ArrowDown className="w-3 h-3" />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleToggleColSpan(block.id)}
+                            title={
+                              block.colSpan === 2
+                                ? 'Larghezza Intera (2 Colonne) — Clicca per 1 Colonna'
+                                : 'Mezza Larghezza (1 Colonna) — Clicca per 2 Colonne'
+                            }
+                            className="px-1.5 py-0.5 rounded bg-slate-950 hover:bg-slate-800 text-cyan-300 border border-slate-700 font-mono text-[9px] font-bold cursor-pointer"
+                          >
+                            {block.colSpan === 2 ? '2 Col' : '1 Col'}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleRemoveBlock(block.id)}
+                            title="Rimuovi questo blocco dal report"
+                            className="p-1 text-slate-400 hover:text-rose-400 cursor-pointer"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Se è una Scheda Metrica: selettore parametro */}
+                      {isMetric && (
+                        <select
+                          value={block.selectedParam}
+                          onChange={(e) => handleCardParamChange(block.id, e.target.value)}
+                          className="w-full bg-slate-950 text-cyan-300 border border-slate-700 rounded-lg p-1.5 text-[11px] font-bold"
+                        >
+                          {(block.parameters || DEFAULT_REPORT_CARDS.flatMap((c) => c.parameters)).map((p) => (
+                            <option key={p.id} value={p.id}>
+                              {p.label}
+                            </option>
+                          ))}
+                        </select>
+                      )}
+
+                      {/* Se è una Nota Libera o il Commento Finale: textarea diretta */}
+                      {(isNote || isFinal) && (
+                        <textarea
+                          rows={isFinal ? 3 : 2}
+                          value={block.content || ''}
+                          onChange={(e) => handleUpdateBlockField(block.id, 'content', e.target.value)}
+                          placeholder={
+                            isFinal
+                              ? 'Scrivi il commento finale / conclusioni cliniche del fisioterapista...'
+                              : 'Scrivi il contenuto di questa nota...'
+                          }
+                          className="w-full bg-slate-950 text-white border border-slate-700 rounded-lg p-2 text-[11px] leading-snug focus:border-cyan-500 focus:outline-none resize-y"
+                        />
+                      )}
+
+                      {(isIkdc || isBiblio) && (
+                        <div className="text-[10px] text-slate-400 font-mono">
+                          {isIkdc ? `Banner Punteggio IKDC (${ikdcScore || 'N/D'}/100)` : 'Blocco Fonti Scientifiche'} — Usa ↑↓ per posizionarlo dove preferisci
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
             </div>
 
@@ -1685,12 +2096,12 @@ export default function PrintConfiguratorModal({ isOpen, onClose, patient, patie
               <label className="flex items-center justify-between cursor-pointer">
                 <span className="font-bold text-slate-200 flex items-center gap-1.5">
                   <CheckSquare className="w-3.5 h-3.5 text-cyan-400" />
-                  <span>Includi Questionario IKDC:</span>
+                  <span>Mostra Banner Questionario IKDC:</span>
                 </span>
                 <input
                   type="checkbox"
-                  checked={showIkdc}
-                  onChange={(e) => setShowIkdc(e.target.checked)}
+                  checked={hasIkdcBlock}
+                  onChange={() => handleToggleSpecialBlock('ikdc')}
                   className="w-4 h-4 accent-cyan-500 rounded cursor-pointer"
                 />
               </label>
@@ -1704,6 +2115,19 @@ export default function PrintConfiguratorModal({ isOpen, onClose, patient, patie
                   type="checkbox"
                   checked={showCitations}
                   onChange={(e) => setShowCitations(e.target.checked)}
+                  className="w-4 h-4 accent-cyan-500 rounded cursor-pointer"
+                />
+              </div>
+
+              <div className="flex items-center justify-between pt-2 border-t border-slate-800">
+                <label className="flex items-center gap-1.5 cursor-pointer">
+                  <BookOpen className="w-3.5 h-3.5 text-teal-400" />
+                  <span className="font-bold text-slate-200">Includi Note Bibliografiche Finali:</span>
+                </label>
+                <input
+                  type="checkbox"
+                  checked={hasBiblioBlock}
+                  onChange={() => handleToggleSpecialBlock('bibliography')}
                   className="w-4 h-4 accent-cyan-500 rounded cursor-pointer"
                 />
               </div>
@@ -1742,7 +2166,7 @@ export default function PrintConfiguratorModal({ isOpen, onClose, patient, patie
               }}
               className="print-report-container printable-report w-full max-w-[780px] bg-white text-slate-900 p-6 sm:p-8 rounded-xl shadow-2xl border border-slate-300 print:shadow-none print:border-0 print:p-0 print:w-full text-[10px] leading-snug space-y-3.5 font-sans"
             >
-              {/* HEADER REPORT INTEGRATO CON SCHEDA PAZIENTE */}
+              {/* HEADER REPORT INTEGRATO CON SCHEDA PAZIENTE (Senza riga Sessione di Riferimento) */}
               <div
                 style={{ breakInside: 'avoid', pageBreakInside: 'avoid' }}
                 className="print-report-section break-inside-avoid flex items-center justify-between pb-3 border-b-2 border-slate-300"
@@ -1759,11 +2183,6 @@ export default function PrintConfiguratorModal({ isOpen, onClose, patient, patie
                       <strong className="text-emerald-800 font-extrabold">{operatedKnee}</strong> • Sport:{' '}
                       <strong>{activePatientObj?.sport || 'N/D'}</strong>
                     </p>
-                    {selectedTest && (
-                      <p className="text-[8.5px] font-bold text-slate-500 mt-0.5">
-                        Sessione di Riferimento: <strong className="text-slate-800">{selectedTest.label || 'Test'}</strong> ({selectedTest.date || selectedTest.data_valutazione}) • Storico Valutazioni: <strong>{supabaseTests.length} sessioni</strong>
-                      </p>
-                    )}
                   </div>
                 </div>
 
@@ -1778,102 +2197,305 @@ export default function PrintConfiguratorModal({ isOpen, onClose, patient, patie
                 </div>
               </div>
 
-              {/* QUESTIONARIO IKDC (SE ATTIVO E PRESENTE) */}
-              {showIkdc && ikdcScore && (
-                <div
-                  style={{ breakInside: 'avoid', pageBreakInside: 'avoid' }}
-                  className="print-report-section break-inside-avoid p-2.5 bg-gradient-to-r from-emerald-600 to-teal-700 text-white rounded-xl shadow text-center border border-emerald-500 flex items-center justify-between px-4"
-                >
-                  <span className="text-[8.5px] font-extrabold uppercase tracking-widest opacity-90">
-                    PUNTEGGIO QUESTIONARIO SOGGETTIVO IKDC (SUPABASE)
-                  </span>
-                  <strong className="text-xs font-black font-mono bg-white/20 px-3 py-1 rounded-lg">
-                    IKDC SCORE: {ikdcScore}/100
-                  </strong>
-                </div>
-              )}
-
-              {/* GRIGLIA SCHEDE METRICHE MULTI-CARD CON DATI REALI & UNITA' CORRETTE */}
+              {/* GRIGLIA UNIFICATA E ORDINABILE DI TUTTI I BLOCCHI DEL REPORT */}
               <div className="print-cards-grid grid grid-cols-1 sm:grid-cols-2 print:grid-cols-2 gap-3 pt-1">
-                {reportCards.map((card) => (
-                  <ValdMetricCard
-                    key={card.id}
-                    card={card}
-                    tests={supabaseTests}
-                    selectedTest={selectedTest}
-                    bodyMassKg={bodyMassKg}
-                    showCitations={showCitations}
-                    citationsMap={citationsMap}
-                    onUpdateCitation={handleUpdateCitation}
-                    onChangeParam={handleCardParamChange}
-                    onRemoveCard={handleRemoveCard}
-                  />
-                ))}
-              </div>
+                {reportBlocks.map((block, index) => {
+                  const spanClass =
+                    block.colSpan === 2
+                      ? 'sm:col-span-2 print:col-span-2 print-col-span-2'
+                      : 'col-span-1 print-col-span-1';
 
-              {/* BOX NOTE / COMMENTO CLINICO DEL FISIOTERAPISTA STAMPABILE SU A4 */}
-              {showPhysioNotes && (
-                <div
-                  style={{ breakInside: 'avoid', pageBreakInside: 'avoid' }}
-                  className="print-report-section break-inside-avoid mt-3 p-3.5 bg-slate-50 border-2 border-slate-300 rounded-xl space-y-1.5"
-                >
-                  <div className="flex items-center justify-between border-b border-slate-200 pb-1">
-                    <span className="font-extrabold text-slate-900 uppercase tracking-wider text-[9px] flex items-center gap-1.5">
-                      <MessageSquare className="w-3.5 h-3.5 text-emerald-700" />
-                      <span>Note / Commento Clinico del Fisioterapista</span>
-                    </span>
-                    <span className="text-[8px] font-bold text-slate-500 uppercase">
-                      Valutazione Funzionale & Indicazioni Operative
-                    </span>
-                  </div>
-
-                  {/* Textarea modificabile anche direttamente sull'anteprima A4 */}
-                  <textarea
-                    rows={3}
-                    value={physioNotes}
-                    onChange={(e) => handleNotesChange(e.target.value)}
-                    placeholder="Digita qui le osservazioni cliniche, le indicazioni per il chirurgo/preparatore o la sintesi dei progressi..."
-                    className="w-full bg-transparent text-slate-800 text-[9.5px] font-medium leading-relaxed focus:outline-none resize-none no-print"
-                  />
-
-                  {/* Testo formattato per la stampa A4 */}
-                  <div className="hidden print-only-block text-slate-800 text-[9.5px] font-medium leading-relaxed whitespace-pre-wrap min-h-[32px]">
-                    {physioNotes && physioNotes.trim().length > 0
-                      ? physioNotes
-                      : 'Nessuna nota clinica aggiuntiva inserita per questa sessione.'}
-                  </div>
-                </div>
-              )}
-
-              {/* FOOTER BIBLIOGRAFICO A4 GLOBALE SINCRONIZZATO CON LA LIBRERIA */}
-              {showCitations && (
-                <div
-                  style={{ breakInside: 'avoid', pageBreakInside: 'avoid' }}
-                  className="print-report-section break-inside-avoid pt-3 border-t border-slate-300 space-y-1 font-sans text-[8px] text-slate-600 leading-tight mt-3"
-                >
-                  <div className="font-extrabold text-slate-800 uppercase tracking-wider text-[8.5px] flex items-center justify-between">
-                    <span className="flex items-center gap-1">
-                      <BookOpen className="w-2.5 h-2.5 text-slate-700" />
-                      <span>NOTE & RIFERIMENTI BIBLIOGRAFICI SCIENTIFICI (EVIDENCE-BASED ACL RTS)</span>
-                    </span>
-                    <button
-                      type="button"
-                      onClick={() => setIsBiblioModalOpen(true)}
-                      className="text-[8px] text-cyan-700 hover:underline font-bold no-print cursor-pointer"
-                    >
-                      Modifica Libreria & Rationale
-                    </button>
-                  </div>
-                  <div className="grid grid-cols-2 gap-x-3 gap-y-0.5">
-                    {biblioSources.slice(0, 6).map((src, i) => (
-                      <div key={src.id || i} className="truncate">
-                        <sup>{i + 1}</sup> <strong>{src.autori} ({src.anno}):</strong>{' '}
-                        <em>{src.titolo}.</em> {src.journal}.
+                  // 1. BLOCCO BANNER IKDC (ORDINABILE)
+                  if (block.type === 'ikdc') {
+                    if (!ikdcScore) return null;
+                    return (
+                      <div
+                        key={block.id}
+                        draggable
+                        onDragStart={() => handleDragStart(index)}
+                        onDragOver={handleDragOver}
+                        onDrop={() => handleDrop(index)}
+                        style={{ breakInside: 'avoid', pageBreakInside: 'avoid' }}
+                        className={`print-report-section break-inside-avoid ${spanClass} p-2.5 bg-gradient-to-r from-emerald-600 to-teal-700 text-white rounded-xl shadow border border-emerald-500 flex items-center justify-between px-4`}
+                      >
+                        <div className="flex items-center gap-2">
+                          <GripVertical className="w-3.5 h-3.5 text-white/70 cursor-grab no-print" />
+                          <span className="text-[8.5px] font-extrabold uppercase tracking-widest opacity-95">
+                            {block.title || 'PUNTEGGIO QUESTIONARIO SOGGETTIVO IKDC'}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <strong className="text-xs font-black font-mono bg-white/20 px-3 py-1 rounded-lg">
+                            IKDC SCORE: {ikdcScore}/100
+                          </strong>
+                          <div className="flex items-center gap-0.5 no-print">
+                            <button
+                              type="button"
+                              onClick={() => handleMoveBlock(index, -1)}
+                              disabled={index === 0}
+                              className="p-1 rounded hover:bg-white/20 text-white disabled:opacity-30 cursor-pointer"
+                              title="Sposta Su"
+                            >
+                              <ArrowUp className="w-3 h-3" />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleMoveBlock(index, 1)}
+                              disabled={index === reportBlocks.length - 1}
+                              className="p-1 rounded hover:bg-white/20 text-white disabled:opacity-30 cursor-pointer"
+                              title="Sposta Giù"
+                            >
+                              <ArrowDown className="w-3 h-3" />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleAddNoteBlock(index + 1, 2)}
+                              className="px-1.5 py-0.5 rounded bg-white/20 hover:bg-white/30 text-white font-bold text-[7.5px] cursor-pointer"
+                              title="Inserisci una nota subito sotto"
+                            >
+                              + Nota
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleRemoveBlock(block.id)}
+                              className="p-1 rounded hover:bg-rose-500/40 text-white cursor-pointer"
+                              title="Rimuovi"
+                            >
+                              <Trash2 className="w-3 h-3" />
+                            </button>
+                          </div>
+                        </div>
                       </div>
-                    ))}
-                  </div>
-                </div>
-              )}
+                    );
+                  }
+
+                  // 2. BLOCCO SCHEDA METRICA VALD / FORCEDECKS (ORDINABILE)
+                  if (block.type === 'metric') {
+                    return (
+                      <ValdMetricCard
+                        key={block.id}
+                        card={block}
+                        index={index}
+                        totalBlocks={reportBlocks.length}
+                        tests={supabaseTests}
+                        selectedTest={selectedTest}
+                        bodyMassKg={bodyMassKg}
+                        showCitations={showCitations}
+                        citationsMap={citationsMap}
+                        onUpdateCitation={handleUpdateCitation}
+                        onChangeParam={handleCardParamChange}
+                        onChangeTitle={handleCardTitleChange}
+                        onMoveBlock={handleMoveBlock}
+                        onToggleColSpan={handleToggleColSpan}
+                        onInsertNoteAfter={(idx) => handleAddNoteBlock(idx + 1, 2)}
+                        onRemoveCard={handleRemoveBlock}
+                        onDragStart={handleDragStart}
+                        onDragOver={handleDragOver}
+                        onDrop={handleDrop}
+                      />
+                    );
+                  }
+
+                  // 3. BLOCCO NOTA LIBERA POSIZIONABILE OVUNQUE O COMMENTO FINALE (ORDINABILE)
+                  if (block.type === 'note' || block.type === 'final_comment') {
+                    const isFinal = block.type === 'final_comment';
+                    return (
+                      <div
+                        key={block.id}
+                        draggable
+                        onDragStart={() => handleDragStart(index)}
+                        onDragOver={handleDragOver}
+                        onDrop={() => handleDrop(index)}
+                        style={{ breakInside: 'avoid', pageBreakInside: 'avoid' }}
+                        className={`print-report-section break-inside-avoid ${spanClass} p-3.5 ${
+                          isFinal
+                            ? 'bg-slate-50 border-2 border-slate-300'
+                            : 'bg-cyan-50/40 border border-slate-300'
+                        } rounded-xl space-y-1.5`}
+                      >
+                        <div className="flex items-center justify-between border-b border-slate-200 pb-1 gap-2">
+                          <div className="flex items-center gap-1.5 min-w-0 flex-1">
+                            <GripVertical className="w-3.5 h-3.5 text-slate-400 cursor-grab no-print shrink-0" />
+                            <MessageSquare
+                              className={`w-3.5 h-3.5 shrink-0 ${
+                                isFinal ? 'text-emerald-700' : 'text-cyan-700'
+                              }`}
+                            />
+                            <input
+                              type="text"
+                              value={block.title || ''}
+                              onChange={(e) =>
+                                handleUpdateBlockField(block.id, 'title', e.target.value)
+                              }
+                              placeholder={
+                                isFinal
+                                  ? 'Commento Finale & Conclusioni del Fisioterapista'
+                                  : 'Titolo Nota Clinica...'
+                              }
+                              className="font-extrabold text-slate-900 uppercase tracking-wider text-[9px] bg-transparent border-b border-transparent hover:border-slate-300 focus:border-cyan-600 focus:outline-none w-full no-print"
+                            />
+                            <span className="hidden print-only-inline font-extrabold text-slate-900 uppercase tracking-wider text-[9px]">
+                              {block.title ||
+                                (isFinal
+                                  ? 'Commento Finale & Conclusioni del Fisioterapista'
+                                  : 'Nota Clinica')}
+                            </span>
+                          </div>
+
+                          <div className="flex items-center gap-1 shrink-0">
+                            {isFinal && (
+                              <span className="text-[7.5px] font-bold text-slate-500 uppercase mr-1">
+                                {block.subtitle || 'Valutazione Funzionale & Conclusioni'}
+                              </span>
+                            )}
+                            <div className="flex items-center gap-0.5 no-print">
+                              <button
+                                type="button"
+                                onClick={() => handleMoveBlock(index, -1)}
+                                disabled={index === 0}
+                                title="Sposta Su"
+                                className="p-1 rounded hover:bg-slate-200 text-slate-600 disabled:opacity-25 cursor-pointer"
+                              >
+                                <ArrowUp className="w-3 h-3" />
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleMoveBlock(index, 1)}
+                                disabled={index === reportBlocks.length - 1}
+                                title="Sposta Giù"
+                                className="p-1 rounded hover:bg-slate-200 text-slate-600 disabled:opacity-25 cursor-pointer"
+                              >
+                                <ArrowDown className="w-3 h-3" />
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleToggleColSpan(block.id)}
+                                title={
+                                  block.colSpan === 2
+                                    ? 'Riduci a 1 Colonna (Mezza Larghezza)'
+                                    : 'Espandi a 2 Colonne (Larghezza Intera)'
+                                }
+                                className="px-1.5 py-0.5 rounded bg-slate-200 hover:bg-slate-300 text-slate-800 font-mono text-[7.5px] font-bold cursor-pointer"
+                              >
+                                {block.colSpan === 2 ? '2Col' : '1Col'}
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleAddNoteBlock(index + 1, 2)}
+                                title="Aggiungi un'altra nota sotto questa"
+                                className="px-1.5 py-0.5 rounded bg-cyan-100 hover:bg-cyan-200 text-cyan-900 font-bold text-[7.5px] cursor-pointer"
+                              >
+                                + Nota
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleRemoveBlock(block.id)}
+                                title="Rimuovi questo blocco nota"
+                                className="p-1 text-slate-400 hover:text-rose-600 cursor-pointer"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Textarea modificabile direttamente sull'anteprima A4 */}
+                        <textarea
+                          rows={isFinal ? 3 : 2}
+                          value={block.content || ''}
+                          onChange={(e) =>
+                            handleUpdateBlockField(block.id, 'content', e.target.value)
+                          }
+                          placeholder={
+                            isFinal
+                              ? 'Digita qui il commento finale del fisioterapista, le conclusioni cliniche o le indicazioni per il ritorno in campo...'
+                              : 'Digita qui la tua nota personalizzata (puoi spostare questo box ovunque nel report con le frecce ↑↓)...'
+                          }
+                          className="w-full bg-transparent text-slate-800 text-[9.5px] font-medium leading-relaxed focus:outline-none resize-y no-print"
+                        />
+
+                        {/* Testo formattato per la stampa A4 */}
+                        <div className="hidden print-only-block text-slate-800 text-[9.5px] font-medium leading-relaxed whitespace-pre-wrap min-h-[24px]">
+                          {block.content && block.content.trim().length > 0
+                            ? block.content
+                            : '—'}
+                        </div>
+                      </div>
+                    );
+                  }
+
+                  // 4. BLOCCO FOOTER BIBLIOGRAFICO A4 (ORDINABILE)
+                  if (block.type === 'bibliography' && showCitations) {
+                    return (
+                      <div
+                        key={block.id}
+                        draggable
+                        onDragStart={() => handleDragStart(index)}
+                        onDragOver={handleDragOver}
+                        onDrop={() => handleDrop(index)}
+                        style={{ breakInside: 'avoid', pageBreakInside: 'avoid' }}
+                        className={`print-report-section break-inside-avoid ${spanClass} pt-3 border-t border-slate-300 space-y-1 font-sans text-[8px] text-slate-600 leading-tight mt-1`}
+                      >
+                        <div className="font-extrabold text-slate-800 uppercase tracking-wider text-[8.5px] flex items-center justify-between">
+                          <span className="flex items-center gap-1">
+                            <GripVertical className="w-3 h-3 text-slate-400 cursor-grab no-print" />
+                            <BookOpen className="w-2.5 h-2.5 text-slate-700" />
+                            <span>
+                              {block.title ||
+                                'NOTE & RIFERIMENTI BIBLIOGRAFICI SCIENTIFICI (EVIDENCE-BASED ACL RTS)'}
+                            </span>
+                          </span>
+                          <div className="flex items-center gap-1 no-print">
+                            <button
+                              type="button"
+                              onClick={() => handleMoveBlock(index, -1)}
+                              disabled={index === 0}
+                              className="p-0.5 rounded hover:bg-slate-200 text-slate-600 disabled:opacity-30 cursor-pointer"
+                              title="Sposta Su"
+                            >
+                              <ArrowUp className="w-3 h-3" />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleMoveBlock(index, 1)}
+                              disabled={index === reportBlocks.length - 1}
+                              className="p-0.5 rounded hover:bg-slate-200 text-slate-600 disabled:opacity-30 cursor-pointer"
+                              title="Sposta Giù"
+                            >
+                              <ArrowDown className="w-3 h-3" />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setIsBiblioModalOpen(true)}
+                              className="text-[8px] text-cyan-700 hover:underline font-bold ml-1 cursor-pointer"
+                            >
+                              Modifica Libreria & Rationale
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleRemoveBlock(block.id)}
+                              className="p-0.5 text-slate-400 hover:text-rose-600 cursor-pointer"
+                              title="Rimuovi"
+                            >
+                              <Trash2 className="w-3 h-3" />
+                            </button>
+                          </div>
+                        </div>
+                        <div className="grid grid-cols-2 gap-x-3 gap-y-0.5">
+                          {biblioSources.slice(0, 6).map((src, i) => (
+                            <div key={src.id || i} className="truncate">
+                              <sup>{i + 1}</sup> <strong>{src.autori} ({src.anno}):</strong>{' '}
+                              <em>{src.titolo}.</em> {src.journal}.
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    );
+                  }
+
+                  return null;
+                })}
+              </div>
             </div>
           </div>
         </div>
