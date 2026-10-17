@@ -30,41 +30,135 @@ import {
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import LogoN from './LogoN';
 
-// CATALOGO PREDEFINITO ESERCIZI RIABILITAZIONE LCA CON ICONE RAPPRESENTATIVE PER CATEGORIA
+// CATALOGO PREDEFINITO ESERCIZI RIABILITAZIONE LCA CON FLAG MONOPODALICO (isUnilateral)
 export const EXERCISE_PRESETS = [
-  { name: 'Back Squat Bilaterale', category: 'Squat & Accosciata', icon: 'squat', defaultTempo: '3-1-1-0' },
-  { name: 'Front Squat', category: 'Squat & Accosciata', icon: 'squat', defaultTempo: '3-0-1-0' },
-  { name: 'Goblet Squat', category: 'Squat & Accosciata', icon: 'squat', defaultTempo: '3-2-1-0' },
-  { name: 'Box Squat', category: 'Squat & Accosciata', icon: 'squat', defaultTempo: '3-1-X-0' },
-  { name: 'Bulgarian Split Squat', category: 'Affondi & Monopodalici', icon: 'lunge', defaultTempo: '3-1-1-0' },
-  { name: 'Affondi Camminati (Walking Lunges)', category: 'Affondi & Monopodalici', icon: 'lunge', defaultTempo: '2-0-1-0' },
-  { name: 'Step-Up su Box', category: 'Affondi & Monopodalici', icon: 'lunge', defaultTempo: '2-1-1-0' },
-  { name: 'Single Leg Squat a Box', category: 'Affondi & Monopodalici', icon: 'lunge', defaultTempo: '3-1-1-0' },
-  { name: 'Leg Extension Monopodalica', category: 'Isolamento Ginocchio', icon: 'knee', defaultTempo: '2-2-1-0' },
-  { name: 'Leg Extension Isometrica 60°', category: 'Isolamento Ginocchio', icon: 'knee', defaultTempo: 'Iso 45s' },
-  { name: 'Leg Curl Seduto / Prono', category: 'Catena Posteriore', icon: 'hamstring', defaultTempo: '3-1-1-0' },
-  { name: 'Nordic Hamstring Curl', category: 'Catena Posteriore', icon: 'hamstring', defaultTempo: 'Eccentrico 4s' },
-  { name: 'Romanian Deadlift (RDL) Monopodalico', category: 'Catena Posteriore', icon: 'hamstring', defaultTempo: '3-1-1-0' },
-  { name: 'Hip Thrust Bilaterale / Mono', category: 'Catena Posteriore', icon: 'hamstring', defaultTempo: '2-2-1-0' },
-  { name: 'Trap Bar Deadlift', category: 'Pressa & Tirate', icon: 'press', defaultTempo: 'Esplosivo' },
-  { name: 'Leg Press 45° Monopodalica', category: 'Pressa & Tirate', icon: 'press', defaultTempo: '3-0-1-0' },
-  { name: 'Leg Press Orizzontale Bilaterale', category: 'Pressa & Tirate', icon: 'press', defaultTempo: '2-0-1-0' },
-  { name: 'Calf Raise Seduto (Soleo)', category: 'Polpaccio & Caviglia', icon: 'calf', defaultTempo: '2-2-1-0' },
-  { name: 'Calf Raise in Piedi Monopodalico', category: 'Polpaccio & Caviglia', icon: 'calf', defaultTempo: '2-1-1-0' },
-  { name: 'Drop Jump da Box 30cm', category: 'Pliometria & Reattività', icon: 'plyo', defaultTempo: 'Contatto <250ms' }
+  { name: 'Back Squat Bilaterale', category: 'Squat & Accosciata', icon: 'squat', defaultTempo: '3-1-1-0', isUnilateral: false },
+  { name: 'Front Squat', category: 'Squat & Accosciata', icon: 'squat', defaultTempo: '3-0-1-0', isUnilateral: false },
+  { name: 'Goblet Squat', category: 'Squat & Accosciata', icon: 'squat', defaultTempo: '3-2-1-0', isUnilateral: false },
+  { name: 'Box Squat', category: 'Squat & Accosciata', icon: 'squat', defaultTempo: '3-1-X-0', isUnilateral: false },
+  { name: 'Bulgarian Split Squat', category: 'Affondi & Monopodalici', icon: 'lunge', defaultTempo: '3-1-1-0', isUnilateral: true },
+  { name: 'Affondi Camminati (Walking Lunges)', category: 'Affondi & Monopodalici', icon: 'lunge', defaultTempo: '2-0-1-0', isUnilateral: true },
+  { name: 'Step-Up su Box Monopodalico', category: 'Affondi & Monopodalici', icon: 'lunge', defaultTempo: '2-1-1-0', isUnilateral: true },
+  { name: 'Single Leg Squat a Box', category: 'Affondi & Monopodalici', icon: 'lunge', defaultTempo: '3-1-1-0', isUnilateral: true },
+  { name: 'Leg Extension Monopodalica', category: 'Isolamento Ginocchio', icon: 'knee', defaultTempo: '2-2-1-0', isUnilateral: true },
+  { name: 'Leg Extension Isometrica 60° (Mono)', category: 'Isolamento Ginocchio', icon: 'knee', defaultTempo: 'Iso 45s', isUnilateral: true },
+  { name: 'Leg Extension Bilaterale', category: 'Isolamento Ginocchio', icon: 'knee', defaultTempo: '2-1-1-0', isUnilateral: false },
+  { name: 'Leg Curl Monopodalico', category: 'Catena Posteriore', icon: 'hamstring', defaultTempo: '3-1-1-0', isUnilateral: true },
+  { name: 'Leg Curl Seduto / Prono Bilaterale', category: 'Catena Posteriore', icon: 'hamstring', defaultTempo: '3-1-1-0', isUnilateral: false },
+  { name: 'Nordic Hamstring Curl', category: 'Catena Posteriore', icon: 'hamstring', defaultTempo: 'Eccentrico 4s', isUnilateral: false },
+  { name: 'Romanian Deadlift (RDL) Monopodalico', category: 'Catena Posteriore', icon: 'hamstring', defaultTempo: '3-1-1-0', isUnilateral: true },
+  { name: 'Hip Thrust Monopodalico', category: 'Catena Posteriore', icon: 'hamstring', defaultTempo: '2-2-1-0', isUnilateral: true },
+  { name: 'Hip Thrust Bilaterale', category: 'Catena Posteriore', icon: 'hamstring', defaultTempo: '2-2-1-0', isUnilateral: false },
+  { name: 'Trap Bar Deadlift', category: 'Pressa & Tirate', icon: 'press', defaultTempo: 'Esplosivo', isUnilateral: false },
+  { name: 'Leg Press 45° Monopodalica', category: 'Pressa & Tirate', icon: 'press', defaultTempo: '3-0-1-0', isUnilateral: true },
+  { name: 'Leg Press Orizzontale Bilaterale', category: 'Pressa & Tirate', icon: 'press', defaultTempo: '2-0-1-0', isUnilateral: false },
+  { name: 'Calf Raise Seduto (Soleo) Monopodalico', category: 'Polpaccio & Caviglia', icon: 'calf', defaultTempo: '2-2-1-0', isUnilateral: true },
+  { name: 'Calf Raise in Piedi Monopodalico', category: 'Polpaccio & Caviglia', icon: 'calf', defaultTempo: '2-1-1-0', isUnilateral: true },
+  { name: 'Drop Jump da Box 30cm', category: 'Pliometria & Reattività', icon: 'plyo', defaultTempo: 'Contatto <250ms', isUnilateral: false }
 ];
+
+// Rileva automaticamente dal nome se un esercizio è monopodalico
+export function detectUnilateralFromName(name = '') {
+  if (!name) return false;
+  const q = name.toLowerCase().trim();
+  const preset = EXERCISE_PRESETS.find((p) => p.name.toLowerCase() === q);
+  if (preset) return Boolean(preset.isUnilateral);
+  if (q.includes('bilateral')) return false;
+  return (
+    q.includes('mono') ||
+    q.includes('single') ||
+    q.includes('split') ||
+    q.includes('bulgar') ||
+    q.includes('affond') ||
+    q.includes('lunge') ||
+    q.includes('step-up') ||
+    q.includes('step up') ||
+    q.includes('unilat') ||
+    q.includes('1 gamba')
+  );
+}
+
+// Codifica e decodifica dei carichi SX e DX all'interno del campo notes per compatibilità totale con lo schema Supabase workout_logs
+const SX_DX_REGEX = /^\[SX:\s*([0-9.,]+)\s*kg\s*\|\s*DX:\s*([0-9.,]+)\s*kg\]\s*/i;
+
+export function encodeNotesWithUnilateralLoads(rawNotes, isUnilateral, weightSx, weightDx) {
+  const cleanedNotes = String(rawNotes || '')
+    .replace(SX_DX_REGEX, '')
+    .trim();
+  const finalNoteText = cleanedNotes || 'Nessun dolore';
+  if (!isUnilateral) return finalNoteText;
+
+  const sxNum = parseFloat(String(weightSx ?? 0).replace(',', '.')) || 0;
+  const dxNum = parseFloat(String(weightDx ?? 0).replace(',', '.')) || 0;
+  return `[SX: ${sxNum} kg | DX: ${dxNum} kg] ${finalNoteText}`;
+}
+
+export function parseUnilateralLoadsFromRow(row) {
+  if (!row) return { isUnilateral: false, weightSx: null, weightDx: null, cleanNotes: 'Nessun dolore' };
+
+  const rawNotes = String(row.notes || row.notes_rpe || '');
+  const match = rawNotes.match(SX_DX_REGEX);
+
+  if (match) {
+    const sx = parseFloat(match[1].replace(',', '.'));
+    const dx = parseFloat(match[2].replace(',', '.'));
+    const cleanNotes = rawNotes.replace(SX_DX_REGEX, '').trim() || 'Nessun dolore';
+    return {
+      isUnilateral: true,
+      weightSx: isNaN(sx) ? 0 : sx,
+      weightDx: isNaN(dx) ? 0 : dx,
+      cleanNotes
+    };
+  }
+
+  if (row.weight_sx_kg !== undefined && row.weight_dx_kg !== undefined && (row.weight_sx_kg !== null || row.weight_dx_kg !== null)) {
+    return {
+      isUnilateral: true,
+      weightSx: parseFloat(row.weight_sx_kg) || 0,
+      weightDx: parseFloat(row.weight_dx_kg) || 0,
+      cleanNotes: rawNotes || 'Nessun dolore'
+    };
+  }
+
+  return {
+    isUnilateral: Boolean(row.is_unilateral),
+    weightSx: null,
+    weightDx: null,
+    cleanNotes: rawNotes || 'Nessun dolore'
+  };
+}
+
+export function calcLoadLsiPct(sx, dx) {
+  const nSx = parseFloat(sx);
+  const nDx = parseFloat(dx);
+  if (isNaN(nSx) || isNaN(nDx) || (nSx <= 0 && nDx <= 0)) return null;
+  const maxV = Math.max(nSx, nDx);
+  const minV = Math.min(nSx, nDx);
+  if (maxV <= 0) return null;
+  return Math.round((minV / maxV) * 100);
+}
 
 export function getIconTypeFromExerciseName(name = '', fallback = 'squat') {
   if (!name) return fallback;
   const q = name.toLowerCase();
-  const preset = EXERCISE_PRESETS.find(p => p.name.toLowerCase() === q);
+  const preset = EXERCISE_PRESETS.find((p) => p.name.toLowerCase() === q);
   if (preset) return preset.icon;
   if (q.includes('squat')) return 'squat';
   if (q.includes('affond') || q.includes('split') || q.includes('lunge') || q.includes('step')) return 'lunge';
   if (q.includes('ext') || q.includes('iso') || q.includes('ginocchio')) return 'knee';
-  if (q.includes('curl') || q.includes('rdl') || q.includes('deadlift') || q.includes('stacco') || q.includes('hip') || q.includes('nordic') || q.includes('flessor')) return 'hamstring';
+  if (
+    q.includes('curl') ||
+    q.includes('rdl') ||
+    q.includes('deadlift') ||
+    q.includes('stacco') ||
+    q.includes('hip') ||
+    q.includes('nordic') ||
+    q.includes('flessor')
+  )
+    return 'hamstring';
   if (q.includes('press') || q.includes('trap bar')) return 'press';
-  if (q.includes('jump') || q.includes('hop') || q.includes('salto') || q.includes('plio') || q.includes('drop')) return 'plyo';
+  if (q.includes('jump') || q.includes('hop') || q.includes('salto') || q.includes('plio') || q.includes('drop'))
+    return 'plyo';
   return fallback;
 }
 
@@ -75,9 +169,9 @@ export function getCategoryIcon(iconTypeOrName, className = 'w-4 h-4') {
 
   switch (iconType) {
     case 'squat':
-      return <Dumbbell className={`${className} text-cyan-400`} />;
+      return <Dumbbell className={`${className} text-[#06B6D4]`} />;
     case 'lunge':
-      return <Footprints className={`${className} text-emerald-400`} />;
+      return <Footprints className={`${className} text-[#0D9488]`} />;
     case 'knee':
       return <Activity className={`${className} text-amber-400`} />;
     case 'hamstring':
@@ -85,9 +179,9 @@ export function getCategoryIcon(iconTypeOrName, className = 'w-4 h-4') {
     case 'press':
       return <Zap className={`${className} text-purple-400`} />;
     case 'plyo':
-      return <TrendingUp className={`${className} text-teal-400`} />;
+      return <TrendingUp className={`${className} text-[#06B6D4]`} />;
     default:
-      return <Dumbbell className={`${className} text-cyan-400`} />;
+      return <Dumbbell className={`${className} text-[#06B6D4]`} />;
   }
 }
 
@@ -126,20 +220,29 @@ export function formatDayLabel(dateKey) {
   }
 }
 
-// Normalizza un record proveniente da Supabase o locale
+// Normalizza un record proveniente da Supabase o locale estraendo anche i carichi Gamba SX e Gamba DX
 export function normalizeWorkoutLog(row) {
   if (!row) return row;
+  const parsed = parseUnilateralLoadsFromRow(row);
+  const wMain = parseFloat(row.weight_kg) || 0;
+
   return {
     ...row,
     exercise_name: row.exercise_name || 'Esercizio',
     category_icon: row.category_icon || getIconTypeFromExerciseName(row.exercise_name),
     sets: Number(row.sets) || 1,
     reps: String(row.reps ?? '1'),
-    weight_kg: parseFloat(row.weight_kg) || 0,
+    weight_kg: parsed.isUnilateral
+      ? Math.max(parsed.weightSx ?? 0, parsed.weightDx ?? 0, wMain)
+      : wMain,
+    is_unilateral: parsed.isUnilateral,
+    weight_sx_kg: parsed.isUnilateral ? parsed.weightSx : null,
+    weight_dx_kg: parsed.isUnilateral ? parsed.weightDx : null,
     tempo_speed: row.tempo_speed || row.tempo_execution || 'Standard',
     tempo_execution: row.tempo_speed || row.tempo_execution || 'Standard',
     notes: row.notes || row.notes_rpe || 'Nessun dolore',
-    notes_rpe: row.notes || row.notes_rpe || 'Nessun dolore',
+    clean_notes: parsed.cleanNotes,
+    notes_rpe: parsed.cleanNotes,
     created_at: row.created_at || new Date().toISOString()
   };
 }
@@ -176,7 +279,13 @@ export default function ClientPortal({
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [sets, setSets] = useState('4');
   const [reps, setReps] = useState('8');
+
+  // MODALITÀ CARICO: Bilaterale (false) vs Monopodalico SX + DX (true)
+  const [isUnilateralMode, setIsUnilateralMode] = useState(false);
   const [weightKg, setWeightKg] = useState('');
+  const [weightSxKg, setWeightSxKg] = useState('');
+  const [weightDxKg, setWeightDxKg] = useState('');
+
   const [tempo, setTempo] = useState('');
   const [notesRpe, setNotesRpe] = useState('');
   const [saving, setSaving] = useState(false);
@@ -215,7 +324,9 @@ export default function ClientPortal({
       }
     });
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+    const {
+      data: { subscription }
+    } = supabase.auth.onAuthStateChange((_event, session) => {
       if (session?.user) {
         setSessionUser(session.user);
       }
@@ -228,6 +339,7 @@ export default function ClientPortal({
   const targetPatientName = patient?.nome
     ? `${patient.nome} ${patient.cognome || ''}`
     : sessionUser?.email || 'Atleta LCA';
+  const injuredSide = (patient?.lato_lesione || '').toLowerCase();
 
   // Carica lo storico da Supabase ('workout_logs') con sincronizzazione Realtime
   const fetchMyWorkoutLogs = async (silent = false) => {
@@ -252,7 +364,6 @@ export default function ClientPortal({
         }
       }
 
-      // Fallback locale se offline
       const localKey = `acl_workout_logs_${targetPatientId || 'default'}`;
       const savedLocal = localStorage.getItem(localKey);
       if (savedLocal) {
@@ -276,13 +387,9 @@ export default function ClientPortal({
 
     const channel = supabase
       .channel(`client_portal_logs_${targetPatientId}`)
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'workout_logs' },
-        () => {
-          fetchMyWorkoutLogs(true);
-        }
-      )
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'workout_logs' }, () => {
+        fetchMyWorkoutLogs(true);
+      })
       .subscribe();
 
     const interval = setInterval(() => {
@@ -298,7 +405,7 @@ export default function ClientPortal({
   // Raggruppamento allenamenti per GIORNATA ('YYYY-MM-DD')
   const groupedByDay = useMemo(() => {
     const map = {};
-    workoutLogs.forEach(log => {
+    workoutLogs.forEach((log) => {
       const dayKey = toDateInputValue(log.created_at);
       if (!map[dayKey]) {
         map[dayKey] = [];
@@ -319,7 +426,6 @@ export default function ClientPortal({
     return groupedByDay.sortedDays[0] || 'ALL';
   }, [selectedHistoryDay, groupedByDay]);
 
-  // Esercizi già salvati per la data attualmente selezionata nel tab "Segna Esercizio"
   const existingLogsForSelectedDate = useMemo(() => {
     return groupedByDay.map[workoutDate] || [];
   }, [groupedByDay, workoutDate]);
@@ -329,26 +435,31 @@ export default function ClientPortal({
     if (!selectedExerciseForProgression) return [];
     const target = selectedExerciseForProgression.toLowerCase().trim();
     return workoutLogs
-      .filter(l => l.exercise_name?.toLowerCase().trim() === target)
+      .filter((l) => l.exercise_name?.toLowerCase().trim() === target)
       .sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
   }, [selectedExerciseForProgression, workoutLogs]);
 
-  // Suggerimenti autocompletamento: combina esercizi passati del paziente + catalogo predefinito
+  // Suggerimenti autocompletamento
   const suggestions = useMemo(() => {
-    const pastNames = Array.from(new Set(workoutLogs.map(l => l.exercise_name))).filter(Boolean);
+    const pastNames = Array.from(new Set(workoutLogs.map((l) => l.exercise_name))).filter(Boolean);
     const pastItems = pastNames
-      .filter(name => !EXERCISE_PRESETS.some(p => p.name.toLowerCase() === name.toLowerCase()))
-      .map(name => ({ name, category: 'Già eseguiti', icon: getIconTypeFromExerciseName(name), defaultTempo: '' }));
+      .filter((name) => !EXERCISE_PRESETS.some((p) => p.name.toLowerCase() === name.toLowerCase()))
+      .map((name) => ({
+        name,
+        category: 'Già eseguiti',
+        icon: getIconTypeFromExerciseName(name),
+        defaultTempo: '',
+        isUnilateral: detectUnilateralFromName(name)
+      }));
 
     const all = [...pastItems, ...EXERCISE_PRESETS];
     if (!exerciseQuery.trim()) return all;
     const q = exerciseQuery.toLowerCase();
-    return all.filter(item =>
-      item.name.toLowerCase().includes(q) || item.category.toLowerCase().includes(q)
+    return all.filter(
+      (item) => item.name.toLowerCase().includes(q) || item.category.toLowerCase().includes(q)
     );
   }, [exerciseQuery, workoutLogs]);
 
-  // Gestione invio Magic Link (OTP via Email)
   const handleSendMagicLink = async (e) => {
     e.preventDefault();
     setAuthError('');
@@ -359,7 +470,9 @@ export default function ClientPortal({
       const { error } = await supabase.auth.signInWithOtp({
         email: authEmail.trim(),
         options: {
-          emailRedirectTo: `${window.location.origin}/?portal=client${targetPatientId ? `&patientId=${targetPatientId}` : ''}`
+          emailRedirectTo: `${window.location.origin}/?portal=client${
+            targetPatientId ? `&patientId=${targetPatientId}` : ''
+          }`
         }
       });
 
@@ -369,7 +482,7 @@ export default function ClientPortal({
         setMagicLinkSent(true);
       }
     } catch (err) {
-      setAuthError(err.message || 'Errore durante l\'invio del Magic Link.');
+      setAuthError(err.message || "Errore durante l'invio del Magic Link.");
     } finally {
       setSendingOtp(false);
     }
@@ -389,65 +502,103 @@ export default function ClientPortal({
     return now.toISOString();
   };
 
-  // Aggiunge l'esercizio compilato al "Pacchetto del Giorno" (senza ancora inviare o prima di salvare il pacchetto)
-  const handleAddExerciseToPackage = () => {
-    if (!exerciseQuery.trim() || weightKg === '') return;
+  const isCurrentFormLoadValid = () => {
+    if (!exerciseQuery.trim()) return false;
+    if (isUnilateralMode) {
+      return weightSxKg !== '' || weightDxKg !== '';
+    }
+    return weightKg !== '';
+  };
 
-    const newItem = {
-      id: typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : undefined,
+  const buildCurrentExerciseEntry = (customId = undefined) => {
+    const sxVal = parseFloat(String(weightSxKg || 0).replace(',', '.')) || 0;
+    const dxVal = parseFloat(String(weightDxKg || 0).replace(',', '.')) || 0;
+    const bilatVal = parseFloat(String(weightKg || 0).replace(',', '.')) || 0;
+
+    const finalWeightKg = isUnilateralMode ? Math.max(sxVal, dxVal) : bilatVal;
+    const encodedNotes = encodeNotesWithUnilateralLoads(notesRpe, isUnilateralMode, sxVal, dxVal);
+
+    return normalizeWorkoutLog({
+      id:
+        customId ||
+        (typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : undefined),
       patient_id: String(targetPatientId || 'demo-patient'),
       patient_email: sessionUser?.email || patient?.email || null,
       exercise_name: exerciseQuery.trim(),
       category_icon: selectedCategoryIcon || getIconTypeFromExerciseName(exerciseQuery.trim()),
       sets: Number(sets) || 1,
       reps: String(reps || '1'),
-      weight_kg: parseFloat(String(weightKg).replace(',', '.')) || 0,
+      weight_kg: finalWeightKg,
+      is_unilateral: isUnilateralMode,
+      weight_sx_kg: isUnilateralMode ? sxVal : null,
+      weight_dx_kg: isUnilateralMode ? dxVal : null,
       tempo_speed: tempo.trim() || 'Standard',
       tempo_execution: tempo.trim() || 'Standard',
-      notes: notesRpe.trim() || 'Nessun dolore',
-      notes_rpe: notesRpe.trim() || 'Nessun dolore',
+      notes: encodedNotes,
+      notes_rpe: encodedNotes,
       created_at: buildIsoForSelectedDate()
-    };
+    });
+  };
 
-    setPackageItems(prev => [...prev, newItem]);
-    // Pulisce i campi per inserire subito il prossimo esercizio del pacchetto
+  const resetExerciseFields = () => {
     setExerciseQuery('');
     setWeightKg('');
+    setWeightSxKg('');
+    setWeightDxKg('');
+    setIsUnilateralMode(false);
     setTempo('');
     setNotesRpe('');
     setShowSuggestions(false);
   };
 
+  // Aggiunge l'esercizio compilato al "Pacchetto del Giorno"
+  const handleAddExerciseToPackage = () => {
+    if (!isCurrentFormLoadValid()) return;
+    const newItem = buildCurrentExerciseEntry();
+    setPackageItems((prev) => [...prev, newItem]);
+    resetExerciseFields();
+  };
+
   const handleRemoveFromPackageDraft = (idx) => {
-    setPackageItems(prev => prev.filter((_, i) => i !== idx));
+    setPackageItems((prev) => prev.filter((_, i) => i !== idx));
   };
 
   // Avvia la modifica di un esercizio già salvato nello storico
   const handleStartEditLog = (log) => {
+    const parsed = parseUnilateralLoadsFromRow(log);
     setEditingLogId(log.id);
     setWorkoutDate(toDateInputValue(log.created_at));
     setExerciseQuery(log.exercise_name || '');
     setSelectedCategoryIcon(log.category_icon || getIconTypeFromExerciseName(log.exercise_name));
     setSets(String(log.sets || 4));
     setReps(String(log.reps || 8));
-    setWeightKg(String(log.weight_kg ?? ''));
+
+    if (parsed.isUnilateral) {
+      setIsUnilateralMode(true);
+      setWeightSxKg(String(parsed.weightSx ?? 0));
+      setWeightDxKg(String(parsed.weightDx ?? 0));
+      setWeightKg(String(log.weight_kg ?? ''));
+    } else {
+      setIsUnilateralMode(false);
+      setWeightKg(String(log.weight_kg ?? ''));
+      setWeightSxKg('');
+      setWeightDxKg('');
+    }
+
     setTempo(log.tempo_speed || log.tempo_execution || '');
-    setNotesRpe(log.notes || log.notes_rpe || '');
+    setNotesRpe(parsed.cleanNotes === 'Nessun dolore' ? '' : parsed.cleanNotes);
     setActiveSection('log');
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   const handleCancelEdit = () => {
     setEditingLogId(null);
-    setExerciseQuery('');
-    setWeightKg('');
-    setTempo('');
-    setNotesRpe('');
+    resetExerciseFields();
   };
 
   // Eliminazione di un esercizio dallo storico
   const handleDeleteLog = async (logId) => {
-    const updatedList = workoutLogs.filter(item => item.id !== logId);
+    const updatedList = workoutLogs.filter((item) => item.id !== logId);
     setWorkoutLogs(updatedList);
 
     const localKey = `acl_workout_logs_${targetPatientId || 'default'}`;
@@ -472,28 +623,26 @@ export default function ClientPortal({
   const handleSaveWorkoutPackage = async (e) => {
     e.preventDefault();
 
-    // Se siamo in modalità modifica di un singolo esercizio già esistente
     if (editingLogId) {
-      if (!exerciseQuery.trim() || weightKg === '') return;
+      if (!isCurrentFormLoadValid()) return;
       setSaving(true);
-      const isoDate = buildIsoForSelectedDate();
+      const updatedEntry = buildCurrentExerciseEntry(editingLogId);
 
       const dbRow = {
         id: editingLogId,
         patient_id: String(targetPatientId || 'demo-patient'),
         patient_email: sessionUser?.email || patient?.email || null,
-        exercise_name: exerciseQuery.trim(),
-        sets: Number(sets) || 1,
-        reps: String(reps || '1'),
-        weight_kg: parseFloat(String(weightKg).replace(',', '.')) || 0,
-        tempo_speed: tempo.trim() || 'Standard',
-        notes: notesRpe.trim() || 'Nessun dolore',
-        created_at: isoDate
+        exercise_name: updatedEntry.exercise_name,
+        sets: updatedEntry.sets,
+        reps: updatedEntry.reps,
+        weight_kg: updatedEntry.weight_kg,
+        tempo_speed: updatedEntry.tempo_speed,
+        notes: updatedEntry.notes,
+        created_at: updatedEntry.created_at
       };
 
       try {
         if (isSupabaseConfigured && targetPatientId) {
-          // Usa delete + insert con stesso UUID per garantire l'aggiornamento anche se UPDATE policy non è ancora stata eseguita
           await supabase.from('workout_logs').delete().eq('id', editingLogId);
           const { error } = await supabase.from('workout_logs').insert([dbRow]);
           if (error) {
@@ -503,7 +652,7 @@ export default function ClientPortal({
 
         const normalizedEntry = normalizeWorkoutLog(dbRow);
         const updatedList = workoutLogs
-          .map(item => (item.id === editingLogId ? normalizedEntry : item))
+          .map((item) => (item.id === editingLogId ? normalizedEntry : item))
           .sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
 
         setWorkoutLogs(updatedList);
@@ -517,10 +666,7 @@ export default function ClientPortal({
         }
 
         setEditingLogId(null);
-        setExerciseQuery('');
-        setWeightKg('');
-        setTempo('');
-        setNotesRpe('');
+        resetExerciseFields();
         setSaveSuccess('Modifica salvata con successo!');
         setTimeout(() => setSaveSuccess(''), 3000);
       } finally {
@@ -529,32 +675,16 @@ export default function ClientPortal({
       return;
     }
 
-    // Costruisce la lista finale di esercizi del Pacchetto da salvare:
-    // include quelli già aggiunti a `packageItems` + l'eventuale esercizio attualmente compilato nei campi
     const itemsToSave = [...packageItems];
-    if (exerciseQuery.trim() && weightKg !== '') {
-      itemsToSave.push({
-        id: typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : undefined,
-        patient_id: String(targetPatientId || 'demo-patient'),
-        patient_email: sessionUser?.email || patient?.email || null,
-        exercise_name: exerciseQuery.trim(),
-        category_icon: selectedCategoryIcon || getIconTypeFromExerciseName(exerciseQuery.trim()),
-        sets: Number(sets) || 1,
-        reps: String(reps || '1'),
-        weight_kg: parseFloat(String(weightKg).replace(',', '.')) || 0,
-        tempo_speed: tempo.trim() || 'Standard',
-        tempo_execution: tempo.trim() || 'Standard',
-        notes: notesRpe.trim() || 'Nessun dolore',
-        notes_rpe: notesRpe.trim() || 'Nessun dolore',
-        created_at: buildIsoForSelectedDate()
-      });
+    if (isCurrentFormLoadValid()) {
+      itemsToSave.push(buildCurrentExerciseEntry());
     }
 
     if (itemsToSave.length === 0) return;
 
     setSaving(true);
     try {
-      const dbPayloads = itemsToSave.map(item => ({
+      const dbPayloads = itemsToSave.map((item) => ({
         ...(item.id ? { id: item.id } : {}),
         patient_id: String(targetPatientId || 'demo-patient'),
         patient_email: item.patient_email,
@@ -570,10 +700,7 @@ export default function ClientPortal({
       let insertedRows = dbPayloads.map(normalizeWorkoutLog);
 
       if (isSupabaseConfigured && targetPatientId) {
-        const { data, error } = await supabase
-          .from('workout_logs')
-          .insert(dbPayloads)
-          .select();
+        const { data, error } = await supabase.from('workout_logs').insert(dbPayloads).select();
 
         if (error) {
           console.error('Errore insert pacchetto workout_logs su Supabase:', error.message);
@@ -596,14 +723,12 @@ export default function ClientPortal({
         onNewLogSaved(insertedRows[0], updatedList);
       }
 
-      // Pulisci il pacchetto in bozza e i campi
       setPackageItems([]);
-      setExerciseQuery('');
-      setWeightKg('');
-      setTempo('');
-      setNotesRpe('');
+      resetExerciseFields();
       setSelectedHistoryDay(workoutDate);
-      setSaveSuccess(`Pacchetto di ${insertedRows.length} esercizi salvato per il ${formatDayLabel(workoutDate)}!`);
+      setSaveSuccess(
+        `Pacchetto di ${insertedRows.length} esercizi salvato per il ${formatDayLabel(workoutDate)}!`
+      );
       setTimeout(() => setSaveSuccess(''), 3500);
     } catch (err) {
       console.error('Errore salvataggio pacchetto:', err);
@@ -622,36 +747,38 @@ export default function ClientPortal({
     }
   };
 
+  const liveLsiForm = isUnilateralMode ? calcLoadLsiPct(weightSxKg, weightDxKg) : null;
+
   // SCHERMATA 1: LOGIN MAGIC LINK PAZIENTE
   if (!effectiveSimMode && !sessionUser) {
     return (
-      <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col justify-center items-center p-4 font-sans">
-        <div className="w-full max-w-md bg-slate-900 border border-slate-800 rounded-3xl p-6 sm:p-8 shadow-2xl space-y-6">
+      <div className="min-h-screen bg-[#0F172A] text-white flex flex-col justify-center items-center p-4 font-sans">
+        <div className="w-full max-w-md bg-[#1E293B] border border-[#334155] rounded-3xl p-6 sm:p-8 shadow-2xl space-y-6">
           <div className="flex flex-col items-center text-center space-y-2">
-            <LogoN className="w-16 h-16 rounded-2xl border border-cyan-500/40 shadow-lg" />
-            <span className="px-3 py-0.5 rounded-full bg-cyan-950 text-cyan-400 border border-cyan-500/30 text-[11px] font-extrabold uppercase tracking-wider">
+            <LogoN className="w-16 h-16 rounded-2xl border border-[#06B6D4]/40 shadow-lg" />
+            <span className="px-3 py-0.5 rounded-full bg-[#0F172A] text-[#06B6D4] border border-[#334155] text-[11px] font-extrabold uppercase tracking-wider">
               Portale Paziente Mobile
             </span>
             <h1 className="text-2xl font-black text-white tracking-tight">
               Diario Allenamento LCA
             </h1>
-            <p className="text-xs text-slate-400 leading-relaxed">
+            <p className="text-xs text-[#94A3B8] leading-relaxed">
               Accedi senza password tramite <strong>Magic Link</strong>. Inserisci la tua email per ricevere il link di accesso diretto sul tuo smartphone.
             </p>
           </div>
 
           {magicLinkSent ? (
-            <div className="p-5 rounded-2xl bg-emerald-950/60 border border-emerald-500/40 text-center space-y-3">
-              <CheckCircle2 className="w-10 h-10 text-emerald-400 mx-auto" />
+            <div className="p-5 rounded-2xl bg-[#0F172A] border border-[#0D9488] text-center space-y-3">
+              <CheckCircle2 className="w-10 h-10 text-[#0D9488] mx-auto" />
               <h3 className="text-base font-extrabold text-white">Controlla la tua Email!</h3>
-              <p className="text-xs text-slate-300 leading-relaxed">
-                Abbiamo inviato un link magico a <strong className="text-emerald-300">{authEmail}</strong>.<br />
+              <p className="text-xs text-[#94A3B8] leading-relaxed">
+                Abbiamo inviato un link magico a <strong className="text-white">{authEmail}</strong>.<br />
                 Tocca il pulsante nell'email per entrare subito nel tuo Diario Allenamento.
               </p>
               <button
                 type="button"
                 onClick={() => setMagicLinkSent(false)}
-                className="text-xs text-cyan-400 underline font-bold pt-2"
+                className="text-xs text-[#06B6D4] underline font-bold pt-2"
               >
                 Usa un altro indirizzo email
               </button>
@@ -659,18 +786,18 @@ export default function ClientPortal({
           ) : (
             <form onSubmit={handleSendMagicLink} className="space-y-4">
               <div>
-                <label className="block text-xs font-bold text-slate-300 mb-1.5">
+                <label className="block text-xs font-bold text-[#94A3B8] mb-1.5">
                   La tua Email personale
                 </label>
                 <div className="relative">
-                  <Mail className="w-4 h-4 text-slate-400 absolute left-3.5 top-3.5" />
+                  <Mail className="w-4 h-4 text-[#94A3B8] absolute left-3.5 top-3.5" />
                   <input
                     type="email"
                     required
                     value={authEmail}
                     onChange={(e) => setAuthEmail(e.target.value)}
                     placeholder="nome.cognome@email.it"
-                    className="w-full bg-slate-950 border border-slate-700 focus:border-cyan-500 rounded-2xl py-3 pl-10 pr-4 text-sm text-white placeholder-slate-500 focus:outline-none"
+                    className="w-full bg-[#0F172A] border border-[#334155] focus:border-[#06B6D4] rounded-2xl py-3 pl-10 pr-4 text-sm text-white placeholder-[#94A3B8] focus:outline-none"
                   />
                 </div>
               </div>
@@ -684,7 +811,7 @@ export default function ClientPortal({
               <button
                 type="submit"
                 disabled={sendingOtp}
-                className="w-full py-3.5 bg-gradient-to-r from-cyan-600 to-emerald-600 hover:from-cyan-500 hover:to-emerald-500 text-white font-extrabold rounded-2xl text-sm flex items-center justify-center gap-2 shadow-lg shadow-cyan-500/20 transition-all cursor-pointer disabled:opacity-50"
+                className="w-full py-3.5 bg-gradient-to-r from-[#0D9488] to-[#06B6D4] hover:opacity-95 text-white font-extrabold rounded-2xl text-sm flex items-center justify-center gap-2 shadow-lg transition-all cursor-pointer disabled:opacity-50"
               >
                 <span>{sendingOtp ? 'Invio Link in corso...' : 'Invia Magic Link via Email'}</span>
                 <ArrowRight className="w-4 h-4" />
@@ -693,7 +820,7 @@ export default function ClientPortal({
           )}
 
           {patient && (
-            <div className="pt-4 border-t border-slate-800 text-center">
+            <div className="pt-4 border-t border-[#334155] text-center">
               <button
                 type="button"
                 onClick={() =>
@@ -703,15 +830,15 @@ export default function ClientPortal({
                     user_metadata: { role: 'patient', patient_id: patient.id }
                   })
                 }
-                className="w-full py-2.5 bg-slate-800 hover:bg-slate-700 text-cyan-300 font-bold text-xs rounded-xl border border-cyan-500/30 transition-all cursor-pointer"
+                className="w-full py-2.5 bg-[#0F172A] hover:bg-slate-800 text-[#06B6D4] font-bold text-xs rounded-xl border border-[#334155] transition-all cursor-pointer"
               >
                 ⚡ Entra Subito come {patient.nome} {patient.cognome} (Link Personale)
               </button>
             </div>
           )}
 
-          <div className="flex items-center justify-center gap-2 text-[11px] text-slate-500 pt-2">
-            <ShieldCheck className="w-4 h-4 text-emerald-500" />
+          <div className="flex items-center justify-center gap-2 text-[11px] text-[#94A3B8] pt-2">
+            <ShieldCheck className="w-4 h-4 text-[#0D9488]" />
             <span>Connessione Protetta RLS • Privacy Paziente Garantita</span>
           </div>
         </div>
@@ -719,12 +846,12 @@ export default function ClientPortal({
     );
   }
 
-  // SCHERMATA 2: INTERFACCIA PAZIENTE / SMARTPHONE CON PACCHETTI GIORNALIERI E PROGRESSIONE ESERCIZI
+  // SCHERMATA 2: INTERFACCIA PAZIENTE / SMARTPHONE CON SUPPORTO MONOPODALICO GAMBA SX & DX
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 pb-24 font-sans">
+    <div className="min-h-screen bg-[#0F172A] text-white pb-24 font-sans">
       {/* BANNER MODALITÀ SIMULAZIONE TERAPISTA */}
       {(effectiveSimMode || onExitSimulation) && (
-        <div className="bg-gradient-to-r from-amber-600/90 to-orange-600/90 text-white px-4 py-2.5 text-xs font-extrabold flex items-center justify-between shadow-md sticky top-0 z-40">
+        <div className="bg-amber-600 text-white px-4 py-2.5 text-xs font-extrabold flex items-center justify-between shadow-md sticky top-0 z-40">
           <div className="flex items-center gap-2">
             <Smartphone className="w-4 h-4" />
             <span>VISTA PORTALE PAZIENTE ({targetPatientName})</span>
@@ -732,9 +859,9 @@ export default function ClientPortal({
           {onExitSimulation && (
             <button
               onClick={onExitSimulation}
-              className="px-3 py-1 bg-slate-950/90 hover:bg-slate-900 text-amber-300 rounded-lg text-[11px] font-black flex items-center gap-1 cursor-pointer"
+              className="px-3 py-1 bg-[#0F172A] hover:bg-[#1E293B] text-white rounded-lg text-[11px] font-black flex items-center gap-1 cursor-pointer"
             >
-              <ArrowLeft className="w-3.5 h-3.5" />
+              <ArrowLeft className="w-3.5 h-3.5 text-[#06B6D4]" />
               <span>Torna a Vista Terapista</span>
             </button>
           )}
@@ -742,17 +869,15 @@ export default function ClientPortal({
       )}
 
       {/* TOP MOBILE BAR */}
-      <header className="bg-slate-900/90 backdrop-blur-md border-b border-slate-800 px-4 py-3.5 sticky top-0 z-30">
+      <header className="bg-[#1E293B]/95 backdrop-blur-md border-b border-[#334155] px-4 py-3.5 sticky top-0 z-30">
         <div className="max-w-md mx-auto flex items-center justify-between">
           <div className="flex items-center gap-2.5">
-            <LogoN className="w-10 h-10 rounded-xl border border-cyan-500/30" />
+            <LogoN className="w-10 h-10 rounded-xl border border-[#334155]" />
             <div>
-              <span className="text-[10px] font-extrabold uppercase tracking-wider text-cyan-400 block">
+              <span className="text-[10px] font-extrabold uppercase tracking-wider text-[#06B6D4] block">
                 Workout Log LCA
               </span>
-              <h2 className="text-sm font-black text-white leading-tight">
-                {targetPatientName}
-              </h2>
+              <h2 className="text-sm font-black text-white leading-tight">{targetPatientName}</h2>
             </div>
           </div>
 
@@ -760,7 +885,7 @@ export default function ClientPortal({
             <button
               type="button"
               onClick={handleInstallPwa}
-              className="px-2.5 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-cyan-300 border border-slate-700 text-[10px] font-extrabold flex items-center gap-1 cursor-pointer"
+              className="px-2.5 py-1.5 rounded-xl bg-[#0F172A] hover:bg-slate-800 text-[#06B6D4] border border-[#334155] text-[10px] font-extrabold flex items-center gap-1 cursor-pointer"
               title="Aggiungi a Schermata Home"
             >
               <Share className="w-3 h-3" />
@@ -774,7 +899,7 @@ export default function ClientPortal({
                   await supabase.auth.signOut().catch(() => {});
                   setSessionUser(null);
                 }}
-                className="p-2 rounded-xl bg-slate-800 text-slate-400 hover:text-rose-400"
+                className="p-2 rounded-xl bg-[#0F172A] text-[#94A3B8] hover:text-rose-400 border border-[#334155]"
                 title="Esci"
               >
                 <LogOut className="w-4 h-4" />
@@ -784,26 +909,29 @@ export default function ClientPortal({
         </div>
 
         {showIosPwaTip && (
-          <div className="max-w-md mx-auto mt-2 p-2.5 rounded-xl bg-cyan-950/90 border border-cyan-500/40 text-[11px] text-cyan-200 flex items-center justify-between">
+          <div className="max-w-md mx-auto mt-2 p-2.5 rounded-xl bg-[#0F172A] border border-[#06B6D4] text-[11px] text-white flex items-center justify-between">
             <span>
-              📱 Per avere l'app sempre pronta: tocca <strong>Condividi</strong> nel browser e scegli <strong>"Aggiungi alla schermata Home"</strong>.
+              📱 Per avere l'app sempre pronta: tocca <strong>Condividi</strong> nel browser e scegli{' '}
+              <strong>"Aggiungi alla schermata Home"</strong>.
             </span>
-            <button onClick={() => setShowIosPwaTip(false)} className="text-cyan-400 font-bold ml-2">OK</button>
+            <button onClick={() => setShowIosPwaTip(false)} className="text-[#06B6D4] font-bold ml-2">
+              OK
+            </button>
           </div>
         )}
       </header>
 
       {/* CONTENUTO PRINCIPALE MOBILE */}
       <main className="max-w-md mx-auto p-4 space-y-5">
-        {/* SWITCHER A 2 GRANDI TAB: A) PACCHETTO SEDUTA | B) IL MIO STORICO (GIORNATE & PROGRESSIONI) */}
-        <div className="grid grid-cols-2 gap-2 p-1.5 bg-slate-900 rounded-2xl border border-slate-800">
+        {/* SWITCHER A 2 TAB */}
+        <div className="grid grid-cols-2 gap-2 p-1.5 bg-[#1E293B] rounded-2xl border border-[#334155]">
           <button
             type="button"
             onClick={() => setActiveSection('log')}
             className={`py-3 px-3 rounded-xl font-extrabold text-xs flex items-center justify-center gap-2 transition-all cursor-pointer ${
               activeSection === 'log'
-                ? 'bg-gradient-to-r from-cyan-600 to-emerald-600 text-white shadow-lg'
-                : 'text-slate-400 hover:text-white'
+                ? 'bg-gradient-to-r from-[#0D9488] to-[#06B6D4] text-white shadow-md'
+                : 'text-[#94A3B8] hover:text-white'
             }`}
           >
             <Package className="w-4 h-4" />
@@ -815,8 +943,8 @@ export default function ClientPortal({
             onClick={() => setActiveSection('history')}
             className={`py-3 px-3 rounded-xl font-extrabold text-xs flex items-center justify-center gap-2 transition-all cursor-pointer ${
               activeSection === 'history'
-                ? 'bg-gradient-to-r from-cyan-600 to-emerald-600 text-white shadow-lg'
-                : 'text-slate-400 hover:text-white'
+                ? 'bg-gradient-to-r from-[#0D9488] to-[#06B6D4] text-white shadow-md'
+                : 'text-[#94A3B8] hover:text-white'
             }`}
           >
             <History className="w-4 h-4" />
@@ -827,7 +955,10 @@ export default function ClientPortal({
         {/* SEZIONE A: COMPILAZIONE PACCHETTO DI ESERCIZI DEL GIORNO */}
         {activeSection === 'log' && (
           <div className="space-y-4">
-            <form onSubmit={handleSaveWorkoutPackage} className="bg-slate-900 border border-slate-800 rounded-3xl p-5 space-y-4 shadow-xl">
+            <form
+              onSubmit={handleSaveWorkoutPackage}
+              className="bg-[#1E293B] border border-[#334155] rounded-3xl p-5 space-y-4 shadow-xl"
+            >
               {editingLogId && (
                 <div className="p-3 rounded-2xl bg-amber-950/80 border border-amber-500/40 flex items-center justify-between">
                   <div className="flex items-center gap-2 text-xs font-extrabold text-amber-300">
@@ -837,7 +968,7 @@ export default function ClientPortal({
                   <button
                     type="button"
                     onClick={handleCancelEdit}
-                    className="px-2.5 py-1 rounded-lg bg-slate-900 text-slate-300 hover:text-white text-[11px] font-bold flex items-center gap-1 cursor-pointer"
+                    className="px-2.5 py-1 rounded-lg bg-[#0F172A] text-[#94A3B8] hover:text-white text-[11px] font-bold flex items-center gap-1 cursor-pointer"
                   >
                     <X className="w-3.5 h-3.5" />
                     <span>Annulla</span>
@@ -845,23 +976,23 @@ export default function ClientPortal({
                 </div>
               )}
 
-              <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+              <div className="flex items-center justify-between border-b border-[#334155] pb-3">
                 <div>
                   <h3 className="text-base font-black text-white">
                     {editingLogId ? 'Modifica Esercizio' : 'Pacchetto Esercizi del Giorno'}
                   </h3>
-                  <p className="text-[11px] text-slate-400">
-                    Aggiungi uno o più esercizi alla giornata e salva il pacchetto
+                  <p className="text-[11px] text-[#94A3B8]">
+                    Segna i carichi bilaterali o separati per gamba sinistra (SX) e destra (DX)
                   </p>
                 </div>
-                <div className="p-2.5 rounded-2xl bg-slate-950 border border-slate-800">
+                <div className="p-2.5 rounded-2xl bg-[#0F172A] border border-[#334155]">
                   {getCategoryIcon(selectedCategoryIcon, 'w-5 h-5')}
                 </div>
               </div>
 
               {/* 1. SELEZIONE GIORNATA DELL'ALLENAMENTO */}
-              <div className="bg-slate-950/90 border border-slate-800 rounded-2xl p-3">
-                <label className="block text-xs font-extrabold text-cyan-400 mb-1.5 flex items-center justify-between">
+              <div className="bg-[#0F172A] border border-[#334155] rounded-2xl p-3">
+                <label className="block text-xs font-extrabold text-[#06B6D4] mb-1.5 flex items-center justify-between">
                   <span className="flex items-center gap-1.5">
                     <Calendar className="w-3.5 h-3.5" />
                     <span>Giornata di Allenamento</span>
@@ -869,7 +1000,7 @@ export default function ClientPortal({
                   <button
                     type="button"
                     onClick={() => setWorkoutDate(toDateInputValue(new Date().toISOString()))}
-                    className="text-[10px] text-emerald-400 hover:underline font-extrabold"
+                    className="text-[10px] text-[#0D9488] hover:underline font-extrabold"
                   >
                     Imposta su Oggi
                   </button>
@@ -879,33 +1010,35 @@ export default function ClientPortal({
                   required
                   value={workoutDate}
                   onChange={(e) => setWorkoutDate(e.target.value)}
-                  className="w-full bg-slate-900 border border-slate-700 focus:border-cyan-500 rounded-xl py-2 px-3 text-xs font-mono font-bold text-white focus:outline-none"
+                  className="w-full bg-[#1E293B] border border-[#334155] focus:border-[#06B6D4] rounded-xl py-2 px-3 text-xs font-mono font-bold text-white focus:outline-none"
                 />
               </div>
 
-              {/* 2. RICERCA / SELEZIONE ESERCIZIO CON AUTOCOMPLETAMENTO & ICONE */}
+              {/* 2. RICERCA / SELEZIONE ESERCIZIO CON AUTOCOMPLETAMENTO & RILEVAMENTO MONOPODALICO */}
               <div className="relative">
-                <label className="block text-xs font-extrabold text-slate-300 mb-1.5">
+                <label className="block text-xs font-extrabold text-[#94A3B8] mb-1.5">
                   Esercizio da inserire nel Pacchetto
                 </label>
                 <div className="relative">
-                  <Search className="w-4 h-4 text-cyan-400 absolute left-3.5 top-3.5" />
+                  <Search className="w-4 h-4 text-[#06B6D4] absolute left-3.5 top-3.5" />
                   <input
                     type="text"
                     value={exerciseQuery}
                     onFocus={() => setShowSuggestions(true)}
                     onChange={(e) => {
-                      setExerciseQuery(e.target.value);
-                      setSelectedCategoryIcon(getIconTypeFromExerciseName(e.target.value, selectedCategoryIcon));
+                      const val = e.target.value;
+                      setExerciseQuery(val);
+                      setSelectedCategoryIcon(getIconTypeFromExerciseName(val, selectedCategoryIcon));
+                      setIsUnilateralMode(detectUnilateralFromName(val));
                       setShowSuggestions(true);
                     }}
-                    placeholder="Cerca o scrivi es: Squat, Leg Extension, Pressa..."
-                    className="w-full bg-slate-950 border border-slate-700 focus:border-cyan-500 rounded-2xl py-3 pl-10 pr-4 text-sm font-bold text-white placeholder-slate-500 focus:outline-none"
+                    placeholder="Cerca es: Bulgarian Split Squat, Leg Ext, Pressa..."
+                    className="w-full bg-[#0F172A] border border-[#334155] focus:border-[#06B6D4] rounded-2xl py-3 pl-10 pr-4 text-sm font-bold text-white placeholder-[#94A3B8] focus:outline-none"
                   />
                 </div>
 
                 {showSuggestions && (
-                  <div className="mt-1.5 max-h-52 overflow-y-auto bg-slate-950 border border-slate-700 rounded-2xl shadow-2xl divide-y divide-slate-800/80 z-20 relative">
+                  <div className="mt-1.5 max-h-56 overflow-y-auto bg-[#0F172A] border border-[#334155] rounded-2xl shadow-2xl divide-y divide-[#334155] z-20 relative">
                     {suggestions.map((item, idx) => (
                       <button
                         type="button"
@@ -913,24 +1046,32 @@ export default function ClientPortal({
                         onClick={() => {
                           setExerciseQuery(item.name);
                           setSelectedCategoryIcon(item.icon || 'squat');
+                          setIsUnilateralMode(Boolean(item.isUnilateral));
                           if (item.defaultTempo && !tempo) {
                             setTempo(item.defaultTempo);
                           }
                           setShowSuggestions(false);
                         }}
-                        className="w-full px-3.5 py-2.5 text-left hover:bg-slate-900 flex items-center justify-between transition-colors cursor-pointer"
+                        className="w-full px-3.5 py-2.5 text-left hover:bg-[#1E293B] flex items-center justify-between transition-colors cursor-pointer"
                       >
                         <div className="flex items-center gap-2.5">
-                          <div className="p-1.5 rounded-lg bg-slate-900 border border-slate-800">
+                          <div className="p-1.5 rounded-lg bg-[#1E293B] border border-[#334155]">
                             {getCategoryIcon(item.icon)}
                           </div>
                           <div>
-                            <div className="text-xs font-extrabold text-white">{item.name}</div>
-                            <div className="text-[10px] text-slate-400">{item.category}</div>
+                            <div className="text-xs font-extrabold text-white flex items-center gap-1.5">
+                              <span>{item.name}</span>
+                              {item.isUnilateral && (
+                                <span className="text-[9px] px-1.5 py-0.2 rounded bg-teal-950 text-[#06B6D4] border border-[#06B6D4]/40 font-mono">
+                                  SX + DX
+                                </span>
+                              )}
+                            </div>
+                            <div className="text-[10px] text-[#94A3B8]">{item.category}</div>
                           </div>
                         </div>
                         {item.defaultTempo && (
-                          <span className="text-[10px] font-mono text-cyan-400 bg-cyan-950/60 px-2 py-0.5 rounded border border-cyan-500/20">
+                          <span className="text-[10px] font-mono text-[#06B6D4] bg-[#1E293B] px-2 py-0.5 rounded border border-[#334155]">
                             {item.defaultTempo}
                           </span>
                         )}
@@ -940,90 +1081,185 @@ export default function ClientPortal({
                 )}
               </div>
 
-              {/* CHIP RAPIDI CATEGORIA */}
-              <div className="flex items-center gap-1.5 overflow-x-auto pb-1">
-                {[
-                  { id: 'squat', label: 'Squat' },
-                  { id: 'knee', label: 'Leg Ext' },
-                  { id: 'press', label: 'Pressa' },
-                  { id: 'lunge', label: 'Affondi' },
-                  { id: 'hamstring', label: 'Flessori' },
-                  { id: 'plyo', label: 'Salto/Plio' }
-                ].map((cat) => (
+              {/* SELETTORE ESPLICITO MODALITÀ CARICO: BILATERALE vs MONOPODALICO (SX + DX) */}
+              <div className="space-y-1.5">
+                <label className="block text-[11px] font-extrabold text-[#94A3B8]">
+                  Modalità Esecuzione & Rilevazione Carico
+                </label>
+                <div className="grid grid-cols-2 gap-2 p-1 bg-[#0F172A] rounded-2xl border border-[#334155]">
                   <button
                     type="button"
-                    key={cat.id}
-                    onClick={() => {
-                      setSelectedCategoryIcon(cat.id);
-                      const preset = EXERCISE_PRESETS.find(p => p.icon === cat.id);
-                      if (preset && !exerciseQuery) {
-                        setExerciseQuery(preset.name);
-                        setTempo(preset.defaultTempo);
-                      }
-                    }}
-                    className={`px-2.5 py-1 rounded-xl text-[11px] font-bold flex items-center gap-1 shrink-0 border transition-all cursor-pointer ${
-                      selectedCategoryIcon === cat.id
-                        ? 'bg-cyan-950 border-cyan-500 text-cyan-300'
-                        : 'bg-slate-950 border-slate-800 text-slate-400'
+                    onClick={() => setIsUnilateralMode(false)}
+                    className={`py-2 px-2.5 rounded-xl text-xs font-extrabold flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
+                      !isUnilateralMode
+                        ? 'bg-[#1E293B] text-white border border-[#06B6D4] shadow-sm'
+                        : 'text-[#94A3B8] hover:text-white'
                     }`}
                   >
-                    {getCategoryIcon(cat.id, 'w-3 h-3')}
-                    <span>{cat.label}</span>
+                    <Dumbbell className="w-3.5 h-3.5 text-[#06B6D4]" />
+                    <span>Bilaterale (1 Carico)</span>
                   </button>
-                ))}
-              </div>
 
-              {/* 3. SERIE (SETS), RIPETIZIONI (REPS), CARICO (KG) */}
-              <div className="grid grid-cols-3 gap-3">
-                <div>
-                  <label className="block text-[11px] font-extrabold text-slate-300 mb-1">
-                    Serie (Sets)
-                  </label>
-                  <input
-                    type="number"
-                    inputMode="numeric"
-                    min="1"
-                    max="20"
-                    value={sets}
-                    onChange={(e) => setSets(e.target.value)}
-                    className="w-full bg-slate-950 border border-slate-700 focus:border-cyan-500 rounded-2xl p-3 text-center text-base font-black text-white focus:outline-none"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-[11px] font-extrabold text-slate-300 mb-1">
-                    Ripetizioni
-                  </label>
-                  <input
-                    type="text"
-                    value={reps}
-                    onChange={(e) => setReps(e.target.value)}
-                    className="w-full bg-slate-950 border border-slate-700 focus:border-cyan-500 rounded-2xl p-3 text-center text-base font-black text-white focus:outline-none"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-[11px] font-extrabold text-emerald-400 mb-1">
-                    Carico (Kg) *
-                  </label>
-                  <input
-                    type="number"
-                    inputMode="decimal"
-                    step="0.5"
-                    min="0"
-                    placeholder="es. 60"
-                    value={weightKg}
-                    onChange={(e) => setWeightKg(e.target.value)}
-                    className="w-full bg-emerald-950/30 border-2 border-emerald-500/60 focus:border-emerald-400 rounded-2xl p-3 text-center text-base font-black text-emerald-300 placeholder-emerald-700 focus:outline-none"
-                  />
+                  <button
+                    type="button"
+                    onClick={() => setIsUnilateralMode(true)}
+                    className={`py-2 px-2.5 rounded-xl text-xs font-extrabold flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
+                      isUnilateralMode
+                        ? 'bg-[#0D9488] text-white border border-[#06B6D4] shadow-sm'
+                        : 'text-[#94A3B8] hover:text-white'
+                    }`}
+                  >
+                    <Footprints className="w-3.5 h-3.5" />
+                    <span>Monopodalico (SX + DX)</span>
+                  </button>
                 </div>
               </div>
+
+              {/* 3. SERIE (SETS), RIPETIZIONI (REPS) & CARICHI (BILATERALE O DOPPIO INPUT SX/DX) */}
+              {!isUnilateralMode ? (
+                <div className="grid grid-cols-3 gap-3">
+                  <div>
+                    <label className="block text-[11px] font-extrabold text-[#94A3B8] mb-1">
+                      Serie (Sets)
+                    </label>
+                    <input
+                      type="number"
+                      inputMode="numeric"
+                      min="1"
+                      max="20"
+                      value={sets}
+                      onChange={(e) => setSets(e.target.value)}
+                      className="w-full bg-[#0F172A] border border-[#334155] focus:border-[#06B6D4] rounded-2xl p-3 text-center text-base font-black text-white focus:outline-none"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-[11px] font-extrabold text-[#94A3B8] mb-1">
+                      Ripetizioni
+                    </label>
+                    <input
+                      type="text"
+                      value={reps}
+                      onChange={(e) => setReps(e.target.value)}
+                      className="w-full bg-[#0F172A] border border-[#334155] focus:border-[#06B6D4] rounded-2xl p-3 text-center text-base font-black text-white focus:outline-none"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-[11px] font-extrabold text-[#06B6D4] mb-1">
+                      Carico (Kg) *
+                    </label>
+                    <input
+                      type="number"
+                      inputMode="decimal"
+                      step="0.5"
+                      min="0"
+                      placeholder="es. 60"
+                      value={weightKg}
+                      onChange={(e) => setWeightKg(e.target.value)}
+                      className="w-full bg-[#0F172A] border-2 border-[#0D9488] focus:border-[#06B6D4] rounded-2xl p-3 text-center text-base font-black text-white placeholder-[#94A3B8] focus:outline-none"
+                    />
+                  </div>
+                </div>
+              ) : (
+                <div className="space-y-3 bg-[#0F172A] p-3.5 rounded-2xl border border-[#334155]">
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-[11px] font-extrabold text-[#94A3B8] mb-1">
+                        Serie per Gamba
+                      </label>
+                      <input
+                        type="number"
+                        inputMode="numeric"
+                        min="1"
+                        max="20"
+                        value={sets}
+                        onChange={(e) => setSets(e.target.value)}
+                        className="w-full bg-[#1E293B] border border-[#334155] focus:border-[#06B6D4] rounded-xl p-2.5 text-center text-sm font-black text-white focus:outline-none"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[11px] font-extrabold text-[#94A3B8] mb-1">
+                        Ripetizioni per Gamba
+                      </label>
+                      <input
+                        type="text"
+                        value={reps}
+                        onChange={(e) => setReps(e.target.value)}
+                        className="w-full bg-[#1E293B] border border-[#334155] focus:border-[#06B6D4] rounded-xl p-2.5 text-center text-sm font-black text-white focus:outline-none"
+                      />
+                    </div>
+                  </div>
+
+                  {/* DOPPIO CAMPO CARICO SEPARATO: GAMBA SINISTRA (SX) vs GAMBA DESTRA (DX) */}
+                  <div className="grid grid-cols-2 gap-3 pt-1">
+                    <div className="p-2.5 rounded-2xl bg-[#1E293B] border-2 border-[#06B6D4]/70 space-y-1.5">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[11px] font-black text-[#06B6D4] uppercase tracking-wider">
+                          🦵 Gamba SX (Kg)
+                        </span>
+                        {injuredSide.includes('sx') && (
+                          <span className="text-[9px] px-1.5 py-0.2 rounded bg-amber-950 text-amber-300 border border-amber-500/40 font-bold">
+                            Operato
+                          </span>
+                        )}
+                      </div>
+                      <input
+                        type="number"
+                        inputMode="decimal"
+                        step="0.5"
+                        min="0"
+                        placeholder="Kg Gamba SX"
+                        value={weightSxKg}
+                        onChange={(e) => setWeightSxKg(e.target.value)}
+                        className="w-full bg-[#0F172A] border border-[#334155] focus:border-[#06B6D4] rounded-xl p-2.5 text-center text-base font-black text-white font-mono focus:outline-none"
+                      />
+                    </div>
+
+                    <div className="p-2.5 rounded-2xl bg-[#1E293B] border-2 border-[#0D9488] space-y-1.5">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[11px] font-black text-[#0D9488] uppercase tracking-wider">
+                          🦵 Gamba DX (Kg)
+                        </span>
+                        {injuredSide.includes('dx') && (
+                          <span className="text-[9px] px-1.5 py-0.2 rounded bg-amber-950 text-amber-300 border border-amber-500/40 font-bold">
+                            Operato
+                          </span>
+                        )}
+                      </div>
+                      <input
+                        type="number"
+                        inputMode="decimal"
+                        step="0.5"
+                        min="0"
+                        placeholder="Kg Gamba DX"
+                        value={weightDxKg}
+                        onChange={(e) => setWeightDxKg(e.target.value)}
+                        className="w-full bg-[#0F172A] border border-[#334155] focus:border-[#0D9488] rounded-xl p-2.5 text-center text-base font-black text-white font-mono focus:outline-none"
+                      />
+                    </div>
+                  </div>
+
+                  {liveLsiForm !== null && (
+                    <div className="flex items-center justify-between px-3 py-1.5 rounded-xl bg-[#1E293B] border border-[#334155] text-[11px]">
+                      <span className="text-[#94A3B8] font-bold">Simmetria Carico SX vs DX (LSI):</span>
+                      <strong
+                        className={`font-mono font-black ${
+                          liveLsiForm >= 90 ? 'text-[#06B6D4]' : 'text-amber-400'
+                        }`}
+                      >
+                        {liveLsiForm}%
+                      </strong>
+                    </div>
+                  )}
+                </div>
+              )}
 
               {/* 4. VELOCITÀ / TEMPO & NOTE */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-[11px] font-bold text-slate-300 mb-1 flex items-center gap-1">
-                    <Clock className="w-3.5 h-3.5 text-cyan-400" />
+                  <label className="block text-[11px] font-bold text-[#94A3B8] mb-1 flex items-center gap-1">
+                    <Clock className="w-3.5 h-3.5 text-[#06B6D4]" />
                     <span>Velocità / Tempo (Opz.)</span>
                   </label>
                   <input
@@ -1031,12 +1267,12 @@ export default function ClientPortal({
                     value={tempo}
                     onChange={(e) => setTempo(e.target.value)}
                     placeholder="es. 3-0-1-0 o Esplosivo"
-                    className="w-full bg-slate-950 border border-slate-700 rounded-xl py-2 px-3 text-xs text-white"
+                    className="w-full bg-[#0F172A] border border-[#334155] rounded-xl py-2 px-3 text-xs text-white"
                   />
                 </div>
                 <div>
-                  <label className="block text-[11px] font-bold text-slate-300 mb-1 flex items-center gap-1">
-                    <MessageSquare className="w-3.5 h-3.5 text-cyan-400" />
+                  <label className="block text-[11px] font-bold text-[#94A3B8] mb-1 flex items-center gap-1">
+                    <MessageSquare className="w-3.5 h-3.5 text-[#06B6D4]" />
                     <span>Note / Dolore / RPE (Opz.)</span>
                   </label>
                   <input
@@ -1044,7 +1280,7 @@ export default function ClientPortal({
                     value={notesRpe}
                     onChange={(e) => setNotesRpe(e.target.value)}
                     placeholder="es. Nessun dolore (0/10)"
-                    className="w-full bg-slate-950 border border-slate-700 rounded-xl py-2 px-3 text-xs text-white"
+                    className="w-full bg-[#0F172A] border border-[#334155] rounded-xl py-2 px-3 text-xs text-white"
                   />
                 </div>
               </div>
@@ -1054,8 +1290,8 @@ export default function ClientPortal({
                 <button
                   type="button"
                   onClick={handleAddExerciseToPackage}
-                  disabled={!exerciseQuery.trim() || weightKg === ''}
-                  className="w-full py-2.5 bg-slate-800 hover:bg-slate-700 disabled:opacity-40 text-cyan-300 border border-cyan-500/40 font-extrabold rounded-2xl text-xs flex items-center justify-center gap-2 transition-all cursor-pointer"
+                  disabled={!isCurrentFormLoadValid()}
+                  className="w-full py-2.5 bg-[#0F172A] hover:bg-slate-800 disabled:opacity-40 text-[#06B6D4] border border-[#334155] font-extrabold rounded-2xl text-xs flex items-center justify-center gap-2 transition-all cursor-pointer"
                 >
                   <Plus className="w-4 h-4" />
                   <span>+ Aggiungi un altro esercizio al Pacchetto del Giorno</span>
@@ -1064,30 +1300,38 @@ export default function ClientPortal({
 
               {/* RIEPILOGO PACCHETTO IN PREPARAZIONE */}
               {packageItems.length > 0 && !editingLogId && (
-                <div className="bg-slate-950 border border-cyan-500/40 rounded-2xl p-3.5 space-y-2">
-                  <div className="flex items-center justify-between text-xs font-extrabold text-cyan-300">
+                <div className="bg-[#0F172A] border border-[#06B6D4]/40 rounded-2xl p-3.5 space-y-2">
+                  <div className="flex items-center justify-between text-xs font-extrabold text-[#06B6D4]">
                     <span className="flex items-center gap-1.5">
                       <Package className="w-4 h-4" />
                       <span>Pacchetto in preparazione ({packageItems.length} esercizi)</span>
                     </span>
-                    <span className="font-mono text-[10px] text-slate-400">{workoutDate}</span>
+                    <span className="font-mono text-[10px] text-[#94A3B8]">{workoutDate}</span>
                   </div>
-                  <div className="divide-y divide-slate-800/80">
+                  <div className="divide-y divide-[#334155]">
                     {packageItems.map((item, idx) => (
                       <div key={idx} className="py-2 flex items-center justify-between text-xs">
                         <div className="flex items-center gap-2">
                           {getCategoryIcon(item.exercise_name, 'w-3.5 h-3.5')}
                           <div>
                             <div className="font-bold text-white">{item.exercise_name}</div>
-                            <div className="text-[10px] text-slate-400">
-                              {item.sets} × {item.reps} • <strong className="text-emerald-400">{item.weight_kg} kg</strong>
+                            <div className="text-[10px] text-[#94A3B8] font-mono">
+                              {item.sets} × {item.reps} •{' '}
+                              {item.is_unilateral ? (
+                                <span className="text-white font-bold">
+                                  SX <strong className="text-[#06B6D4]">{item.weight_sx_kg} kg</strong> | DX{' '}
+                                  <strong className="text-[#0D9488]">{item.weight_dx_kg} kg</strong>
+                                </span>
+                              ) : (
+                                <strong className="text-white">{item.weight_kg} kg</strong>
+                              )}
                             </div>
                           </div>
                         </div>
                         <button
                           type="button"
                           onClick={() => handleRemoveFromPackageDraft(idx)}
-                          className="p-1 text-slate-500 hover:text-rose-400"
+                          className="p-1 text-[#94A3B8] hover:text-rose-400"
                         >
                           <Trash2 className="w-3.5 h-3.5" />
                         </button>
@@ -1097,10 +1341,9 @@ export default function ClientPortal({
                 </div>
               )}
 
-              {/* FEEDBACK DI CONFERMA SALVATAGGIO */}
               {saveSuccess && (
-                <div className="p-3 rounded-2xl bg-emerald-950 border border-emerald-500/50 text-emerald-300 text-xs font-extrabold flex items-center justify-center gap-2">
-                  <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+                <div className="p-3 rounded-2xl bg-teal-950 border border-[#0D9488] text-white text-xs font-extrabold flex items-center justify-center gap-2">
+                  <CheckCircle2 className="w-4 h-4 text-[#06B6D4] shrink-0" />
                   <span>{saveSuccess}</span>
                 </div>
               )}
@@ -1110,9 +1353,9 @@ export default function ClientPortal({
                 type="submit"
                 disabled={
                   saving ||
-                  (!editingLogId && packageItems.length === 0 && (!exerciseQuery.trim() || weightKg === ''))
+                  (!editingLogId && packageItems.length === 0 && !isCurrentFormLoadValid())
                 }
-                className="w-full py-4 bg-gradient-to-r from-emerald-600 via-teal-600 to-cyan-600 hover:from-emerald-500 hover:to-cyan-500 disabled:opacity-40 text-white font-black rounded-2xl text-sm flex items-center justify-center gap-2 shadow-xl shadow-emerald-500/20 transition-all cursor-pointer active:scale-[0.99]"
+                className="w-full py-4 bg-gradient-to-r from-[#0D9488] to-[#06B6D4] hover:opacity-95 disabled:opacity-40 text-white font-black rounded-2xl text-sm flex items-center justify-center gap-2 shadow-xl transition-all cursor-pointer active:scale-[0.99]"
               >
                 <CheckCircle2 className="w-5 h-5" />
                 <span>
@@ -1120,20 +1363,22 @@ export default function ClientPortal({
                     ? 'Salvataggio in corso...'
                     : editingLogId
                     ? 'Salva Modifica Esercizio'
-                    : `Salva Pacchetto Allenamento (${packageItems.length + (exerciseQuery.trim() && weightKg !== '' ? 1 : 0)} Esercizi)`}
+                    : `Salva Pacchetto Allenamento (${
+                        packageItems.length + (isCurrentFormLoadValid() ? 1 : 0)
+                      } Esercizi)`}
                 </span>
               </button>
             </form>
 
             {/* ANTEPRIMA DEGLI ESERCIZI GIÀ SALVATI NELLA GIORNATA SELEZIONATA */}
             {existingLogsForSelectedDate.length > 0 && !editingLogId && (
-              <div className="bg-slate-900/90 border border-slate-800 rounded-3xl p-4 space-y-2.5">
+              <div className="bg-[#1E293B] border border-[#334155] rounded-3xl p-4 space-y-2.5">
                 <div className="flex items-center justify-between">
                   <span className="text-xs font-extrabold text-white flex items-center gap-1.5">
-                    <Calendar className="w-4 h-4 text-emerald-400" />
+                    <Calendar className="w-4 h-4 text-[#0D9488]" />
                     <span>Già registrati nel pacchetto del {formatDayLabel(workoutDate)}</span>
                   </span>
-                  <span className="px-2 py-0.5 rounded-full bg-emerald-950 text-emerald-300 font-mono text-[10px] font-bold">
+                  <span className="px-2 py-0.5 rounded-full bg-[#0F172A] text-[#06B6D4] border border-[#334155] font-mono text-[10px] font-bold">
                     {existingLogsForSelectedDate.length} esercizi
                   </span>
                 </div>
@@ -1141,12 +1386,12 @@ export default function ClientPortal({
                   {existingLogsForSelectedDate.map((log, i) => (
                     <div
                       key={log.id || i}
-                      className="bg-slate-950 border border-slate-800/80 rounded-xl px-3 py-2 flex items-center justify-between text-xs"
+                      className="bg-[#0F172A] border border-[#334155] rounded-xl px-3 py-2 flex items-center justify-between text-xs"
                     >
                       <button
                         type="button"
                         onClick={() => setSelectedExerciseForProgression(log.exercise_name)}
-                        className="flex items-center gap-2 text-left hover:text-cyan-300 cursor-pointer"
+                        className="flex items-center gap-2 text-left hover:text-[#06B6D4] cursor-pointer"
                       >
                         {getCategoryIcon(log.exercise_name, 'w-3.5 h-3.5')}
                         <span className="font-bold text-white underline decoration-dotted underline-offset-2">
@@ -1154,16 +1399,23 @@ export default function ClientPortal({
                         </span>
                       </button>
                       <div className="flex items-center gap-2">
-                        <span className="font-mono text-slate-300">
-                          {log.sets}×{log.reps}
-                        </span>
-                        <span className="font-mono font-black text-emerald-400">
-                          {log.weight_kg} kg
-                        </span>
+                        <span className="font-mono text-[#94A3B8]">{log.sets}×{log.reps}</span>
+                        {log.is_unilateral ? (
+                          <div className="flex items-center gap-1 font-mono text-[11px]">
+                            <span className="px-1.5 py-0.5 rounded bg-[#1E293B] border border-[#06B6D4]/40 text-white font-black">
+                              SX {log.weight_sx_kg}kg
+                            </span>
+                            <span className="px-1.5 py-0.5 rounded bg-[#1E293B] border border-[#0D9488]/40 text-white font-black">
+                              DX {log.weight_dx_kg}kg
+                            </span>
+                          </div>
+                        ) : (
+                          <span className="font-mono font-black text-white">{log.weight_kg} kg</span>
+                        )}
                         <button
                           type="button"
                           onClick={() => handleStartEditLog(log)}
-                          className="p-1 text-cyan-400 hover:text-cyan-300"
+                          className="p-1 text-[#06B6D4] hover:text-white"
                           title="Modifica"
                         >
                           <Edit3 className="w-3.5 h-3.5" />
@@ -1181,21 +1433,19 @@ export default function ClientPortal({
         {activeSection === 'history' && (
           <div className="space-y-4">
             {/* 1. SELETTORE GIORNATE DI ALLENAMENTO */}
-            <div className="bg-slate-900 border border-slate-800 rounded-3xl p-4 space-y-3">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h3 className="text-sm font-black text-white flex items-center gap-1.5">
-                    <Calendar className="w-4 h-4 text-cyan-400" />
-                    <span>Seleziona Giornata di Allenamento</span>
-                  </h3>
-                  <p className="text-[11px] text-slate-400">
-                    Tocca una data per vedere il pacchetto di esercizi svolti quel giorno
-                  </p>
-                </div>
+            <div className="bg-[#1E293B] border border-[#334155] rounded-3xl p-4 space-y-3">
+              <div>
+                <h3 className="text-sm font-black text-white flex items-center gap-1.5">
+                  <Calendar className="w-4 h-4 text-[#06B6D4]" />
+                  <span>Seleziona Giornata di Allenamento</span>
+                </h3>
+                <p className="text-[11px] text-[#94A3B8]">
+                  Tocca una data per vedere il pacchetto di esercizi svolti quel giorno
+                </p>
               </div>
 
               {groupedByDay.sortedDays.length === 0 ? (
-                <div className="text-xs text-slate-500 italic py-2">
+                <div className="text-xs text-[#94A3B8] italic py-2">
                   Nessuna giornata ancora registrata.
                 </div>
               ) : (
@@ -1210,12 +1460,12 @@ export default function ClientPortal({
                         onClick={() => setSelectedHistoryDay(dayKey)}
                         className={`px-3.5 py-2.5 rounded-2xl border text-left shrink-0 transition-all cursor-pointer ${
                           isSelected
-                            ? 'bg-gradient-to-r from-cyan-950 to-emerald-950 border-cyan-400 text-white shadow-lg'
-                            : 'bg-slate-950 border-slate-800 text-slate-400 hover:text-white'
+                            ? 'bg-[#0F172A] border-[#06B6D4] text-white shadow-md'
+                            : 'bg-[#0F172A]/60 border-[#334155] text-[#94A3B8] hover:text-white'
                         }`}
                       >
                         <div className="text-xs font-black">{formatDayLabel(dayKey)}</div>
-                        <div className="text-[10px] font-mono text-cyan-300 mt-0.5">
+                        <div className="text-[10px] font-mono text-[#06B6D4] mt-0.5">
                           📦 {dayLogs.length} {dayLogs.length === 1 ? 'esercizio' : 'esercizi'}
                         </div>
                       </button>
@@ -1227,12 +1477,12 @@ export default function ClientPortal({
                     onClick={() => setSelectedHistoryDay('ALL')}
                     className={`px-3.5 py-2.5 rounded-2xl border text-left shrink-0 transition-all cursor-pointer ${
                       activeHistoryDay === 'ALL'
-                        ? 'bg-cyan-950 border-cyan-400 text-white'
-                        : 'bg-slate-950 border-slate-800 text-slate-400'
+                        ? 'bg-[#0F172A] border-[#06B6D4] text-white'
+                        : 'bg-[#0F172A]/60 border-[#334155] text-[#94A3B8]'
                     }`}
                   >
                     <div className="text-xs font-black">Tutte le Giornate</div>
-                    <div className="text-[10px] font-mono text-slate-400 mt-0.5">
+                    <div className="text-[10px] font-mono text-[#94A3B8] mt-0.5">
                       {workoutLogs.length} totali
                     </div>
                   </button>
@@ -1240,19 +1490,9 @@ export default function ClientPortal({
               )}
             </div>
 
-            {/* SUGGERIMENTO CLIC SU ESERCIZIO PER PROGRESSIONE */}
-            <div className="px-3.5 py-2.5 rounded-2xl bg-cyan-950/40 border border-cyan-500/30 flex items-center justify-between text-[11px] text-cyan-200">
-              <span className="flex items-center gap-1.5">
-                <BarChart3 className="w-4 h-4 text-cyan-400 shrink-0" />
-                <span>
-                  <strong>Tip:</strong> Tocca il nome di qualsiasi esercizio per vedere il <strong>grafico di progressione nel tempo</strong>!
-                </span>
-              </span>
-            </div>
-
             {/* 2. PACCHETTO ESERCIZI DELLA GIORNATA SELEZIONATA */}
             {loadingLogs ? (
-              <div className="p-8 text-center text-xs text-slate-400">Caricamento storico in corso...</div>
+              <div className="p-8 text-center text-xs text-[#94A3B8]">Caricamento storico in corso...</div>
             ) : (
               (activeHistoryDay === 'ALL' ? groupedByDay.sortedDays : [activeHistoryDay])
                 .filter(Boolean)
@@ -1263,16 +1503,14 @@ export default function ClientPortal({
                   return (
                     <div
                       key={dayKey}
-                      className="bg-slate-900 border border-slate-800 rounded-3xl p-4 space-y-3 shadow-lg"
+                      className="bg-[#1E293B] border border-[#334155] rounded-3xl p-4 space-y-3 shadow-lg"
                     >
-                      <div className="flex items-center justify-between border-b border-slate-800 pb-2.5">
+                      <div className="flex items-center justify-between border-b border-[#334155] pb-2.5">
                         <div>
-                          <span className="text-[10px] font-extrabold uppercase tracking-wider text-cyan-400 block">
+                          <span className="text-[10px] font-extrabold uppercase tracking-wider text-[#06B6D4] block">
                             Pacchetto Allenamento Giornaliero
                           </span>
-                          <h4 className="text-sm font-black text-white">
-                            {formatDayLabel(dayKey)}
-                          </h4>
+                          <h4 className="text-sm font-black text-white">{formatDayLabel(dayKey)}</h4>
                         </div>
                         <button
                           type="button"
@@ -1280,7 +1518,7 @@ export default function ClientPortal({
                             setWorkoutDate(dayKey);
                             setActiveSection('log');
                           }}
-                          className="px-2.5 py-1 rounded-xl bg-slate-800 hover:bg-slate-700 text-cyan-300 border border-cyan-500/30 text-[10px] font-extrabold flex items-center gap-1 cursor-pointer"
+                          className="px-2.5 py-1 rounded-xl bg-[#0F172A] hover:bg-slate-800 text-[#06B6D4] border border-[#334155] text-[10px] font-extrabold flex items-center gap-1 cursor-pointer"
                         >
                           <Plus className="w-3 h-3" />
                           <span>Aggiungi a questa data</span>
@@ -1288,76 +1526,103 @@ export default function ClientPortal({
                       </div>
 
                       <div className="space-y-2.5">
-                        {dayLogs.map((log, idx) => (
-                          <div
-                            key={log.id || idx}
-                            className="bg-slate-950 border border-slate-800/90 rounded-2xl p-3.5 space-y-2"
-                          >
-                            <div className="flex items-start justify-between gap-2">
-                              <button
-                                type="button"
-                                onClick={() => setSelectedExerciseForProgression(log.exercise_name)}
-                                className="flex items-center gap-2.5 text-left group cursor-pointer"
-                              >
-                                <div className="p-2 rounded-xl bg-slate-900 border border-slate-800 group-hover:border-cyan-500/50">
-                                  {getCategoryIcon(log.exercise_name)}
-                                </div>
-                                <div>
-                                  <h5 className="text-sm font-black text-white group-hover:text-cyan-300 flex items-center gap-1">
-                                    <span className="underline decoration-cyan-500/50 decoration-dotted underline-offset-4">
-                                      {log.exercise_name}
+                        {dayLogs.map((log, idx) => {
+                          const lsiLoad = log.is_unilateral
+                            ? calcLoadLsiPct(log.weight_sx_kg, log.weight_dx_kg)
+                            : null;
+
+                          return (
+                            <div
+                              key={log.id || idx}
+                              className="bg-[#0F172A] border border-[#334155] rounded-2xl p-3.5 space-y-2"
+                            >
+                              <div className="flex items-start justify-between gap-2">
+                                <button
+                                  type="button"
+                                  onClick={() => setSelectedExerciseForProgression(log.exercise_name)}
+                                  className="flex items-center gap-2.5 text-left group cursor-pointer"
+                                >
+                                  <div className="p-2 rounded-xl bg-[#1E293B] border border-[#334155] group-hover:border-[#06B6D4]">
+                                    {getCategoryIcon(log.exercise_name)}
+                                  </div>
+                                  <div>
+                                    <h5 className="text-sm font-black text-white group-hover:text-[#06B6D4] flex items-center gap-1">
+                                      <span className="underline decoration-[#06B6D4]/50 decoration-dotted underline-offset-4">
+                                        {log.exercise_name}
+                                      </span>
+                                      <ChevronRight className="w-3.5 h-3.5 text-[#06B6D4]" />
+                                    </h5>
+                                    <span className="text-[10px] text-[#06B6D4] font-bold flex items-center gap-1">
+                                      <TrendingUp className="w-3 h-3" />
+                                      <span>Vedi progressione nel tempo</span>
                                     </span>
-                                    <ChevronRight className="w-3.5 h-3.5 text-cyan-400" />
-                                  </h5>
-                                  <span className="text-[10px] text-cyan-400 font-bold flex items-center gap-1">
-                                    <TrendingUp className="w-3 h-3" />
-                                    <span>Vedi progressione nel tempo</span>
-                                  </span>
-                                </div>
-                              </button>
+                                  </div>
+                                </button>
 
-                              <div className="text-right shrink-0">
-                                <div className="text-base font-black text-emerald-400 font-mono">
-                                  {log.weight_kg} kg
+                                <div className="text-right shrink-0">
+                                  {log.is_unilateral ? (
+                                    <div className="space-y-1">
+                                      <div className="flex items-center justify-end gap-1.5 font-mono text-xs">
+                                        <span className="px-2 py-0.5 rounded-lg bg-[#1E293B] border border-[#06B6D4]/50 text-white font-black">
+                                          SX: {log.weight_sx_kg} kg
+                                        </span>
+                                        <span className="px-2 py-0.5 rounded-lg bg-[#1E293B] border border-[#0D9488] text-white font-black">
+                                          DX: {log.weight_dx_kg} kg
+                                        </span>
+                                      </div>
+                                      <div className="text-[10px] font-extrabold text-[#94A3B8] font-mono">
+                                        {log.sets} serie × {log.reps} rip{' '}
+                                        {lsiLoad !== null && (
+                                          <span className="text-[#06B6D4] ml-1">• LSI {lsiLoad}%</span>
+                                        )}
+                                      </div>
+                                    </div>
+                                  ) : (
+                                    <>
+                                      <div className="text-base font-black text-white font-mono">
+                                        {log.weight_kg} kg
+                                      </div>
+                                      <div className="text-[10px] font-extrabold text-[#94A3B8] font-mono">
+                                        {log.sets} serie × {log.reps} rip
+                                      </div>
+                                    </>
+                                  )}
                                 </div>
-                                <div className="text-[10px] font-extrabold text-slate-300 font-mono">
-                                  {log.sets} serie × {log.reps} rip
+                              </div>
+
+                              <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-[#334155]/60 text-[11px]">
+                                <div className="flex flex-wrap items-center gap-2">
+                                  {log.tempo_speed && (
+                                    <span className="px-2 py-0.5 rounded-lg bg-[#1E293B] border border-[#334155] text-[#06B6D4] font-mono text-[10px]">
+                                      ⏱ {log.tempo_speed}
+                                    </span>
+                                  )}
+                                  {log.clean_notes && (
+                                    <span className="text-[#94A3B8] italic">"{log.clean_notes}"</span>
+                                  )}
+                                </div>
+
+                                <div className="flex items-center gap-1.5">
+                                  <button
+                                    type="button"
+                                    onClick={() => handleStartEditLog(log)}
+                                    className="px-2.5 py-1 rounded-lg bg-[#1E293B] hover:bg-slate-700 text-[#06B6D4] border border-[#334155] text-[10px] font-extrabold flex items-center gap-1 cursor-pointer"
+                                  >
+                                    <Edit3 className="w-3 h-3" />
+                                    <span>Modifica</span>
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => handleDeleteLog(log.id)}
+                                    className="p-1 rounded-lg bg-[#1E293B] hover:bg-rose-950 text-[#94A3B8] hover:text-rose-400 cursor-pointer"
+                                  >
+                                    <Trash2 className="w-3.5 h-3.5" />
+                                  </button>
                                 </div>
                               </div>
                             </div>
-
-                            <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-slate-900 text-[11px]">
-                              <div className="flex flex-wrap items-center gap-2">
-                                {log.tempo_speed && (
-                                  <span className="px-2 py-0.5 rounded-lg bg-slate-900 border border-slate-800 text-cyan-300 font-mono text-[10px]">
-                                    ⏱ {log.tempo_speed}
-                                  </span>
-                                )}
-                                {log.notes && (
-                                  <span className="text-slate-400 italic">"{log.notes}"</span>
-                                )}
-                              </div>
-
-                              <div className="flex items-center gap-1.5">
-                                <button
-                                  type="button"
-                                  onClick={() => handleStartEditLog(log)}
-                                  className="px-2.5 py-1 rounded-lg bg-slate-900 hover:bg-slate-800 text-cyan-300 border border-slate-800 text-[10px] font-extrabold flex items-center gap-1 cursor-pointer"
-                                >
-                                  <Edit3 className="w-3 h-3" />
-                                  <span>Modifica</span>
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={() => handleDeleteLog(log.id)}
-                                  className="p-1 rounded-lg bg-slate-900 hover:bg-rose-950 text-slate-500 hover:text-rose-400 cursor-pointer"
-                                >
-                                  <Trash2 className="w-3.5 h-3.5" />
-                                </button>
-                              </div>
-                            </div>
-                          </div>
-                        ))}
+                          );
+                        })}
                       </div>
                     </div>
                   );
@@ -1367,17 +1632,17 @@ export default function ClientPortal({
         )}
       </main>
 
-      {/* MODAL PROGRESSIONE NEL TEMPO DELL'ESERCIZIO CLICCATO */}
+      {/* MODAL PROGRESSIONE NEL TEMPO DELL'ESERCIZIO CLICCATO (CON SUPPORTO SX vs DX) */}
       {selectedExerciseForProgression && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/85 backdrop-blur-md">
-          <div className="w-full max-w-md bg-slate-900 border border-slate-700 rounded-3xl p-5 space-y-4 shadow-2xl max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[#0F172A]/85 backdrop-blur-md">
+          <div className="w-full max-w-md bg-[#1E293B] border border-[#334155] rounded-3xl p-5 space-y-4 shadow-2xl max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between border-b border-[#334155] pb-3">
               <div className="flex items-center gap-2.5">
-                <div className="p-2 rounded-xl bg-slate-950 border border-slate-800">
+                <div className="p-2 rounded-xl bg-[#0F172A] border border-[#334155]">
                   {getCategoryIcon(selectedExerciseForProgression, 'w-5 h-5')}
                 </div>
                 <div>
-                  <span className="text-[10px] font-extrabold uppercase tracking-wider text-cyan-400 block">
+                  <span className="text-[10px] font-extrabold uppercase tracking-wider text-[#06B6D4] block">
                     Progressione Carichi nel Tempo
                   </span>
                   <h3 className="text-base font-black text-white">
@@ -1388,40 +1653,63 @@ export default function ClientPortal({
               <button
                 type="button"
                 onClick={() => setSelectedExerciseForProgression(null)}
-                className="p-1.5 rounded-xl bg-slate-800 text-slate-300 hover:text-white cursor-pointer"
+                className="p-1.5 rounded-xl bg-[#0F172A] text-[#94A3B8] hover:text-white border border-[#334155] cursor-pointer"
               >
                 <X className="w-4 h-4" />
               </button>
             </div>
 
             {exerciseProgressionData.length === 0 ? (
-              <p className="text-xs text-slate-400 text-center py-4">Nessun dato trovato.</p>
+              <p className="text-xs text-[#94A3B8] text-center py-4">Nessun dato trovato.</p>
             ) : (
               <>
-                {/* KPI SINTETICI PROGRESSIONE */}
                 {(() => {
+                  const hasUnilateral = exerciseProgressionData.some((d) => d.is_unilateral);
+                  if (hasUnilateral) {
+                    const lastEntry = exerciseProgressionData[exerciseProgressionData.length - 1];
+                    const lsiLast = calcLoadLsiPct(lastEntry?.weight_sx_kg, lastEntry?.weight_dx_kg);
+                    return (
+                      <div className="grid grid-cols-3 gap-2">
+                        <div className="bg-[#0F172A] border border-[#06B6D4]/50 rounded-2xl p-3 text-center">
+                          <span className="text-[10px] text-[#06B6D4] font-bold block">Ultimo SX</span>
+                          <span className="text-sm font-black text-white font-mono">
+                            {lastEntry?.weight_sx_kg ?? 0} kg
+                          </span>
+                        </div>
+                        <div className="bg-[#0F172A] border border-[#0D9488] rounded-2xl p-3 text-center">
+                          <span className="text-[10px] text-[#0D9488] font-bold block">Ultimo DX</span>
+                          <span className="text-sm font-black text-white font-mono">
+                            {lastEntry?.weight_dx_kg ?? 0} kg
+                          </span>
+                        </div>
+                        <div className="bg-[#0F172A] border border-[#334155] rounded-2xl p-3 text-center">
+                          <span className="text-[10px] text-[#94A3B8] font-bold block">Simmetria LSI</span>
+                          <span className="text-sm font-black text-white font-mono">
+                            {lsiLast !== null ? `${lsiLast}%` : 'N/D'}
+                          </span>
+                        </div>
+                      </div>
+                    );
+                  }
+
                   const firstKg = exerciseProgressionData[0]?.weight_kg || 0;
                   const lastKg = exerciseProgressionData[exerciseProgressionData.length - 1]?.weight_kg || 0;
-                  const maxKg = Math.max(...exerciseProgressionData.map(d => d.weight_kg || 0));
+                  const maxKg = Math.max(...exerciseProgressionData.map((d) => d.weight_kg || 0));
                   const deltaKg = +(lastKg - firstKg).toFixed(1);
 
                   return (
                     <div className="grid grid-cols-3 gap-2">
-                      <div className="bg-slate-950 border border-slate-800 rounded-2xl p-3 text-center">
-                        <span className="text-[10px] text-slate-400 font-bold block">1ª Seduta</span>
+                      <div className="bg-[#0F172A] border border-[#334155] rounded-2xl p-3 text-center">
+                        <span className="text-[10px] text-[#94A3B8] font-bold block">1ª Seduta</span>
                         <span className="text-sm font-black text-white font-mono">{firstKg} kg</span>
                       </div>
-                      <div className="bg-slate-950 border border-slate-800 rounded-2xl p-3 text-center">
-                        <span className="text-[10px] text-slate-400 font-bold block">Picco Max</span>
-                        <span className="text-sm font-black text-emerald-400 font-mono">{maxKg} kg</span>
+                      <div className="bg-[#0F172A] border border-[#334155] rounded-2xl p-3 text-center">
+                        <span className="text-[10px] text-[#94A3B8] font-bold block">Picco Max</span>
+                        <span className="text-sm font-black text-white font-mono">{maxKg} kg</span>
                       </div>
-                      <div className="bg-slate-950 border border-slate-800 rounded-2xl p-3 text-center">
-                        <span className="text-[10px] text-slate-400 font-bold block"> Evoluzione</span>
-                        <span
-                          className={`text-sm font-black font-mono ${
-                            deltaKg >= 0 ? 'text-emerald-400' : 'text-amber-400'
-                          }`}
-                        >
+                      <div className="bg-[#0F172A] border border-[#334155] rounded-2xl p-3 text-center">
+                        <span className="text-[10px] text-[#94A3B8] font-bold block">Evoluzione</span>
+                        <span className="text-sm font-black font-mono text-[#06B6D4]">
                           {deltaKg > 0 ? `+${deltaKg} kg` : `${deltaKg} kg`}
                         </span>
                       </div>
@@ -1429,30 +1717,67 @@ export default function ClientPortal({
                   );
                 })()}
 
-                {/* MICRO GRAFICO DI PROGRESSIONE A BARRE */}
-                <div className="bg-slate-950 border border-slate-800 rounded-2xl p-4 space-y-2">
-                  <div className="text-[11px] font-bold text-slate-300 flex items-center justify-between">
+                {/* MICRO GRAFICO DI PROGRESSIONE A BARRE (DOPPIA BARRA SX/DX SE MONOPODALICO) */}
+                <div className="bg-[#0F172A] border border-[#334155] rounded-2xl p-4 space-y-2">
+                  <div className="text-[11px] font-bold text-white flex items-center justify-between">
                     <span>Andamento Carico (Kg) per Seduta</span>
-                    <span className="font-mono text-[10px] text-cyan-400">
-                      {exerciseProgressionData.length} rilevazioni
-                    </span>
+                    <div className="flex items-center gap-2 text-[10px] font-mono">
+                      <span className="text-[#06B6D4]">■ SX</span>
+                      <span className="text-[#0D9488]">■ DX</span>
+                    </div>
                   </div>
-                  <div className="flex items-end gap-2 h-32 pt-4 px-1 overflow-x-auto">
+                  <div className="flex items-end gap-2.5 h-32 pt-4 px-1 overflow-x-auto">
                     {exerciseProgressionData.map((d, i) => {
-                      const maxVal = Math.max(...exerciseProgressionData.map(x => x.weight_kg || 1), 1);
+                      const maxVal = Math.max(
+                        ...exerciseProgressionData.map((x) =>
+                          Math.max(x.weight_kg || 0, x.weight_sx_kg || 0, x.weight_dx_kg || 0, 1)
+                        ),
+                        1
+                      );
+
+                      if (d.is_unilateral) {
+                        const pctSx = Math.max(Math.round(((d.weight_sx_kg || 0) / maxVal) * 100), 12);
+                        const pctDx = Math.max(Math.round(((d.weight_dx_kg || 0) / maxVal) * 100), 12);
+                        return (
+                          <div key={d.id || i} className="flex-1 min-w-[60px] flex flex-col items-center gap-1">
+                            <span className="text-[9.5px] font-mono font-black text-white">
+                              {d.weight_sx_kg}/{d.weight_dx_kg}kg
+                            </span>
+                            <div className="w-full bg-[#1E293B] rounded-t-lg h-20 flex items-end gap-1 p-1 border border-[#334155]">
+                              <div
+                                style={{ height: `${pctSx}%` }}
+                                className="flex-1 bg-[#06B6D4] rounded-t transition-all"
+                                title={`SX: ${d.weight_sx_kg} kg`}
+                              />
+                              <div
+                                style={{ height: `${pctDx}%` }}
+                                className="flex-1 bg-[#0D9488] rounded-t transition-all"
+                                title={`DX: ${d.weight_dx_kg} kg`}
+                              />
+                            </div>
+                            <span className="text-[9px] font-mono text-[#94A3B8]">
+                              {new Date(d.created_at).toLocaleDateString('it-IT', {
+                                day: '2-digit',
+                                month: '2-digit'
+                              })}
+                            </span>
+                          </div>
+                        );
+                      }
+
                       const pct = Math.max(Math.round(((d.weight_kg || 0) / maxVal) * 100), 15);
                       return (
                         <div key={d.id || i} className="flex-1 min-w-[44px] flex flex-col items-center gap-1">
-                          <span className="text-[10px] font-mono font-black text-emerald-400">
+                          <span className="text-[10px] font-mono font-black text-white">
                             {d.weight_kg}kg
                           </span>
-                          <div className="w-full bg-slate-900 rounded-t-lg h-20 flex items-end overflow-hidden border border-slate-800">
+                          <div className="w-full bg-[#1E293B] rounded-t-lg h-20 flex items-end overflow-hidden border border-[#334155] p-0.5">
                             <div
                               style={{ height: `${pct}%` }}
-                              className="w-full bg-gradient-to-t from-cyan-600 to-emerald-400 rounded-t-md transition-all"
+                              className="w-full bg-gradient-to-t from-[#0D9488] to-[#06B6D4] rounded-t-md transition-all"
                             />
                           </div>
-                          <span className="text-[9px] font-mono text-slate-400">
+                          <span className="text-[9px] font-mono text-[#94A3B8]">
                             {new Date(d.created_at).toLocaleDateString('it-IT', {
                               day: '2-digit',
                               month: '2-digit'
@@ -1466,7 +1791,7 @@ export default function ClientPortal({
 
                 {/* LISTA CRONOLOGICA DELLE SEDUTE DI QUESTO ESERCIZIO */}
                 <div className="space-y-1.5">
-                  <div className="text-xs font-extrabold text-slate-300">
+                  <div className="text-xs font-extrabold text-[#94A3B8]">
                     Storico Sedute — {selectedExerciseForProgression}
                   </div>
                   {exerciseProgressionData
@@ -1475,23 +1800,30 @@ export default function ClientPortal({
                     .map((item, idx) => (
                       <div
                         key={item.id || idx}
-                        className="bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2.5 flex items-center justify-between text-xs"
+                        className="bg-[#0F172A] border border-[#334155] rounded-xl px-3.5 py-2.5 flex items-center justify-between text-xs"
                       >
                         <div>
                           <div className="font-mono font-bold text-white">
                             {formatDayLabel(toDateInputValue(item.created_at))}
                           </div>
-                          <div className="text-[10px] text-slate-400">
+                          <div className="text-[10px] text-[#94A3B8]">
                             {item.sets} serie × {item.reps} rip • {item.tempo_speed}
                           </div>
                         </div>
                         <div className="text-right">
-                          <div className="font-mono font-black text-emerald-400 text-sm">
-                            {item.weight_kg} kg
-                          </div>
-                          {item.notes && (
-                            <div className="text-[10px] text-slate-400 italic truncate max-w-[130px]">
-                              {item.notes}
+                          {item.is_unilateral ? (
+                            <div className="font-mono font-black text-white text-xs">
+                              <span className="text-[#06B6D4]">SX {item.weight_sx_kg}kg</span> •{' '}
+                              <span className="text-[#0D9488]">DX {item.weight_dx_kg}kg</span>
+                            </div>
+                          ) : (
+                            <div className="font-mono font-black text-white text-sm">
+                              {item.weight_kg} kg
+                            </div>
+                          )}
+                          {item.clean_notes && (
+                            <div className="text-[10px] text-[#94A3B8] italic truncate max-w-[140px]">
+                              {item.clean_notes}
                             </div>
                           )}
                         </div>

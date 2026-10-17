@@ -29,7 +29,11 @@ import {
   EXERCISE_PRESETS,
   toDateInputValue,
   formatDayLabel,
-  normalizeWorkoutLog
+  normalizeWorkoutLog,
+  detectUnilateralFromName,
+  encodeNotesWithUnilateralLoads,
+  parseUnilateralLoadsFromRow,
+  calcLoadLsiPct
 } from '../ClientPortal';
 
 export default function RilevazioniCarichiTab({
@@ -62,10 +66,15 @@ export default function RilevazioniCarichiTab({
   const [formExercise, setFormExercise] = useState('');
   const [formSets, setFormSets] = useState('4');
   const [formReps, setFormReps] = useState('8');
+  const [formIsUnilateral, setFormIsUnilateral] = useState(false);
   const [formWeightKg, setFormWeightKg] = useState('');
+  const [formWeightSxKg, setFormWeightSxKg] = useState('');
+  const [formWeightDxKg, setFormWeightDxKg] = useState('');
   const [formTempo, setFormTempo] = useState('');
   const [formNotes, setFormNotes] = useState('');
   const [savingEdit, setSavingEdit] = useState(false);
+
+  const injuredSide = (patient?.lato || patient?.chirurgia?.lato || 'DX').toUpperCase();
 
   // URL diretto al Portale Paziente Mobile per questo specifico paziente
   const clientPortalUrl = `${window.location.origin}/?portal=client&patientId=${patient?.id || ''}`;
@@ -189,11 +198,25 @@ export default function RilevazioniCarichiTab({
       .sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
   }, [selectedExerciseProgression, logs]);
 
+  // Gestione cambio nome esercizio nel modal terapista con rilevamento automatico Monopodalico
+  const handleFormExerciseChange = (val) => {
+    setFormExercise(val);
+    const matchedPreset = EXERCISE_PRESETS.find(
+      p => p.name.toLowerCase() === val.trim().toLowerCase()
+    );
+    if (matchedPreset) {
+      setFormIsUnilateral(Boolean(matchedPreset.isUnilateral));
+    } else if (detectUnilateralFromName(val)) {
+      setFormIsUnilateral(true);
+    }
+  };
+
   // Apre il modal per modificare qualsiasi campo di una rilevazione esistente
   const handleOpenEditModal = (log) => {
     const dt = log.created_at ? new Date(log.created_at) : new Date();
     const hours = String(dt.getHours()).padStart(2, '0');
     const mins = String(dt.getMinutes()).padStart(2, '0');
+    const parsedUni = parseUnilateralLoadsFromRow(log);
 
     setEditingLog(log);
     setFormDate(toDateInputValue(log.created_at));
@@ -201,9 +224,18 @@ export default function RilevazioniCarichiTab({
     setFormExercise(log.exercise_name || '');
     setFormSets(String(log.sets ?? 4));
     setFormReps(String(log.reps ?? 8));
-    setFormWeightKg(String(log.weight_kg ?? 0));
+    setFormIsUnilateral(parsedUni.isUnilateral);
+    if (parsedUni.isUnilateral) {
+      setFormWeightSxKg(String(parsedUni.weightSx ?? log.weight_kg ?? 0));
+      setFormWeightDxKg(String(parsedUni.weightDx ?? log.weight_kg ?? 0));
+      setFormWeightKg(String(log.weight_kg ?? 0));
+    } else {
+      setFormWeightKg(String(log.weight_kg ?? 0));
+      setFormWeightSxKg(String(log.weight_kg ?? 0));
+      setFormWeightDxKg(String(log.weight_kg ?? 0));
+    }
     setFormTempo(log.tempo_speed || log.tempo_execution || '');
-    setFormNotes(log.notes || log.notes_rpe || '');
+    setFormNotes(parsedUni.cleanNotes || log.clean_notes || log.notes || '');
     setEditingModalOpen(true);
   };
 
@@ -219,7 +251,10 @@ export default function RilevazioniCarichiTab({
     setFormExercise('');
     setFormSets('4');
     setFormReps('8');
+    setFormIsUnilateral(false);
     setFormWeightKg('');
+    setFormWeightSxKg('');
+    setFormWeightDxKg('');
     setFormTempo('3-0-1-0');
     setFormNotes('Nessun dolore (0/10)');
     setEditingModalOpen(true);
@@ -228,7 +263,10 @@ export default function RilevazioniCarichiTab({
   // Salva la modifica o il nuovo inserimento effettuato dal Terapista
   const handleSaveTherapistEdit = async (e) => {
     e.preventDefault();
-    if (!formExercise.trim() || formWeightKg === '') return;
+    const hasValidLoad = formIsUnilateral
+      ? formWeightSxKg !== '' || formWeightDxKg !== ''
+      : formWeightKg !== '';
+    if (!formExercise.trim() || !hasValidLoad) return;
 
     setSavingEdit(true);
 
@@ -242,6 +280,17 @@ export default function RilevazioniCarichiTab({
       }
     } catch {}
 
+    const parsedSx = parseFloat(String(formWeightSxKg).replace(',', '.')) || 0;
+    const parsedDx = parseFloat(String(formWeightDxKg).replace(',', '.')) || 0;
+    const parsedBilateral = parseFloat(String(formWeightKg).replace(',', '.')) || 0;
+    const effectiveWeightKg = formIsUnilateral ? Math.max(parsedSx, parsedDx) : parsedBilateral;
+    const encodedNotes = encodeNotesWithUnilateralLoads(
+      formNotes,
+      formIsUnilateral,
+      parsedSx,
+      parsedDx
+    );
+
     const dbPayload = {
       ...(editingLog?.id && !String(editingLog.id).startsWith('seed-') ? { id: editingLog.id } : {}),
       patient_id: String(patient?.id || 'demo-patient'),
@@ -249,9 +298,9 @@ export default function RilevazioniCarichiTab({
       exercise_name: formExercise.trim(),
       sets: Number(formSets) || 1,
       reps: String(formReps || '1'),
-      weight_kg: parseFloat(String(formWeightKg).replace(',', '.')) || 0,
+      weight_kg: effectiveWeightKg,
       tempo_speed: formTempo.trim() || 'Standard',
-      notes: formNotes.trim() || 'Nessun dolore',
+      notes: encodedNotes,
       created_at: finalIso
     };
 
@@ -386,7 +435,7 @@ export default function RilevazioniCarichiTab({
             </span>
           </div>
           <p className="text-xs text-slate-400">
-            Seleziona una giornata per vedere il pacchetto di esercizi svolto da <strong>{patient?.nome} {patient?.cognome}</strong>, oppure clicca su un esercizio per vedere la progressione nel tempo.
+            Seleziona una giornata per vedere il pacchetto di esercizi svolto da <strong>{patient?.nome} {patient?.cognome}</strong> (con carichi separati <strong>SX / DX</strong> per gli esercizi monopodalici), oppure clicca su un esercizio per vedere la progressione nel tempo.
           </p>
         </div>
 
@@ -394,7 +443,7 @@ export default function RilevazioniCarichiTab({
           <button
             type="button"
             onClick={() => handleOpenNewModal(selectedDay)}
-            className="px-3.5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold text-xs flex items-center gap-1.5 shadow-md transition-all cursor-pointer"
+            className="px-3.5 py-2.5 rounded-xl bg-teal-600 hover:bg-teal-500 text-white font-extrabold text-xs flex items-center gap-1.5 shadow-md transition-all cursor-pointer"
           >
             <Plus className="w-4 h-4" />
             <span>Aggiungi Esercizio Manuale</span>
@@ -412,7 +461,7 @@ export default function RilevazioniCarichiTab({
           <button
             type="button"
             onClick={onOpenSimulation}
-            className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-400 hover:to-orange-500 text-slate-950 font-black text-xs flex items-center gap-2 shadow-lg shadow-amber-500/20 transition-all cursor-pointer"
+            className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-teal-600 to-cyan-600 hover:from-teal-500 hover:to-cyan-500 text-white font-black text-xs flex items-center gap-2 shadow-lg transition-all cursor-pointer"
           >
             <Smartphone className="w-4 h-4" />
             <span>Simula Vista Paziente / Test Rapido</span>
@@ -461,7 +510,7 @@ export default function RilevazioniCarichiTab({
             onClick={() => setSelectedDay('ALL')}
             className={`px-4 py-2.5 rounded-2xl border text-left shrink-0 transition-all cursor-pointer ${
               selectedDay === 'ALL'
-                ? 'bg-gradient-to-r from-cyan-950 to-emerald-950 border-cyan-400 text-white shadow-lg'
+                ? 'bg-gradient-to-r from-cyan-950 to-teal-950 border-cyan-400 text-white shadow-lg'
                 : 'bg-slate-950 border-slate-800 text-slate-400 hover:text-white'
             }`}
           >
@@ -483,14 +532,14 @@ export default function RilevazioniCarichiTab({
                 onClick={() => setSelectedDay(dayKey)}
                 className={`px-4 py-2.5 rounded-2xl border text-left shrink-0 transition-all cursor-pointer ${
                   isSelected
-                    ? 'bg-gradient-to-r from-cyan-950 to-emerald-950 border-cyan-400 text-white shadow-lg'
+                    ? 'bg-gradient-to-r from-cyan-950 to-teal-950 border-cyan-400 text-white shadow-lg'
                     : 'bg-slate-950 border-slate-800 text-slate-300 hover:border-slate-700'
                 }`}
               >
                 <div className="text-xs font-black flex items-center gap-1.5">
                   <span>{formatDayLabel(dayKey)}</span>
                 </div>
-                <div className="text-[10px] font-mono text-emerald-400 mt-0.5">
+                <div className="text-[10px] font-mono text-teal-400 mt-0.5">
                   📦 {dayLogs.length} {dayLogs.length === 1 ? 'esercizio' : 'esercizi'} • Max {maxKgDay} kg
                 </div>
               </button>
@@ -505,26 +554,36 @@ export default function RilevazioniCarichiTab({
               <BarChart3 className="w-3.5 h-3.5" />
               <span>Progressione Esercizio:</span>
             </span>
-            {uniqueExercises.map((exName, idx) => (
-              <button
-                type="button"
-                key={idx}
-                onClick={() =>
-                  setSelectedExerciseProgression(
-                    selectedExerciseProgression === exName ? null : exName
-                  )
-                }
-                className={`px-3 py-1 rounded-xl text-[11px] font-bold flex items-center gap-1.5 shrink-0 border transition-all cursor-pointer ${
-                  selectedExerciseProgression === exName
-                    ? 'bg-cyan-600 text-white border-cyan-400 shadow-md'
-                    : 'bg-slate-950 text-slate-300 border-slate-800 hover:border-cyan-500/50 hover:text-cyan-300'
-                }`}
-              >
-                {getCategoryIcon(exName, 'w-3 h-3')}
-                <span>{exName}</span>
-                <TrendingUp className="w-3 h-3 text-emerald-400" />
-              </button>
-            ))}
+            {uniqueExercises.map((exName, idx) => {
+              const isUni = logs.some(
+                l => l.exercise_name === exName && l.is_unilateral
+              );
+              return (
+                <button
+                  type="button"
+                  key={idx}
+                  onClick={() =>
+                    setSelectedExerciseProgression(
+                      selectedExerciseProgression === exName ? null : exName
+                    )
+                  }
+                  className={`px-3 py-1 rounded-xl text-[11px] font-bold flex items-center gap-1.5 shrink-0 border transition-all cursor-pointer ${
+                    selectedExerciseProgression === exName
+                      ? 'bg-cyan-600 text-white border-cyan-400 shadow-md'
+                      : 'bg-slate-950 text-slate-300 border-slate-800 hover:border-cyan-500/50 hover:text-cyan-300'
+                  }`}
+                >
+                  {getCategoryIcon(exName, 'w-3 h-3')}
+                  <span>{exName}</span>
+                  {isUni && (
+                    <span className="px-1.5 py-0.2 rounded bg-cyan-950 text-cyan-300 border border-cyan-500/40 text-[9px] font-mono">
+                      SX/DX
+                    </span>
+                  )}
+                  <TrendingUp className="w-3 h-3 text-teal-400" />
+                </button>
+              );
+            })}
           </div>
         )}
       </div>
@@ -541,9 +600,16 @@ export default function RilevazioniCarichiTab({
                 <span className="text-[10px] font-extrabold uppercase tracking-wider text-cyan-400 block">
                   Analisi Progressione Carichi nel Tempo
                 </span>
-                <h4 className="text-lg font-black text-white">
-                  {selectedExerciseProgression}
-                </h4>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <h4 className="text-lg font-black text-white">
+                    {selectedExerciseProgression}
+                  </h4>
+                  {progressionSeries.some(x => x.is_unilateral) && (
+                    <span className="px-2.5 py-0.5 rounded-full bg-cyan-950 text-cyan-300 border border-cyan-500/40 font-mono text-[10px] font-extrabold">
+                      Monopodalico (Confronto SX vs DX)
+                    </span>
+                  )}
+                </div>
               </div>
             </div>
             <button
@@ -559,99 +625,214 @@ export default function RilevazioniCarichiTab({
           {progressionSeries.length === 0 ? (
             <p className="text-xs text-slate-400">Nessun dato disponibile per questo esercizio.</p>
           ) : (
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-              {/* GRAFICO VISIVO DI PROGRESSIONE */}
-              <div className="lg:col-span-2 bg-slate-950 border border-slate-800 rounded-2xl p-4 space-y-3">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-extrabold text-white">
-                    Curva di Progressione Carico (Kg) — {progressionSeries.length} Sedute
-                  </span>
-                  {(() => {
-                    const first = progressionSeries[0]?.weight_kg || 0;
-                    const last = progressionSeries[progressionSeries.length - 1]?.weight_kg || 0;
-                    const diff = +(last - first).toFixed(1);
-                    return (
-                      <span
-                        className={`px-2.5 py-0.5 rounded-full font-mono text-xs font-black ${
-                          diff >= 0
-                            ? 'bg-emerald-950 text-emerald-400 border border-emerald-500/30'
-                            : 'bg-amber-950 text-amber-400 border border-amber-500/30'
-                        }`}
-                      >
-                        {diff > 0 ? `+${diff} kg rispetto alla 1ª seduta` : `${diff} kg`}
-                      </span>
-                    );
-                  })()}
-                </div>
+            (() => {
+              const hasUnilateralInSeries = progressionSeries.some(x => x.is_unilateral);
+              const latestItem = progressionSeries[progressionSeries.length - 1];
+              const latestLsi = latestItem?.is_unilateral
+                ? calcLoadLsiPct(latestItem.weight_sx_kg, latestItem.weight_dx_kg, injuredSide)
+                : null;
 
-                <div className="flex items-end gap-3 h-40 pt-6 px-2 overflow-x-auto">
-                  {progressionSeries.map((item, idx) => {
-                    const maxVal = Math.max(...progressionSeries.map(x => Number(x.weight_kg) || 1), 1);
-                    const pct = Math.max(Math.round(((Number(item.weight_kg) || 0) / maxVal) * 100), 15);
-                    return (
-                      <div key={item.id || idx} className="flex-1 min-w-[60px] flex flex-col items-center gap-1.5">
-                        <span className="text-xs font-mono font-black text-emerald-400">
-                          {item.weight_kg} kg
+              return (
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+                  {/* GRAFICO VISIVO DI PROGRESSIONE (SINGOLA BARRA O DOPPIA BARRA SX/DX) */}
+                  <div className="lg:col-span-2 bg-slate-950 border border-slate-800 rounded-2xl p-4 space-y-3">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <div className="flex items-center gap-3">
+                        <span className="text-xs font-extrabold text-white">
+                          Curva di Progressione Carico (Kg) — {progressionSeries.length} Sedute
                         </span>
-                        <span className="text-[10px] font-mono text-slate-400">
-                          {item.sets}×{item.reps}
-                        </span>
-                        <div className="w-full bg-slate-900 rounded-t-xl h-24 flex items-end overflow-hidden border border-slate-800 p-0.5">
-                          <div
-                            style={{ height: `${pct}%` }}
-                            className="w-full bg-gradient-to-t from-cyan-600 via-teal-500 to-emerald-400 rounded-t-lg transition-all"
-                          />
-                        </div>
-                        <span className="text-[10px] font-mono font-bold text-slate-300">
-                          {new Date(item.created_at).toLocaleDateString('it-IT', {
-                            day: '2-digit',
-                            month: 'short'
-                          })}
-                        </span>
+                        {hasUnilateralInSeries && (
+                          <div className="flex items-center gap-2 text-[10px] font-bold">
+                            <span className="inline-flex items-center gap-1 text-cyan-300">
+                              <span className="w-2.5 h-2.5 rounded-sm bg-[#06B6D4] inline-block" />
+                              Gamba SX
+                            </span>
+                            <span className="inline-flex items-center gap-1 text-teal-300">
+                              <span className="w-2.5 h-2.5 rounded-sm bg-[#0D9488] inline-block" />
+                              Gamba DX
+                            </span>
+                          </div>
+                        )}
                       </div>
-                    );
-                  })}
-                </div>
-              </div>
 
-              {/* STORICO DETTAGLIATO SEDUTE DI QUESTO ESERCIZIO */}
-              <div className="bg-slate-950 border border-slate-800 rounded-2xl p-4 space-y-2 max-h-60 overflow-y-auto">
-                <div className="text-xs font-extrabold text-cyan-400 sticky top-0 bg-slate-950 pb-1">
-                  Dettaglio Cronologico Sedute
-                </div>
-                {progressionSeries
-                  .slice()
-                  .reverse()
-                  .map((item, idx) => (
-                    <div
-                      key={item.id || idx}
-                      className="p-2.5 rounded-xl bg-slate-900 border border-slate-800 flex items-center justify-between text-xs"
-                    >
-                      <div>
-                        <div className="font-bold text-white">
-                          {formatDayLabel(toDateInputValue(item.created_at))}
-                        </div>
-                        <div className="text-[10px] text-slate-400 font-mono">
-                          {item.sets} serie × {item.reps} rip • {item.tempo_speed}
-                        </div>
-                      </div>
                       <div className="flex items-center gap-2">
-                        <span className="font-mono font-black text-emerald-400 text-sm">
-                          {item.weight_kg} kg
-                        </span>
-                        <button
-                          type="button"
-                          onClick={() => handleOpenEditModal(item)}
-                          className="p-1 text-cyan-400 hover:text-cyan-300 cursor-pointer"
-                          title="Modifica questa rilevazione"
-                        >
-                          <Edit3 className="w-3.5 h-3.5" />
-                        </button>
+                        {latestLsi !== null && (
+                          <span
+                            className={`px-2.5 py-0.5 rounded-full font-mono text-xs font-black ${
+                              latestLsi >= 90
+                                ? 'bg-teal-950 text-teal-300 border border-teal-500/40'
+                                : 'bg-amber-950 text-amber-300 border border-amber-500/40'
+                            }`}
+                          >
+                            Ultimo LSI: {latestLsi}%
+                          </span>
+                        )}
+                        {(() => {
+                          const first = progressionSeries[0]?.weight_kg || 0;
+                          const last = progressionSeries[progressionSeries.length - 1]?.weight_kg || 0;
+                          const diff = +(last - first).toFixed(1);
+                          return (
+                            <span
+                              className={`px-2.5 py-0.5 rounded-full font-mono text-xs font-black ${
+                                diff >= 0
+                                  ? 'bg-emerald-950 text-emerald-400 border border-emerald-500/30'
+                                  : 'bg-amber-950 text-amber-400 border border-amber-500/30'
+                              }`}
+                            >
+                              {diff > 0 ? `+${diff} kg vs 1ª seduta` : `${diff} kg`}
+                            </span>
+                          );
+                        })()}
                       </div>
                     </div>
-                  ))}
-              </div>
-            </div>
+
+                    <div className="flex items-end gap-3 h-44 pt-6 px-2 overflow-x-auto">
+                      {progressionSeries.map((item, idx) => {
+                        const maxVal = Math.max(
+                          ...progressionSeries.map(x =>
+                            Math.max(
+                              Number(x.weight_kg) || 0,
+                              Number(x.weight_sx_kg) || 0,
+                              Number(x.weight_dx_kg) || 0
+                            )
+                          ),
+                          1
+                        );
+
+                        if (item.is_unilateral) {
+                          const sxVal = Number(item.weight_sx_kg) || 0;
+                          const dxVal = Number(item.weight_dx_kg) || 0;
+                          const pctSx = Math.max(Math.round((sxVal / maxVal) * 100), 12);
+                          const pctDx = Math.max(Math.round((dxVal / maxVal) * 100), 12);
+
+                          return (
+                            <div
+                              key={item.id || idx}
+                              className="flex-1 min-w-[82px] flex flex-col items-center gap-1.5"
+                            >
+                              <div className="flex items-center gap-1 font-mono text-[10px] font-black">
+                                <span className="text-cyan-300">SX:{sxVal}</span>
+                                <span className="text-slate-600">|</span>
+                                <span className="text-teal-300">DX:{dxVal}</span>
+                              </div>
+                              <span className="text-[10px] font-mono text-slate-400">
+                                {item.sets}×{item.reps}
+                              </span>
+                              <div className="w-full bg-slate-900 rounded-t-xl h-24 flex items-end justify-center gap-1.5 overflow-hidden border border-slate-800 p-1">
+                                <div
+                                  style={{ height: `${pctSx}%` }}
+                                  className="flex-1 bg-[#06B6D4] rounded-t-md transition-all"
+                                  title={`Gamba SX: ${sxVal} kg`}
+                                />
+                                <div
+                                  style={{ height: `${pctDx}%` }}
+                                  className="flex-1 bg-[#0D9488] rounded-t-md transition-all"
+                                  title={`Gamba DX: ${dxVal} kg`}
+                                />
+                              </div>
+                              <span className="text-[10px] font-mono font-bold text-slate-300">
+                                {new Date(item.created_at).toLocaleDateString('it-IT', {
+                                  day: '2-digit',
+                                  month: 'short'
+                                })}
+                              </span>
+                            </div>
+                          );
+                        }
+
+                        const pct = Math.max(
+                          Math.round(((Number(item.weight_kg) || 0) / maxVal) * 100),
+                          15
+                        );
+                        return (
+                          <div
+                            key={item.id || idx}
+                            className="flex-1 min-w-[60px] flex flex-col items-center gap-1.5"
+                          >
+                            <span className="text-xs font-mono font-black text-teal-300">
+                              {item.weight_kg} kg
+                            </span>
+                            <span className="text-[10px] font-mono text-slate-400">
+                              {item.sets}×{item.reps}
+                            </span>
+                            <div className="w-full bg-slate-900 rounded-t-xl h-24 flex items-end overflow-hidden border border-slate-800 p-0.5">
+                              <div
+                                style={{ height: `${pct}%` }}
+                                className="w-full bg-gradient-to-t from-teal-600 to-cyan-400 rounded-t-lg transition-all"
+                              />
+                            </div>
+                            <span className="text-[10px] font-mono font-bold text-slate-300">
+                              {new Date(item.created_at).toLocaleDateString('it-IT', {
+                                day: '2-digit',
+                                month: 'short'
+                              })}
+                            </span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {/* STORICO DETTAGLIATO SEDUTE DI QUESTO ESERCIZIO */}
+                  <div className="bg-slate-950 border border-slate-800 rounded-2xl p-4 space-y-2 max-h-64 overflow-y-auto">
+                    <div className="text-xs font-extrabold text-cyan-400 sticky top-0 bg-slate-950 pb-1">
+                      Dettaglio Cronologico Sedute
+                    </div>
+                    {progressionSeries
+                      .slice()
+                      .reverse()
+                      .map((item, idx) => {
+                        const rowLsi = item.is_unilateral
+                          ? calcLoadLsiPct(item.weight_sx_kg, item.weight_dx_kg, injuredSide)
+                          : null;
+                        return (
+                          <div
+                            key={item.id || idx}
+                            className="p-2.5 rounded-xl bg-slate-900 border border-slate-800 flex items-center justify-between gap-2 text-xs"
+                          >
+                            <div>
+                              <div className="font-bold text-white">
+                                {formatDayLabel(toDateInputValue(item.created_at))}
+                              </div>
+                              <div className="text-[10px] text-slate-400 font-mono">
+                                {item.sets} serie × {item.reps} rip • {item.tempo_speed}
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              {item.is_unilateral ? (
+                                <div className="text-right font-mono">
+                                  <div className="flex items-center gap-1 text-[11px] font-black">
+                                    <span className="text-cyan-300">SX: {item.weight_sx_kg}kg</span>
+                                    <span className="text-slate-600">|</span>
+                                    <span className="text-teal-300">DX: {item.weight_dx_kg}kg</span>
+                                  </div>
+                                  {rowLsi !== null && (
+                                    <div className="text-[9px] text-slate-400 font-bold">
+                                      LSI: <span className={rowLsi >= 90 ? 'text-teal-300' : 'text-amber-300'}>{rowLsi}%</span>
+                                    </div>
+                                  )}
+                                </div>
+                              ) : (
+                                <span className="font-mono font-black text-teal-300 text-sm">
+                                  {item.weight_kg} kg
+                                </span>
+                              )}
+                              <button
+                                type="button"
+                                onClick={() => handleOpenEditModal(item)}
+                                className="p-1 text-cyan-400 hover:text-cyan-300 cursor-pointer"
+                                title="Modifica questa rilevazione"
+                              >
+                                <Edit3 className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
+                          </div>
+                        );
+                      })}
+                  </div>
+                </div>
+              );
+            })()
           )}
         </div>
       )}
@@ -709,7 +890,7 @@ export default function RilevazioniCarichiTab({
                   <button
                     type="button"
                     onClick={() => handleOpenNewModal(dayKey)}
-                    className="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-emerald-300 border border-emerald-500/30 text-xs font-extrabold flex items-center gap-1.5 cursor-pointer self-start sm:self-auto"
+                    className="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-teal-300 border border-teal-500/30 text-xs font-extrabold flex items-center gap-1.5 cursor-pointer self-start sm:self-auto"
                   >
                     <Plus className="w-3.5 h-3.5" />
                     <span>Aggiungi esercizio a questa giornata</span>
@@ -723,80 +904,114 @@ export default function RilevazioniCarichiTab({
                       <tr className="bg-slate-950/40 text-slate-400 border-b border-slate-800 uppercase text-[10px] font-extrabold tracking-wider">
                         <th className="py-2.5 px-4">Esercizio (Clicca per Progressione)</th>
                         <th className="py-2.5 px-4 text-center">Serie × Rip</th>
-                        <th className="py-2.5 px-4 text-center">Carico (Kg)</th>
+                        <th className="py-2.5 px-4 text-center">Carico (Bilaterale o SX / DX)</th>
                         <th className="py-2.5 px-4">Velocità / Tempo</th>
                         <th className="py-2.5 px-4">Note Dolore / RPE</th>
                         <th className="py-2.5 px-4 text-right">Azioni Terapista</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-800/70">
-                      {dayLogs.map((log, index) => (
-                        <tr key={log.id || index} className="hover:bg-slate-800/40 transition-colors">
-                          <td className="py-3 px-4">
-                            <button
-                              type="button"
-                              onClick={() => setSelectedExerciseProgression(log.exercise_name)}
-                              className="flex items-center gap-2.5 text-left group cursor-pointer"
-                              title="Clicca per vedere il grafico di progressione di questo esercizio"
-                            >
-                              <div className="p-1.5 rounded-lg bg-slate-950 border border-slate-800 group-hover:border-cyan-500/50">
-                                {getCategoryIcon(log.exercise_name)}
-                              </div>
-                              <div>
-                                <div className="font-extrabold text-white group-hover:text-cyan-300 flex items-center gap-1">
-                                  <span className="underline decoration-cyan-500/50 decoration-dotted underline-offset-4">
-                                    {log.exercise_name}
-                                  </span>
-                                  <ChevronRight className="w-3.5 h-3.5 text-cyan-400" />
+                      {dayLogs.map((log, index) => {
+                        const rowLsi = log.is_unilateral
+                          ? calcLoadLsiPct(log.weight_sx_kg, log.weight_dx_kg, injuredSide)
+                          : null;
+
+                        return (
+                          <tr key={log.id || index} className="hover:bg-slate-800/40 transition-colors">
+                            <td className="py-3 px-4">
+                              <button
+                                type="button"
+                                onClick={() => setSelectedExerciseProgression(log.exercise_name)}
+                                className="flex items-center gap-2.5 text-left group cursor-pointer"
+                                title="Clicca per vedere il grafico di progressione di questo esercizio"
+                              >
+                                <div className="p-1.5 rounded-lg bg-slate-950 border border-slate-800 group-hover:border-cyan-500/50">
+                                  {getCategoryIcon(log.exercise_name)}
                                 </div>
-                                <span className="text-[10px] text-cyan-400/80 font-semibold">
-                                  📈 Vedi progressione
+                                <div>
+                                  <div className="font-extrabold text-white group-hover:text-cyan-300 flex items-center gap-1.5 flex-wrap">
+                                    <span className="underline decoration-cyan-500/50 decoration-dotted underline-offset-4">
+                                      {log.exercise_name}
+                                    </span>
+                                    {log.is_unilateral && (
+                                      <span className="px-1.5 py-0.5 rounded bg-cyan-950 text-cyan-300 border border-cyan-500/40 font-mono text-[9px] font-black uppercase">
+                                        Monopodalico SX+DX
+                                      </span>
+                                    )}
+                                    <ChevronRight className="w-3.5 h-3.5 text-cyan-400" />
+                                  </div>
+                                  <span className="text-[10px] text-cyan-400/80 font-semibold">
+                                    📈 Vedi progressione
+                                  </span>
+                                </div>
+                              </button>
+                            </td>
+                            <td className="py-3 px-4 text-center font-mono font-bold text-slate-200">
+                              {log.sets} × {log.reps}
+                            </td>
+                            <td className="py-3 px-4 text-center">
+                              {log.is_unilateral ? (
+                                <div className="inline-flex flex-wrap items-center justify-center gap-1.5">
+                                  <span className="px-2 py-1 rounded-lg bg-cyan-950 text-cyan-300 border border-cyan-500/40 font-mono font-black text-xs">
+                                    SX: {log.weight_sx_kg} kg
+                                  </span>
+                                  <span className="px-2 py-1 rounded-lg bg-teal-950 text-teal-300 border border-teal-500/40 font-mono font-black text-xs">
+                                    DX: {log.weight_dx_kg} kg
+                                  </span>
+                                  {rowLsi !== null && (
+                                    <span
+                                      className={`px-2 py-0.5 rounded-md font-mono font-black text-[10px] ${
+                                        rowLsi >= 90
+                                          ? 'bg-emerald-950 text-emerald-300 border border-emerald-500/30'
+                                          : 'bg-amber-950 text-amber-300 border border-amber-500/30'
+                                      }`}
+                                      title={`Limb Symmetry Index del carico (Lato operato: ${injuredSide})`}
+                                    >
+                                      LSI {rowLsi}%
+                                    </span>
+                                  )}
+                                </div>
+                              ) : (
+                                <span className="px-2.5 py-1 rounded-lg bg-teal-950 text-teal-300 border border-teal-500/40 font-mono font-black text-xs">
+                                  {log.weight_kg} kg
                                 </span>
+                              )}
+                            </td>
+                            <td className="py-3 px-4">
+                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-slate-950 border border-slate-800 text-cyan-300 font-mono text-[11px]">
+                                <Clock className="w-3 h-3" />
+                                {log.tempo_speed || log.tempo_execution || 'Standard'}
+                              </span>
+                            </td>
+                            <td className="py-3 px-4 text-slate-300">
+                              <div className="flex items-center gap-1.5">
+                                <MessageSquare className="w-3.5 h-3.5 text-slate-500 shrink-0" />
+                                <span>{log.clean_notes || log.notes || log.notes_rpe || 'Nessun dolore'}</span>
                               </div>
-                            </button>
-                          </td>
-                          <td className="py-3 px-4 text-center font-mono font-bold text-slate-200">
-                            {log.sets} × {log.reps}
-                          </td>
-                          <td className="py-3 px-4 text-center">
-                            <span className="px-2.5 py-1 rounded-lg bg-emerald-950 text-emerald-400 border border-emerald-500/30 font-mono font-black text-xs">
-                              {log.weight_kg} kg
-                            </span>
-                          </td>
-                          <td className="py-3 px-4">
-                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-slate-950 border border-slate-800 text-cyan-300 font-mono text-[11px]">
-                              <Clock className="w-3 h-3" />
-                              {log.tempo_speed || log.tempo_execution || 'Standard'}
-                            </span>
-                          </td>
-                          <td className="py-3 px-4 text-slate-300">
-                            <div className="flex items-center gap-1.5">
-                              <MessageSquare className="w-3.5 h-3.5 text-slate-500 shrink-0" />
-                              <span>{log.notes || log.notes_rpe || 'Nessun dolore'}</span>
-                            </div>
-                          </td>
-                          <td className="py-3 px-4 text-right whitespace-nowrap">
-                            <div className="inline-flex items-center gap-1.5">
-                              <button
-                                type="button"
-                                onClick={() => handleOpenEditModal(log)}
-                                className="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-cyan-950 text-cyan-300 border border-cyan-500/30 font-bold text-[11px] inline-flex items-center gap-1 cursor-pointer transition-colors"
-                              >
-                                <Edit3 className="w-3.5 h-3.5" />
-                                <span>Modifica</span>
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => handleDeleteLogByTherapist(log.id)}
-                                className="p-1.5 rounded-lg bg-slate-950 hover:bg-rose-950 text-slate-400 hover:text-rose-400 border border-slate-800 cursor-pointer transition-colors"
-                                title="Elimina esercizio"
-                              >
-                                <Trash2 className="w-3.5 h-3.5" />
-                              </button>
-                            </div>
-                          </td>
-                        </tr>
-                      ))}
+                            </td>
+                            <td className="py-3 px-4 text-right whitespace-nowrap">
+                              <div className="inline-flex items-center gap-1.5">
+                                <button
+                                  type="button"
+                                  onClick={() => handleOpenEditModal(log)}
+                                  className="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-cyan-950 text-cyan-300 border border-cyan-500/30 font-bold text-[11px] inline-flex items-center gap-1 cursor-pointer transition-colors"
+                                >
+                                  <Edit3 className="w-3.5 h-3.5" />
+                                  <span>Modifica</span>
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => handleDeleteLogByTherapist(log.id)}
+                                  className="p-1.5 rounded-lg bg-slate-950 hover:bg-rose-950 text-slate-400 hover:text-rose-400 border border-slate-800 cursor-pointer transition-colors"
+                                  title="Elimina esercizio"
+                                >
+                                  <Trash2 className="w-3.5 h-3.5" />
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      })}
                     </tbody>
                   </table>
                 </div>
@@ -856,8 +1071,8 @@ export default function RilevazioniCarichiTab({
                   required
                   list="therapist-exercise-presets"
                   value={formExercise}
-                  onChange={(e) => setFormExercise(e.target.value)}
-                  placeholder="Nome esercizio (es. Trap Bar Deadlift, Back Squat...)"
+                  onChange={(e) => handleFormExerciseChange(e.target.value)}
+                  placeholder="Nome esercizio (es. Single Leg Press, Bulgarian Split Squat...)"
                   className="w-full bg-slate-950 border border-slate-700 rounded-xl p-2.5 text-white font-bold"
                 />
                 <datalist id="therapist-exercise-presets">
@@ -867,40 +1082,164 @@ export default function RilevazioniCarichiTab({
                 </datalist>
               </div>
 
-              <div className="grid grid-cols-3 gap-3">
-                <div>
-                  <label className="block text-slate-300 font-bold mb-1">Serie (Sets)</label>
-                  <input
-                    type="number"
-                    min="1"
-                    required
-                    value={formSets}
-                    onChange={(e) => setFormSets(e.target.value)}
-                    className="w-full bg-slate-950 border border-slate-700 rounded-xl p-2.5 text-white font-mono text-center font-bold"
-                  />
+              {/* SELETTORE MODALITÀ CARICO: BILATERALE vs MONOPODALICO (GAMBA SX + DX) */}
+              <div className="bg-slate-950 border border-slate-800 rounded-2xl p-2.5 space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-[11px] font-extrabold text-slate-300">
+                    Modalità Rilevazione Carico:
+                  </span>
+                  <span className="text-[10px] font-mono text-cyan-400">
+                    {formIsUnilateral ? 'Gamba SX + Gamba DX separati' : 'Carico unico bilaterale'}
+                  </span>
                 </div>
-                <div>
-                  <label className="block text-slate-300 font-bold mb-1">Ripetizioni</label>
-                  <input
-                    type="text"
-                    required
-                    value={formReps}
-                    onChange={(e) => setFormReps(e.target.value)}
-                    className="w-full bg-slate-950 border border-slate-700 rounded-xl p-2.5 text-white font-mono text-center font-bold"
-                  />
-                </div>
-                <div>
-                  <label className="block text-emerald-400 font-extrabold mb-1">Carico (Kg)</label>
-                  <input
-                    type="number"
-                    step="0.5"
-                    required
-                    value={formWeightKg}
-                    onChange={(e) => setFormWeightKg(e.target.value)}
-                    className="w-full bg-emerald-950/30 border border-emerald-500/60 rounded-xl p-2.5 text-emerald-300 font-mono text-center font-black"
-                  />
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setFormIsUnilateral(false)}
+                    className={`py-2 px-3 rounded-xl font-extrabold text-xs transition-all cursor-pointer border ${
+                      !formIsUnilateral
+                        ? 'bg-teal-600 text-white border-teal-400 shadow-md'
+                        : 'bg-slate-900 text-slate-400 border-slate-800 hover:text-white'
+                    }`}
+                  >
+                    Bilaterale (1 Carico)
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setFormIsUnilateral(true)}
+                    className={`py-2 px-3 rounded-xl font-extrabold text-xs transition-all cursor-pointer border ${
+                      formIsUnilateral
+                        ? 'bg-cyan-600 text-white border-cyan-400 shadow-md'
+                        : 'bg-slate-900 text-slate-400 border-slate-800 hover:text-white'
+                    }`}
+                  >
+                    Monopodalico (SX + DX)
+                  </button>
                 </div>
               </div>
+
+              {!formIsUnilateral ? (
+                <div className="grid grid-cols-3 gap-3">
+                  <div>
+                    <label className="block text-slate-300 font-bold mb-1">Serie (Sets)</label>
+                    <input
+                      type="number"
+                      min="1"
+                      required
+                      value={formSets}
+                      onChange={(e) => setFormSets(e.target.value)}
+                      className="w-full bg-slate-950 border border-slate-700 rounded-xl p-2.5 text-white font-mono text-center font-bold"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-slate-300 font-bold mb-1">Ripetizioni</label>
+                    <input
+                      type="text"
+                      required
+                      value={formReps}
+                      onChange={(e) => setFormReps(e.target.value)}
+                      className="w-full bg-slate-950 border border-slate-700 rounded-xl p-2.5 text-white font-mono text-center font-bold"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-teal-400 font-extrabold mb-1">Carico (Kg)</label>
+                    <input
+                      type="number"
+                      step="0.5"
+                      required={!formIsUnilateral}
+                      value={formWeightKg}
+                      onChange={(e) => setFormWeightKg(e.target.value)}
+                      className="w-full bg-teal-950/30 border border-teal-500/60 rounded-xl p-2.5 text-teal-300 font-mono text-center font-black"
+                    />
+                  </div>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-slate-300 font-bold mb-1">Serie (Sets)</label>
+                      <input
+                        type="number"
+                        min="1"
+                        required
+                        value={formSets}
+                        onChange={(e) => setFormSets(e.target.value)}
+                        className="w-full bg-slate-950 border border-slate-700 rounded-xl p-2.5 text-white font-mono text-center font-bold"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-slate-300 font-bold mb-1">Ripetizioni (per gamba)</label>
+                      <input
+                        type="text"
+                        required
+                        value={formReps}
+                        onChange={(e) => setFormReps(e.target.value)}
+                        className="w-full bg-slate-950 border border-slate-700 rounded-xl p-2.5 text-white font-mono text-center font-bold"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3 p-3 rounded-2xl bg-slate-950 border border-cyan-500/40">
+                    <div>
+                      <label className="flex items-center justify-between text-cyan-300 font-extrabold mb-1">
+                        <span>Gamba SX (Kg)</span>
+                        {injuredSide.includes('SX') || injuredSide.includes('SINISTR') ? (
+                          <span className="px-1.5 py-0.5 rounded bg-amber-950 text-amber-300 border border-amber-500/40 text-[9px] font-mono">
+                            Operato
+                          </span>
+                        ) : null}
+                      </label>
+                      <input
+                        type="number"
+                        step="0.5"
+                        required={formIsUnilateral}
+                        value={formWeightSxKg}
+                        onChange={(e) => setFormWeightSxKg(e.target.value)}
+                        placeholder="es. 35"
+                        className="w-full bg-cyan-950/30 border border-cyan-500/60 rounded-xl p-2.5 text-white font-mono text-center font-black text-sm"
+                      />
+                    </div>
+                    <div>
+                      <label className="flex items-center justify-between text-teal-300 font-extrabold mb-1">
+                        <span>Gamba DX (Kg)</span>
+                        {injuredSide.includes('DX') || injuredSide.includes('DESTR') ? (
+                          <span className="px-1.5 py-0.5 rounded bg-amber-950 text-amber-300 border border-amber-500/40 text-[9px] font-mono">
+                            Operato
+                          </span>
+                        ) : null}
+                      </label>
+                      <input
+                        type="number"
+                        step="0.5"
+                        required={formIsUnilateral}
+                        value={formWeightDxKg}
+                        onChange={(e) => setFormWeightDxKg(e.target.value)}
+                        placeholder="es. 40"
+                        className="w-full bg-teal-950/30 border border-teal-500/60 rounded-xl p-2.5 text-white font-mono text-center font-black text-sm"
+                      />
+                    </div>
+
+                    {(() => {
+                      const lsiPreview = calcLoadLsiPct(formWeightSxKg, formWeightDxKg, injuredSide);
+                      if (lsiPreview === null) return null;
+                      return (
+                        <div className="col-span-2 flex items-center justify-between px-3 py-1.5 rounded-xl bg-slate-900 border border-slate-800 text-[11px]">
+                          <span className="text-slate-400 font-bold">
+                            Simmetria Carico Monopodalico (LSI):
+                          </span>
+                          <span
+                            className={`font-mono font-black ${
+                              lsiPreview >= 90 ? 'text-teal-300' : 'text-amber-300'
+                            }`}
+                          >
+                            {lsiPreview}% ({lsiPreview >= 90 ? 'Simmetrico ≥90%' : 'Asimmetria <90%'})
+                          </span>
+                        </div>
+                      );
+                    })()}
+                  </div>
+                </div>
+              )}
 
               <div>
                 <label className="block text-slate-300 font-bold mb-1">Velocità / Tempo Esecuzione</label>
@@ -935,7 +1274,7 @@ export default function RilevazioniCarichiTab({
                 <button
                   type="submit"
                   disabled={savingEdit}
-                  className="px-5 py-2 bg-gradient-to-r from-cyan-600 to-emerald-600 hover:from-cyan-500 hover:to-emerald-500 text-white rounded-xl font-black flex items-center gap-1.5 shadow-lg cursor-pointer"
+                  className="px-5 py-2 bg-gradient-to-r from-teal-600 to-cyan-600 hover:from-teal-500 hover:to-cyan-500 text-white rounded-xl font-black flex items-center gap-1.5 shadow-lg cursor-pointer"
                 >
                   <Save className="w-4 h-4" />
                   <span>{savingEdit ? 'Salvataggio...' : 'Salva sul Cloud'}</span>
@@ -1011,7 +1350,7 @@ export default function RilevazioniCarichiTab({
                 <button
                   type="button"
                   onClick={handleShareWhatsApp}
-                  className="flex-1 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold text-xs rounded-xl flex items-center justify-center gap-1.5 shadow-md cursor-pointer"
+                  className="flex-1 py-2.5 bg-teal-600 hover:bg-teal-500 text-white font-extrabold text-xs rounded-xl flex items-center justify-center gap-1.5 shadow-md cursor-pointer"
                 >
                   <ExternalLink className="w-3.5 h-3.5" />
                   <span>Invia su WhatsApp</span>
