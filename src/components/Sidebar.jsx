@@ -1,17 +1,11 @@
 import React from 'react';
-import { useAuth } from '../context/AuthContext';
 import LogoN from './LogoN';
 import { 
   LayoutDashboard, 
   Users, 
-  UserPlus, 
   Printer, 
   Database, 
-  X, 
-  AlertTriangle, 
-  Clock, 
-  Flame, 
-  BookmarkCheck 
+  X
 } from 'lucide-react';
 
 export default function Sidebar({ 
@@ -21,7 +15,6 @@ export default function Sidebar({
   mobileOpen, 
   setMobileOpen,
   onOpenSqlModal,
-  onAddNewPatient,
   onOpenPrintConfigurator
 }) {
   const navItems = [
@@ -55,14 +48,14 @@ export default function Sidebar({
       {mobileOpen && (
         <div 
           onClick={() => setMobileOpen(false)}
-          className="fixed inset-0 bg-slate-900/40 backdrop-blur-xs z-40 md:hidden"
+          className="fixed inset-0 bg-[#0F172A]/80 backdrop-blur-xs z-40 md:hidden"
         />
       )}
 
-      {/* Sidebar Container - Light/Clean Clinical Layout */}
+      {/* Sidebar Container - Deep Slate Dark Premium UI */}
       <aside className={`
         fixed md:sticky top-0 left-0 bottom-0 z-50
-        w-64 h-screen max-h-screen bg-white border-r border-slate-200 shadow-xs
+        w-64 h-screen max-h-screen bg-[#0F172A] border-r border-[#334155]
         flex flex-col justify-between overflow-hidden select-none p-3 space-y-2
         ${mobileOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}
         transition-transform duration-200 ease-in-out
@@ -72,15 +65,15 @@ export default function Sidebar({
         <div className="space-y-3">
           
           {/* HEADER SIDEBAR CON LOGO N PERSONAL FIT LIFE */}
-          <div className="p-3 bg-slate-50 rounded-2xl border border-slate-200 flex items-center justify-between">
+          <div className="p-3 bg-[#1E293B] rounded-2xl border border-[#334155] flex items-center justify-between">
             <div className="flex items-center gap-3">
               <LogoN className="w-10 h-10 shrink-0" />
               <div>
-                <div className="font-black text-xs text-slate-900 tracking-tight leading-tight">
+                <div className="font-black text-xs text-white tracking-tight leading-tight">
                   N Personal Fit Life
                 </div>
-                <div className="text-[10px] font-black text-emerald-600 uppercase tracking-widest mt-0.5 flex items-center gap-1">
-                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                <div className="text-[10px] font-black text-[#0D9488] uppercase tracking-widest mt-0.5 flex items-center gap-1">
+                  <span className="w-1.5 h-1.5 rounded-full bg-[#0D9488]"></span>
                   RTP Team
                 </div>
               </div>
@@ -88,7 +81,7 @@ export default function Sidebar({
 
             <button 
               onClick={() => setMobileOpen(false)}
-              className="md:hidden text-slate-400 hover:text-slate-700 p-1 rounded-lg"
+              className="md:hidden text-[#94A3B8] hover:text-white p-1 rounded-lg"
             >
               <X className="w-4 h-4" />
             </button>
@@ -121,18 +114,18 @@ export default function Sidebar({
                     w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-xs font-bold
                     transition-all duration-150 cursor-pointer
                     ${isActive
-                      ? 'bg-sky-50 text-sky-700 border border-sky-200 font-extrabold shadow-2xs'
-                      : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900 border border-transparent'
+                      ? 'bg-[#1E293B] text-white border border-[#06B6D4] font-extrabold shadow-sm'
+                      : 'text-[#94A3B8] hover:bg-[#1E293B]/60 hover:text-white border border-transparent'
                     }
                   `}
                 >
                   <div className="flex items-center gap-2.5 truncate">
-                    <Icon className={`w-4 h-4 shrink-0 ${isActive ? 'text-sky-600' : 'text-slate-400'}`} />
+                    <Icon className={`w-4 h-4 shrink-0 ${isActive ? 'text-[#06B6D4]' : 'text-[#94A3B8]'}`} />
                     <span className="font-bold text-xs truncate">{item.label}</span>
                   </div>
 
                   {item.badge !== undefined && (
-                    <span className="w-5 h-5 rounded-full bg-slate-100 border border-slate-200 font-mono text-[10px] font-extrabold text-slate-700 flex items-center justify-center shrink-0">
+                    <span className="w-5 h-5 rounded-full bg-[#0F172A] border border-[#334155] font-mono text-[10px] font-extrabold text-white flex items-center justify-center shrink-0">
                       {item.badge}
                     </span>
                   )}
@@ -144,7 +137,7 @@ export default function Sidebar({
         </div>
 
         {/* Footer Minimalist */}
-        <div className="p-2 rounded-xl bg-slate-50 border border-slate-200 text-[10px] text-slate-500 text-center font-mono font-semibold">
+        <div className="p-2 rounded-xl bg-[#1E293B] border border-[#334155] text-[10px] text-[#94A3B8] text-center font-mono font-semibold">
           <span>N Personal Fit Life • Rehab Team</span>
         </div>
 
@@ -152,4 +145,3 @@ export default function Sidebar({
     </>
   );
 }
-
