@@ -976,7 +976,10 @@ function ValdMetricCard({
   } = metricData;
 
   return (
-    <div className="report-card-vald bg-white border border-slate-300 rounded-xl p-3 shadow-sm space-y-2 flex flex-col justify-between break-inside-avoid text-slate-900 font-sans">
+    <div
+      style={{ breakInside: 'avoid', pageBreakInside: 'avoid' }}
+      className="print-report-card report-card-vald bg-white border border-slate-300 rounded-xl p-3 shadow-sm space-y-2 flex flex-col justify-between break-inside-avoid text-slate-900 font-sans"
+    >
       {/* HEADER CARD */}
       <div className="flex items-start justify-between border-b border-slate-200 pb-1.5">
         <div className="flex items-center gap-2">
@@ -1009,7 +1012,7 @@ function ValdMetricCard({
                   </option>
                 ))}
               </select>
-              <span className="print:inline-block hidden text-[8.5px] font-bold text-slate-600 bg-slate-100 px-1 py-0.5 rounded border border-slate-200">
+              <span className="hidden print-only-inline text-[8.5px] font-bold text-slate-700 bg-slate-100 px-1.5 py-0.5 rounded border border-slate-300">
                 {card.parameters.find((p) => p.id === card.selectedParam)?.label || card.selectedParam}
               </span>
             </div>
@@ -1449,7 +1452,7 @@ export default function PrintConfiguratorModal({ isOpen, onClose, patient, patie
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-slate-950/85 backdrop-blur-md overflow-y-auto font-sans">
+    <div className="print-modal-backdrop fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-slate-950/85 backdrop-blur-md overflow-y-auto font-sans">
       {/* MODAL WRAPPER CONTAINER */}
       <div className="w-full max-w-7xl bg-slate-900 border border-slate-700/80 rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[94vh] print-modal-container">
         
@@ -1501,7 +1504,7 @@ export default function PrintConfiguratorModal({ isOpen, onClose, patient, patie
         </div>
 
         {/* MODAL BODY: CONTROLLI A SINISTRA vs ANTEPRIMA REPORT A4 A DESTRA */}
-        <div className="flex-1 grid grid-cols-1 lg:grid-cols-12 overflow-hidden">
+        <div className="print-modal-body flex-1 grid grid-cols-1 lg:grid-cols-12 overflow-hidden">
           
           {/* PANNELLO DI SINISTRA: CONTROLLI CLINICI, NOTE FISIOTERAPISTA & RATIONALE (no-print) */}
           <div className="lg:col-span-4 p-5 bg-slate-900 border-r border-slate-800 overflow-y-auto space-y-4 no-print text-xs">
@@ -1712,15 +1715,24 @@ export default function PrintConfiguratorModal({ isOpen, onClose, patient, patie
           </div>
 
           {/* PANNELLO DI DESTRA: ANTEPRIMA REPORT A4 VALD / FORCEDECKS DASHBOARD */}
-          <div className="lg:col-span-8 bg-slate-950 p-4 sm:p-6 overflow-y-auto flex justify-center items-start">
+          <div className="print-preview-pane lg:col-span-8 bg-slate-950 p-4 sm:p-6 overflow-y-auto flex justify-center items-start">
             
-            {/* CANVAS A4 (Target unico di stampa per window.print) */}
+            {/* CANVAS A4 (Target unico isolato di stampa per @media print) */}
             <div
               id="report-a4-container"
-              className="printable-report w-full max-w-[780px] bg-white text-slate-900 p-6 sm:p-8 rounded-xl shadow-2xl border border-slate-300 print:shadow-none print:border-0 print:p-0 print:w-full text-[10px] leading-snug space-y-4 font-sans"
+              style={{
+                pageBreakBefore: 'avoid',
+                breakBefore: 'avoid',
+                WebkitPrintColorAdjust: 'exact',
+                printColorAdjust: 'exact'
+              }}
+              className="print-report-container printable-report w-full max-w-[780px] bg-white text-slate-900 p-6 sm:p-8 rounded-xl shadow-2xl border border-slate-300 print:shadow-none print:border-0 print:p-0 print:w-full text-[10px] leading-snug space-y-3.5 font-sans"
             >
               {/* HEADER REPORT INTEGRATO CON SCHEDA PAZIENTE */}
-              <div className="flex items-center justify-between pb-3 border-b-2 border-slate-300">
+              <div
+                style={{ breakInside: 'avoid', pageBreakInside: 'avoid' }}
+                className="print-report-section break-inside-avoid flex items-center justify-between pb-3 border-b-2 border-slate-300"
+              >
                 <div className="flex items-center gap-3">
                   <LogoN className="w-12 h-12 rounded-xl shrink-0 border border-slate-300 shadow-sm" />
 
@@ -1754,7 +1766,10 @@ export default function PrintConfiguratorModal({ isOpen, onClose, patient, patie
 
               {/* QUESTIONARIO IKDC (SE ATTIVO E PRESENTE) */}
               {showIkdc && ikdcScore && (
-                <div className="p-2.5 bg-gradient-to-r from-emerald-600 to-teal-700 text-white rounded-xl shadow text-center border border-emerald-500 flex items-center justify-between px-4">
+                <div
+                  style={{ breakInside: 'avoid', pageBreakInside: 'avoid' }}
+                  className="print-report-section break-inside-avoid p-2.5 bg-gradient-to-r from-emerald-600 to-teal-700 text-white rounded-xl shadow text-center border border-emerald-500 flex items-center justify-between px-4"
+                >
                   <span className="text-[8.5px] font-extrabold uppercase tracking-widest opacity-90">
                     PUNTEGGIO QUESTIONARIO SOGGETTIVO IKDC (SUPABASE)
                   </span>
@@ -1765,7 +1780,7 @@ export default function PrintConfiguratorModal({ isOpen, onClose, patient, patie
               )}
 
               {/* GRIGLIA SCHEDE METRICHE MULTI-CARD CON DATI REALI & UNITA' CORRETTE */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 pt-1">
+              <div className="print-cards-grid grid grid-cols-1 sm:grid-cols-2 print:grid-cols-2 gap-3 pt-1">
                 {reportCards.map((card) => (
                   <ValdMetricCard
                     key={card.id}
@@ -1784,7 +1799,10 @@ export default function PrintConfiguratorModal({ isOpen, onClose, patient, patie
 
               {/* BOX NOTE / COMMENTO CLINICO DEL FISIOTERAPISTA STAMPABILE SU A4 */}
               {showPhysioNotes && (
-                <div className="mt-3 p-3.5 bg-slate-50 border-2 border-slate-300 rounded-xl space-y-1.5 break-inside-avoid">
+                <div
+                  style={{ breakInside: 'avoid', pageBreakInside: 'avoid' }}
+                  className="print-report-section break-inside-avoid mt-3 p-3.5 bg-slate-50 border-2 border-slate-300 rounded-xl space-y-1.5"
+                >
                   <div className="flex items-center justify-between border-b border-slate-200 pb-1">
                     <span className="font-extrabold text-slate-900 uppercase tracking-wider text-[9px] flex items-center gap-1.5">
                       <MessageSquare className="w-3.5 h-3.5 text-emerald-700" />
@@ -1805,7 +1823,7 @@ export default function PrintConfiguratorModal({ isOpen, onClose, patient, patie
                   />
 
                   {/* Testo formattato per la stampa A4 */}
-                  <div className="hidden print:block text-slate-800 text-[9.5px] font-medium leading-relaxed whitespace-pre-wrap min-h-[36px]">
+                  <div className="hidden print-only-block text-slate-800 text-[9.5px] font-medium leading-relaxed whitespace-pre-wrap min-h-[32px]">
                     {physioNotes && physioNotes.trim().length > 0
                       ? physioNotes
                       : 'Nessuna nota clinica aggiuntiva inserita per questa sessione.'}
@@ -1815,7 +1833,10 @@ export default function PrintConfiguratorModal({ isOpen, onClose, patient, patie
 
               {/* FOOTER BIBLIOGRAFICO A4 GLOBALE SINCRONIZZATO CON LA LIBRERIA */}
               {showCitations && (
-                <div className="pt-3 border-t border-slate-300 space-y-1 font-sans text-[8px] text-slate-600 leading-tight mt-3 break-inside-avoid">
+                <div
+                  style={{ breakInside: 'avoid', pageBreakInside: 'avoid' }}
+                  className="print-report-section break-inside-avoid pt-3 border-t border-slate-300 space-y-1 font-sans text-[8px] text-slate-600 leading-tight mt-3"
+                >
                   <div className="font-extrabold text-slate-800 uppercase tracking-wider text-[8.5px] flex items-center justify-between">
                     <span className="flex items-center gap-1">
                       <BookOpen className="w-2.5 h-2.5 text-slate-700" />

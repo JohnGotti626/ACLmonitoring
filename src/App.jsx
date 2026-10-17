@@ -267,7 +267,7 @@ function MainApp() {
       )}
 
       {/* Main Container */}
-      <div className="flex-1 flex max-w-7xl w-full mx-auto">
+      <div className={`flex-1 flex max-w-7xl w-full mx-auto ${isPrintModalOpen ? 'app-shell-when-modal-print' : ''}`}>
         <Sidebar
           currentView={currentView}
           setCurrentView={setCurrentView}
