@@ -219,7 +219,11 @@ function MainApp() {
   // Nessuna possibilità di uscire verso il gestionale da Magic Link o da URL ?portal=client
   if (currentView === 'client-portal' || role === 'patient') {
     const params = new URLSearchParams(window.location.search);
-    const urlPatientId = params.get('patientId') || user?.user_metadata?.patient_id;
+    let savedPatientId = null;
+    try {
+      savedPatientId = localStorage.getItem('acl_client_patient_id');
+    } catch (_) {}
+    const urlPatientId = params.get('patientId') || user?.user_metadata?.patient_id || savedPatientId;
     const urlPatientName = params.get('name');
     const matchedPatient =
       patients.find(p => p.id === urlPatientId) ||

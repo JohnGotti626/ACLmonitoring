@@ -17,18 +17,21 @@ export const AuthProvider = ({ children }) => {
       hash.includes('type=recovery')
     ) {
       try {
-        sessionStorage.setItem('acl_client_only', 'true');
+        localStorage.setItem('acl_client_only', 'true');
+        if (params.get('patientId')) {
+          localStorage.setItem('acl_client_patient_id', params.get('patientId'));
+        }
       } catch (_) {}
       return true;
     }
     try {
-      return sessionStorage.getItem('acl_client_only') === 'true';
+      return localStorage.getItem('acl_client_only') === 'true';
     } catch (_) {
       return false;
     }
   };
 
-  // Default logged in as ADMIN Lead Therapist SOLO se non proviene da link/sessione cliente
+  // Default logged in as ADMIN Lead Therapist SOLO se il dispositivo non ha mai aperto un link cliente
   const [user, setUser] = useState(() =>
     isClientUrl()
       ? null
@@ -59,7 +62,7 @@ export const AuthProvider = ({ children }) => {
     supabase.auth.getSession().then(({ data: { session: activeSession } }) => {
       if (activeSession?.user) {
         try {
-          sessionStorage.setItem('acl_client_only', 'true');
+          localStorage.setItem('acl_client_only', 'true');
         } catch (_) {}
         setSession(activeSession);
         setUser(activeSession.user);
@@ -70,7 +73,7 @@ export const AuthProvider = ({ children }) => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, activeSession) => {
       if (activeSession?.user) {
         try {
-          sessionStorage.setItem('acl_client_only', 'true');
+          localStorage.setItem('acl_client_only', 'true');
         } catch (_) {}
         setSession(activeSession);
         setUser(activeSession.user);
