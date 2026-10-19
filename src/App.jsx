@@ -215,10 +215,11 @@ function MainApp() {
     await fetchPatientsFromCloud();
   };
 
-  // Isolamento totale vista Paziente (Mobile Client Workout Log)
+  // Isolamento totale vista Paziente (Mobile Client Workout Log):
+  // Nessuna possibilità di uscire verso il gestionale da Magic Link o da URL ?portal=client
   if (currentView === 'client-portal' || role === 'patient') {
     const params = new URLSearchParams(window.location.search);
-    const urlPatientId = params.get('patientId');
+    const urlPatientId = params.get('patientId') || user?.user_metadata?.patient_id;
     const urlPatientName = params.get('name');
     const matchedPatient =
       patients.find(p => p.id === urlPatientId) ||
@@ -229,14 +230,7 @@ function MainApp() {
       <ClientPortal
         patient={matchedPatient}
         isSimulation={false}
-        onExitSimulation={
-          role !== 'patient'
-            ? () => {
-                window.history.replaceState({}, '', window.location.pathname);
-                setCurrentView('dashboard');
-              }
-            : undefined
-        }
+        onExitSimulation={undefined}
       />
     );
   }

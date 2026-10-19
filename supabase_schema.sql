@@ -1,10 +1,11 @@
 -- ====================================================================
--- SCRIPT SQL SUPABASE DEFINITIVO - ZERO ERRORI & ZERO WARNINGS
--- Risolve gli 8 Warning 'RLS Policy Always True' mantenendo
--- la visibilità totale dei dati per il Terapista/Admin nel gestionale.
+-- SCRIPT SQL SUPABASE DEFINITIVO - ISOLAMENTO MAGIC LINK CLIENTI
+-- Chiunque acceda tramite Magic Link (auth.uid() IS NOT NULL) è SEMPRE
+-- trattato come Cliente (vede/modifica solo i propri dati).
+-- Il Terapista nel gestionale mantiene pieno accesso senza USING (true).
 -- ====================================================================
 
--- 1. CANCELLA TUTTE LE POLICY TEMPORANEE O DUPLICATE ESISTENTI
+-- 1. CANCELLA TUTTE LE POLICY PRECEDENTI
 DO $$
 DECLARE
     pol RECORD;
@@ -18,29 +19,12 @@ BEGIN
     END LOOP;
 END $$;
 
--- ====================================================================
--- 2. ALLINEAMENTO AUTOMATICO TABELLA 'profili_utenti' PER LO STAFF
---    Registra come ADMIN gli utenti attuali di auth.users non presenti in pazienti
--- ====================================================================
+-- 2. Rimuove il trigger che assegnava ADMIN ai nuovi utenti Magic Link
+DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
 
-DO $$
-BEGIN
-    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema='public' AND table_name='profili_utenti') THEN
-        INSERT INTO public.profili_utenti (id, email, ruolo)
-        SELECT u.id, COALESCE(u.email, 'staff@medical.it'), 'ADMIN'
-        FROM auth.users u
-        WHERE NOT EXISTS (
-            SELECT 1 FROM public.pazienti p
-            WHERE p.id = u.id OR p.patient_id = u.id
-        )
-        ON CONFLICT (id) DO UPDATE SET ruolo = 'ADMIN';
-    END IF;
-END $$;
-
--- ====================================================================
--- 3. FUNZIONE HELPER SICURA ED EFFICIENTE: is_admin_or_therapist()
--- ====================================================================
-
+-- 3. FUNZIONE HELPER:
+--    - Magic Link (auth.uid() IS NOT NULL) -> Cliente (is_admin = FALSE, salvo app_metadata = 'admin')
+--    - Gestionale Terapista (auth.uid() IS NULL o app_metadata = 'admin'/'therapist') -> Terapista (is_admin = TRUE)
 CREATE OR REPLACE FUNCTION public.is_admin()
 RETURNS BOOLEAN
 LANGUAGE sql
@@ -51,12 +35,6 @@ AS $$
     SELECT (
         (SELECT auth.uid()) IS NULL
         OR COALESCE(LOWER((SELECT auth.jwt()) -> 'app_metadata' ->> 'role'), '') IN ('admin', 'therapist', 'staff')
-        OR EXISTS (
-            SELECT 1
-            FROM public.profili_utenti p
-            WHERE p.id = (SELECT auth.uid())
-              AND UPPER(p.ruolo) IN ('ADMIN', 'STAFF')
-        )
     );
 $$;
 
@@ -77,7 +55,7 @@ GRANT EXECUTE ON FUNCTION public.is_admin() TO anon, authenticated, service_role
 GRANT EXECUTE ON FUNCTION public.is_admin_or_therapist() TO anon, authenticated, service_role;
 
 -- ====================================================================
--- 4. POLICY RLS STRUTTURATE (ZERO 'USING (true)' & VISIBILITÀ TOTALE STAFF)
+-- 4. POLICY RLS STRUTTURATE (MAGIC LINK = SOLO DATI PROPRI | TERAPISTA = TUTTI)
 -- ====================================================================
 
 -- 4.1 Tabella: PAZIENTI
@@ -88,13 +66,11 @@ CREATE POLICY "pazienti_staff_and_patient_access"
     USING (
         id::text = (SELECT auth.uid())::text
         OR patient_id::text = (SELECT auth.uid())::text
-        OR ((SELECT auth.jwt()) -> 'app_metadata' ->> 'role') IN ('admin', 'therapist', 'staff')
         OR (SELECT public.is_admin_or_therapist())
     )
     WITH CHECK (
         id::text = (SELECT auth.uid())::text
         OR patient_id::text = (SELECT auth.uid())::text
-        OR ((SELECT auth.jwt()) -> 'app_metadata' ->> 'role') IN ('admin', 'therapist', 'staff')
         OR (SELECT public.is_admin_or_therapist())
     );
 
@@ -106,13 +82,11 @@ CREATE POLICY "workout_logs_staff_and_patient_access"
     USING (
         patient_id::text = (SELECT auth.uid())::text
         OR id::text = (SELECT auth.uid())::text
-        OR ((SELECT auth.jwt()) -> 'app_metadata' ->> 'role') IN ('admin', 'therapist', 'staff')
         OR (SELECT public.is_admin_or_therapist())
     )
     WITH CHECK (
         patient_id::text = (SELECT auth.uid())::text
         OR id::text = (SELECT auth.uid())::text
-        OR ((SELECT auth.jwt()) -> 'app_metadata' ->> 'role') IN ('admin', 'therapist', 'staff')
         OR (SELECT public.is_admin_or_therapist())
     );
 
@@ -128,13 +102,11 @@ BEGIN
                 USING (
                     patient_id::text = (SELECT auth.uid())::text
                     OR id::text = (SELECT auth.uid())::text
-                    OR ((SELECT auth.jwt()) -> ''app_metadata'' ->> ''role'') IN (''admin'', ''therapist'', ''staff'')
                     OR (SELECT public.is_admin_or_therapist())
                 )
                 WITH CHECK (
                     patient_id::text = (SELECT auth.uid())::text
                     OR id::text = (SELECT auth.uid())::text
-                    OR ((SELECT auth.jwt()) -> ''app_metadata'' ->> ''role'') IN (''admin'', ''therapist'', ''staff'')
                     OR (SELECT public.is_admin_or_therapist())
                 );
         ';
@@ -153,13 +125,11 @@ BEGIN
                 USING (
                     patient_id::text = (SELECT auth.uid())::text
                     OR id::text = (SELECT auth.uid())::text
-                    OR ((SELECT auth.jwt()) -> ''app_metadata'' ->> ''role'') IN (''admin'', ''therapist'', ''staff'')
                     OR (SELECT public.is_admin_or_therapist())
                 )
                 WITH CHECK (
                     patient_id::text = (SELECT auth.uid())::text
                     OR id::text = (SELECT auth.uid())::text
-                    OR ((SELECT auth.jwt()) -> ''app_metadata'' ->> ''role'') IN (''admin'', ''therapist'', ''staff'')
                     OR (SELECT public.is_admin_or_therapist())
                 );
         ';
@@ -178,13 +148,11 @@ BEGIN
                 USING (
                     patient_id::text = (SELECT auth.uid())::text
                     OR id::text = (SELECT auth.uid())::text
-                    OR ((SELECT auth.jwt()) -> ''app_metadata'' ->> ''role'') IN (''admin'', ''therapist'', ''staff'')
                     OR (SELECT public.is_admin_or_therapist())
                 )
                 WITH CHECK (
                     patient_id::text = (SELECT auth.uid())::text
                     OR id::text = (SELECT auth.uid())::text
-                    OR ((SELECT auth.jwt()) -> ''app_metadata'' ->> ''role'') IN (''admin'', ''therapist'', ''staff'')
                     OR (SELECT public.is_admin_or_therapist())
                 );
         ';
@@ -202,13 +170,11 @@ BEGIN
                 TO anon, authenticated
                 USING (
                     id::text = (SELECT auth.uid())::text
-                    OR ((SELECT auth.jwt()) -> ''app_metadata'' ->> ''role'') IN (''admin'', ''therapist'', ''staff'')
-                    OR (SELECT auth.uid()) IS NULL
+                    OR (SELECT public.is_admin_or_therapist())
                 )
                 WITH CHECK (
                     id::text = (SELECT auth.uid())::text
-                    OR ((SELECT auth.jwt()) -> ''app_metadata'' ->> ''role'') IN (''admin'', ''therapist'', ''staff'')
-                    OR (SELECT auth.uid()) IS NULL
+                    OR (SELECT public.is_admin_or_therapist())
                 );
         ';
     END IF;
@@ -226,19 +192,13 @@ BEGIN
                 USING (
                     patient_id::text = (SELECT auth.uid())::text
                     OR id::text = (SELECT auth.uid())::text
-                    OR ((SELECT auth.jwt()) -> ''app_metadata'' ->> ''role'') IN (''admin'', ''therapist'', ''staff'')
                     OR (SELECT public.is_admin_or_therapist())
                 )
                 WITH CHECK (
                     patient_id::text = (SELECT auth.uid())::text
                     OR id::text = (SELECT auth.uid())::text
-                    OR ((SELECT auth.jwt()) -> ''app_metadata'' ->> ''role'') IN (''admin'', ''therapist'', ''staff'')
                     OR (SELECT public.is_admin_or_therapist())
                 );
         ';
     END IF;
 END $$;
-
--- ====================================================================
--- FINE SCRIPT SQL
--- ====================================================================

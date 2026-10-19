@@ -6,13 +6,39 @@ const AuthContext = createContext({});
 export const useAuth = () => useContext(AuthContext);
 
 export const AuthProvider = ({ children }) => {
-  // Default logged in as ADMIN Lead Therapist for direct clinical use
-  const [user, setUser] = useState({
-    id: 'admin-lead-01',
-    email: 'lead.therapist@medical-acl.it',
-    user_metadata: { nome: 'Dott. Mario', cognome: 'Rossi', role: 'ADMIN' }
-  });
-  const [role, setRole] = useState('ADMIN'); // 'ADMIN' | 'STAFF' | 'patient'
+  const isClientUrl = () => {
+    if (typeof window === 'undefined') return false;
+    const params = new URLSearchParams(window.location.search);
+    const hash = window.location.hash || '';
+    if (
+      params.get('portal') === 'client' ||
+      hash.includes('access_token=') ||
+      hash.includes('type=magiclink') ||
+      hash.includes('type=recovery')
+    ) {
+      try {
+        sessionStorage.setItem('acl_client_only', 'true');
+      } catch (_) {}
+      return true;
+    }
+    try {
+      return sessionStorage.getItem('acl_client_only') === 'true';
+    } catch (_) {
+      return false;
+    }
+  };
+
+  // Default logged in as ADMIN Lead Therapist SOLO se non proviene da link/sessione cliente
+  const [user, setUser] = useState(() =>
+    isClientUrl()
+      ? null
+      : {
+          id: 'admin-lead-01',
+          email: 'lead.therapist@medical-acl.it',
+          user_metadata: { nome: 'Dott. Mario', cognome: 'Rossi', role: 'ADMIN' }
+        }
+  );
+  const [role, setRole] = useState(() => (isClientUrl() ? 'patient' : 'ADMIN')); // 'ADMIN' | 'STAFF' | 'patient'
   const [session, setSession] = useState(null);
   const [loading, setLoading] = useState(false);
   const [recentAuditLogs, setRecentAuditLogs] = useState([
@@ -25,25 +51,30 @@ export const AuthProvider = ({ children }) => {
     }
   ]);
 
-  // Ascolta il rientro dal Magic Link (OTP via Email) di Supabase
+  // Ascolta il rientro dal Magic Link (OTP via Email) di Supabase:
+  // Chiunque acceda da Magic Link è SEMPRE e SOLO un Cliente ('patient') e non può mai accedere al gestionale
   useEffect(() => {
     if (!isSupabaseConfigured) return;
 
     supabase.auth.getSession().then(({ data: { session: activeSession } }) => {
       if (activeSession?.user) {
+        try {
+          sessionStorage.setItem('acl_client_only', 'true');
+        } catch (_) {}
         setSession(activeSession);
         setUser(activeSession.user);
-        const userRole = activeSession.user.user_metadata?.role || 'patient';
-        setRole(userRole);
+        setRole('patient');
       }
     });
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, activeSession) => {
       if (activeSession?.user) {
+        try {
+          sessionStorage.setItem('acl_client_only', 'true');
+        } catch (_) {}
         setSession(activeSession);
         setUser(activeSession.user);
-        const userRole = activeSession.user.user_metadata?.role || 'patient';
-        setRole(userRole);
+        setRole('patient');
       }
     });
 
@@ -82,6 +113,10 @@ export const AuthProvider = ({ children }) => {
   };
 
   const login = async (email, password, preferredRole = 'ADMIN') => {
+    if (session || isClientUrl()) {
+      setRole('patient');
+      return { success: false, error: 'Accesso gestionale disabilitato per il profilo cliente.' };
+    }
     setUser({
       id: `usr-${Date.now()}`,
       email: email || 'lead.therapist@medical-acl.it',
@@ -97,6 +132,11 @@ export const AuthProvider = ({ children }) => {
       await supabase.auth.signOut().catch(() => {});
     }
     setSession(null);
+    if (isClientUrl() || role === 'patient') {
+      setUser(null);
+      setRole('patient');
+      return;
+    }
     setUser({
       id: 'admin-lead-01',
       email: 'lead.therapist@medical-acl.it',
@@ -106,6 +146,7 @@ export const AuthProvider = ({ children }) => {
   };
 
   const switchRoleForDemo = (newRole) => {
+    if (session || isClientUrl() || role === 'patient') return;
     setRole(newRole);
   };
 
