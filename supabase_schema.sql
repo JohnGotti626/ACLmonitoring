@@ -8,12 +8,13 @@
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
 -- ====================================================================
--- 1. GARANZIA ESISTENZA DELLE 5+ TABELLE PRINCIPALI E COLONNE
+-- 1. GARANZIA ESISTENZA TABELLE E CONTROLLO SAFE COLONNA 'patient_id'
 -- ====================================================================
 
 -- Tabella 1: PAZIENTI
 CREATE TABLE IF NOT EXISTS public.pazienti (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    patient_id UUID REFERENCES auth.users(id) ON DELETE SET NULL,
     nome TEXT NOT NULL,
     cognome TEXT NOT NULL,
     data_nascita DATE,
@@ -31,23 +32,14 @@ CREATE TABLE IF NOT EXISTS public.pazienti (
     aclrsi_score_iniziale NUMERIC(5,2) DEFAULT 45.0,
     fase_riabilitativa TEXT DEFAULT 'Return to Run',
     prossimo_controllo DATE,
-    email TEXT,
-    auth_user_id UUID REFERENCES auth.users(id) ON DELETE SET NULL,
-    patient_id UUID,
     created_at TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
-ALTER TABLE public.pazienti ADD COLUMN IF NOT EXISTS email TEXT;
-ALTER TABLE public.pazienti ADD COLUMN IF NOT EXISTS auth_user_id UUID REFERENCES auth.users(id) ON DELETE SET NULL;
-ALTER TABLE public.pazienti ADD COLUMN IF NOT EXISTS patient_id UUID;
-
--- Tabella 2: WORKOUT_LOGS (Rilevazioni Carichi & Esercizi Monopodalici/Bipodalici)
+-- Tabella 2: WORKOUT_LOGS
 CREATE TABLE IF NOT EXISTS public.workout_logs (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    patient_id TEXT NOT NULL,
-    patient_email TEXT,
-    user_id UUID,
+    patient_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
     exercise_name TEXT NOT NULL,
     category_icon TEXT DEFAULT 'squat',
     sets INTEGER NOT NULL DEFAULT 3,
@@ -64,11 +56,7 @@ CREATE TABLE IF NOT EXISTS public.workout_logs (
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
-ALTER TABLE public.workout_logs ADD COLUMN IF NOT EXISTS is_monopodalic BOOLEAN DEFAULT FALSE;
-ALTER TABLE public.workout_logs ADD COLUMN IF NOT EXISTS weight_sx_kg NUMERIC(6,2);
-ALTER TABLE public.workout_logs ADD COLUMN IF NOT EXISTS weight_dx_kg NUMERIC(6,2);
-
--- Tabella 3: TEST_RESULTS (Risultati Test / ForceDecks / Dinamo / Hop)
+-- Tabella 3: TEST_RESULTS
 CREATE TABLE IF NOT EXISTS public.test_results (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     patient_id UUID REFERENCES public.pazienti(id) ON DELETE CASCADE,
@@ -80,7 +68,7 @@ CREATE TABLE IF NOT EXISTS public.test_results (
     updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- Tabella 4: EVALUATIONS (Valutazioni Biomeccaniche e Storico Test)
+-- Tabella 4: EVALUATIONS
 CREATE TABLE IF NOT EXISTS public.evaluations (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     patient_id UUID REFERENCES public.pazienti(id) ON DELETE CASCADE,
@@ -91,59 +79,63 @@ CREATE TABLE IF NOT EXISTS public.evaluations (
     updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- Tabella 5: TEST_VALUTAZIONI (Batteria Prestativa LCA)
+-- Tabella 5: TEST_VALUTAZIONI
 CREATE TABLE IF NOT EXISTS public.test_valutazioni (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    paziente_id UUID NOT NULL REFERENCES public.pazienti(id) ON DELETE CASCADE,
+    patient_id UUID REFERENCES public.pazienti(id) ON DELETE CASCADE,
     data_test DATE NOT NULL DEFAULT CURRENT_DATE,
     fase_test TEXT NOT NULL DEFAULT 'Return to Run',
-    dynamo_q_0 NUMERIC(6,2),
-    dynamo_q_60 NUMERIC(6,2),
-    dynamo_q_90 NUMERIC(6,2),
-    dynamo_f_0 NUMERIC(6,2),
-    dynamo_f_60 NUMERIC(6,2),
-    dynamo_f_90 NUMERIC(6,2),
-    dynamo_q_sano_90 NUMERIC(6,2),
-    dynamo_f_sano_90 NUMERIC(6,2),
-    forcedecks_cmj_asym_braking NUMERIC(5,2),
-    forcedecks_rfd_0_100 NUMERIC(6,2),
-    forcedecks_rsi_mod_dvj NUMERIC(5,2),
-    vbt_velocity_loss_pct NUMERIC(5,2),
-    vbt_mean_velocity NUMERIC(4,2),
-    hop_single NUMERIC(5,2),
-    hop_triple NUMERIC(5,2),
-    hop_crossover NUMERIC(5,2),
-    hop_6m_timed NUMERIC(5,2),
-    aclrsi_score_attuale NUMERIC(5,2),
-    note_operative TEXT,
-    esercizi_prescritti TEXT,
-    alert_compenso TEXT,
-    sintesi_copilot_ia TEXT,
     created_at TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- Tabelle di supporto RBAC & Audit (se presenti nel progetto)
+-- Tabelle di supporto Profilo & Audit
 CREATE TABLE IF NOT EXISTS public.profili_utenti (
     id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
-    email TEXT NOT NULL,
+    email TEXT,
     nome TEXT,
     cognome TEXT,
     ruolo TEXT NOT NULL DEFAULT 'ADMIN',
-    qualifica TEXT DEFAULT 'Fisioterapista / Preparatore AT',
     created_at TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
 CREATE TABLE IF NOT EXISTS public.audit_logs (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    user_id UUID REFERENCES auth.users(id) ON DELETE SET NULL,
-    user_email TEXT,
-    ruolo_utente TEXT,
+    patient_id UUID,
     evento TEXT NOT NULL,
     dettagli JSONB,
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
+
+-- CONTROLLO SAFE COLONNE 'patient_id' SU TUTTE LE TABELLE ESISTENTI
+DO $$ 
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema='public' AND table_name='workout_logs' AND column_name='patient_id') THEN
+        ALTER TABLE public.workout_logs ADD COLUMN patient_id UUID REFERENCES auth.users(id);
+    END IF;
+
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema='public' AND table_name='pazienti' AND column_name='patient_id') THEN
+        ALTER TABLE public.pazienti ADD COLUMN patient_id UUID REFERENCES auth.users(id);
+    END IF;
+
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema='public' AND table_name='test_results' AND column_name='patient_id') THEN
+        ALTER TABLE public.test_results ADD COLUMN patient_id UUID;
+    END IF;
+
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema='public' AND table_name='evaluations' AND column_name='patient_id') THEN
+        ALTER TABLE public.evaluations ADD COLUMN patient_id UUID;
+    END IF;
+
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema='public' AND table_name='test_valutazioni' AND column_name='patient_id') THEN
+        ALTER TABLE public.test_valutazioni ADD COLUMN patient_id UUID;
+    END IF;
+END $$;
+
+-- Colonne aggiuntive per carichi monopodalici su workout_logs
+ALTER TABLE public.workout_logs ADD COLUMN IF NOT EXISTS is_monopodalic BOOLEAN DEFAULT FALSE;
+ALTER TABLE public.workout_logs ADD COLUMN IF NOT EXISTS weight_sx_kg NUMERIC(6,2);
+ALTER TABLE public.workout_logs ADD COLUMN IF NOT EXISTS weight_dx_kg NUMERIC(6,2);
 
 -- ====================================================================
 -- 2. ABILITAZIONE ROW LEVEL SECURITY (RLS) SU TUTTE LE TABELLE
@@ -157,8 +149,7 @@ ALTER TABLE public.test_valutazioni ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.profili_utenti ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.audit_logs ENABLE ROW LEVEL SECURITY;
 
--- Sicurezza aggiuntiva: abilita automaticamente RLS su QUALSIASI altra
--- tabella presente nello schema 'public' per azzerare il Security Advisor
+-- Abilita automaticamente RLS anche su qualsiasi altra tabella nello schema 'public'
 DO $$
 DECLARE
     tbl RECORD;
@@ -184,15 +175,12 @@ BEGIN
         AND COALESCE(LOWER(auth.jwt() -> 'user_metadata' ->> 'role'), 'admin') IN ('admin', 'staff', 'therapist', '')
     ) OR (
         COALESCE(LOWER(auth.jwt() ->> 'role'), '') = 'service_role'
-    ) OR EXISTS (
-        SELECT 1 FROM public.profili_utenti
-        WHERE id = auth.uid() AND UPPER(ruolo) IN ('ADMIN', 'STAFF')
     );
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
 -- ====================================================================
--- 4. POLICIES RLS PER TABELLA: PAZIENTI
+-- 4. POLICIES RLS PER TABELLA: PAZIENTI (usa 'id' e 'patient_id')
 -- ====================================================================
 
 DROP POLICY IF EXISTS "Admin_Full_Access_pazienti" ON public.pazienti;
@@ -204,7 +192,7 @@ DROP POLICY IF EXISTS "Solo ADMIN inserisce o modifica pazienti" ON public.pazie
 DROP POLICY IF EXISTS "Isolamento RLS Pazienti: paziente vede solo la propria scheda" ON public.pazienti;
 DROP POLICY IF EXISTS "Terapista può inserire modificare ed eliminare pazienti" ON public.pazienti;
 
--- Policy Permissiva Admin / Terapisti (SELECT, INSERT, UPDATE, DELETE)
+-- Admin (Terapisti): SELECT, INSERT, UPDATE, DELETE completi
 CREATE POLICY "Admin_Full_Access_pazienti"
     ON public.pazienti
     FOR ALL
@@ -218,7 +206,7 @@ CREATE POLICY "Admin_Full_Access_pazienti"
         OR COALESCE(LOWER(auth.jwt() -> 'user_metadata' ->> 'role'), '') != 'patient'
     );
 
--- Policy Pazienti: SELECT, INSERT, UPDATE limitati alla propria riga (id / patient_id / auth_user_id = auth.uid())
+-- Pazienti: SELECT, INSERT, UPDATE solo dove patient_id = auth.uid() o id = auth.uid()
 CREATE POLICY "Patient_Select_Own_pazienti"
     ON public.pazienti
     FOR SELECT
@@ -226,8 +214,6 @@ CREATE POLICY "Patient_Select_Own_pazienti"
     USING (
         id::text = auth.uid()::text
         OR patient_id::text = auth.uid()::text
-        OR auth_user_id = auth.uid()
-        OR LOWER(email) = LOWER(auth.jwt() ->> 'email')
     );
 
 CREATE POLICY "Patient_Insert_Own_pazienti"
@@ -237,7 +223,6 @@ CREATE POLICY "Patient_Insert_Own_pazienti"
     WITH CHECK (
         id::text = auth.uid()::text
         OR patient_id::text = auth.uid()::text
-        OR auth_user_id = auth.uid()
     );
 
 CREATE POLICY "Patient_Update_Own_pazienti"
@@ -247,16 +232,14 @@ CREATE POLICY "Patient_Update_Own_pazienti"
     USING (
         id::text = auth.uid()::text
         OR patient_id::text = auth.uid()::text
-        OR auth_user_id = auth.uid()
     )
     WITH CHECK (
         id::text = auth.uid()::text
         OR patient_id::text = auth.uid()::text
-        OR auth_user_id = auth.uid()
     );
 
 -- ====================================================================
--- 5. POLICIES RLS PER TABELLA: WORKOUT_LOGS
+-- 5. POLICIES RLS PER TABELLA: WORKOUT_LOGS (usa esclusivamente 'patient_id')
 -- ====================================================================
 
 DROP POLICY IF EXISTS "Admin_Full_Access_workout_logs" ON public.workout_logs;
@@ -268,7 +251,7 @@ DROP POLICY IF EXISTS "Pazienti e Terapisti possono inserire workout_logs" ON pu
 DROP POLICY IF EXISTS "Modifica workout_logs per proprietario o Terapista" ON public.workout_logs;
 DROP POLICY IF EXISTS "Eliminazione workout_logs per proprietario o Terapista" ON public.workout_logs;
 
--- Policy Permissiva Admin / Terapisti (SELECT, INSERT, UPDATE, DELETE)
+-- Admin (Terapisti): SELECT, INSERT, UPDATE, DELETE completi
 CREATE POLICY "Admin_Full_Access_workout_logs"
     ON public.workout_logs
     FOR ALL
@@ -282,44 +265,28 @@ CREATE POLICY "Admin_Full_Access_workout_logs"
         OR COALESCE(LOWER(auth.jwt() -> 'user_metadata' ->> 'role'), '') != 'patient'
     );
 
--- Policy Pazienti: SELECT, INSERT, UPDATE limitati alle righe dove patient_id = auth.uid()
+-- Pazienti: SELECT, INSERT, UPDATE solo dove patient_id = auth.uid()
 CREATE POLICY "Patient_Select_Own_workout_logs"
     ON public.workout_logs
     FOR SELECT
     TO authenticated
-    USING (
-        patient_id::text = auth.uid()::text
-        OR user_id = auth.uid()
-        OR LOWER(patient_email) = LOWER(auth.jwt() ->> 'email')
-    );
+    USING (patient_id::text = auth.uid()::text);
 
 CREATE POLICY "Patient_Insert_Own_workout_logs"
     ON public.workout_logs
     FOR INSERT
     TO authenticated
-    WITH CHECK (
-        patient_id::text = auth.uid()::text
-        OR user_id = auth.uid()
-        OR LOWER(patient_email) = LOWER(auth.jwt() ->> 'email')
-    );
+    WITH CHECK (patient_id::text = auth.uid()::text);
 
 CREATE POLICY "Patient_Update_Own_workout_logs"
     ON public.workout_logs
     FOR UPDATE
     TO authenticated
-    USING (
-        patient_id::text = auth.uid()::text
-        OR user_id = auth.uid()
-        OR LOWER(patient_email) = LOWER(auth.jwt() ->> 'email')
-    )
-    WITH CHECK (
-        patient_id::text = auth.uid()::text
-        OR user_id = auth.uid()
-        OR LOWER(patient_email) = LOWER(auth.jwt() ->> 'email')
-    );
+    USING (patient_id::text = auth.uid()::text)
+    WITH CHECK (patient_id::text = auth.uid()::text);
 
 -- ====================================================================
--- 6. POLICIES RLS PER TABELLA: TEST_RESULTS
+-- 6. POLICIES RLS PER TABELLA: TEST_RESULTS (usa 'patient_id')
 -- ====================================================================
 
 DROP POLICY IF EXISTS "Admin_Full_Access_test_results" ON public.test_results;
@@ -345,7 +312,7 @@ CREATE POLICY "Patient_Select_Own_test_results"
     USING (patient_id::text = auth.uid()::text);
 
 -- ====================================================================
--- 7. POLICIES RLS PER TABELLA: EVALUATIONS
+-- 7. POLICIES RLS PER TABELLA: EVALUATIONS (usa 'patient_id')
 -- ====================================================================
 
 DROP POLICY IF EXISTS "Admin_Full_Access_evaluations" ON public.evaluations;
@@ -371,7 +338,7 @@ CREATE POLICY "Patient_Select_Own_evaluations"
     USING (patient_id::text = auth.uid()::text);
 
 -- ====================================================================
--- 8. POLICIES RLS PER TABELLA: TEST_VALUTAZIONI
+-- 8. POLICIES RLS PER TABELLA: TEST_VALUTAZIONI (usa 'patient_id')
 -- ====================================================================
 
 DROP POLICY IF EXISTS "Admin_Full_Access_test_valutazioni" ON public.test_valutazioni;
@@ -396,10 +363,10 @@ CREATE POLICY "Patient_Select_Own_test_valutazioni"
     ON public.test_valutazioni
     FOR SELECT
     TO authenticated
-    USING (paziente_id::text = auth.uid()::text);
+    USING (patient_id::text = auth.uid()::text);
 
 -- ====================================================================
--- 9. POLICIES RLS PER TABELLE DI SUPPORTO: PROFILI_UTENTI & AUDIT_LOGS
+-- 9. POLICIES RLS PER TABELLE DI PROFILO E AUDIT (usa 'id')
 -- ====================================================================
 
 DROP POLICY IF EXISTS "Admin_Full_Access_profili_utenti" ON public.profili_utenti;
@@ -410,8 +377,8 @@ CREATE POLICY "Admin_Full_Access_profili_utenti"
     ON public.profili_utenti
     FOR ALL
     TO authenticated
-    USING (auth.uid() = id OR public.is_admin_or_therapist())
-    WITH CHECK (auth.uid() = id OR public.is_admin_or_therapist());
+    USING (id::text = auth.uid()::text OR public.is_admin_or_therapist())
+    WITH CHECK (id::text = auth.uid()::text OR public.is_admin_or_therapist());
 
 DROP POLICY IF EXISTS "Admin_Full_Access_audit_logs" ON public.audit_logs;
 DROP POLICY IF EXISTS "Utenti autenticati possono inserire log di accesso" ON public.audit_logs;
