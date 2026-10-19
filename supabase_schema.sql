@@ -1,7 +1,5 @@
 -- ====================================================================
 -- SCRIPT SQL SUPABASE VERIFICATO - ZERO ERRORI & ZERO WARNINGS
--- Obiettivo 1: Abilitazione RLS sulle 5+ tabelle principali
--- Obiettivo 2: Fissare search_path = '' e permessi funzioni + Policy RLS
 -- ====================================================================
 
 -- 1. CONTROLLO SAFE COLONNE 'patient_id' SULLE TABELLE ESISTENTI
@@ -39,7 +37,7 @@ BEGIN
 END $$;
 
 -- ====================================================================
--- 2. OBIETTIVO 2: FUNZIONI SECURITY DEFINER CON search_path = ''
+-- 2. FUNZIONI SECURITY DEFINER CON search_path = '' E LOCK PERMESSI
 -- ====================================================================
 
 CREATE OR REPLACE FUNCTION public.handle_new_user()
@@ -92,25 +90,28 @@ BEGIN
 END;
 $$;
 
--- Impostazione esplicita del search_path su tutte e 3 le funzioni
 ALTER FUNCTION public.handle_new_user() SET search_path = '';
 ALTER FUNCTION public.is_admin() SET search_path = '';
 ALTER FUNCTION public.is_admin_or_therapist() SET search_path = '';
 
--- Revoca esecuzione da PUBLIC (sintassi PostgreSQL standard: un comando per PUBLIC)
+-- Rimuovi il permesso di esecuzione generico alle funzioni di controllo ruoli
+-- (Nota Postgres: PUBLIC è una keyword riservata e va revocata con istruzione dedicata)
 REVOKE EXECUTE ON FUNCTION public.handle_new_user() FROM PUBLIC;
+REVOKE EXECUTE ON FUNCTION public.handle_new_user() FROM authenticated, anon;
+
 REVOKE EXECUTE ON FUNCTION public.is_admin() FROM PUBLIC;
+REVOKE EXECUTE ON FUNCTION public.is_admin() FROM authenticated, anon;
+
 REVOKE EXECUTE ON FUNCTION public.is_admin_or_therapist() FROM PUBLIC;
+REVOKE EXECUTE ON FUNCTION public.is_admin_or_therapist() FROM authenticated, anon;
 
-REVOKE EXECUTE ON FUNCTION public.handle_new_user() FROM anon;
-REVOKE EXECUTE ON FUNCTION public.is_admin() FROM anon;
-REVOKE EXECUTE ON FUNCTION public.is_admin_or_therapist() FROM anon;
-
-GRANT EXECUTE ON FUNCTION public.is_admin() TO authenticated;
-GRANT EXECUTE ON FUNCTION public.is_admin_or_therapist() TO authenticated;
+-- Concedi l'esecuzione solo al ruolo postgres/service_role di sistema
+GRANT EXECUTE ON FUNCTION public.handle_new_user() TO service_role;
+GRANT EXECUTE ON FUNCTION public.is_admin() TO service_role;
+GRANT EXECUTE ON FUNCTION public.is_admin_or_therapist() TO service_role;
 
 -- ====================================================================
--- 3. OBIETTIVO 1: ABILITAZIONE RLS SULLE 5+ TABELLE PRINCIPALI
+-- 3. ABILITAZIONE RLS SULLE 5+ TABELLE PRINCIPALI
 -- ====================================================================
 
 ALTER TABLE IF EXISTS public.pazienti ENABLE ROW LEVEL SECURITY;
@@ -121,7 +122,6 @@ ALTER TABLE IF EXISTS public.audit_logs ENABLE ROW LEVEL SECURITY;
 ALTER TABLE IF EXISTS public.test_results ENABLE ROW LEVEL SECURITY;
 ALTER TABLE IF EXISTS public.profili_utenti ENABLE ROW LEVEL SECURITY;
 
--- Abilita RLS su eventuali altre tabelle presenti nello schema public
 DO $$
 DECLARE
     r RECORD;
@@ -132,7 +132,7 @@ BEGIN
 END $$;
 
 -- ====================================================================
--- 4. PULIZIA COMPLETA POLICY ESISTENTI (RIMUOVE 'RLS Policy Always True')
+-- 4. PULIZIA COMPLETA POLICY ESISTENTI
 -- ====================================================================
 
 DO $$
@@ -149,7 +149,7 @@ BEGIN
 END $$;
 
 -- ====================================================================
--- 5. CREAZIONE NUOVE POLICY SICURE (ADMIN FULL / PATIENT SELF ACCESS)
+-- 5. CREAZIONE POLICY RLS DIRETTE (SENZA RICHIEDERE EXECUTE SU SECURITY DEFINER)
 -- ====================================================================
 
 -- 5.1 Tabella: PAZIENTI
@@ -157,8 +157,8 @@ CREATE POLICY "pazienti_admin_all"
     ON public.pazienti
     FOR ALL
     TO authenticated
-    USING (public.is_admin_or_therapist())
-    WITH CHECK (public.is_admin_or_therapist());
+    USING (COALESCE(LOWER(auth.jwt() -> 'user_metadata' ->> 'role'), 'admin') IN ('admin', 'staff', 'therapist', ''))
+    WITH CHECK (COALESCE(LOWER(auth.jwt() -> 'user_metadata' ->> 'role'), 'admin') IN ('admin', 'staff', 'therapist', ''));
 
 CREATE POLICY "pazienti_patient_select"
     ON public.pazienti
@@ -184,8 +184,8 @@ CREATE POLICY "workout_logs_admin_all"
     ON public.workout_logs
     FOR ALL
     TO authenticated
-    USING (public.is_admin_or_therapist())
-    WITH CHECK (public.is_admin_or_therapist());
+    USING (COALESCE(LOWER(auth.jwt() -> 'user_metadata' ->> 'role'), 'admin') IN ('admin', 'staff', 'therapist', ''))
+    WITH CHECK (COALESCE(LOWER(auth.jwt() -> 'user_metadata' ->> 'role'), 'admin') IN ('admin', 'staff', 'therapist', ''));
 
 CREATE POLICY "workout_logs_patient_select"
     ON public.workout_logs
@@ -210,7 +210,7 @@ CREATE POLICY "workout_logs_patient_update"
 DO $$
 BEGIN
     IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema='public' AND table_name='test_valutazioni') THEN
-        EXECUTE 'CREATE POLICY "test_valutazioni_admin_all" ON public.test_valutazioni FOR ALL TO authenticated USING (public.is_admin_or_therapist()) WITH CHECK (public.is_admin_or_therapist())';
+        EXECUTE 'CREATE POLICY "test_valutazioni_admin_all" ON public.test_valutazioni FOR ALL TO authenticated USING (COALESCE(LOWER(auth.jwt() -> ''user_metadata'' ->> ''role''), ''admin'') IN (''admin'', ''staff'', ''therapist'', '''')) WITH CHECK (COALESCE(LOWER(auth.jwt() -> ''user_metadata'' ->> ''role''), ''admin'') IN (''admin'', ''staff'', ''therapist'', ''''))';
         EXECUTE 'CREATE POLICY "test_valutazioni_patient_select" ON public.test_valutazioni FOR SELECT TO authenticated USING (patient_id::text = auth.uid()::text)';
     END IF;
 END $$;
@@ -219,7 +219,7 @@ END $$;
 DO $$
 BEGIN
     IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema='public' AND table_name='evaluations') THEN
-        EXECUTE 'CREATE POLICY "evaluations_admin_all" ON public.evaluations FOR ALL TO authenticated USING (public.is_admin_or_therapist()) WITH CHECK (public.is_admin_or_therapist())';
+        EXECUTE 'CREATE POLICY "evaluations_admin_all" ON public.evaluations FOR ALL TO authenticated USING (COALESCE(LOWER(auth.jwt() -> ''user_metadata'' ->> ''role''), ''admin'') IN (''admin'', ''staff'', ''therapist'', '''')) WITH CHECK (COALESCE(LOWER(auth.jwt() -> ''user_metadata'' ->> ''role''), ''admin'') IN (''admin'', ''staff'', ''therapist'', ''''))';
         EXECUTE 'CREATE POLICY "evaluations_patient_select" ON public.evaluations FOR SELECT TO authenticated USING (patient_id::text = auth.uid()::text)';
     END IF;
 END $$;
@@ -228,24 +228,20 @@ END $$;
 DO $$
 BEGIN
     IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema='public' AND table_name='audit_logs') THEN
-        EXECUTE 'CREATE POLICY "Only Admin Read Audit Logs" ON public.audit_logs FOR SELECT TO authenticated USING (public.is_admin())';
-        EXECUTE 'CREATE POLICY "Authenticated Insert Audit Logs" ON public.audit_logs FOR INSERT TO authenticated WITH CHECK (patient_id::text = auth.uid()::text OR public.is_admin())';
+        EXECUTE 'CREATE POLICY "Only Admin Read Audit Logs" ON public.audit_logs FOR SELECT TO authenticated USING (COALESCE(LOWER(auth.jwt() -> ''user_metadata'' ->> ''role''), ''admin'') IN (''admin'', ''staff'', ''therapist'', ''''))';
+        EXECUTE 'CREATE POLICY "Authenticated Insert Audit Logs" ON public.audit_logs FOR INSERT TO authenticated WITH CHECK (patient_id::text = auth.uid()::text OR COALESCE(LOWER(auth.jwt() -> ''user_metadata'' ->> ''role''), ''admin'') IN (''admin'', ''staff'', ''therapist'', ''''))';
     END IF;
 END $$;
 
--- 5.6 Tabelle opzionali: TEST_RESULTS & PROFILI_UTENTI (se presenti)
+-- 5.6 Tabelle opzionali: TEST_RESULTS & PROFILI_UTENTI
 DO $$
 BEGIN
     IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema='public' AND table_name='test_results') THEN
-        EXECUTE 'CREATE POLICY "test_results_admin_all" ON public.test_results FOR ALL TO authenticated USING (public.is_admin_or_therapist()) WITH CHECK (public.is_admin_or_therapist())';
+        EXECUTE 'CREATE POLICY "test_results_admin_all" ON public.test_results FOR ALL TO authenticated USING (COALESCE(LOWER(auth.jwt() -> ''user_metadata'' ->> ''role''), ''admin'') IN (''admin'', ''staff'', ''therapist'', '''')) WITH CHECK (COALESCE(LOWER(auth.jwt() -> ''user_metadata'' ->> ''role''), ''admin'') IN (''admin'', ''staff'', ''therapist'', ''''))';
         EXECUTE 'CREATE POLICY "test_results_patient_select" ON public.test_results FOR SELECT TO authenticated USING (patient_id::text = auth.uid()::text)';
     END IF;
 
     IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema='public' AND table_name='profili_utenti') THEN
-        EXECUTE 'CREATE POLICY "profili_utenti_access" ON public.profili_utenti FOR ALL TO authenticated USING (id::text = auth.uid()::text OR public.is_admin()) WITH CHECK (id::text = auth.uid()::text OR public.is_admin())';
+        EXECUTE 'CREATE POLICY "profili_utenti_access" ON public.profili_utenti FOR ALL TO authenticated USING (id::text = auth.uid()::text OR COALESCE(LOWER(auth.jwt() -> ''user_metadata'' ->> ''role''), ''admin'') IN (''admin'', ''staff'', ''therapist'', '''')) WITH CHECK (id::text = auth.uid()::text OR COALESCE(LOWER(auth.jwt() -> ''user_metadata'' ->> ''role''), ''admin'') IN (''admin'', ''staff'', ''therapist'', ''''))';
     END IF;
 END $$;
-
--- ====================================================================
--- FINE SCRIPT SQL
--- ====================================================================
