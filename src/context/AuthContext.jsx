@@ -85,7 +85,7 @@ export const AuthProvider = ({ children }) => {
   useEffect(() => {
     if (!isSupabaseConfigured) return;
 
-    const handleSession = (activeSession) => {
+    const handleSession = async (activeSession) => {
       if (!activeSession?.user) return;
       const access = checkDeviceAccess();
       if (access.isTherapistDevice && !access.viewingClientPortal) {
@@ -95,6 +95,27 @@ export const AuthProvider = ({ children }) => {
         setRole('ADMIN');
         return;
       }
+
+      // Verifica se l'email del Magic Link appartiene a un collega Terapista/Admin registrato in profili_utenti
+      if (activeSession.user.email) {
+        const { data: staffProfile } = await supabase
+          .from('profili_utenti')
+          .select('ruolo')
+          .ilike('email', activeSession.user.email.trim())
+          .maybeSingle();
+
+        if (staffProfile && ['ADMIN', 'STAFF'].includes((staffProfile.ruolo || '').toUpperCase())) {
+          try {
+            localStorage.setItem('acl_therapist_device', 'true');
+            localStorage.removeItem('acl_client_only');
+          } catch (_) {}
+          setSession(activeSession);
+          setUser(activeSession.user);
+          setRole('ADMIN');
+          return;
+        }
+      }
+
       setSession(activeSession);
       setUser(activeSession.user);
       if (!access.isTherapistDevice) {
