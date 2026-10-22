@@ -1,64 +1,74 @@
-import React, { useState } from 'react';
-import { 
-  Calendar, 
-  Trophy, 
-  TrendingUp, 
-  Plus, 
-  Edit3, 
-  CheckCircle2, 
-  Zap, 
-  Flame, 
-  Activity, 
-  Sliders, 
-  ArrowUpRight, 
-  ArrowDownRight,
+import React, { useState, useMemo } from 'react';
+import {
+  Trophy,
+  Plus,
+  Edit3,
+  CheckCircle2,
+  Flame,
+  Activity,
   ShieldCheck,
-  Dumbbell,
-  Package,
   CheckSquare,
   Check,
-  Box
+  Layers,
+  CalendarRange
 } from 'lucide-react';
-import { useAuth } from '../../context/AuthContext';
 import ModalNuovaValutazione from '../ModalNuovaValutazione';
 import GraficoMultimetrica from '../GraficoMultimetrica';
-import { createTestObject, saveTestToSupabase, sortTestsByDate, getLastValidMetricValue, getLastValidMetricWithMeta } from '../../utils/testUtils';
+import {
+  createTestObject,
+  mergeTestIntoSession,
+  aggregateTestsIntoSessions,
+  saveTestToSupabase,
+  sortTestsByDate,
+  getLastValidMetricWithMeta,
+  toStrictNullOrNumber
+} from '../../utils/testUtils';
 import { UIErrorBoundary } from '../UIErrorBoundary';
 
-// Helper di sicurezza per parsing numerico senza crash di runtime
-const safeNum = (val, fallback = 0) => {
-  if (val === null || val === undefined || val === '' || val === '-') return fallback;
-  const n = Number(val);
-  return isNaN(n) ? fallback : n;
-};
-
-const safeFixed = (val, decimals = 1, fallback = 'N/D') => {
-  if (val === null || val === undefined || val === '' || val === '-') return fallback;
-  const n = Number(val);
-  return isNaN(n) ? fallback : n.toFixed(decimals);
+const safeFixed = (val, decimals = 1, fallback = 'N/A') => {
+  const n = toStrictNullOrNumber(val, false);
+  return n === null ? fallback : n.toFixed(decimals);
 };
 
 const calcRatioLsi = (val1, val2) => {
-  if (val1 === undefined || val1 === null || val1 === '' || val1 === '-') return null;
-  if (val2 === undefined || val2 === null || val2 === '' || val2 === '-') return null;
-  const n1 = typeof val1 === 'number' ? val1 : parseFloat(String(val1).replace(',', '.'));
-  const n2 = typeof val2 === 'number' ? val2 : parseFloat(String(val2).replace(',', '.'));
-  if (isNaN(n1) || isNaN(n2) || n1 <= 0 || n2 <= 0) return null;
+  const n1 = toStrictNullOrNumber(val1, false);
+  const n2 = toStrictNullOrNumber(val2, false);
+  if (n1 === null || n2 === null || n1 <= 0 || n2 <= 0) return null;
   const max = Math.max(n1, n2);
   if (max === 0) return null;
   return ((Math.min(n1, n2) / max) * 100).toFixed(1);
 };
 
-export default function TabBatteriaTest({ patient, activePhase, onChangePhase, onSaveTest }) {
-  const { role } = useAuth();
-  const isAdmin = role === 'ADMIN';
-
-  // State Modal Nuova Valutazione Clinica
+export default function TabBatteriaTest({ patient, activePhase, onSaveTest }) {
+  // State Modal Rilevazione Modulare Test
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingTest, setEditingTest] = useState(null);
+  const [initialModalModule, setInitialModalModule] = useState('ISO_EXT');
+
+  // Toggle Raggruppamento in Sessione/Report (14 giorni) vs Singole Rilevazioni
+  const [groupByReportSession, setGroupByReportSession] = useState(true);
 
   // Sub-Tab Superiori a Sinistra (Default: CMJ Bilaterale)
-  const [activeSubTab, setActiveSubTab] = useState('CMJ_BILATERAL'); // 'LSI', 'FORZA', 'CMJ_BILATERAL', 'CMJ_SL', 'DJ_BILATERAL', 'DJ_SL'
+  const [activeSubTab, setActiveSubTab] = useState('CMJ_BILATERAL');
+
+  // Mappa la sotto-tab attiva al modulo corrispondente nel modale
+  const getDefaultModuleForSubTab = (subTab) => {
+    switch (subTab) {
+      case 'LSI':
+      case 'FORZA':
+        return 'ISO_EXT';
+      case 'CMJ_BILATERAL':
+        return 'CMJ_BILATERAL';
+      case 'CMJ_SL':
+        return 'CMJ_SL';
+      case 'DJ_BILATERAL':
+        return 'DJ_BILATERAL';
+      case 'DJ_SL':
+        return 'DJ_SL';
+      default:
+        return 'ISO_EXT';
+    }
+  };
 
   // Mapper fase riabilitativa -> chiave fase per la Batteria Test
   const getPhaseKeyForBatteria = (fase) => {
@@ -72,10 +82,10 @@ export default function TabBatteriaTest({ patient, activePhase, onChangePhase, o
     return 'Fase 3 (>80%)';
   };
 
-  // Fase Target Selezionata a Destra (Sincronizzata di default con la Fase Attiva del paziente)
-  const [selectedPhase, setSelectedPhase] = useState(() => getPhaseKeyForBatteria(patient?.fase_riabilitativa || activePhase));
+  const [selectedPhase, setSelectedPhase] = useState(() =>
+    getPhaseKeyForBatteria(patient?.fase_riabilitativa || activePhase)
+  );
 
-  // Sincronizzazione automatica quando viene cambiata la fase nelle Direttive Operative
   React.useEffect(() => {
     const currentActive = patient?.fase_riabilitativa || activePhase;
     if (currentActive) {
@@ -83,39 +93,34 @@ export default function TabBatteriaTest({ patient, activePhase, onChangePhase, o
     }
   }, [patient?.fase_riabilitativa, activePhase]);
 
-  // CHECKLIST QUALITATIVA FASE 2
+  // CHECKLIST QUALITATIVA FASI 2, 3, 4
   const [phase2Checklist, setPhase2Checklist] = useState({
-    extensionComplete: true, 
-    noEffusion: true,        
-    singleLegSquat: true,    
-    pogoJump: false,         
-    landingStrategies: true  
+    extensionComplete: true,
+    noEffusion: true,
+    singleLegSquat: true,
+    pogoJump: false,
+    landingStrategies: true
   });
 
-  // CHECKLIST QUALITATIVA FASE 3
   const [phase3Checklist, setPhase3Checklist] = useState({
-    runningCurriculum: true,   
-    treadmillMechanics: true,  
-    noEffusionPostLoad: true   
+    runningCurriculum: true,
+    treadmillMechanics: true,
+    noEffusionPostLoad: true
   });
 
-  // CHECKLIST QUALITATIVA FASE 4
   const [phase4Checklist, setPhase4Checklist] = useState({
-    slDropJumpBox30: true,     
-    firstFieldTech: true,      
-    weeklyLoadTolerance: true  
+    slDropJumpBox30: true,
+    firstFieldTech: true,
+    weeklyLoadTolerance: true
   });
 
-  // STORICO TEST REGISTRATI NEL TEMPO (ordinati cronologicamente per data di esecuzione)
-  const [testsHistory, setTestsHistory] = useState(() => {
-    return sortTestsByDate(patient?.tests);
-  });
+  // STORICO TEST REGISTRATI NEL TEMPO
+  const [testsHistory, setTestsHistory] = useState(() => sortTestsByDate(patient?.tests));
   const [selectedTestId, setSelectedTestId] = useState(() => {
     const cleanTests = sortTestsByDate(patient?.tests);
     return cleanTests.length > 0 ? cleanTests[cleanTests.length - 1].id : null;
   });
 
-  // Sincronizzazione dinamica quando cambia il paziente o i suoi test
   React.useEffect(() => {
     const cleanTests = sortTestsByDate(patient?.tests);
     setTestsHistory(cleanTests);
@@ -126,53 +131,58 @@ export default function TabBatteriaTest({ patient, activePhase, onChangePhase, o
     }
   }, [patient?.id, patient?.tests]);
 
-  const activeTest = testsHistory.find(t => t.id === selectedTestId) || (testsHistory.length > 0 ? testsHistory[testsHistory.length - 1] : null);
+  // Elenco sessioni visualizzate: aggregate in Report (finestra 14gg / session_id) oppure singole
+  const displayedSessions = useMemo(() => {
+    if (groupByReportSession) {
+      return aggregateTestsIntoSessions(testsHistory, 14);
+    }
+    return testsHistory;
+  }, [testsHistory, groupByReportSession]);
+
+  const activeTest =
+    displayedSessions.find(t => t.id === selectedTestId) ||
+    (displayedSessions.length > 0 ? displayedSessions[displayedSessions.length - 1] : null);
 
   // CONFIGURAZIONE CLINICA FASI & TARGET
   const phaseConfig = {
-    'Fase 1': { 
-      name: '🔴 FASE 1: Early Stage (ROM & AMI)', 
-      isEarlyStage: true 
+    'Fase 1': {
+      name: '🔴 FASE 1: Early Stage (ROM & AMI)',
+      isEarlyStage: true
     },
-    'Fase 2 (>70%)': { 
-      name: '🟡 FASE 2: Mid Stage (Qualità & Landing)', 
+    'Fase 2 (>70%)': {
+      name: '🟡 FASE 2: Mid Stage (Qualità & Landing)',
       isPhase2: true
     },
-    'Fase 3 (>80%)': { 
-      name: '🟢 FASE 3: Return to Run & Decel', 
+    'Fase 3 (>80%)': {
+      name: '🟢 FASE 3: Return to Run & Decel',
       isPhase3: true
     },
-    'Fase 4': { 
-      name: '🔵 FASE 4: Late Stage (ASPETAR Pliometria & Potenza)', 
+    'Fase 4': {
+      name: '🔵 FASE 4: Late Stage (ASPETAR Pliometria & Potenza)',
       isPhase4: true
     },
-    'Fase 5 (RTS)': { 
-      name: '🌟 FASE 5: Return to Performance (Match Play)', 
-      targetLSIQuad: 95, 
-      targetQuadNmKg: 3.0, 
-      targetLSIHam: 95, 
-      targetRSI: 2.0 
+    'Fase 5 (RTS)': {
+      name: '🌟 FASE 5: Return to Performance (Match Play)',
+      targetLSIQuad: 95,
+      targetQuadNmKg: 3.0,
+      targetLSIHam: 95,
+      targetRSI: 2.0
     }
   };
 
   const currentPhase = phaseConfig[selectedPhase] || phaseConfig['Fase 3 (>80%)'];
 
-  // CONFIGURAZIONE BICCHIERI PRESTATIVI
+  // CONFIGURAZIONE BARRE TARGET PRESTATIVI (Titoli completi leggibili, zero date, null filtrati)
   let cupsData = [];
 
-  if (!testsHistory || testsHistory.length === 0) {
-    cupsData = [];
-  } else if (currentPhase.isEarlyStage) {
+  if (currentPhase.isEarlyStage) {
     cupsData = [
       {
         id: 'early_stage_info',
-        title: 'FASE 1: PRE-TEST',
-        subtitle: '(ROM & Estensione 0°)',
-        displayVal: '0.0° / 0°',
-        targetLabel: 'Target: Estensione Completa 0°',
-        percentageAchieved: 100,
-        isOk: true,
-        earlyNote: 'In questa prima fase il focus è sul recupero del gonfiore, ROM e controllo artrogeno. Test ad alto carico rimandati alla Fase 2.'
+        title: 'FASE 1: PRE-TEST CLINICO',
+        subtitle: 'Recupero ROM & Estensione Completa 0°',
+        earlyNote:
+          'In questa prima fase il focus è sul recupero del gonfiore, ROM completo e attivazione artrogena. I test di forza e salto ad alto carico iniziano dalla Fase 2.'
       }
     ];
   } else if (currentPhase.isPhase2) {
@@ -188,62 +198,53 @@ export default function TabBatteriaTest({ patient, activePhase, onChangePhase, o
     const lsiFlexVal = lsiFlexMeta?.value ?? null;
     const quadOpVal = quadOpMeta?.value ?? null;
     const flexOpVal = flexOpMeta?.value ?? null;
-    const hqRatioVal = (quadOpVal !== null && flexOpVal !== null && quadOpVal > 0) ? flexOpVal / quadOpVal : null;
+    const hqRatioVal =
+      quadOpVal !== null && flexOpVal !== null && quadOpVal > 0 ? flexOpVal / quadOpVal : null;
     const ikdcVal = ikdcMeta?.value ?? null;
 
     cupsData = [
       {
         id: 'lsi_quad',
-        title: 'LSI QUADRICIPITE',
-        subtitle: '(ISO Push Leg Ext...)',
+        title: 'LSI QUADRICIPITE (Iso Push Leg Extension)',
         value: lsiQuadVal,
-        meta: lsiQuadMeta,
-        displayVal: lsiQuadVal !== null ? `${safeFixed(lsiQuadVal, 1)}%` : 'N/D',
-        targetLabel: 'Target: >70%',
+        displayVal: lsiQuadVal !== null ? `${safeFixed(lsiQuadVal, 1)}%` : 'Non testato',
+        targetLabel: 'Target >70%',
         percentageAchieved: lsiQuadVal !== null ? Math.round((lsiQuadVal / 70) * 100) : 0,
         isOk: lsiQuadVal !== null ? lsiQuadVal >= 70 : false
       },
       {
         id: 'quad_rel_op',
-        title: 'FORZA REL. QUAD OP',
-        subtitle: '(Nm/kg Peso Corporeo)',
+        title: 'FORZA RELATIVA QUADRICIPITE OPERATO (Nm/kg)',
         value: quadOpNmKgVal,
-        meta: quadOpNmKgMeta,
-        displayVal: quadOpNmKgVal !== null ? `${safeFixed(quadOpNmKgVal, 2)} Nm/kg` : 'N/D',
-        targetLabel: 'Target: >2.0 Nm/kg',
+        displayVal: quadOpNmKgVal !== null ? `${safeFixed(quadOpNmKgVal, 2)} Nm/kg` : 'Non testato',
+        targetLabel: 'Target >2.0 Nm/kg',
         percentageAchieved: quadOpNmKgVal !== null ? Math.round((quadOpNmKgVal / 2.0) * 100) : 0,
         isOk: quadOpNmKgVal !== null ? quadOpNmKgVal >= 2.0 : false
       },
       {
         id: 'lsi_flex',
-        title: 'LSI HAMSTRING',
-        subtitle: '(ISO Push Leg Curl...)',
+        title: 'LSI HAMSTRING (Iso Push Leg Curl)',
         value: lsiFlexVal,
-        meta: lsiFlexMeta,
-        displayVal: lsiFlexVal !== null ? `${safeFixed(lsiFlexVal, 1)}%` : 'N/D',
-        targetLabel: 'Target: >70%',
+        displayVal: lsiFlexVal !== null ? `${safeFixed(lsiFlexVal, 1)}%` : 'Non testato',
+        targetLabel: 'Target >70%',
         percentageAchieved: lsiFlexVal !== null ? Math.round((lsiFlexVal / 70) * 100) : 0,
         isOk: lsiFlexVal !== null ? lsiFlexVal >= 70 : false
       },
       {
         id: 'hq_ratio',
-        title: 'H/Q RATIO ISOMETRICO',
-        subtitle: '(Flex OP / Quad OP)',
+        title: 'H/Q RATIO ISOMETRICO (Flessori / Quadricipite)',
         value: hqRatioVal,
-        meta: flexOpMeta || quadOpMeta,
-        displayVal: hqRatioVal !== null ? `${safeFixed(hqRatioVal, 2)}` : 'N/D',
-        targetLabel: 'Target: >0.55',
+        displayVal: hqRatioVal !== null ? `${safeFixed(hqRatioVal, 2)}` : 'Non testato',
+        targetLabel: 'Target >0.55',
         percentageAchieved: hqRatioVal !== null ? Math.round((hqRatioVal / 0.55) * 100) : 0,
         isOk: hqRatioVal !== null ? hqRatioVal >= 0.55 : false
       },
       {
         id: 'ikdc_score',
-        title: 'SCORE IKDC',
-        subtitle: '(Prontitudine Clinica)',
+        title: 'SCORE IKDC SOGGETTIVO (Prontitudine Clinica)',
         value: ikdcVal,
-        meta: ikdcMeta,
-        displayVal: ikdcVal !== null ? `${safeFixed(ikdcVal, 1)}/100` : 'N/D',
-        targetLabel: 'Target: >64/100',
+        displayVal: ikdcVal !== null ? `${safeFixed(ikdcVal, 1)}/100` : 'Non testato',
+        targetLabel: 'Target >64/100',
         percentageAchieved: ikdcVal !== null ? Math.round((ikdcVal / 64) * 100) : 0,
         isOk: ikdcVal !== null ? ikdcVal >= 64 : false
       }
@@ -264,58 +265,48 @@ export default function TabBatteriaTest({ patient, activePhase, onChangePhase, o
     cupsData = [
       {
         id: 'lsi_quad_3',
-        title: 'LSI QUADRICIPITE',
-        subtitle: '(Iso Push Leg Ext)',
+        title: 'LSI QUADRICIPITE (Iso Push Leg Extension)',
         value: lsiQuadVal,
-        meta: lsiQuadMeta,
-        displayVal: lsiQuadVal !== null ? `${safeFixed(lsiQuadVal, 1)}%` : 'N/D',
-        targetLabel: 'Target: >80%',
+        displayVal: lsiQuadVal !== null ? `${safeFixed(lsiQuadVal, 1)}%` : 'Non testato',
+        targetLabel: 'Target >80%',
         percentageAchieved: lsiQuadVal !== null ? Math.round((lsiQuadVal / 80) * 100) : 0,
         isOk: lsiQuadVal !== null ? lsiQuadVal >= 80 : false
       },
       {
         id: 'lsi_ham_3',
-        title: 'LSI HAMSTRING',
-        subtitle: '(Iso Push Leg Curl)',
+        title: 'LSI HAMSTRING (Iso Push Leg Curl)',
         value: lsiFlexVal,
-        meta: lsiFlexMeta,
-        displayVal: lsiFlexVal !== null ? `${safeFixed(lsiFlexVal, 1)}%` : 'N/D',
-        targetLabel: 'Target: >80%',
+        displayVal: lsiFlexVal !== null ? `${safeFixed(lsiFlexVal, 1)}%` : 'Non testato',
+        targetLabel: 'Target >80%',
         percentageAchieved: lsiFlexVal !== null ? Math.round((lsiFlexVal / 80) * 100) : 0,
         isOk: lsiFlexVal !== null ? lsiFlexVal >= 80 : false
       },
       {
         id: 'cmj_braking_3',
-        title: 'LSI BRAKING IMPULSE',
-        subtitle: '(CMJ Braking Imp)',
+        title: 'LSI BRAKING IMPULSE (Frenata Eccentrica CMJ)',
         value: cmjImpulseLsiVal,
-        meta: cmjImpulseLsiMeta,
-        displayVal: cmjImpulseLsiVal !== null ? `${safeFixed(cmjImpulseLsiVal, 1)}%` : 'N/D',
-        targetLabel: 'Target: >80%',
+        displayVal: cmjImpulseLsiVal !== null ? `${safeFixed(cmjImpulseLsiVal, 1)}%` : 'Non testato',
+        targetLabel: 'Target >80%',
         percentageAchieved: cmjImpulseLsiVal !== null ? Math.round((cmjImpulseLsiVal / 80) * 100) : 0,
         isOk: cmjImpulseLsiVal !== null ? cmjImpulseLsiVal >= 80 : false
       },
       {
         id: 'lsi_height_3',
-        title: 'SL CMJ HEIGHT LSI',
-        subtitle: '(Single Leg Jump)',
+        title: 'SL CMJ ALTEZZA SALTO LSI (Salto Monopodalico)',
         value: slCmjHeightLsiVal,
-        meta: slCmjHeightLsiMeta,
-        displayVal: slCmjHeightLsiVal !== null ? `${safeFixed(slCmjHeightLsiVal, 1)}%` : 'N/D',
-        targetLabel: 'Target: >80%',
+        displayVal: slCmjHeightLsiVal !== null ? `${safeFixed(slCmjHeightLsiVal, 1)}%` : 'Non testato',
+        targetLabel: 'Target >80%',
         percentageAchieved: slCmjHeightLsiVal !== null ? Math.round((slCmjHeightLsiVal / 80) * 100) : 0,
         isOk: slCmjHeightLsiVal !== null ? slCmjHeightLsiVal >= 80 : false
       },
       {
         id: 'rsi_dj_3',
-        title: 'DL DROP JUMP RSI',
-        subtitle: '(Double Leg Box)',
+        title: 'DROP JUMP BILATERALE RSI (Indice Reattivo)',
         value: rsiDropJumpVal,
-        meta: rsiDropJumpMeta,
-        displayVal: rsiDropJumpVal !== null ? `${safeFixed(rsiDropJumpVal, 2)} idx` : 'N/D',
-        targetLabel: 'Target: >1.20 idx',
-        percentageAchieved: rsiDropJumpVal !== null ? Math.round((rsiDropJumpVal / 1.20) * 100) : 0,
-        isOk: rsiDropJumpVal !== null ? rsiDropJumpVal >= 1.20 : false
+        displayVal: rsiDropJumpVal !== null ? `${safeFixed(rsiDropJumpVal, 2)} idx` : 'Non testato',
+        targetLabel: 'Target >1.20 idx',
+        percentageAchieved: rsiDropJumpVal !== null ? Math.round((rsiDropJumpVal / 1.2) * 100) : 0,
+        isOk: rsiDropJumpVal !== null ? rsiDropJumpVal >= 1.2 : false
       }
     ];
   } else if (currentPhase.isPhase4) {
@@ -336,67 +327,55 @@ export default function TabBatteriaTest({ patient, activePhase, onChangePhase, o
     cupsData = [
       {
         id: 'lsi_quad_p4',
-        title: 'LSI QUADRICIPITE',
-        subtitle: '(Iso Push Leg Ext)',
+        title: 'LSI QUADRICIPITE (Iso Push Leg Extension)',
         value: lsiQuadVal,
-        meta: lsiQuadMeta,
-        displayVal: lsiQuadVal !== null ? `${safeFixed(lsiQuadVal, 1)}%` : 'N/D',
-        targetLabel: 'Target: >85%',
+        displayVal: lsiQuadVal !== null ? `${safeFixed(lsiQuadVal, 1)}%` : 'Non testato',
+        targetLabel: 'Target >85%',
         percentageAchieved: lsiQuadVal !== null ? Math.round((lsiQuadVal / 85) * 100) : 0,
         isOk: lsiQuadVal !== null ? lsiQuadVal >= 85 : false
       },
       {
         id: 'lsi_ham_p4',
-        title: 'LSI HAMSTRING',
-        subtitle: '(Iso Push Leg Curl)',
+        title: 'LSI HAMSTRING (Iso Push Leg Curl)',
         value: lsiFlexVal,
-        meta: lsiFlexMeta,
-        displayVal: lsiFlexVal !== null ? `${safeFixed(lsiFlexVal, 1)}%` : 'N/D',
-        targetLabel: 'Target: >85%',
+        displayVal: lsiFlexVal !== null ? `${safeFixed(lsiFlexVal, 1)}%` : 'Non testato',
+        targetLabel: 'Target >85%',
         percentageAchieved: lsiFlexVal !== null ? Math.round((lsiFlexVal / 85) * 100) : 0,
         isOk: lsiFlexVal !== null ? lsiFlexVal >= 85 : false
       },
       {
         id: 'cmj_braking_p4',
-        title: 'LSI BRAKING IMPULSE',
-        subtitle: '(CMJ Braking Imp)',
+        title: 'LSI BRAKING IMPULSE (Frenata Eccentrica CMJ)',
         value: cmjAsymLsi,
-        meta: cmjAsymLsiMeta,
-        displayVal: cmjAsymLsi !== null ? `${safeFixed(cmjAsymLsi, 1)}% LSI` : 'N/D',
-        targetLabel: 'Target: >85%',
+        displayVal: cmjAsymLsi !== null ? `${safeFixed(cmjAsymLsi, 1)}%` : 'Non testato',
+        targetLabel: 'Target >85%',
         percentageAchieved: cmjAsymLsi !== null ? Math.round((cmjAsymLsi / 85) * 100) : 0,
         isOk: cmjAsymLsi !== null ? cmjAsymLsi >= 85 : false
       },
       {
         id: 'sl_cmj_p4',
-        title: 'SL CMJ HEIGHT LSI',
-        subtitle: '(Single Leg Jump)',
+        title: 'SL CMJ ALTEZZA SALTO LSI (Salto Monopodalico)',
         value: slCmjHeightLsiVal,
-        meta: slCmjHeightLsiMeta,
-        displayVal: slCmjHeightLsiVal !== null ? `${safeFixed(slCmjHeightLsiVal, 1)}%` : 'N/D',
-        targetLabel: 'Target: >85%',
+        displayVal: slCmjHeightLsiVal !== null ? `${safeFixed(slCmjHeightLsiVal, 1)}%` : 'Non testato',
+        targetLabel: 'Target >85%',
         percentageAchieved: slCmjHeightLsiVal !== null ? Math.round((slCmjHeightLsiVal / 85) * 100) : 0,
         isOk: slCmjHeightLsiVal !== null ? slCmjHeightLsiVal >= 85 : false
       },
       {
         id: 'dl_dj_p4',
-        title: 'DL DROP JUMP RSI',
-        subtitle: '(Double Leg Box)',
+        title: 'DROP JUMP BILATERALE RSI (Indice Reattivo)',
         value: rsiDropJumpVal,
-        meta: rsiDropJumpMeta,
-        displayVal: rsiDropJumpVal !== null ? `${safeFixed(rsiDropJumpVal, 2)} idx` : 'N/D',
-        targetLabel: 'Target: >1.30 idx',
-        percentageAchieved: rsiDropJumpVal !== null ? Math.round((rsiDropJumpVal / 1.30) * 100) : 0,
-        isOk: rsiDropJumpVal !== null ? rsiDropJumpVal >= 1.30 : false
+        displayVal: rsiDropJumpVal !== null ? `${safeFixed(rsiDropJumpVal, 2)} idx` : 'Non testato',
+        targetLabel: 'Target >1.30 idx',
+        percentageAchieved: rsiDropJumpVal !== null ? Math.round((rsiDropJumpVal / 1.3) * 100) : 0,
+        isOk: rsiDropJumpVal !== null ? rsiDropJumpVal >= 1.3 : false
       },
       {
         id: 'aclrsi_p4',
-        title: 'SCORE ACL-RSI',
-        subtitle: '(Prontitudine Psico)',
+        title: 'SCORE ACL-RSI (Prontitudine Psicologica)',
         value: aclrsiVal,
-        meta: aclrsiMeta,
-        displayVal: aclrsiVal !== null ? `${safeFixed(aclrsiVal, 1)}/100` : 'N/D',
-        targetLabel: 'Target: >65/100',
+        displayVal: aclrsiVal !== null ? `${safeFixed(aclrsiVal, 1)}/100` : 'Non testato',
+        targetLabel: 'Target >65/100',
         percentageAchieved: aclrsiVal !== null ? Math.round((aclrsiVal / 65) * 100) : 0,
         isOk: aclrsiVal !== null ? aclrsiVal >= 65 : false
       }
@@ -417,118 +396,45 @@ export default function TabBatteriaTest({ patient, activePhase, onChangePhase, o
     cupsData = [
       {
         id: 'lsi_quad',
-        title: 'LSI QUADRICIPITE',
-        subtitle: '(Iso Push Leg Ext)',
+        title: 'LSI QUADRICIPITE (Iso Push Leg Extension)',
         value: lsiQuadVal,
-        meta: lsiQuadMeta,
-        displayVal: lsiQuadVal !== null ? `${safeFixed(lsiQuadVal, 1)}%` : 'N/D',
-        targetLabel: `Target: >${targetQuadLSI}%`,
+        displayVal: lsiQuadVal !== null ? `${safeFixed(lsiQuadVal, 1)}%` : 'Non testato',
+        targetLabel: `Target >${targetQuadLSI}%`,
         percentageAchieved: lsiQuadVal !== null ? Math.round((lsiQuadVal / targetQuadLSI) * 100) : 0,
         isOk: lsiQuadVal !== null ? lsiQuadVal >= targetQuadLSI : false
       },
       {
         id: 'quad_nm_kg',
-        title: 'FORZA RELATIVA QUAD',
-        subtitle: '(Nm/kg peso corporeo)',
+        title: 'FORZA RELATIVA QUADRICIPITE OPERATO (Nm/kg)',
         value: quadOpNmKgVal,
-        meta: quadOpNmKgMeta,
-        displayVal: quadOpNmKgVal !== null ? `${safeFixed(quadOpNmKgVal, 2)} Nm/kg` : 'N/D',
-        targetLabel: `Target: >${targetNmKg} Nm/kg`,
+        displayVal: quadOpNmKgVal !== null ? `${safeFixed(quadOpNmKgVal, 2)} Nm/kg` : 'Non testato',
+        targetLabel: `Target >${targetNmKg} Nm/kg`,
         percentageAchieved: quadOpNmKgVal !== null ? Math.round((quadOpNmKgVal / targetNmKg) * 100) : 0,
         isOk: quadOpNmKgVal !== null ? quadOpNmKgVal >= targetNmKg : false
       },
       {
         id: 'rsi_drop_jump',
-        title: 'RSI DROP JUMP',
-        subtitle: '(Contact Time <250ms)',
+        title: 'RSI DROP JUMP BILATERALE (Contact Time <250ms)',
         value: rsiDropJumpVal,
-        meta: rsiDropJumpMeta,
-        displayVal: rsiDropJumpVal !== null ? `${safeFixed(rsiDropJumpVal, 2)} rsi` : 'N/D',
-        targetLabel: `Target: >${targetRsi} rsi`,
+        displayVal: rsiDropJumpVal !== null ? `${safeFixed(rsiDropJumpVal, 2)} rsi` : 'Non testato',
+        targetLabel: `Target >${targetRsi} rsi`,
         percentageAchieved: rsiDropJumpVal !== null ? Math.round((rsiDropJumpVal / targetRsi) * 100) : 0,
         isOk: rsiDropJumpVal !== null ? rsiDropJumpVal >= targetRsi : false
       }
     ];
   }
 
-  // Gestore salvataggio o modifica test da Modal (preserva SEMPRE i valori esistenti se il campo non è compilato)
+  // Salvataggio o merge in una Sessione / Report esistente (preservando i test precedenti della sessione e mantenendo null i campi non testati)
   const handleModalSave = async (newValData) => {
     const targetId = newValData.id || editingTest?.id;
-    const isEditing = !!targetId;
+    const existingMatch = targetId ? testsHistory.find(t => t.id === targetId) : null;
 
-    const keepIfValid = (newVal, existingVal) => {
-      if (newVal === null || newVal === undefined || newVal === '') return existingVal;
-      const num = typeof newVal === 'number' ? newVal : parseFloat(String(newVal).replace(',', '.'));
-      return !isNaN(num) && num > 0 ? num : existingVal;
-    };
-
-    if (isEditing) {
+    if (existingMatch) {
       const updated = testsHistory.map((existingTest) => {
         if (existingTest.id === targetId) {
-          const updatedTest = {
-            ...existingTest,
-            patient_id: patient?.id || existingTest.patient_id,
-            patientId: patient?.id || existingTest.patientId,
-            date: newValData.data_valutazione ? newValData.data_valutazione.split('-').reverse().join('/') : existingTest.date,
-            data_valutazione: newValData.data_valutazione || existingTest.data_valutazione,
-            lsiQuad: keepIfValid(newValData.lsi_quad_calculated, existingTest.lsiQuad),
-            lsiFlex: keepIfValid(newValData.lsi_curl_calculated, existingTest.lsiFlex),
-            quadSano: keepIfValid(newValData.iso_leg_ext_sx, existingTest.quadSano),
-            quadOp: keepIfValid(newValData.iso_leg_ext_dx, existingTest.quadOp),
-            flexSano: keepIfValid(newValData.iso_leg_curl_sx, existingTest.flexSano),
-            flexOp: keepIfValid(newValData.iso_leg_curl_dx, existingTest.flexOp),
-            calfRaiseSX: keepIfValid(newValData.calf_raise_sx, existingTest.calfRaiseSX),
-            calfRaiseDX: keepIfValid(newValData.calf_raise_dx, existingTest.calfRaiseDX),
-            soleoSX: keepIfValid(newValData.soleo_sx, existingTest.soleoSX),
-            soleoDX: keepIfValid(newValData.soleo_dx, existingTest.soleoDX),
-            bulgarianSX: keepIfValid(newValData.bulgarian_sx, existingTest.bulgarianSX),
-            bulgarianDX: keepIfValid(newValData.bulgarian_dx, existingTest.bulgarianDX),
-            imtpForce: keepIfValid(newValData.imtp_peak_force, existingTest.imtpForce),
-            jumpHeight: keepIfValid(newValData.jump_height_cm, existingTest.jumpHeight),
-            contractionTime: keepIfValid(newValData.contraction_time_ms, existingTest.contractionTime),
-            peakPower: keepIfValid(newValData.peak_power_w, existingTest.peakPower),
-            cmjDepth: keepIfValid(newValData.cmj_depth, existingTest.cmjDepth),
-            eccBrakingRfd: keepIfValid(newValData.ecc_braking_rfd, existingTest.eccBrakingRfd),
-            rsiCmj: keepIfValid(newValData.rsi_cmj, existingTest.rsiCmj),
-            eccBrakingSX: keepIfValid(newValData.ecc_braking_sx, existingTest.eccBrakingSX),
-            eccBrakingDX: keepIfValid(newValData.ecc_braking_dx, existingTest.eccBrakingDX),
-            concImpulseSX: keepIfValid(newValData.conc_impulse_sx, existingTest.concImpulseSX),
-            concImpulseDX: keepIfValid(newValData.conc_impulse_dx, existingTest.concImpulseDX),
-            slCmjHeightSX: keepIfValid(newValData.sl_cmj_height_sx, existingTest.slCmjHeightSX),
-            slCmjHeightDX: keepIfValid(newValData.sl_cmj_height_dx, existingTest.slCmjHeightDX),
-            slCmjCtSX: keepIfValid(newValData.sl_cmj_ct_sx, existingTest.slCmjCtSX),
-            slCmjCtDX: keepIfValid(newValData.sl_cmj_ct_dx, existingTest.slCmjCtDX),
-            slCmjPeakPowerSX: keepIfValid(newValData.sl_cmj_peak_power_sx, existingTest.slCmjPeakPowerSX),
-            slCmjPeakPowerDX: keepIfValid(newValData.sl_cmj_peak_power_dx, existingTest.slCmjPeakPowerDX),
-            slCmjRsiSX: keepIfValid(newValData.sl_cmj_rsi_sx, existingTest.slCmjRsiSX),
-            slCmjRsiDX: keepIfValid(newValData.sl_cmj_rsi_dx, existingTest.slCmjRsiDX),
-            slCmjDepthSX: keepIfValid(newValData.sl_cmj_depth_sx, existingTest.slCmjDepthSX),
-            slCmjDepthDX: keepIfValid(newValData.sl_cmj_depth_dx, existingTest.slCmjDepthDX),
-            slCmjEccImpulseSX: keepIfValid(newValData.sl_cmj_ecc_impulse_sx, existingTest.slCmjEccImpulseSX),
-            slCmjEccImpulseDX: keepIfValid(newValData.sl_cmj_ecc_impulse_dx, existingTest.slCmjEccImpulseDX),
-            djBoxHeight: newValData.dj_box_height || existingTest.djBoxHeight,
-            djContactTime: keepIfValid(newValData.dj_contact_time, existingTest.djContactTime),
-            rsiDropJump: keepIfValid(newValData.dj_rsi, existingTest.rsiDropJump),
-            djBrakingForce: keepIfValid(newValData.dj_braking_force, existingTest.djBrakingForce),
-            djBrakingImpulse: keepIfValid(newValData.dj_braking_impulse, existingTest.djBrakingImpulse),
-            slDjBoxHeight: newValData.sl_dj_box_height || existingTest.slDjBoxHeight,
-            slDjCtSX: keepIfValid(newValData.sl_dj_ct_sx, existingTest.slDjCtSX),
-            slDjCtDX: keepIfValid(newValData.sl_dj_ct_dx, existingTest.slDjCtDX),
-            slDjRsiSX: keepIfValid(newValData.sl_dj_rsi_sx, existingTest.slDjRsiSX),
-            slDjRsiDX: keepIfValid(newValData.sl_dj_rsi_dx, existingTest.slDjRsiDX),
-            slDjHeightSX: keepIfValid(newValData.sl_dj_height_sx, existingTest.slDjHeightSX),
-            slDjHeightDX: keepIfValid(newValData.sl_dj_height_dx, existingTest.slDjHeightDX),
-            slDjBrakingSX: keepIfValid(newValData.sl_dj_braking_sx, existingTest.slDjBrakingSX),
-            slDjBrakingDX: keepIfValid(newValData.sl_dj_braking_dx, existingTest.slDjBrakingDX),
-            brakingAsym: keepIfValid(newValData.ecc_braking_asym_calculated, existingTest.brakingAsym),
-            cmjImpulseLsi: newValData.ecc_braking_asym_calculated ? parseFloat((100 - parseFloat(newValData.ecc_braking_asym_calculated)).toFixed(1)) : existingTest.cmjImpulseLsi,
-            slCmjHeightLsi: keepIfValid(newValData.lsi_sl_cmj_height_calculated, existingTest.slCmjHeightLsi),
-            slCmjDepthLsi: keepIfValid(newValData.lsi_sl_cmj_depth_calculated, existingTest.slCmjDepthLsi),
-            slDjRsiLsi: keepIfValid(newValData.lsi_sl_dj_rsi_calculated, existingTest.slDjRsiLsi)
-          };
-          console.log("Dati inviati (modifica test):", updatedTest);
-          saveTestToSupabase(updatedTest);
-          return updatedTest;
+          const mergedSession = mergeTestIntoSession(existingTest, newValData, patient?.id);
+          saveTestToSupabase(mergedSession);
+          return mergedSession;
         }
         return existingTest;
       });
@@ -545,8 +451,6 @@ export default function TabBatteriaTest({ patient, activePhase, onChangePhase, o
       const newNum = testsHistory.length + 1;
       const newTest = createTestObject(newValData, patient?.id, newNum);
 
-      console.log("Dati inviati:", newTest);
-
       await saveTestToSupabase(newTest);
 
       const sortedAll = sortTestsByDate([...testsHistory, newTest]);
@@ -560,285 +464,443 @@ export default function TabBatteriaTest({ patient, activePhase, onChangePhase, o
     }
   };
 
-  // REQUISITI 1, 2, 3, 4: SOTTO-TAB PER TUTTE LE PRESTAZIONI DI SALTO
+  // SOTTO-TAB PER TUTTI I DOMINI (Senza alcun numero hardcoded fittizio: se non testato restituisce 'Non testato')
   const getSubTabRows = () => {
+    const fmtSingle = (val, unitStr = '') => {
+      const n = toStrictNullOrNumber(val, false);
+      return n !== null ? `${n}${unitStr ? ` ${unitStr}` : ''}` : 'Non testato';
+    };
+
+    const fmtPair = (sxVal, dxVal) => {
+      const sx = toStrictNullOrNumber(sxVal, false);
+      const dx = toStrictNullOrNumber(dxVal, false);
+      if (sx === null && dx === null) return 'Non testato';
+      return `${sx ?? 'N/A'} / ${dx ?? 'N/A'}`;
+    };
+
     switch (activeSubTab) {
       case 'LSI':
         return [
-          { key: 'lsiQuad', deltaKey: 'lsiQuadDelta', label: 'LSI Quadricipite Iso Push', unit: '%', dotColor: 'bg-emerald-400' },
-          { key: 'lsiFlex', deltaKey: 'lsiFlexDelta', label: 'LSI Ischiocrurali Leg Curl', unit: '%', dotColor: 'bg-emerald-400' },
-          { key: 'lsiSingleHop', deltaKey: 'lsiSingleHopDelta', label: 'LSI Single Hop Test', unit: '%', dotColor: 'bg-emerald-400' },
-          { key: 'lsiTripleHop', deltaKey: 'lsiTripleHopDelta', label: 'LSI Triple Hop Test', unit: '%', dotColor: 'bg-emerald-400' },
-          { key: 'aclrsi', label: 'Score ACL-RSI Psicometrico', unit: 'pts', dotColor: 'bg-cyan-400' }
-        ];
-      case 'FORZA':
-        return [
-          { key: 'quadSano', label: 'Iso Push Leg Ext (SX)', unit: 'N', dotColor: 'bg-[#06B6D4]', getValue: (t) => t.quadSano !== undefined ? t.quadSano : 393 },
-          { key: 'quadOp', label: 'Iso Push Leg Ext (DX)', unit: 'N', dotColor: 'bg-pink-400', getValue: (t) => t.quadOp !== undefined ? t.quadOp : 543 },
-          { key: 'flexSano', label: 'Iso Push Leg Curl (SX)', unit: 'N', dotColor: 'bg-[#06B6D4]', getValue: (t) => t.flexSano !== undefined ? t.flexSano : 185 },
-          { key: 'flexOp', label: 'Iso Push Leg Curl (DX)', unit: 'N', dotColor: 'bg-pink-400', getValue: (t) => t.flexOp !== undefined ? t.flexOp : 245 },
-          { key: 'bulgarianSX', label: 'Bulgarian 6RM (SX)', unit: 'kg', dotColor: 'bg-[#06B6D4]', getValue: (t) => t.bulgarianSX !== undefined ? t.bulgarianSX : 38 },
-          { key: 'bulgarianDX', label: 'Bulgarian 6RM (DX)', unit: 'kg', dotColor: 'bg-pink-400', getValue: (t) => t.bulgarianDX !== undefined ? t.bulgarianDX : '-' },
-          { key: 'soleoSX', label: 'Soleo (SX)', unit: 'kg', dotColor: 'bg-[#06B6D4]', getValue: (t) => t.soleoSX !== undefined ? t.soleoSX : '-' },
-          { key: 'soleoDX', label: 'Soleo (DX)', unit: 'kg', dotColor: 'bg-pink-400', getValue: (t) => t.soleoDX !== undefined ? t.soleoDX : '-' },
-          { key: 'imtpForce', label: 'IMTP Peak Force', unit: 'N', dotColor: 'bg-amber-400', getValue: (t) => t.imtpForce || '-' },
-          { key: 'imtpRelForce', label: 'IMTP Peak Force / BW', unit: 'N/kg', dotColor: 'bg-amber-400', getValue: (t) => t.imtpRelForce || '-' }
+          {
+            key: 'lsiQuad',
+            deltaKey: 'lsiQuadDelta',
+            label: 'LSI Quadricipite Iso Push',
+            unit: '%',
+            dotColor: 'bg-emerald-400',
+            getRawValue: (t) => toStrictNullOrNumber(t?.lsiQuad ?? t?.lsi_quad_calculated),
+            getValue: (t) => fmtSingle(t?.lsiQuad ?? t?.lsi_quad_calculated, '%')
+          },
+          {
+            key: 'lsiFlex',
+            deltaKey: 'lsiFlexDelta',
+            label: 'LSI Ischiocrurali Leg Curl',
+            unit: '%',
+            dotColor: 'bg-emerald-400',
+            getRawValue: (t) => toStrictNullOrNumber(t?.lsiFlex ?? t?.lsi_curl_calculated),
+            getValue: (t) => fmtSingle(t?.lsiFlex ?? t?.lsi_curl_calculated, '%')
+          },
+          {
+            key: 'lsiSingleHop',
+            label: 'LSI Single Hop Test',
+            unit: '%',
+            dotColor: 'bg-emerald-400',
+            getRawValue: (t) => toStrictNullOrNumber(t?.lsiSingleHop ?? t?.lsi_single_hop),
+            getValue: (t) => fmtSingle(t?.lsiSingleHop ?? t?.lsi_single_hop, '%')
+          },
+          {
+            key: 'lsiTripleHop',
+            label: 'LSI Triple Hop Test',
+            unit: '%',
+            dotColor: 'bg-emerald-400',
+            getRawValue: (t) => toStrictNullOrNumber(t?.lsiTripleHop ?? t?.lsi_triple_hop),
+            getValue: (t) => fmtSingle(t?.lsiTripleHop ?? t?.lsi_triple_hop, '%')
+          },
+          {
+            key: 'ikdc',
+            label: 'Score IKDC Soggettivo',
+            unit: '/100',
+            dotColor: 'bg-sky-400',
+            getRawValue: (t) => toStrictNullOrNumber(t?.ikdc ?? t?.ikdc_score),
+            getValue: (t) => fmtSingle(t?.ikdc ?? t?.ikdc_score, 'pts')
+          },
+          {
+            key: 'aclrsi',
+            label: 'Score ACL-RSI Psicometrico',
+            unit: '/100',
+            dotColor: 'bg-cyan-400',
+            getRawValue: (t) => toStrictNullOrNumber(t?.aclrsi ?? t?.acl_rsi),
+            getValue: (t) => fmtSingle(t?.aclrsi ?? t?.acl_rsi, 'pts')
+          }
         ];
 
-      // 1. TAB [CMJ Bilaterale]
+      case 'FORZA':
+        return [
+          {
+            key: 'quadSano',
+            label: 'Iso Push Leg Ext (SX)',
+            unit: 'N',
+            dotColor: 'bg-sky-400',
+            getRawValue: (t) => toStrictNullOrNumber(t?.quadSano ?? t?.iso_leg_ext_sx),
+            getValue: (t) => fmtSingle(t?.quadSano ?? t?.iso_leg_ext_sx, 'N')
+          },
+          {
+            key: 'quadOp',
+            label: 'Iso Push Leg Ext (DX)',
+            unit: 'N',
+            dotColor: 'bg-pink-400',
+            getRawValue: (t) => toStrictNullOrNumber(t?.quadOp ?? t?.iso_leg_ext_dx),
+            getValue: (t) => fmtSingle(t?.quadOp ?? t?.iso_leg_ext_dx, 'N')
+          },
+          {
+            key: 'flexSano',
+            label: 'Iso Push Leg Curl (SX)',
+            unit: 'N',
+            dotColor: 'bg-sky-400',
+            getRawValue: (t) => toStrictNullOrNumber(t?.flexSano ?? t?.iso_leg_curl_sx),
+            getValue: (t) => fmtSingle(t?.flexSano ?? t?.iso_leg_curl_sx, 'N')
+          },
+          {
+            key: 'flexOp',
+            label: 'Iso Push Leg Curl (DX)',
+            unit: 'N',
+            dotColor: 'bg-pink-400',
+            getRawValue: (t) => toStrictNullOrNumber(t?.flexOp ?? t?.iso_leg_curl_dx),
+            getValue: (t) => fmtSingle(t?.flexOp ?? t?.iso_leg_curl_dx, 'N')
+          },
+          {
+            key: 'bulgarianSX',
+            label: 'Bulgarian 6RM (SX)',
+            unit: 'kg',
+            dotColor: 'bg-sky-400',
+            getRawValue: (t) => toStrictNullOrNumber(t?.bulgarianSX ?? t?.bulgarian_sx),
+            getValue: (t) => fmtSingle(t?.bulgarianSX ?? t?.bulgarian_sx, 'kg')
+          },
+          {
+            key: 'bulgarianDX',
+            label: 'Bulgarian 6RM (DX)',
+            unit: 'kg',
+            dotColor: 'bg-pink-400',
+            getRawValue: (t) => toStrictNullOrNumber(t?.bulgarianDX ?? t?.bulgarian_dx),
+            getValue: (t) => fmtSingle(t?.bulgarianDX ?? t?.bulgarian_dx, 'kg')
+          },
+          {
+            key: 'soleoSX',
+            label: 'Soleo Seduto (SX)',
+            unit: 'kg',
+            dotColor: 'bg-sky-400',
+            getRawValue: (t) => toStrictNullOrNumber(t?.soleoSX ?? t?.soleo_sx),
+            getValue: (t) => fmtSingle(t?.soleoSX ?? t?.soleo_sx, 'kg')
+          },
+          {
+            key: 'soleoDX',
+            label: 'Soleo Seduto (DX)',
+            unit: 'kg',
+            dotColor: 'bg-pink-400',
+            getRawValue: (t) => toStrictNullOrNumber(t?.soleoDX ?? t?.soleo_dx),
+            getValue: (t) => fmtSingle(t?.soleoDX ?? t?.soleo_dx, 'kg')
+          },
+          {
+            key: 'imtpForce',
+            label: 'IMTP Peak Force',
+            unit: 'N',
+            dotColor: 'bg-amber-400',
+            getRawValue: (t) => toStrictNullOrNumber(t?.imtpForce ?? t?.imtp_peak_force),
+            getValue: (t) => fmtSingle(t?.imtpForce ?? t?.imtp_peak_force, 'N')
+          }
+        ];
+
       case 'CMJ_BILATERAL':
         return [
-          { 
-            key: 'jumpHeight', 
-            label: 'Altezza Salto', 
-            unit: 'cm', 
-            dotColor: 'bg-emerald-400', 
-            getValue: (t) => {
-              const v = t?.jumpHeight ?? t?.jump_height_cm ?? t?.altezza_salto ?? t?.jump_height;
-              return v !== undefined && v !== null && v !== '' ? `${v} cm` : 'N/D';
-            } 
+          {
+            key: 'jumpHeight',
+            label: 'Altezza Salto',
+            unit: 'cm',
+            dotColor: 'bg-emerald-400',
+            getRawValue: (t) => toStrictNullOrNumber(t?.jumpHeight ?? t?.jump_height_cm ?? t?.altezza_salto),
+            getValue: (t) => fmtSingle(t?.jumpHeight ?? t?.jump_height_cm ?? t?.altezza_salto, 'cm')
           },
-          { 
-            key: 'rsiCmj', 
-            label: 'RSImod', 
-            unit: 'm/s', 
-            dotColor: 'bg-emerald-400', 
+          {
+            key: 'rsiCmj',
+            label: 'RSImod',
+            unit: 'm/s',
+            dotColor: 'bg-emerald-400',
+            getRawValue: (t) => {
+              const direct = toStrictNullOrNumber(t?.rsiCmj ?? t?.rsi_cmj ?? t?.rsi_mod);
+              if (direct !== null) return direct;
+              const jh = toStrictNullOrNumber(t?.jumpHeight ?? t?.jump_height_cm ?? t?.altezza_salto);
+              const ct = toStrictNullOrNumber(t?.contractionTime ?? t?.contraction_time_ms ?? t?.tempo_contrazione);
+              return jh !== null && ct !== null && ct > 0 ? parseFloat(((jh / 100) / (ct / 1000)).toFixed(2)) : null;
+            },
             getValue: (t) => {
-              const rsi = t?.rsiCmj ?? t?.rsi_cmj ?? t?.rsi_mod ?? t?.rsi;
-              if (rsi !== undefined && rsi !== null && rsi !== '') return `${rsi} m/s`;
-              const jh = safeNum(t?.jumpHeight ?? t?.jump_height_cm ?? t?.altezza_salto, null);
-              const ct = safeNum(t?.contractionTime ?? t?.contraction_time_ms ?? t?.tempo_contrazione, null);
+              const direct = toStrictNullOrNumber(t?.rsiCmj ?? t?.rsi_cmj ?? t?.rsi_mod);
+              if (direct !== null) return `${direct} m/s`;
+              const jh = toStrictNullOrNumber(t?.jumpHeight ?? t?.jump_height_cm ?? t?.altezza_salto);
+              const ct = toStrictNullOrNumber(t?.contractionTime ?? t?.contraction_time_ms ?? t?.tempo_contrazione);
               if (jh !== null && ct !== null && ct > 0) {
                 return `${((jh / 100) / (ct / 1000)).toFixed(2)} m/s`;
               }
-              return 'N/D';
-            } 
+              return 'Non testato';
+            }
           },
-          { 
-            key: 'peakPower', 
-            label: 'Peak Power / BM', 
-            unit: 'W/kg', 
-            dotColor: 'bg-emerald-400', 
-            getValue: (t) => {
-              const v = t?.peakPower ?? t?.peak_power_w ?? t?.peak_power_bm ?? t?.potenza_picco;
-              return v !== undefined && v !== null && v !== '' ? `${v} W/kg` : 'N/D';
-            } 
+          {
+            key: 'peakPower',
+            label: 'Peak Power / BM',
+            unit: 'W/kg',
+            dotColor: 'bg-emerald-400',
+            getRawValue: (t) => toStrictNullOrNumber(t?.peakPower ?? t?.peak_power_w ?? t?.potenza_picco),
+            getValue: (t) => fmtSingle(t?.peakPower ?? t?.peak_power_w ?? t?.potenza_picco, 'W/kg')
           },
-          { 
-            key: 'cmjDepth', 
-            label: 'Countermovement Depth', 
-            unit: 'cm', 
-            dotColor: 'bg-cyan-400', 
-            getValue: (t) => {
-              const v = t?.cmjDepth ?? t?.cmj_depth ?? t?.countermovement_depth;
-              return v !== undefined && v !== null && v !== '' ? `${v} cm` : 'N/D';
-            } 
+          {
+            key: 'cmjDepth',
+            label: 'Countermovement Depth',
+            unit: 'cm',
+            dotColor: 'bg-cyan-400',
+            getRawValue: (t) => toStrictNullOrNumber(t?.cmjDepth ?? t?.cmj_depth),
+            getValue: (t) => fmtSingle(t?.cmjDepth ?? t?.cmj_depth, 'cm')
           },
-          { 
-            key: 'contractionTime', 
-            label: 'Contraction Time', 
-            unit: 'ms', 
-            dotColor: 'bg-amber-400', 
-            getValue: (t) => {
-              const v = t?.contractionTime ?? t?.contraction_time_ms ?? t?.tempo_contrazione;
-              return v !== undefined && v !== null && v !== '' ? `${v} ms` : 'N/D';
-            } 
+          {
+            key: 'contractionTime',
+            label: 'Contraction Time',
+            unit: 'ms',
+            dotColor: 'bg-amber-400',
+            getRawValue: (t) => toStrictNullOrNumber(t?.contractionTime ?? t?.contraction_time_ms),
+            getValue: (t) => fmtSingle(t?.contractionTime ?? t?.contraction_time_ms, 'ms')
           },
-          { 
-            key: 'eccBrakingRfd', 
-            label: 'Eccentric Braking RFD', 
-            unit: 'N/s', 
-            dotColor: 'bg-purple-400', 
-            getValue: (t) => {
-              const v = t?.eccBrakingRfd ?? t?.ecc_braking_rfd ?? t?.eccentric_braking_rfd;
-              return v !== undefined && v !== null && v !== '' ? `${v} N/s` : 'N/D';
-            } 
+          {
+            key: 'eccBrakingRfd',
+            label: 'Eccentric Braking RFD',
+            unit: 'N/s',
+            dotColor: 'bg-purple-400',
+            getRawValue: (t) => toStrictNullOrNumber(t?.eccBrakingRfd ?? t?.ecc_braking_rfd),
+            getValue: (t) => fmtSingle(t?.eccBrakingRfd ?? t?.ecc_braking_rfd, 'N/s')
           },
-          { 
-            key: 'concImpulseSplit', 
-            label: 'Concentric Impulse (SX / DX)', 
-            unit: 'N·s', 
-            dotColor: 'bg-cyan-400', 
-            getValue: (t) => {
-              const sx = t?.concImpulseSX ?? t?.conc_impulse_sx;
-              const dx = t?.concImpulseDX ?? t?.conc_impulse_dx;
-              return (sx !== undefined && sx !== null && dx !== undefined && dx !== null) ? `${sx} / ${dx}` : 'N/D';
-            },
+          {
+            key: 'concImpulseSplit',
+            label: 'Concentric Impulse (SX / DX)',
+            unit: 'N·s',
+            dotColor: 'bg-cyan-400',
+            getValue: (t) => fmtPair(t?.concImpulseSX ?? t?.conc_impulse_sx, t?.concImpulseDX ?? t?.conc_impulse_dx),
             getTooltip: (t) => {
-              const sx = t?.concImpulseSX ?? t?.conc_impulse_sx;
-              const dx = t?.concImpulseDX ?? t?.conc_impulse_dx;
+              const sx = toStrictNullOrNumber(t?.concImpulseSX ?? t?.conc_impulse_sx);
+              const dx = toStrictNullOrNumber(t?.concImpulseDX ?? t?.conc_impulse_dx);
               const lsi = calcRatioLsi(sx, dx);
-              return (sx !== undefined && sx !== null && dx !== undefined && dx !== null) ? ({ title: 'Concentric Impulse (SX vs DX)', sx: `${sx} N·s`, dx: `${dx} N·s`, asym: lsi ? `LSI: ${lsi}%` : 'LSI: N/D' }) : null;
+              return sx !== null && dx !== null
+                ? {
+                    title: 'Concentric Impulse (SX vs DX)',
+                    sx: `${sx} N·s`,
+                    dx: `${dx} N·s`,
+                    asym: lsi ? `LSI: ${lsi}%` : 'LSI: N/A'
+                  }
+                : null;
             }
           }
         ];
 
-      // 2. TAB [CMJ Monopodalico]
       case 'CMJ_SL':
         return [
-          { 
-            key: 'slCmjHeightSplit', 
-            label: 'Altezza Salto (SX / DX)', 
-            unit: 'cm', 
+          {
+            key: 'slCmjHeightSplit',
+            label: 'Altezza Salto (SX / DX)',
+            unit: 'cm',
             dotColor: 'bg-cyan-400',
-            getValue: (t) => (t.slCmjHeightSX !== undefined && t.slCmjHeightSX !== null && t.slCmjHeightDX !== undefined && t.slCmjHeightDX !== null) ? `${t.slCmjHeightSX} / ${t.slCmjHeightDX}` : 'N/D',
+            getValue: (t) => fmtPair(t?.slCmjHeightSX, t?.slCmjHeightDX),
             getTooltip: (t) => {
-              const lsi = calcRatioLsi(t.slCmjHeightSX, t.slCmjHeightDX);
-              return (t.slCmjHeightSX && t.slCmjHeightDX) ? ({ title: 'Altezza Salto SL (SX vs DX)', sx: `${t.slCmjHeightSX} cm`, dx: `${t.slCmjHeightDX} cm`, asym: lsi ? `LSI: ${lsi}%` : 'LSI: N/D' }) : null;
+              const sx = toStrictNullOrNumber(t?.slCmjHeightSX);
+              const dx = toStrictNullOrNumber(t?.slCmjHeightDX);
+              const lsi = calcRatioLsi(sx, dx);
+              return sx !== null && dx !== null
+                ? { title: 'Altezza Salto SL (SX vs DX)', sx: `${sx} cm`, dx: `${dx} cm`, asym: lsi ? `LSI: ${lsi}%` : 'LSI: N/A' }
+                : null;
             }
           },
-          { 
-            key: 'slCmjPeakPowerSplit', 
-            label: 'Peak Power / BM (SX / DX)', 
-            unit: 'W/kg', 
-            dotColor: 'bg-[#06B6D4]',
-            getValue: (t) => (t.slCmjPeakPowerSX !== undefined && t.slCmjPeakPowerSX !== null && t.slCmjPeakPowerDX !== undefined && t.slCmjPeakPowerDX !== null) ? `${t.slCmjPeakPowerSX} / ${t.slCmjPeakPowerDX}` : 'N/D',
+          {
+            key: 'slCmjPeakPowerSplit',
+            label: 'Peak Power / BM (SX / DX)',
+            unit: 'W/kg',
+            dotColor: 'bg-sky-400',
+            getValue: (t) => fmtPair(t?.slCmjPeakPowerSX, t?.slCmjPeakPowerDX),
             getTooltip: (t) => {
-              const lsi = calcRatioLsi(t.slCmjPeakPowerSX, t.slCmjPeakPowerDX);
-              return (t.slCmjPeakPowerSX && t.slCmjPeakPowerDX) ? ({ title: 'Peak Power / BM SL (SX vs DX)', sx: `${t.slCmjPeakPowerSX} W/kg`, dx: `${t.slCmjPeakPowerDX} W/kg`, asym: lsi ? `LSI: ${lsi}%` : 'LSI: N/D' }) : null;
+              const sx = toStrictNullOrNumber(t?.slCmjPeakPowerSX);
+              const dx = toStrictNullOrNumber(t?.slCmjPeakPowerDX);
+              const lsi = calcRatioLsi(sx, dx);
+              return sx !== null && dx !== null
+                ? { title: 'Peak Power / BM SL (SX vs DX)', sx: `${sx} W/kg`, dx: `${dx} W/kg`, asym: lsi ? `LSI: ${lsi}%` : 'LSI: N/A' }
+                : null;
             }
           },
-          { 
-            key: 'slCmjRsiSplit', 
-            label: 'RSImod (SX / DX)', 
-            unit: 'm/s', 
+          {
+            key: 'slCmjRsiSplit',
+            label: 'RSImod (SX / DX)',
+            unit: 'm/s',
             dotColor: 'bg-emerald-400',
-            getValue: (t) => (t.slCmjRsiSX !== undefined && t.slCmjRsiSX !== null && t.slCmjRsiDX !== undefined && t.slCmjRsiDX !== null) ? `${t.slCmjRsiSX} / ${t.slCmjRsiDX}` : 'N/D',
+            getValue: (t) => fmtPair(t?.slCmjRsiSX, t?.slCmjRsiDX),
             getTooltip: (t) => {
-              const lsi = calcRatioLsi(t.slCmjRsiSX, t.slCmjRsiDX);
-              return (t.slCmjRsiSX && t.slCmjRsiDX) ? ({ title: 'RSImod Monopodalico (SX vs DX)', sx: `${t.slCmjRsiSX} m/s`, dx: `${t.slCmjRsiDX} m/s`, asym: lsi ? `LSI: ${lsi}%` : 'LSI: N/D' }) : null;
+              const sx = toStrictNullOrNumber(t?.slCmjRsiSX);
+              const dx = toStrictNullOrNumber(t?.slCmjRsiDX);
+              const lsi = calcRatioLsi(sx, dx);
+              return sx !== null && dx !== null
+                ? { title: 'RSImod Monopodalico (SX vs DX)', sx: `${sx} m/s`, dx: `${dx} m/s`, asym: lsi ? `LSI: ${lsi}%` : 'LSI: N/A' }
+                : null;
             }
           },
-          { 
-            key: 'slCmjDepthSplit', 
-            label: 'Countermovement Depth (SX / DX)', 
-            unit: 'cm', 
+          {
+            key: 'slCmjDepthSplit',
+            label: 'Countermovement Depth (SX / DX)',
+            unit: 'cm',
             dotColor: 'bg-purple-400',
-            getValue: (t) => (t.slCmjDepthSX !== undefined && t.slCmjDepthSX !== null && t.slCmjDepthDX !== undefined && t.slCmjDepthDX !== null) ? `${t.slCmjDepthSX} / ${t.slCmjDepthDX}` : 'N/D',
+            getValue: (t) => fmtPair(t?.slCmjDepthSX, t?.slCmjDepthDX),
             getTooltip: (t) => {
-              const lsi = calcRatioLsi(t.slCmjDepthSX, t.slCmjDepthDX);
-              return (t.slCmjDepthSX && t.slCmjDepthDX) ? ({ title: 'Countermovement Depth SL (SX vs DX)', sx: `${t.slCmjDepthSX} cm`, dx: `${t.slCmjDepthDX} cm`, asym: lsi ? `LSI: ${lsi}%` : 'LSI: N/D' }) : null;
+              const sx = toStrictNullOrNumber(t?.slCmjDepthSX);
+              const dx = toStrictNullOrNumber(t?.slCmjDepthDX);
+              const lsi = calcRatioLsi(sx, dx);
+              return sx !== null && dx !== null
+                ? { title: 'Countermovement Depth SL (SX vs DX)', sx: `${sx} cm`, dx: `${dx} cm`, asym: lsi ? `LSI: ${lsi}%` : 'LSI: N/A' }
+                : null;
             }
           }
         ];
 
-      // 3. TAB [Drop Jump Bilaterale - RTP Specialist Metriche Temporali & Dual Load Cells]
       case 'DJ_BILATERAL':
         return [
-          { 
-            key: 'djBoxHeight', 
-            label: 'Altezza Caduta Box Selector', 
-            unit: '-', 
-            dotColor: 'bg-amber-400', 
-            getValue: (t) => t.djBoxHeight || '30 cm' 
+          {
+            key: 'djBoxHeight',
+            label: 'Altezza Caduta Box',
+            unit: '-',
+            dotColor: 'bg-amber-400',
+            getValue: (t) => {
+              const hasAnyDj =
+                toStrictNullOrNumber(t?.djJumpHeight) !== null ||
+                toStrictNullOrNumber(t?.djContactTime) !== null ||
+                toStrictNullOrNumber(t?.rsiDropJump) !== null;
+              return hasAnyDj ? (t?.djBoxHeight || '30 cm') : 'Non testato';
+            }
           },
-          { 
-            key: 'djJumpHeight', 
-            label: 'Altezza Salto (cm)', 
-            unit: 'cm', 
-            dotColor: 'bg-emerald-400', 
-            getValue: (t) => t.djJumpHeight !== undefined && t.djJumpHeight !== null ? `${t.djJumpHeight} cm` : (t.jumpHeight !== undefined ? `${t.jumpHeight} cm` : 'N/D') 
+          {
+            key: 'djJumpHeight',
+            label: 'Altezza Salto (cm)',
+            unit: 'cm',
+            dotColor: 'bg-emerald-400',
+            getRawValue: (t) => toStrictNullOrNumber(t?.djJumpHeight),
+            getValue: (t) => fmtSingle(t?.djJumpHeight, 'cm')
           },
-          { 
-            key: 'djContactTime', 
-            label: 'Ground Contact Time GCT (<250ms)', 
-            unit: 'ms', 
-            dotColor: 'bg-amber-400', 
-            getValue: (t) => t.djContactTime !== undefined && t.djContactTime !== null ? `${t.djContactTime} ms` : 'N/D' 
+          {
+            key: 'djContactTime',
+            label: 'Ground Contact Time GCT (<250ms)',
+            unit: 'ms',
+            dotColor: 'bg-amber-400',
+            getRawValue: (t) => toStrictNullOrNumber(t?.djContactTime),
+            getValue: (t) => fmtSingle(t?.djContactTime, 'ms')
           },
-          { 
-            key: 'rsiDropJump', 
-            label: '1. Efficienza Pliometrica RSI (>2.0)', 
-            unit: 'idx', 
-            dotColor: 'bg-emerald-400', 
-            getValue: (t) => t.rsiDropJump !== undefined && t.rsiDropJump !== null ? `${t.rsiDropJump} idx` : 'N/D' 
+          {
+            key: 'rsiDropJump',
+            label: '1. Efficienza Pliometrica RSI (>2.0)',
+            unit: 'idx',
+            dotColor: 'bg-emerald-400',
+            getRawValue: (t) => toStrictNullOrNumber(t?.rsiDropJump ?? t?.djRSI ?? t?.dj_rsi),
+            getValue: (t) => fmtSingle(t?.rsiDropJump ?? t?.djRSI ?? t?.dj_rsi, 'idx')
           },
-          { 
-            key: 'djTtpfMs', 
-            label: '2. Time to Peak Force TTPF (80-120ms)', 
-            unit: 'ms', 
-            dotColor: 'bg-cyan-400', 
-            getValue: (t) => t.djTtpfMs !== undefined && t.djTtpfMs !== null ? `${t.djTtpfMs} ms` : 'N/D' 
+          {
+            key: 'djTtpfMs',
+            label: '2. Time to Peak Force TTPF (80-120ms)',
+            unit: 'ms',
+            dotColor: 'bg-cyan-400',
+            getRawValue: (t) => toStrictNullOrNumber(t?.djTtpfMs),
+            getValue: (t) => fmtSingle(t?.djTtpfMs, 'ms')
           },
-          { 
-            key: 'djTakeoffAsymMs', 
-            label: '3. Asimmetria Temporale Stacco (<10ms)', 
-            unit: 'ms', 
-            dotColor: 'bg-emerald-400', 
-            getValue: (t) => t.djTakeoffAsymMs !== undefined && t.djTakeoffAsymMs !== null ? `${t.djTakeoffAsymMs} ms` : 'N/D' 
+          {
+            key: 'djTakeoffAsymMs',
+            label: '3. Asimmetria Temporale Stacco (<10ms)',
+            unit: 'ms',
+            dotColor: 'bg-emerald-400',
+            getRawValue: (t) => toStrictNullOrNumber(t?.djTakeoffAsymMs, true),
+            getValue: (t) => {
+              const v = toStrictNullOrNumber(t?.djTakeoffAsymMs, true);
+              return v !== null ? `${v} ms` : 'Non testato';
+            }
           },
-          { 
-            key: 'djLandingPeakLsi', 
-            label: 'Landing Peak Force LSI (>=90%)', 
-            unit: '%', 
-            dotColor: 'bg-pink-400', 
-            getValue: (t) => t.djLandingPeakLsi !== undefined && t.djLandingPeakLsi !== null ? `${t.djLandingPeakLsi}%` : (calcRatioLsi(t.djLandingPeakSX, t.djLandingPeakDX) ? `${calcRatioLsi(t.djLandingPeakSX, t.djLandingPeakDX)}%` : 'N/D') 
+          {
+            key: 'djLandingPeakLsi',
+            label: 'Landing Peak Force LSI (>=90%)',
+            unit: '%',
+            dotColor: 'bg-pink-400',
+            getRawValue: (t) => {
+              const direct = toStrictNullOrNumber(t?.djLandingPeakLsi);
+              if (direct !== null) return direct;
+              const calc = calcRatioLsi(t?.djLandingPeakSX, t?.djLandingPeakDX);
+              return calc !== null ? parseFloat(calc) : null;
+            },
+            getValue: (t) => {
+              const direct = toStrictNullOrNumber(t?.djLandingPeakLsi);
+              if (direct !== null) return `${direct}%`;
+              const calc = calcRatioLsi(t?.djLandingPeakSX, t?.djLandingPeakDX);
+              return calc !== null ? `${calc}%` : 'Non testato';
+            }
           },
-          { 
-            key: 'djConcImpulseLsi', 
-            label: 'Concentric Impulse LSI (>=95%)', 
-            unit: '%', 
-            dotColor: 'bg-cyan-400', 
-            getValue: (t) => t.djConcImpulseLsi !== undefined && t.djConcImpulseLsi !== null ? `${t.djConcImpulseLsi}%` : (calcRatioLsi(t.djConcImpulseSX, t.djConcImpulseDX) ? `${calcRatioLsi(t.djConcImpulseSX, t.djConcImpulseDX)}%` : 'N/D') 
-          },
-          { 
-            key: 'djValidationStatus', 
-            label: 'Stato Validazione Test RTP Specialist', 
-            unit: '-', 
-            dotColor: 'bg-emerald-400', 
-            getValue: (t) => t.djValidationStatus ? (t.djValidationStatus === 'PASSED' ? '✅ PASSED' : `❌ ${t.djFailReason || 'FAILED'}`) : 'N/D' 
+          {
+            key: 'djConcImpulseLsi',
+            label: 'Concentric Impulse LSI (>=95%)',
+            unit: '%',
+            dotColor: 'bg-cyan-400',
+            getRawValue: (t) => {
+              const direct = toStrictNullOrNumber(t?.djConcImpulseLsi);
+              if (direct !== null) return direct;
+              const calc = calcRatioLsi(t?.djConcImpulseSX, t?.djConcImpulseDX);
+              return calc !== null ? parseFloat(calc) : null;
+            },
+            getValue: (t) => {
+              const direct = toStrictNullOrNumber(t?.djConcImpulseLsi);
+              if (direct !== null) return `${direct}%`;
+              const calc = calcRatioLsi(t?.djConcImpulseSX, t?.djConcImpulseDX);
+              return calc !== null ? `${calc}%` : 'Non testato';
+            }
           }
         ];
 
-      // 4. TAB [Drop Jump Monopodalico / SL DJ]
       case 'DJ_SL':
         return [
-          { key: 'slDjBoxHeight', label: 'Altezza Caduta Box Selector', unit: 'cm', dotColor: 'bg-amber-400', getValue: (t) => t.slDjBoxHeight || '-' },
-          { 
-            key: 'slDjCtSplit', 
-            label: 'Ground Contact Time (SX / DX)', 
-            unit: 'ms', 
+          {
+            key: 'slDjBoxHeight',
+            label: 'Altezza Caduta Box',
+            unit: 'cm',
             dotColor: 'bg-amber-400',
-            getValue: (t) => (t.slDjCtSX !== undefined && t.slDjCtDX !== undefined) ? `${t.slDjCtSX} / ${t.slDjCtDX}` : 'N/D',
-            getTooltip: (t) => {
-              const lsi = calcRatioLsi(t.slDjCtSX, t.slDjCtDX);
-              return (t.slDjCtSX !== undefined && t.slDjCtDX !== undefined) ? ({ title: 'Ground Contact Time (SX vs DX)', sx: `${t.slDjCtSX} ms`, dx: `${t.slDjCtDX} ms`, asym: lsi ? `LSI: ${lsi}%` : 'LSI: N/D' }) : null;
+            getValue: (t) => {
+              const hasAnySlDj =
+                toStrictNullOrNumber(t?.slDjCtSX) !== null ||
+                toStrictNullOrNumber(t?.slDjRsiSX) !== null ||
+                toStrictNullOrNumber(t?.slDjHeightSX) !== null;
+              return hasAnySlDj ? (t?.slDjBoxHeight || '30 cm') : 'Non testato';
             }
           },
-          { 
-            key: 'slDjRsiSplit', 
-            label: 'RSI (SX / DX)', 
-            unit: 'm/s', 
+          {
+            key: 'slDjCtSplit',
+            label: 'Ground Contact Time (SX / DX)',
+            unit: 'ms',
+            dotColor: 'bg-amber-400',
+            getValue: (t) => fmtPair(t?.slDjCtSX, t?.slDjCtDX)
+          },
+          {
+            key: 'slDjRsiSplit',
+            label: 'RSI (SX / DX)',
+            unit: 'm/s',
             dotColor: 'bg-emerald-400',
-            getValue: (t) => (t.slDjRsiSX !== undefined && t.slDjRsiDX !== undefined) ? `${t.slDjRsiSX} / ${t.slDjRsiDX}` : 'N/D',
-            getTooltip: (t) => {
-              const lsi = calcRatioLsi(t.slDjRsiSX, t.slDjRsiDX);
-              return (t.slDjRsiSX !== undefined && t.slDjRsiDX !== undefined) ? ({ title: 'SL Drop Jump RSI (SX vs DX)', sx: `${t.slDjRsiSX} m/s`, dx: `${t.slDjRsiDX} m/s`, asym: lsi ? `LSI: ${lsi}%` : 'LSI: N/D' }) : null;
-            }
+            getValue: (t) => fmtPair(t?.slDjRsiSX, t?.slDjRsiDX)
           },
-          { 
-            key: 'slDjHeightSplit', 
-            label: 'Altezza Salto (SX / DX)', 
-            unit: 'cm', 
-            dotColor: 'bg-[#06B6D4]',
-            getValue: (t) => (t.slDjHeightSX !== undefined && t.slDjHeightDX !== undefined) ? `${t.slDjHeightSX} / ${t.slDjHeightDX}` : 'N/D',
-            getTooltip: (t) => {
-              const lsi = calcRatioLsi(t.slDjHeightSX, t.slDjHeightDX);
-              return (t.slDjHeightSX !== undefined && t.slDjHeightDX !== undefined) ? ({ title: 'SL Drop Jump Altezza (SX vs DX)', sx: `${t.slDjHeightSX} cm`, dx: `${t.slDjHeightDX} cm`, asym: lsi ? `LSI: ${lsi}%` : 'LSI: N/D' }) : null;
-            }
+          {
+            key: 'slDjHeightSplit',
+            label: 'Altezza Salto (SX / DX)',
+            unit: 'cm',
+            dotColor: 'bg-sky-400',
+            getValue: (t) => fmtPair(t?.slDjHeightSX, t?.slDjHeightDX)
           },
-          { 
-            key: 'slDjBrakingSplit', 
-            label: 'Braking Impulse (SX / DX)', 
-            unit: 'N·s', 
+          {
+            key: 'slDjBrakingSplit',
+            label: 'Braking Impulse (SX / DX)',
+            unit: 'N·s',
             dotColor: 'bg-purple-400',
-            getValue: (t) => (t.slDjBrakingSX !== undefined && t.slDjBrakingDX !== undefined) ? `${t.slDjBrakingSX} / ${t.slDjBrakingDX}` : 'N/D',
-            getTooltip: (t) => {
-              const lsi = calcRatioLsi(t.slDjBrakingSX, t.slDjBrakingDX);
-              return (t.slDjBrakingSX !== undefined && t.slDjBrakingDX !== undefined) ? ({ title: 'SL Drop Jump Braking Impulse', sx: `${t.slDjBrakingSX} N·s`, dx: `${t.slDjBrakingDX} N·s`, asym: lsi ? `LSI: ${lsi}%` : 'LSI: N/D' }) : null;
-            }
+            getValue: (t) => fmtPair(t?.slDjBrakingSX, t?.slDjBrakingDX)
           }
         ];
+
       default:
         return [];
     }
@@ -846,94 +908,125 @@ export default function TabBatteriaTest({ patient, activePhase, onChangePhase, o
 
   const rows = getSubTabRows();
 
-  // Helper calcolo variazione percentuale % rispetto al test precedente
+  // Calcolo variazione percentuale % ignorando rigorosamente i test intermedi in cui la metrica è null / Non testata
   const getDeltaText = (row, currTest, tIdx) => {
-    if (row.deltaKey && currTest[row.deltaKey]) return currTest[row.deltaKey];
-    if (tIdx === 0) return null;
-    const prevTest = testsHistory[tIdx - 1];
-    const currVal = row.getRawValue ? row.getRawValue(currTest) : currTest[row.key];
-    const prevVal = row.getRawValue ? row.getRawValue(prevTest) : prevTest[row.key];
-    const currNum = parseFloat(currVal);
-    const prevNum = parseFloat(prevVal);
-    if (isNaN(currNum) || isNaN(prevNum) || prevNum === 0) return null;
-    const diffPct = (((currNum - prevNum) / Math.abs(prevNum)) * 100).toFixed(1);
-    return diffPct >= 0 ? `+${diffPct}%` : `${diffPct}%`;
+    const currVal = row.getRawValue ? row.getRawValue(currTest) : toStrictNullOrNumber(currTest?.[row.key]);
+    if (currVal === null || tIdx === 0) return null;
+
+    // Cerca a ritroso la sessione precedente più recente in cui questa metrica era stata effettivamente rilevata
+    for (let p = tIdx - 1; p >= 0; p--) {
+      const prevSession = displayedSessions[p];
+      const prevVal = row.getRawValue ? row.getRawValue(prevSession) : toStrictNullOrNumber(prevSession?.[row.key]);
+      if (prevVal !== null && prevVal > 0) {
+        const diffPct = (((currVal - prevVal) / Math.abs(prevVal)) * 100).toFixed(1);
+        return Number(diffPct) >= 0 ? `+${diffPct}%` : `${diffPct}%`;
+      }
+    }
+    return null;
   };
 
-  // Checklist appropriata per la fase selezionata (Nomenclatura Sintetica 2-3 Parole)
-  const currentChecklistItems = currentPhase.isPhase4 ? [
-    { id: 'slDropJumpBox30', label: 'SL Drop Jump OK' },
-    { id: 'firstFieldTech', label: 'Primi Gesti Campo' },
-    { id: 'weeklyLoadTolerance', label: 'Tolleranza Carichi' }
-  ] : currentPhase.isPhase3 ? [
-    { id: 'runningCurriculum', label: 'Running 10min OK' },
-    { id: 'treadmillMechanics', label: 'Corsa Treadmill' },
-    { id: 'noEffusionPostLoad', label: 'No Dolore 24h' }
-  ] : [
-    { id: 'extensionComplete', label: 'Estensione 0° OK' },
-    { id: 'noEffusion', label: 'Assenza Gonfiore' },
-    { id: 'singleLegSquat', label: 'Single Leg Squat' },
-    { id: 'pogoJump', label: 'Pogo Jump SL' },
-    { id: 'landingStrategies', label: 'Landing OK' }
-  ];
+  const currentChecklistItems = currentPhase.isPhase4
+    ? [
+        { id: 'slDropJumpBox30', label: 'SL Drop Jump OK' },
+        { id: 'firstFieldTech', label: 'Primi Gesti Campo' },
+        { id: 'weeklyLoadTolerance', label: 'Tolleranza Carichi' }
+      ]
+    : currentPhase.isPhase3
+    ? [
+        { id: 'runningCurriculum', label: 'Running 10min OK' },
+        { id: 'treadmillMechanics', label: 'Corsa Treadmill' },
+        { id: 'noEffusionPostLoad', label: 'No Dolore 24h' }
+      ]
+    : [
+        { id: 'extensionComplete', label: 'Estensione 0° OK' },
+        { id: 'noEffusion', label: 'Assenza Gonfiore' },
+        { id: 'singleLegSquat', label: 'Single Leg Squat' },
+        { id: 'pogoJump', label: 'Pogo Jump SL' },
+        { id: 'landingStrategies', label: 'Landing OK' }
+      ];
 
-  const currentChecklistState = currentPhase.isPhase4 ? phase4Checklist : currentPhase.isPhase3 ? phase3Checklist : phase2Checklist;
-  const setCurrentChecklistState = currentPhase.isPhase4 ? setPhase4Checklist : currentPhase.isPhase3 ? setPhase3Checklist : setPhase2Checklist;
+  const currentChecklistState = currentPhase.isPhase4
+    ? phase4Checklist
+    : currentPhase.isPhase3
+    ? phase3Checklist
+    : phase2Checklist;
+  const setCurrentChecklistState = currentPhase.isPhase4
+    ? setPhase4Checklist
+    : currentPhase.isPhase3
+    ? setPhase3Checklist
+    : setPhase2Checklist;
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 select-none w-full items-start">
-      
+
       {/* ========================================================================= */}
-      {/* SEZIONE SINISTRA: TABELLA LONGITUDINALE (COL 8/12) */}
+      {/* SEZIONE SINISTRA: TABELLA LONGITUDINALE & SESSIONI REPORT (COL 8/12)      */}
       {/* ========================================================================= */}
       <div className="lg:col-span-8 bg-slate-800/80 p-5 sm:p-6 rounded-3xl border border-slate-700/60 space-y-4 shadow-xl backdrop-blur-sm w-full flex flex-col justify-between">
-        
-        {/* Header Tabella Pulita */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3.5 border-b border-slate-700/60">
-          <div>
-            <div className="flex items-center gap-2.5">
-              <div className="p-2 rounded-xl bg-slate-900 border border-slate-700/70 text-emerald-400 shadow-xs">
-                <Flame className="w-4 h-4 text-emerald-400" />
-              </div>
-              <div>
-                <h3 className="font-bold text-slate-100 text-sm sm:text-base tracking-wide uppercase">
-                  TABELLA DATI RACCOLTI PER TIPO DI TEST
-                </h3>
-                <p className="text-xs text-slate-400 font-medium mt-0.5">
-                  Seleziona un dominio prestativo per analizzare i valori assoluti e il delta rispetto al test precedente
-                </p>
-              </div>
+
+        {/* Header Tabella + Pulsanti Inserimento Modulare e Raggruppamento Report */}
+        <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-3 pb-3.5 border-b border-slate-700/60">
+          <div className="flex items-center gap-2.5">
+            <div className="p-2 rounded-xl bg-slate-900 border border-slate-700/70 text-emerald-400 shadow-xs">
+              <Flame className="w-4 h-4 text-emerald-400" />
+            </div>
+            <div>
+              <h3 className="font-bold text-slate-100 text-sm sm:text-base tracking-wide uppercase">
+                REPORT &amp; SESSIONI DI VALUTAZIONE CLINICA
+              </h3>
+              <p className="text-xs text-slate-400 font-medium mt-0.5">
+                I test effettuati in giorni diversi (7-14 gg) confluiscono nel Report di Sessione; i test assenti sono ignorati (<code className="text-slate-300">Non testato</code>)
+              </p>
             </div>
           </div>
 
-          <div className="flex items-center gap-2.5 self-start sm:self-auto">
+          <div className="flex flex-wrap items-center gap-2 self-start xl:self-auto">
+            {/* Toggle Raggruppamento Report 14gg vs Singole Date */}
+            <button
+              type="button"
+              onClick={() => setGroupByReportSession(prev => !prev)}
+              title="Unisce automaticamente i singoli test eseguiti nell'arco di 7-14 giorni in un unico Report di Valutazione"
+              className={`px-3 py-2 rounded-xl text-xs font-semibold flex items-center gap-1.5 border transition-all cursor-pointer ${
+                groupByReportSession
+                  ? 'bg-sky-500/15 text-sky-300 border-sky-500/40'
+                  : 'bg-slate-900 text-slate-400 border-slate-700 hover:text-slate-200'
+              }`}
+            >
+              <CalendarRange className="w-3.5 h-3.5" />
+              <span>{groupByReportSession ? 'Report Aggregato (7-14gg)' : 'Singole Rilevazioni'}</span>
+            </button>
+
             {activeTest && (
               <button
+                type="button"
                 onClick={() => {
                   setEditingTest(activeTest);
+                  setInitialModalModule(getDefaultModuleForSubTab(activeSubTab));
                   setIsModalOpen(true);
                 }}
                 className="px-3.5 py-2 bg-slate-900 hover:bg-slate-700 text-slate-100 font-semibold rounded-xl text-xs flex items-center gap-1.5 border border-slate-600/80 hover:border-slate-400 transition-all cursor-pointer shrink-0 shadow-xs"
               >
                 <Edit3 className="w-3.5 h-3.5 text-amber-400" />
-                <span>Modifica {activeTest.label}</span>
+                <span>Aggiungi / Modifica in {activeTest.session_name || activeTest.label}</span>
               </button>
             )}
 
             <button
+              type="button"
               onClick={() => {
                 setEditingTest(null);
+                setInitialModalModule(getDefaultModuleForSubTab(activeSubTab));
                 setIsModalOpen(true);
               }}
               className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-xl text-xs flex items-center gap-1.5 shadow-md border border-emerald-400/40 transition-all cursor-pointer shrink-0"
             >
               <Plus className="w-4 h-4 text-white" />
-              <span>+ Nuova Valutazione</span>
+              <span>+ Rileva Singolo Test</span>
             </button>
           </div>
         </div>
 
-        {/* 6 Pills Sotto-Tab (Palette Slate/Zinc neutra con tab attiva ben staccata) */}
+        {/* 6 Pills Sotto-Tab per Dominio */}
         <div className="flex items-center gap-1.5 flex-nowrap overflow-x-auto scrollbar-none p-1.5 bg-slate-900/90 rounded-2xl border border-slate-700/60">
           {[
             { id: 'LSI', label: '⚡ Simmetrie & LSI (%)' },
@@ -960,43 +1053,55 @@ export default function TabBatteriaTest({ patient, activePhase, onChangePhase, o
           })}
         </div>
 
-        {/* TABELLA STORICO LONGITUDINALE MULTI-SEDUTA AD ALTO CONTRASTO */}
-        <div className="overflow-x-auto overflow-y-auto max-h-[490px] rounded-2xl border border-slate-700/70 bg-slate-900 shadow-inner w-full scrollbar-thin">
+        {/* TABELLA STORICO LONGITUDINALE MULTI-SESSIONE */}
+        <div className="overflow-x-auto overflow-y-auto max-h-[500px] rounded-2xl border border-slate-700/70 bg-slate-900 shadow-inner w-full scrollbar-thin">
           <table className="w-full min-w-max text-left border-collapse">
             <thead>
               <tr className="border-b-2 border-slate-700/80 text-[11px] font-mono font-bold text-slate-300 uppercase tracking-wider bg-slate-800">
-                <th className="sticky top-0 left-0 z-40 bg-slate-800 border-b-2 border-r border-slate-700/80 py-3.5 px-4 text-slate-100 font-bold min-w-[225px] w-[235px]">
+                <th className="sticky top-0 left-0 z-40 bg-slate-800 border-b-2 border-r border-slate-700/80 py-3.5 px-4 text-slate-100 font-bold min-w-[230px] w-[240px]">
                   Parametro Metrica
                 </th>
 
-                {testsHistory.map((t) => {
+                {displayedSessions.map((t) => {
                   const isSelected = t.id === selectedTestId;
                   return (
-                    <th 
+                    <th
                       key={t.id}
                       onClick={() => setSelectedTestId(t.id)}
-                      className={`sticky top-0 z-30 py-3 px-3 text-center cursor-pointer transition-all border-b-2 border-r border-slate-700/60 min-w-[115px] w-[125px] ${
-                        isSelected 
-                          ? 'bg-slate-900 text-white font-bold border-t-2 border-t-emerald-400 shadow-inner' 
+                      className={`sticky top-0 z-30 py-3 px-3.5 text-center cursor-pointer transition-all border-b-2 border-r border-slate-700/60 min-w-[135px] ${
+                        isSelected
+                          ? 'bg-slate-900 text-white font-bold border-t-2 border-t-emerald-400 shadow-inner'
                           : 'bg-slate-800 hover:bg-slate-700/70 text-slate-300'
                       }`}
                     >
                       <div className="flex items-center justify-center gap-1.5">
-                        <span className="font-bold text-xs tracking-tight text-slate-100">{t.label}</span>
+                        <span className="font-bold text-xs tracking-tight text-slate-100">
+                          {t.session_name || t.label}
+                        </span>
                         <button
+                          type="button"
                           onClick={(e) => {
                             e.stopPropagation();
                             setSelectedTestId(t.id);
                             setEditingTest(t);
+                            setInitialModalModule(getDefaultModuleForSubTab(activeSubTab));
                             setIsModalOpen(true);
                           }}
-                          title={`Modifica ${t.label}`}
+                          title={`Aggiungi o modifica test in ${t.session_name || t.label}`}
                           className="p-1 hover:bg-slate-700 rounded-md transition-colors text-slate-400 hover:text-amber-400"
                         >
                           <Edit3 className="w-3 h-3 text-amber-400" />
                         </button>
                       </div>
-                      <div className="text-[10px] text-slate-400 font-mono font-semibold mt-0.5">{t.date}</div>
+                      <div className="text-[10px] text-slate-400 font-mono font-semibold mt-0.5">
+                        {t.dateRange || t.date}
+                      </div>
+                      {t.aggregatedCount > 1 && (
+                        <div className="mt-1 inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-sky-500/15 border border-sky-500/30 text-[9px] text-sky-300 font-sans font-bold">
+                          <Layers className="w-2.5 h-2.5" />
+                          <span>{t.aggregatedCount} rilevazioni</span>
+                        </div>
+                      )}
                     </th>
                   );
                 })}
@@ -1004,106 +1109,124 @@ export default function TabBatteriaTest({ patient, activePhase, onChangePhase, o
             </thead>
 
             <tbody className="divide-y divide-slate-700/50 text-xs">
-              {testsHistory.length === 0 ? (
+              {displayedSessions.length === 0 ? (
                 <tr>
                   <td colSpan={10} className="py-14 text-center text-slate-400 font-medium bg-slate-900">
                     <div className="space-y-2.5 max-w-sm mx-auto">
                       <Activity className="w-8 h-8 text-emerald-400 mx-auto" />
-                      <p className="text-sm font-bold text-slate-100">Nessuna valutazione registrata per {patient?.nome} {patient?.cognome}</p>
-                      <p className="text-xs text-slate-400">Clicca sul pulsante in alto <strong className="text-emerald-400 font-bold">"+ Nuova Valutazione"</strong> per inserire i dati del primo test clinico.</p>
+                      <p className="text-sm font-bold text-slate-100">
+                        Nessun test registrato per {patient?.nome} {patient?.cognome}
+                      </p>
+                      <p className="text-xs text-slate-400">
+                        Clicca su <strong className="text-emerald-400 font-bold">&quot;+ Rileva Singolo Test&quot;</strong> per scegliere quale test clinico inserire.
+                      </p>
                     </div>
                   </td>
                 </tr>
               ) : (
                 rows.map((row, rowIdx) => (
-                <tr
-                  key={row.key}
-                  className={`transition-colors border-b border-slate-700/50 ${
-                    rowIdx % 2 === 0 ? 'bg-slate-900/80' : 'bg-slate-800/45'
-                  } hover:bg-slate-700/45`}
-                >
-                  
-                  {/* Colonna 1: Parametro Metrica Sticky ad alto contrasto */}
-                  <td className={`sticky left-0 z-20 border-r border-slate-700/70 py-3 px-4 min-w-[225px] w-[235px] ${
-                    rowIdx % 2 === 0 ? 'bg-slate-900' : 'bg-slate-800'
-                  }`}>
-                    <div className="flex items-center gap-2">
-                      <span className={`w-2.5 h-2.5 rounded-full ${row.dotColor || 'bg-emerald-400'} shrink-0 shadow-xs`}></span>
-                      <span className="truncate text-[13px] font-semibold text-slate-100">
-                        {row.label}
-                        {row.unit && row.unit !== '-' && (
-                          <span className="ml-1.5 text-slate-400 font-normal text-[11px] font-mono">
-                            ({row.unit})
-                          </span>
-                        )}
-                      </span>
-                    </div>
-                  </td>
-
-                  {/* Colonne Test Registrati: Dati Numerici e Badge Delta ad alto contrasto */}
-                  {testsHistory.map((t, tIdx) => {
-                    const isSelected = t.id === selectedTestId;
-                    const displayVal = row.getValue ? row.getValue(t) : (t[row.key] !== undefined ? t[row.key] : '-');
-                    const delta = getDeltaText(row, t, tIdx);
-                    const tooltipData = row.getTooltip ? row.getTooltip(t) : null;
-
-                    return (
-                      <td 
-                        key={t.id}
-                        onClick={() => setSelectedTestId(t.id)}
-                        className={`relative group py-3 px-3 text-center font-mono cursor-pointer transition-all border-r border-slate-700/40 min-w-[115px] w-[125px] ${
-                          isSelected ? 'bg-slate-800/90 font-bold ring-1 ring-inset ring-emerald-500/30' : 'hover:bg-slate-700/35'
-                        }`}
-                      >
-                        <div className="flex items-center justify-center gap-1.5 flex-wrap">
-                          <span className="font-bold text-[13px] text-white tabular-nums">
-                            {displayVal}
-                          </span>
-                          {delta && (
-                            <span className={`text-[10px] font-bold font-mono px-1.5 py-0.5 rounded-md border ${
-                              delta.startsWith('+')
-                                ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30'
-                                : 'bg-rose-500/20 text-rose-400 border-rose-500/30'
-                            }`}>
-                              {delta}
+                  <tr
+                    key={row.key}
+                    className={`transition-colors border-b border-slate-700/50 ${
+                      rowIdx % 2 === 0 ? 'bg-slate-900/80' : 'bg-slate-800/45'
+                    } hover:bg-slate-700/45`}
+                  >
+                    {/* Colonna 1: Parametro Metrica */}
+                    <td
+                      className={`sticky left-0 z-20 border-r border-slate-700/70 py-3.5 px-4 min-w-[230px] w-[240px] ${
+                        rowIdx % 2 === 0 ? 'bg-slate-900' : 'bg-slate-800'
+                      }`}
+                    >
+                      <div className="flex items-center gap-2">
+                        <span className={`w-2.5 h-2.5 rounded-full ${row.dotColor || 'bg-emerald-400'} shrink-0 shadow-xs`} />
+                        <span className="text-[13px] font-semibold text-slate-100 leading-snug">
+                          {row.label}
+                          {row.unit && row.unit !== '-' && (
+                            <span className="ml-1.5 text-slate-400 font-normal text-[11px] font-mono">
+                              ({row.unit})
                             </span>
                           )}
-                        </div>
+                        </span>
+                      </div>
+                    </td>
 
-                        {/* HOVER TOOLTIP INTERATTIVO */}
-                        {tooltipData && (
-                          <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 hidden group-hover:flex flex-col z-50 w-64 p-3.5 rounded-2xl bg-slate-900 border border-slate-600 shadow-2xl text-xs font-sans pointer-events-none text-left">
-                            <div className="font-bold text-slate-100 text-xs border-b border-slate-700 pb-1.5 mb-2 flex items-center justify-between">
-                              <span>{tooltipData.title}</span>
-                              <span className="text-[10px] font-mono text-slate-400">{t.date}</span>
-                            </div>
-                            <div className="flex justify-between items-center text-slate-300 py-0.5">
-                              <span className="flex items-center gap-1.5">
-                                <span className="w-2 h-2 rounded-full bg-emerald-400"></span>
-                                Gamba SX:
+                    {/* Colonne Sessioni Registrate */}
+                    {displayedSessions.map((t, tIdx) => {
+                      const isSelected = t.id === selectedTestId;
+                      const displayVal = row.getValue
+                        ? row.getValue(t)
+                        : toStrictNullOrNumber(t[row.key]) !== null
+                        ? String(t[row.key])
+                        : 'Non testato';
+                      const isUntested =
+                        displayVal === 'Non testato' || displayVal === 'N/A' || displayVal === 'N/D' || displayVal === '-';
+                      const delta = !isUntested ? getDeltaText(row, t, tIdx) : null;
+                      const tooltipData = !isUntested && row.getTooltip ? row.getTooltip(t) : null;
+
+                      return (
+                        <td
+                          key={t.id}
+                          onClick={() => setSelectedTestId(t.id)}
+                          className={`relative group py-3 px-3 text-center font-mono cursor-pointer transition-all border-r border-slate-700/40 min-w-[135px] ${
+                            isSelected
+                              ? 'bg-slate-800/90 font-bold ring-1 ring-inset ring-emerald-500/30'
+                              : 'hover:bg-slate-700/35'
+                          }`}
+                        >
+                          {isUntested ? (
+                            <span className="inline-block px-2 py-0.5 rounded bg-slate-800/70 text-slate-500 text-[11px] font-sans font-medium">
+                              Non testato
+                            </span>
+                          ) : (
+                            <div className="flex items-center justify-center gap-1.5 flex-wrap">
+                              <span className="font-bold text-[13px] text-white tabular-nums">
+                                {displayVal}
                               </span>
-                              <strong className="text-white font-mono">{tooltipData.sx}</strong>
+                              {delta && (
+                                <span
+                                  className={`text-[10px] font-bold font-mono px-1.5 py-0.5 rounded-md border ${
+                                    delta.startsWith('+')
+                                      ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30'
+                                      : 'bg-rose-500/20 text-rose-400 border-rose-500/30'
+                                  }`}
+                                >
+                                  {delta}
+                                </span>
+                              )}
                             </div>
-                            <div className="flex justify-between items-center text-slate-300 py-0.5">
-                              <span className="flex items-center gap-1.5">
-                                <span className="w-2 h-2 rounded-full bg-amber-400"></span>
-                                Gamba DX:
-                              </span>
-                              <strong className="text-white font-mono">{tooltipData.dx}</strong>
+                          )}
+
+                          {/* HOVER TOOLTIP INTERATTIVO */}
+                          {tooltipData && (
+                            <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 hidden group-hover:flex flex-col z-50 w-64 p-3.5 rounded-2xl bg-slate-900 border border-slate-600 shadow-2xl text-xs font-sans pointer-events-none text-left">
+                              <div className="font-bold text-slate-100 text-xs border-b border-slate-700 pb-1.5 mb-2 flex items-center justify-between">
+                                <span>{tooltipData.title}</span>
+                              </div>
+                              <div className="flex justify-between items-center text-slate-300 py-0.5">
+                                <span className="flex items-center gap-1.5">
+                                  <span className="w-2 h-2 rounded-full bg-emerald-400" />
+                                  Gamba SX:
+                                </span>
+                                <strong className="text-white font-mono">{tooltipData.sx}</strong>
+                              </div>
+                              <div className="flex justify-between items-center text-slate-300 py-0.5">
+                                <span className="flex items-center gap-1.5">
+                                  <span className="w-2 h-2 rounded-full bg-amber-400" />
+                                  Gamba DX:
+                                </span>
+                                <strong className="text-white font-mono">{tooltipData.dx}</strong>
+                              </div>
+                              <div className="flex justify-between items-center text-slate-100 border-t border-slate-700 pt-1.5 mt-1.5 font-semibold">
+                                <span>Simmetria:</span>
+                                <strong className="text-emerald-400 font-mono">{tooltipData.asym}</strong>
+                              </div>
                             </div>
-                            <div className="flex justify-between items-center text-slate-100 border-t border-slate-700 pt-1.5 mt-1.5 font-semibold">
-                              <span>Simmetria:</span>
-                              <strong className={tooltipData.isRed ? 'text-rose-400 font-mono' : 'text-emerald-400 font-mono'}>
-                                {tooltipData.asym}
-                              </strong>
-                            </div>
-                          </div>
-                        )}
-                      </td>
-                    );
-                  })}
-                </tr>
-              ))
+                          )}
+                        </td>
+                      );
+                    })}
+                  </tr>
+                ))
               )}
             </tbody>
           </table>
@@ -1115,7 +1238,7 @@ export default function TabBatteriaTest({ patient, activePhase, onChangePhase, o
       {/* SEZIONE DESTRA: BARRE TARGET PRESTATIVI & CHECKLIST QUALITATIVA (COL 4/12) */}
       {/* ========================================================================= */}
       <div className="lg:col-span-4 bg-slate-800/80 p-5 rounded-3xl border border-slate-700/60 space-y-4 shadow-xl backdrop-blur-sm w-full flex flex-col justify-between">
-        
+
         {/* Header Barre Target */}
         <div className="flex items-center justify-between pb-3 border-b border-slate-700/60">
           <div className="flex items-center gap-2.5">
@@ -1124,18 +1247,13 @@ export default function TabBatteriaTest({ patient, activePhase, onChangePhase, o
             </div>
             <div>
               <h3 className="font-bold text-slate-100 text-sm tracking-wide uppercase">
-                BARRE TARGET & PROGRESSO
+                BARRE TARGET &amp; PROGRESSO
               </h3>
               <p className="text-[11px] text-slate-400 font-medium">
-                Ultimo dato valido registrato nel tempo
+                Ultimo dato valido rilevato (ignora test non eseguiti)
               </p>
             </div>
           </div>
-
-          <span className="px-2.5 py-1 rounded-full bg-emerald-500/15 border border-emerald-500/40 text-emerald-400 text-[10px] font-bold uppercase flex items-center gap-1.5 shrink-0">
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
-            Persistente
-          </span>
         </div>
 
         {/* Selezione Fase Target (Pillole F1, F2, F3, F4, F5) */}
@@ -1157,9 +1275,7 @@ export default function TabBatteriaTest({ patient, activePhase, onChangePhase, o
               return (
                 <button
                   key={pObj.key}
-                  onClick={() => {
-                    setSelectedPhase(pObj.key);
-                  }}
+                  onClick={() => setSelectedPhase(pObj.key)}
                   className={`py-2 px-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer text-center ${
                     isActive
                       ? 'bg-emerald-600 text-white shadow-sm border border-emerald-400/50'
@@ -1173,15 +1289,15 @@ export default function TabBatteriaTest({ patient, activePhase, onChangePhase, o
           </div>
         </div>
 
-        {/* BARRE DI PROGRESSO AD ALTO CONTRASTO (TESTO NUMERICO SOPRA LA BARRA, MAI SOVRAPPOSTO) */}
+        {/* BARRE DI PROGRESSO AD ALTO CONTRASTO: TITOLO INTERO LEGGIBILE, NESSUNA DATA, TESTO SOPRA LA BARRA */}
         <div className="space-y-3">
           {cupsData.map((cup) => {
             if (cup.earlyNote) {
               return (
-                <div key={cup.id} className="p-3.5 rounded-2xl bg-slate-900/90 border border-slate-700/70 text-slate-100 text-xs space-y-1.5">
+                <div key={cup.id} className="p-4 rounded-2xl bg-slate-900/90 border border-slate-700/70 text-slate-100 text-xs space-y-1.5">
                   <div className="font-semibold text-sm text-emerald-400 flex items-center gap-1.5">
-                    <ShieldCheck className="w-4 h-4 text-emerald-400" />
-                    <span>{cup.title} - {cup.subtitle}</span>
+                    <ShieldCheck className="w-4 h-4 text-emerald-400 shrink-0" />
+                    <span className="whitespace-normal break-words">{cup.title} — {cup.subtitle}</span>
                   </div>
                   <p className="text-xs text-slate-300 leading-relaxed">{cup.earlyNote}</p>
                 </div>
@@ -1191,35 +1307,24 @@ export default function TabBatteriaTest({ patient, activePhase, onChangePhase, o
             const isEvaluated = cup.value !== null && cup.value !== undefined;
             const fillPct = isEvaluated ? Math.min(100, Math.max(8, cup.percentageAchieved)) : 0;
             const isTargetOk = cup.isOk;
-            const refDate = cup.meta?.testDate;
             const cleanTargetText = cup.targetLabel ? cup.targetLabel.replace('Target:', 'Target') : '';
 
             return (
-              <div 
+              <div
                 key={cup.id}
                 className="p-3.5 rounded-2xl bg-slate-900/90 border border-slate-700/70 space-y-2.5 hover:border-slate-500/80 transition-all shadow-sm"
               >
-                {/* Riga 1: Titolo Metrica (font-semibold text-slate-100) + Data Test + Badge Stato */}
-                <div className="flex items-center justify-between gap-2">
-                  <div className="flex items-center gap-2 min-w-0">
-                    <span className="text-[13px] font-semibold text-slate-100 tracking-wide truncate">
-                      {cup.title}
-                    </span>
-                    {isEvaluated && refDate && (
-                      <span
-                        title={`Valore rilevato in ${cup.meta?.testLabel || 'Test'} del ${refDate}`}
-                        className="px-1.5 py-0.5 rounded-md bg-slate-800 border border-slate-700 text-slate-300 font-mono text-[10px] font-semibold shrink-0"
-                      >
-                        {refDate}
-                      </span>
-                    )}
-                  </div>
+                {/* Riga 1: Titolo Metrica COMPLETO E LEGGIBILE (senza truncate e senza data) + Badge Stato */}
+                <div className="flex items-start justify-between gap-3">
+                  <span className="text-[13px] font-semibold text-slate-100 tracking-wide leading-snug whitespace-normal break-words flex-1">
+                    {cup.title}
+                  </span>
 
                   {/* Badge Stato ad alto contrasto */}
-                  <div className="shrink-0">
+                  <div className="shrink-0 pt-0.5">
                     {!isEvaluated ? (
                       <span className="px-2 py-0.5 rounded-md bg-slate-800 border border-slate-700 text-slate-400 text-[10px] font-bold uppercase">
-                        NON VALUTATO
+                        NON TESTATO
                       </span>
                     ) : isTargetOk ? (
                       <span className="px-2 py-0.5 rounded-md bg-emerald-500/20 border border-emerald-500/40 text-emerald-400 text-[10px] font-bold uppercase flex items-center gap-1">
@@ -1248,15 +1353,17 @@ export default function TabBatteriaTest({ patient, activePhase, onChangePhase, o
                       </>
                     ) : (
                       <span className="text-xs font-semibold text-slate-400">
-                        Dato non valutato — {cleanTargetText}
+                        Non testato (N/A) — {cleanTargetText}
                       </span>
                     )}
                   </div>
 
                   {isEvaluated && (
-                    <span className={`text-xs font-mono font-bold tabular-nums ${
-                      isTargetOk ? 'text-emerald-400' : 'text-amber-400'
-                    }`}>
+                    <span
+                      className={`text-xs font-mono font-bold tabular-nums ${
+                        isTargetOk ? 'text-emerald-400' : 'text-amber-400'
+                      }`}
+                    >
                       {cup.percentageAchieved}%
                     </span>
                   )}
@@ -1264,10 +1371,10 @@ export default function TabBatteriaTest({ patient, activePhase, onChangePhase, o
 
                 {/* Riga 3: Barra di Progresso pura (h-3.5 = 14px, nessun testo sovrapposto) */}
                 <div className="w-full h-3.5 bg-slate-950 rounded-full border border-slate-700/80 overflow-hidden p-0.5 shadow-inner">
-                  <div 
+                  <div
                     className={`h-full rounded-full transition-all duration-700 ease-out ${
                       !isEvaluated
-                        ? 'bg-slate-800/60'
+                        ? 'bg-slate-800/40'
                         : isTargetOk
                         ? 'bg-gradient-to-r from-emerald-500 to-emerald-400 shadow-[0_0_10px_rgba(16,185,129,0.4)]'
                         : 'bg-gradient-to-r from-amber-500 to-yellow-400 shadow-[0_0_10px_rgba(245,158,11,0.35)]'
@@ -1275,7 +1382,6 @@ export default function TabBatteriaTest({ patient, activePhase, onChangePhase, o
                     style={{ width: `${isEvaluated ? fillPct : 0}%` }}
                   />
                 </div>
-
               </div>
             );
           })}
@@ -1299,21 +1405,23 @@ export default function TabBatteriaTest({ patient, activePhase, onChangePhase, o
             {currentChecklistItems.map((item) => {
               const isChecked = currentChecklistState[item.id];
               return (
-                <div 
+                <div
                   key={item.id}
                   onClick={() => setCurrentChecklistState(prev => ({ ...prev, [item.id]: !prev[item.id] }))}
                   className={`p-2.5 px-3 rounded-xl border flex items-center justify-between cursor-pointer transition-all ${
-                    isChecked 
-                      ? 'bg-slate-800 border-emerald-500/50 text-slate-100 font-semibold' 
+                    isChecked
+                      ? 'bg-slate-800 border-emerald-500/50 text-slate-100 font-semibold'
                       : 'bg-slate-800/40 border-slate-700/60 text-slate-400 hover:text-slate-200'
                   }`}
                 >
                   <span className="text-xs font-semibold whitespace-normal leading-snug">
                     {item.label}
                   </span>
-                  <div className={`w-4 h-4 rounded-md border flex items-center justify-center shrink-0 ml-2 transition-colors ${
-                    isChecked ? 'bg-emerald-500 border-emerald-400 text-slate-950' : 'border-slate-600 bg-slate-900'
-                  }`}>
+                  <div
+                    className={`w-4 h-4 rounded-md border flex items-center justify-center shrink-0 ml-2 transition-colors ${
+                      isChecked ? 'bg-emerald-500 border-emerald-400 text-slate-950' : 'border-slate-600 bg-slate-900'
+                    }`}
+                  >
                     {isChecked && <Check className="w-3 h-3 stroke-[3]" />}
                   </div>
                 </div>
@@ -1325,16 +1433,16 @@ export default function TabBatteriaTest({ patient, activePhase, onChangePhase, o
       </div>
 
       {/* ========================================================================= */}
-      {/* SEZIONE 3: GRAFICO MULTIMETRICA INTERATTIVO (A TUTTA LARGHEZZA) */}
+      {/* SEZIONE 3: GRAFICO MULTIMETRICA INTERATTIVO (FILTRA RIGOROSAMENTE I NULL) */}
       {/* ========================================================================= */}
       <div className="w-full lg:col-span-12 block pt-1">
         <UIErrorBoundary title="Grafico Multimetrico Temporaneamente Non Disponibile">
-          <GraficoMultimetrica tests={testsHistory} />
+          <GraficoMultimetrica tests={displayedSessions} />
         </UIErrorBoundary>
       </div>
 
-      {/* MODAL NUOVA VALUTAZIONE CLINICA LCA */}
-      <ModalNuovaValutazione 
+      {/* MODAL RILEVAZIONE MODULARE TEST CLINICI LCA */}
+      <ModalNuovaValutazione
         isOpen={isModalOpen}
         onClose={() => {
           setIsModalOpen(false);
@@ -1342,6 +1450,7 @@ export default function TabBatteriaTest({ patient, activePhase, onChangePhase, o
         }}
         patient={patient}
         initialData={editingTest}
+        initialModule={initialModalModule}
         onSaveEvaluation={handleModalSave}
       />
 

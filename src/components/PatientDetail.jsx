@@ -22,7 +22,7 @@ import RilevazioniCarichiTab from './tabs/RilevazioniCarichiTab';
 import ClientPortal from './ClientPortal';
 import ModalNuovaValutazione from './ModalNuovaValutazione';
 import ModalIKDC from './ModalIKDC';
-import { createTestObject, saveTestToSupabase, sortTestsByDate } from '../utils/testUtils';
+import { createTestObject, mergeTestIntoSession, saveTestToSupabase, sortTestsByDate } from '../utils/testUtils';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import { normalizePhaseForDb } from '../utils/phaseUtils';
 
@@ -384,15 +384,29 @@ export default function PatientDetail({ patient, onBack, onUpdatePatient }) {
         onClose={() => setIsModalOpen(false)}
         patient={patient}
         onSaveEvaluation={async (evalData) => {
-          const currentTests = Array.isArray(patient.tests) ? patient.tests : [];
-          const newNum = currentTests.length + 1;
-          const newTest = createTestObject(evalData, patient.id, newNum);
+          const currentTests = Array.isArray(patient.tests) ? sortTestsByDate(patient.tests) : [];
+          const existingMatch = evalData.id ? currentTests.find(t => t.id === evalData.id) : null;
 
-          await saveTestToSupabase(newTest);
+          let updatedTests;
+          if (existingMatch) {
+            updatedTests = currentTests.map(t => {
+              if (t.id === evalData.id) {
+                const merged = mergeTestIntoSession(t, evalData, patient.id);
+                saveTestToSupabase(merged);
+                return merged;
+              }
+              return t;
+            });
+          } else {
+            const newNum = currentTests.length + 1;
+            const newTest = createTestObject(evalData, patient.id, newNum);
+            await saveTestToSupabase(newTest);
+            updatedTests = [...currentTests, newTest];
+          }
 
           onUpdatePatient({
             ...patient,
-            tests: [...currentTests, newTest]
+            tests: sortTestsByDate(updatedTests)
           });
         }}
       />
