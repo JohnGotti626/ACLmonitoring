@@ -881,37 +881,41 @@ export default function TabBatteriaTest({ patient, activePhase, onChangePhase, o
   const setCurrentChecklistState = currentPhase.isPhase4 ? setPhase4Checklist : currentPhase.isPhase3 ? setPhase3Checklist : setPhase2Checklist;
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 select-none w-full items-start">
+    <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 select-none w-full items-start">
       
       {/* ========================================================================= */}
-      {/* SEZIONE SINISTRA: TABELLA LONGITUDINALE (COL 8/12 - 70% LARGHEZZA) */}
+      {/* SEZIONE SINISTRA: TABELLA LONGITUDINALE (COL 8/12) */}
       {/* ========================================================================= */}
-      <div className="lg:col-span-8 bg-[#1E293B] p-4 sm:p-5 rounded-3xl border border-[#334155] space-y-3 shadow-lg w-full flex flex-col justify-between">
+      <div className="lg:col-span-8 bg-slate-800/80 p-5 sm:p-6 rounded-3xl border border-slate-700/60 space-y-4 shadow-xl backdrop-blur-sm w-full flex flex-col justify-between">
         
         {/* Header Tabella Pulita */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-2.5 border-b border-[#334155]">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3.5 border-b border-slate-700/60">
           <div>
-            <div className="flex items-center gap-2">
-              <Flame className="w-4 h-4 text-[#0D9488]" />
-              <h3 className="font-extrabold text-white text-sm tracking-wide uppercase">
-                TABELLA DATI RACCOLTI PER TIPO DI TEST
-              </h3>
+            <div className="flex items-center gap-2.5">
+              <div className="p-2 rounded-xl bg-slate-900 border border-slate-700/70 text-emerald-400 shadow-xs">
+                <Flame className="w-4 h-4 text-emerald-400" />
+              </div>
+              <div>
+                <h3 className="font-bold text-slate-100 text-sm sm:text-base tracking-wide uppercase">
+                  TABELLA DATI RACCOLTI PER TIPO DI TEST
+                </h3>
+                <p className="text-xs text-slate-400 font-medium mt-0.5">
+                  Seleziona un dominio prestativo per analizzare i valori assoluti e il delta rispetto al test precedente
+                </p>
+              </div>
             </div>
-            <p className="text-[11px] text-[#94A3B8] font-medium mt-0.5">
-              Seleziona 1 tipo di test per isolare i dati assoluti e il confronto col test precedente
-            </p>
           </div>
 
-          <div className="flex items-center gap-2 self-start sm:self-auto">
+          <div className="flex items-center gap-2.5 self-start sm:self-auto">
             {activeTest && (
               <button
                 onClick={() => {
                   setEditingTest(activeTest);
                   setIsModalOpen(true);
                 }}
-                className="px-3 py-1.5 bg-[#0F172A] hover:bg-slate-800 text-[#06B6D4] font-extrabold rounded-xl text-xs flex items-center gap-1.5 border border-[#334155] hover:border-[#06B6D4] transition-all cursor-pointer shrink-0"
+                className="px-3.5 py-2 bg-slate-900 hover:bg-slate-700 text-slate-100 font-semibold rounded-xl text-xs flex items-center gap-1.5 border border-slate-600/80 hover:border-slate-400 transition-all cursor-pointer shrink-0 shadow-xs"
               >
-                <Edit3 className="w-3.5 h-3.5 text-[#06B6D4]" />
+                <Edit3 className="w-3.5 h-3.5 text-amber-400" />
                 <span>Modifica {activeTest.label}</span>
               </button>
             )}
@@ -921,7 +925,7 @@ export default function TabBatteriaTest({ patient, activePhase, onChangePhase, o
                 setEditingTest(null);
                 setIsModalOpen(true);
               }}
-              className="px-3.5 py-1.5 bg-[#0D9488] hover:bg-teal-500 text-white font-black rounded-xl text-xs flex items-center gap-1.5 shadow-sm border border-teal-500/40 transition-all cursor-pointer shrink-0"
+              className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-xl text-xs flex items-center gap-1.5 shadow-md border border-emerald-400/40 transition-all cursor-pointer shrink-0"
             >
               <Plus className="w-4 h-4 text-white" />
               <span>+ Nuova Valutazione</span>
@@ -929,8 +933,8 @@ export default function TabBatteriaTest({ patient, activePhase, onChangePhase, o
           </div>
         </div>
 
-        {/* 6 Pills Sotto-Tab (Tutte le Sezioni di Salto Sincronizzate - FLEX NOWRAP COMPATTO) */}
-        <div className="flex items-center gap-1.5 flex-nowrap overflow-x-auto scrollbar-none p-1 bg-[#0F172A] rounded-xl border border-[#334155]">
+        {/* 6 Pills Sotto-Tab (Palette Slate/Zinc neutra con tab attiva ben staccata) */}
+        <div className="flex items-center gap-1.5 flex-nowrap overflow-x-auto scrollbar-none p-1.5 bg-slate-900/90 rounded-2xl border border-slate-700/60">
           {[
             { id: 'LSI', label: '⚡ Simmetrie & LSI (%)' },
             { id: 'FORZA', label: '🔥 Dominio della Forza' },
@@ -944,10 +948,10 @@ export default function TabBatteriaTest({ patient, activePhase, onChangePhase, o
               <button
                 key={tab.id}
                 onClick={() => setActiveSubTab(tab.id)}
-                className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all whitespace-nowrap cursor-pointer shrink-0 ${
+                className={`px-3.5 py-2 rounded-xl text-xs transition-all whitespace-nowrap cursor-pointer shrink-0 ${
                   isActive
-                    ? 'bg-[#1E293B] text-white border border-[#06B6D4] font-extrabold shadow-xs'
-                    : 'text-[#94A3B8] hover:text-white hover:bg-[#1E293B]/60 border border-transparent'
+                    ? 'bg-slate-700 text-white border border-slate-500 font-bold shadow-sm'
+                    : 'text-slate-400 hover:text-slate-100 hover:bg-slate-800/70 font-medium border border-transparent'
                 }`}
               >
                 {tab.label}
@@ -957,11 +961,11 @@ export default function TabBatteriaTest({ patient, activePhase, onChangePhase, o
         </div>
 
         {/* TABELLA STORICO LONGITUDINALE MULTI-SEDUTA AD ALTO CONTRASTO */}
-        <div className="overflow-x-auto overflow-y-auto max-h-[460px] rounded-2xl border border-[#334155] bg-[#0F172A] shadow-inner w-full scrollbar-thin">
+        <div className="overflow-x-auto overflow-y-auto max-h-[490px] rounded-2xl border border-slate-700/70 bg-slate-900 shadow-inner w-full scrollbar-thin">
           <table className="w-full min-w-max text-left border-collapse">
             <thead>
-              <tr className="border-b border-[#334155] text-[10px] font-mono font-extrabold text-[#94A3B8] uppercase tracking-wider bg-[#1E293B]">
-                <th className="sticky top-0 left-0 z-40 bg-[#1E293B] border-b border-r border-[#334155] py-2.5 px-3 text-white font-black min-w-[210px] w-[215px]">
+              <tr className="border-b-2 border-slate-700/80 text-[11px] font-mono font-bold text-slate-300 uppercase tracking-wider bg-slate-800">
+                <th className="sticky top-0 left-0 z-40 bg-slate-800 border-b-2 border-r border-slate-700/80 py-3.5 px-4 text-slate-100 font-bold min-w-[225px] w-[235px]">
                   Parametro Metrica
                 </th>
 
@@ -971,14 +975,14 @@ export default function TabBatteriaTest({ patient, activePhase, onChangePhase, o
                     <th 
                       key={t.id}
                       onClick={() => setSelectedTestId(t.id)}
-                      className={`sticky top-0 z-30 py-2 px-2 text-center cursor-pointer transition-all border-b border-[#334155] min-w-[95px] w-[100px] ${
+                      className={`sticky top-0 z-30 py-3 px-3 text-center cursor-pointer transition-all border-b-2 border-r border-slate-700/60 min-w-[115px] w-[125px] ${
                         isSelected 
-                          ? 'bg-[#0F172A] text-white font-black border-t-2 border-x border-[#06B6D4]' 
-                          : 'bg-[#1E293B] hover:bg-slate-700/60 text-[#94A3B8]'
+                          ? 'bg-slate-900 text-white font-bold border-t-2 border-t-emerald-400 shadow-inner' 
+                          : 'bg-slate-800 hover:bg-slate-700/70 text-slate-300'
                       }`}
                     >
-                      <div className="flex items-center justify-center gap-1">
-                        <span className="font-extrabold text-xs tracking-tight text-white">{t.label}</span>
+                      <div className="flex items-center justify-center gap-1.5">
+                        <span className="font-bold text-xs tracking-tight text-slate-100">{t.label}</span>
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
@@ -987,41 +991,48 @@ export default function TabBatteriaTest({ patient, activePhase, onChangePhase, o
                             setIsModalOpen(true);
                           }}
                           title={`Modifica ${t.label}`}
-                          className="p-1 hover:bg-[#1E293B] rounded transition-colors text-[#94A3B8] hover:text-[#06B6D4]"
+                          className="p-1 hover:bg-slate-700 rounded-md transition-colors text-slate-400 hover:text-amber-400"
                         >
-                          <Edit3 className="w-3 h-3 text-[#06B6D4]" />
+                          <Edit3 className="w-3 h-3 text-amber-400" />
                         </button>
                       </div>
-                      <div className="text-[9.5px] text-[#06B6D4] font-mono font-bold mt-0.5">{t.date}</div>
+                      <div className="text-[10px] text-slate-400 font-mono font-semibold mt-0.5">{t.date}</div>
                     </th>
                   );
                 })}
               </tr>
             </thead>
 
-            <tbody className="divide-y divide-[#334155] text-xs font-semibold">
+            <tbody className="divide-y divide-slate-700/50 text-xs">
               {testsHistory.length === 0 ? (
                 <tr>
-                  <td colSpan={10} className="py-12 text-center text-[#94A3B8] font-medium bg-[#0F172A]">
-                    <div className="space-y-2 max-w-sm mx-auto">
-                      <Activity className="w-8 h-8 text-[#06B6D4] mx-auto" />
-                      <p className="text-sm font-extrabold text-white">Nessuna valutazione registrata per {patient?.nome} {patient?.cognome}</p>
-                      <p className="text-xs text-[#94A3B8]">Clicca sul pulsante in alto <strong className="text-[#0D9488] font-bold">"+ Nuova Valutazione"</strong> per inserire i dati del primo test clinico.</p>
+                  <td colSpan={10} className="py-14 text-center text-slate-400 font-medium bg-slate-900">
+                    <div className="space-y-2.5 max-w-sm mx-auto">
+                      <Activity className="w-8 h-8 text-emerald-400 mx-auto" />
+                      <p className="text-sm font-bold text-slate-100">Nessuna valutazione registrata per {patient?.nome} {patient?.cognome}</p>
+                      <p className="text-xs text-slate-400">Clicca sul pulsante in alto <strong className="text-emerald-400 font-bold">"+ Nuova Valutazione"</strong> per inserire i dati del primo test clinico.</p>
                     </div>
                   </td>
                 </tr>
               ) : (
-                rows.map((row) => (
-                <tr key={row.key} className="hover:bg-[#1E293B]/60 transition-colors">
+                rows.map((row, rowIdx) => (
+                <tr
+                  key={row.key}
+                  className={`transition-colors border-b border-slate-700/50 ${
+                    rowIdx % 2 === 0 ? 'bg-slate-900/80' : 'bg-slate-800/45'
+                  } hover:bg-slate-700/45`}
+                >
                   
-                  {/* Colonna 1: Parametro Metrica Sticky */}
-                  <td className="sticky left-0 z-20 bg-[#1E293B] border-r border-[#334155] py-2 px-2.5 min-w-[210px] w-[215px] font-bold text-white">
-                    <div className="flex items-center gap-1.5">
-                      <span className={`w-2 h-2 rounded-full ${row.dotColor || 'bg-[#0D9488]'} shrink-0`}></span>
-                      <span className="truncate text-xs font-bold text-white">
+                  {/* Colonna 1: Parametro Metrica Sticky ad alto contrasto */}
+                  <td className={`sticky left-0 z-20 border-r border-slate-700/70 py-3 px-4 min-w-[225px] w-[235px] ${
+                    rowIdx % 2 === 0 ? 'bg-slate-900' : 'bg-slate-800'
+                  }`}>
+                    <div className="flex items-center gap-2">
+                      <span className={`w-2.5 h-2.5 rounded-full ${row.dotColor || 'bg-emerald-400'} shrink-0 shadow-xs`}></span>
+                      <span className="truncate text-[13px] font-semibold text-slate-100">
                         {row.label}
                         {row.unit && row.unit !== '-' && (
-                          <span className="ml-1 text-[#94A3B8] font-normal text-[10px] font-mono">
+                          <span className="ml-1.5 text-slate-400 font-normal text-[11px] font-mono">
                             ({row.unit})
                           </span>
                         )}
@@ -1029,7 +1040,7 @@ export default function TabBatteriaTest({ patient, activePhase, onChangePhase, o
                     </div>
                   </td>
 
-                  {/* Colonne Test Registrati: Dati Numerici Bianco Puro (#FFFFFF) */}
+                  {/* Colonne Test Registrati: Dati Numerici e Badge Delta ad alto contrasto */}
                   {testsHistory.map((t, tIdx) => {
                     const isSelected = t.id === selectedTestId;
                     const displayVal = row.getValue ? row.getValue(t) : (t[row.key] !== undefined ? t[row.key] : '-');
@@ -1040,17 +1051,19 @@ export default function TabBatteriaTest({ patient, activePhase, onChangePhase, o
                       <td 
                         key={t.id}
                         onClick={() => setSelectedTestId(t.id)}
-                        className={`relative group py-2 px-2 text-center font-mono cursor-pointer transition-all min-w-[95px] w-[100px] ${
-                          isSelected ? 'bg-[#1E293B] font-black border-x border-[#06B6D4]/50' : 'hover:bg-[#1E293B]/40'
+                        className={`relative group py-3 px-3 text-center font-mono cursor-pointer transition-all border-r border-slate-700/40 min-w-[115px] w-[125px] ${
+                          isSelected ? 'bg-slate-800/90 font-bold ring-1 ring-inset ring-emerald-500/30' : 'hover:bg-slate-700/35'
                         }`}
                       >
-                        <div className="flex items-center justify-center gap-1">
-                          <span className="font-extrabold text-xs text-white tabular-nums">
+                        <div className="flex items-center justify-center gap-1.5 flex-wrap">
+                          <span className="font-bold text-[13px] text-white tabular-nums">
                             {displayVal}
                           </span>
                           {delta && (
-                            <span className={`text-[8.5px] font-black font-mono px-1 py-0.5 rounded ${
-                              delta.startsWith('+') ? 'text-emerald-300 bg-emerald-950/80 border border-emerald-500/30' : 'text-rose-300 bg-rose-950/80 border border-rose-500/30'
+                            <span className={`text-[10px] font-bold font-mono px-1.5 py-0.5 rounded-md border ${
+                              delta.startsWith('+')
+                                ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30'
+                                : 'bg-rose-500/20 text-rose-400 border-rose-500/30'
                             }`}>
                               {delta}
                             </span>
@@ -1059,28 +1072,28 @@ export default function TabBatteriaTest({ patient, activePhase, onChangePhase, o
 
                         {/* HOVER TOOLTIP INTERATTIVO */}
                         {tooltipData && (
-                          <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 hidden group-hover:flex flex-col z-50 w-60 p-3 rounded-2xl bg-[#0F172A] border border-[#334155] shadow-2xl text-[11px] font-sans pointer-events-none text-left">
-                            <div className="font-extrabold text-white text-xs border-b border-[#334155] pb-1.5 mb-1.5 flex items-center justify-between">
+                          <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 hidden group-hover:flex flex-col z-50 w-64 p-3.5 rounded-2xl bg-slate-900 border border-slate-600 shadow-2xl text-xs font-sans pointer-events-none text-left">
+                            <div className="font-bold text-slate-100 text-xs border-b border-slate-700 pb-1.5 mb-2 flex items-center justify-between">
                               <span>{tooltipData.title}</span>
-                              <span className="text-[9px] font-mono text-[#94A3B8]">{t.date}</span>
+                              <span className="text-[10px] font-mono text-slate-400">{t.date}</span>
                             </div>
-                            <div className="flex justify-between items-center text-[#94A3B8] py-0.5">
-                              <span className="flex items-center gap-1">
-                                <span className="w-1.5 h-1.5 rounded-full bg-[#06B6D4]"></span>
+                            <div className="flex justify-between items-center text-slate-300 py-0.5">
+                              <span className="flex items-center gap-1.5">
+                                <span className="w-2 h-2 rounded-full bg-emerald-400"></span>
                                 Gamba SX:
                               </span>
                               <strong className="text-white font-mono">{tooltipData.sx}</strong>
                             </div>
-                            <div className="flex justify-between items-center text-[#94A3B8] py-0.5">
-                              <span className="flex items-center gap-1">
-                                <span className="w-1.5 h-1.5 rounded-full bg-rose-400"></span>
+                            <div className="flex justify-between items-center text-slate-300 py-0.5">
+                              <span className="flex items-center gap-1.5">
+                                <span className="w-2 h-2 rounded-full bg-amber-400"></span>
                                 Gamba DX:
                               </span>
                               <strong className="text-white font-mono">{tooltipData.dx}</strong>
                             </div>
-                            <div className="flex justify-between items-center text-white border-t border-[#334155] pt-1.5 mt-1 font-bold">
-                              <span>Confronto:</span>
-                              <strong className={tooltipData.isRed ? 'text-rose-400 font-mono' : 'text-[#06B6D4] font-mono'}>
+                            <div className="flex justify-between items-center text-slate-100 border-t border-slate-700 pt-1.5 mt-1.5 font-semibold">
+                              <span>Simmetria:</span>
+                              <strong className={tooltipData.isRed ? 'text-rose-400 font-mono' : 'text-emerald-400 font-mono'}>
                                 {tooltipData.asym}
                               </strong>
                             </div>
@@ -1101,38 +1114,38 @@ export default function TabBatteriaTest({ patient, activePhase, onChangePhase, o
       {/* ========================================================================= */}
       {/* SEZIONE DESTRA: BARRE TARGET PRESTATIVI & CHECKLIST QUALITATIVA (COL 4/12) */}
       {/* ========================================================================= */}
-      <div className="lg:col-span-4 bg-[#1E293B] p-3.5 rounded-3xl border border-[#334155] space-y-2.5 shadow-lg w-full flex flex-col justify-between">
+      <div className="lg:col-span-4 bg-slate-800/80 p-5 rounded-3xl border border-slate-700/60 space-y-4 shadow-xl backdrop-blur-sm w-full flex flex-col justify-between">
         
         {/* Header Barre Target */}
-        <div className="flex items-center justify-between pb-2 border-b border-[#334155]">
-          <div className="flex items-center gap-2">
-            <div className="p-1.5 bg-[#0F172A] border border-[#334155] rounded-lg text-[#06B6D4]">
-              <Trophy className="w-4 h-4 text-[#06B6D4]" />
+        <div className="flex items-center justify-between pb-3 border-b border-slate-700/60">
+          <div className="flex items-center gap-2.5">
+            <div className="p-2 bg-slate-900 border border-slate-700/70 rounded-xl text-amber-400 shadow-xs">
+              <Trophy className="w-4 h-4 text-amber-400" />
             </div>
             <div>
-              <h3 className="font-extrabold text-white text-xs tracking-wide uppercase">
+              <h3 className="font-bold text-slate-100 text-sm tracking-wide uppercase">
                 BARRE TARGET & PROGRESSO
               </h3>
-              <p className="text-[10px] text-[#94A3B8] font-medium">
+              <p className="text-[11px] text-slate-400 font-medium">
                 Ultimo dato valido registrato nel tempo
               </p>
             </div>
           </div>
 
-          <span className="px-2 py-0.5 rounded-full bg-[#0F172A] border border-[#0D9488] text-[#0D9488] text-[9px] font-black uppercase flex items-center gap-1 shrink-0">
-            <span className="w-1.5 h-1.5 rounded-full bg-[#0D9488]"></span>
+          <span className="px-2.5 py-1 rounded-full bg-emerald-500/15 border border-emerald-500/40 text-emerald-400 text-[10px] font-bold uppercase flex items-center gap-1.5 shrink-0">
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
             Persistente
           </span>
         </div>
 
         {/* Selezione Fase Target (Pillole F1, F2, F3, F4, F5) */}
-        <div className="space-y-1.5 bg-[#0F172A] p-2 rounded-xl border border-[#334155]">
-          <div className="flex items-center justify-between text-[10px] font-bold">
-            <span className="text-[#94A3B8] uppercase tracking-wider text-[9px]">TARGET FASE:</span>
-            <span className="text-[#06B6D4] font-black text-[10.5px]">{selectedPhase}</span>
+        <div className="space-y-2 bg-slate-900/90 p-3 rounded-2xl border border-slate-700/60">
+          <div className="flex items-center justify-between text-xs">
+            <span className="text-slate-400 uppercase tracking-wider text-[10px] font-semibold">TARGET FASE:</span>
+            <span className="text-slate-100 font-bold text-xs">{selectedPhase}</span>
           </div>
 
-          <div className="grid grid-cols-5 gap-1 text-xs font-black">
+          <div className="grid grid-cols-5 gap-1.5 text-xs font-bold">
             {[
               { key: 'Fase 1', label: 'F1' },
               { key: 'Fase 2 (>70%)', label: 'F2' },
@@ -1147,10 +1160,10 @@ export default function TabBatteriaTest({ patient, activePhase, onChangePhase, o
                   onClick={() => {
                     setSelectedPhase(pObj.key);
                   }}
-                  className={`py-1.5 px-1 rounded-lg text-[10px] font-black transition-all cursor-pointer text-center ${
+                  className={`py-2 px-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer text-center ${
                     isActive
-                      ? 'bg-[#0D9488] text-white font-black shadow-xs border border-[#06B6D4]'
-                      : 'bg-[#1E293B] text-[#94A3B8] border border-[#334155] hover:text-white'
+                      ? 'bg-emerald-600 text-white shadow-sm border border-emerald-400/50'
+                      : 'bg-slate-800 text-slate-400 border border-slate-700/70 hover:text-slate-100 hover:bg-slate-700/60'
                   }`}
                 >
                   {pObj.label}
@@ -1160,17 +1173,17 @@ export default function TabBatteriaTest({ patient, activePhase, onChangePhase, o
           </div>
         </div>
 
-        {/* BARRE DI PROGRESSO ORIZZONTALI COMPATTE CON TARGET & DATA ULTIMO TEST */}
-        <div className="space-y-2 pt-0.5">
+        {/* BARRE DI PROGRESSO AD ALTO CONTRASTO (TESTO NUMERICO SOPRA LA BARRA, MAI SOVRAPPOSTO) */}
+        <div className="space-y-3">
           {cupsData.map((cup) => {
             if (cup.earlyNote) {
               return (
-                <div key={cup.id} className="p-2.5 rounded-xl bg-[#0F172A] border border-[#334155] text-white text-[10.5px] font-medium space-y-1">
-                  <div className="font-black text-[11px] text-[#06B6D4] flex items-center gap-1">
-                    <ShieldCheck className="w-3.5 h-3.5 text-[#06B6D4]" />
+                <div key={cup.id} className="p-3.5 rounded-2xl bg-slate-900/90 border border-slate-700/70 text-slate-100 text-xs space-y-1.5">
+                  <div className="font-semibold text-sm text-emerald-400 flex items-center gap-1.5">
+                    <ShieldCheck className="w-4 h-4 text-emerald-400" />
                     <span>{cup.title} - {cup.subtitle}</span>
                   </div>
-                  <p className="text-[10.5px] text-[#94A3B8]">{cup.earlyNote}</p>
+                  <p className="text-xs text-slate-300 leading-relaxed">{cup.earlyNote}</p>
                 </div>
               );
             }
@@ -1179,74 +1192,88 @@ export default function TabBatteriaTest({ patient, activePhase, onChangePhase, o
             const fillPct = isEvaluated ? Math.min(100, Math.max(8, cup.percentageAchieved)) : 0;
             const isTargetOk = cup.isOk;
             const refDate = cup.meta?.testDate;
+            const cleanTargetText = cup.targetLabel ? cup.targetLabel.replace('Target:', 'Target') : '';
 
             return (
               <div 
                 key={cup.id}
-                className="p-2 px-2.5 rounded-xl bg-[#0F172A] border border-[#334155] space-y-1.5 hover:border-slate-500 transition-all"
+                className="p-3.5 rounded-2xl bg-slate-900/90 border border-slate-700/70 space-y-2.5 hover:border-slate-500/80 transition-all shadow-sm"
               >
-                {/* Riga 1: Nome Metrica + Data Ultimo Test + Target di riferimento */}
-                <div className="flex items-center justify-between gap-1 text-[10.5px] font-bold">
-                  <div className="flex items-center gap-1.5 min-w-0">
-                    <span className="text-white font-extrabold tracking-tight truncate">
+                {/* Riga 1: Titolo Metrica (font-semibold text-slate-100) + Data Test + Badge Stato */}
+                <div className="flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <span className="text-[13px] font-semibold text-slate-100 tracking-wide truncate">
                       {cup.title}
                     </span>
                     {isEvaluated && refDate && (
                       <span
                         title={`Valore rilevato in ${cup.meta?.testLabel || 'Test'} del ${refDate}`}
-                        className="px-1.5 py-0.5 rounded bg-[#1E293B] border border-[#334155] text-[#94A3B8] font-mono text-[8.5px] font-bold shrink-0"
+                        className="px-1.5 py-0.5 rounded-md bg-slate-800 border border-slate-700 text-slate-300 font-mono text-[10px] font-semibold shrink-0"
                       >
                         {refDate}
                       </span>
                     )}
                   </div>
-                  <span className="text-[#06B6D4] font-mono text-[9.5px] font-bold shrink-0">
-                    {cup.targetLabel}
-                  </span>
-                </div>
 
-                {/* Riga 2: Barra di avanzamento orizzontale a riempimento fluido */}
-                <div className="flex items-center gap-2">
-                  <div className="relative flex-1 h-5.5 bg-[#1E293B] rounded-lg border border-[#334155] overflow-hidden p-0.5 shadow-inner">
-                    {/* Riempimento fluido Teal Muto / Cyan Clinico vs Ambra (senza colori fosforescenti) */}
-                    <div 
-                      className={`h-full rounded-md relative transition-all duration-700 ease-out ${
-                        !isEvaluated
-                          ? 'bg-slate-800 shadow-none'
-                          : isTargetOk
-                          ? 'bg-gradient-to-r from-[#0D9488] to-[#06B6D4]'
-                          : 'bg-gradient-to-r from-amber-700 to-amber-500'
-                      }`}
-                      style={{ width: `${isEvaluated ? fillPct : 100}%` }}
-                    />
-
-                    {/* Valore % in Bianco Puro (#FFFFFF) ad alto contrasto */}
-                    <div className={`absolute inset-0 flex items-center justify-center text-[10px] font-black font-mono tabular-nums ${
-                      !isEvaluated
-                        ? 'text-[#94A3B8]'
-                        : 'text-white drop-shadow-[0_1px_2px_rgba(15,23,42,0.9)]'
-                    }`}>
-                      {isEvaluated ? `${cup.displayVal} (${cup.percentageAchieved}%)` : 'Non Valutato (N/D)'}
-                    </div>
-                  </div>
-
-                  {/* Badge a destra */}
+                  {/* Badge Stato ad alto contrasto */}
                   <div className="shrink-0">
                     {!isEvaluated ? (
-                      <span className="px-1.5 py-0.5 rounded-md bg-[#1E293B] border border-[#334155] text-[#94A3B8] text-[8.5px] font-black uppercase flex items-center gap-0.5">
+                      <span className="px-2 py-0.5 rounded-md bg-slate-800 border border-slate-700 text-slate-400 text-[10px] font-bold uppercase">
                         NON VALUTATO
                       </span>
                     ) : isTargetOk ? (
-                      <span className="px-1.5 py-0.5 rounded-md bg-teal-950/90 border border-[#0D9488] text-white text-[8.5px] font-black uppercase flex items-center gap-0.5">
-                        <CheckCircle2 className="w-2.5 h-2.5 text-[#06B6D4] shrink-0" />
+                      <span className="px-2 py-0.5 rounded-md bg-emerald-500/20 border border-emerald-500/40 text-emerald-400 text-[10px] font-bold uppercase flex items-center gap-1">
+                        <CheckCircle2 className="w-3 h-3 text-emerald-400 shrink-0" />
                         TARGET OK
                       </span>
                     ) : (
-                      <span className="px-1.5 py-0.5 rounded-md bg-amber-950/90 border border-amber-500/40 text-amber-200 text-[8.5px] font-black uppercase flex items-center gap-0.5">
+                      <span className="px-2 py-0.5 rounded-md bg-amber-500/20 border border-amber-500/40 text-amber-400 text-[10px] font-bold uppercase flex items-center gap-1">
                         IN CORSO
                       </span>
                     )}
                   </div>
+                </div>
+
+                {/* Riga 2 (SOPRA LA BARRA): Valore Numerico / Target + % Raggiungimento */}
+                <div className="flex items-baseline justify-between gap-2">
+                  <div className="font-mono tabular-nums">
+                    {isEvaluated ? (
+                      <>
+                        <span className="text-base font-extrabold text-white">
+                          {cup.displayVal}
+                        </span>
+                        <span className="text-xs font-semibold text-slate-400 ml-1.5">
+                          / {cleanTargetText}
+                        </span>
+                      </>
+                    ) : (
+                      <span className="text-xs font-semibold text-slate-400">
+                        Dato non valutato — {cleanTargetText}
+                      </span>
+                    )}
+                  </div>
+
+                  {isEvaluated && (
+                    <span className={`text-xs font-mono font-bold tabular-nums ${
+                      isTargetOk ? 'text-emerald-400' : 'text-amber-400'
+                    }`}>
+                      {cup.percentageAchieved}%
+                    </span>
+                  )}
+                </div>
+
+                {/* Riga 3: Barra di Progresso pura (h-3.5 = 14px, nessun testo sovrapposto) */}
+                <div className="w-full h-3.5 bg-slate-950 rounded-full border border-slate-700/80 overflow-hidden p-0.5 shadow-inner">
+                  <div 
+                    className={`h-full rounded-full transition-all duration-700 ease-out ${
+                      !isEvaluated
+                        ? 'bg-slate-800/60'
+                        : isTargetOk
+                        ? 'bg-gradient-to-r from-emerald-500 to-emerald-400 shadow-[0_0_10px_rgba(16,185,129,0.4)]'
+                        : 'bg-gradient-to-r from-amber-500 to-yellow-400 shadow-[0_0_10px_rgba(245,158,11,0.35)]'
+                    }`}
+                    style={{ width: `${isEvaluated ? fillPct : 0}%` }}
+                  />
                 </div>
 
               </div>
@@ -1254,38 +1281,38 @@ export default function TabBatteriaTest({ patient, activePhase, onChangePhase, o
           })}
         </div>
 
-        {/* CHECKLIST QUALITATIVA (GRIGLIA VERTICALE ORDINATA 1 COLONNA) */}
-        <div className="p-3 rounded-2xl bg-[#0F172A] border border-[#334155] space-y-2 mt-1.5">
-          <div className="flex items-center justify-between border-b border-[#334155] pb-1.5">
-            <div className="flex items-center gap-1.5">
-              <CheckSquare className="w-3.5 h-3.5 text-[#06B6D4]" />
-              <span className="font-black text-white text-[11px] uppercase tracking-wider">
+        {/* CHECKLIST QUALITATIVA */}
+        <div className="p-3.5 rounded-2xl bg-slate-900/90 border border-slate-700/70 space-y-2.5 mt-1">
+          <div className="flex items-center justify-between border-b border-slate-700/60 pb-2">
+            <div className="flex items-center gap-2">
+              <CheckSquare className="w-4 h-4 text-emerald-400" />
+              <span className="font-bold text-slate-100 text-xs uppercase tracking-wider">
                 Checklist Qualitativa ({selectedPhase})
               </span>
             </div>
-            <span className="text-[9.5px] font-mono text-white font-black bg-[#1E293B] px-2 py-0.5 rounded-lg border border-[#334155]">
+            <span className="text-[11px] font-mono text-emerald-400 font-bold bg-emerald-500/15 px-2.5 py-0.5 rounded-lg border border-emerald-500/30">
               {Object.values(currentChecklistState).filter(Boolean).length}/{currentChecklistItems.length} OK
             </span>
           </div>
 
-          <div className="grid grid-cols-1 gap-1.5 text-xs font-bold">
+          <div className="grid grid-cols-1 gap-1.5 text-xs">
             {currentChecklistItems.map((item) => {
               const isChecked = currentChecklistState[item.id];
               return (
                 <div 
                   key={item.id}
                   onClick={() => setCurrentChecklistState(prev => ({ ...prev, [item.id]: !prev[item.id] }))}
-                  className={`p-2 px-2.5 rounded-xl border flex items-center justify-between cursor-pointer transition-all ${
+                  className={`p-2.5 px-3 rounded-xl border flex items-center justify-between cursor-pointer transition-all ${
                     isChecked 
-                      ? 'bg-[#1E293B] border-[#0D9488] text-white font-black' 
-                      : 'bg-[#1E293B]/50 border-[#334155] text-[#94A3B8] hover:text-white'
+                      ? 'bg-slate-800 border-emerald-500/50 text-slate-100 font-semibold' 
+                      : 'bg-slate-800/40 border-slate-700/60 text-slate-400 hover:text-slate-200'
                   }`}
                 >
-                  <span className="text-[11px] font-extrabold whitespace-normal leading-snug">
+                  <span className="text-xs font-semibold whitespace-normal leading-snug">
                     {item.label}
                   </span>
-                  <div className={`w-4 h-4 rounded border flex items-center justify-center shrink-0 ml-2 transition-colors ${
-                    isChecked ? 'bg-[#0D9488] border-[#0D9488] text-white' : 'border-[#334155] bg-[#0F172A]'
+                  <div className={`w-4 h-4 rounded-md border flex items-center justify-center shrink-0 ml-2 transition-colors ${
+                    isChecked ? 'bg-emerald-500 border-emerald-400 text-slate-950' : 'border-slate-600 bg-slate-900'
                   }`}>
                     {isChecked && <Check className="w-3 h-3 stroke-[3]" />}
                   </div>
@@ -1300,7 +1327,7 @@ export default function TabBatteriaTest({ patient, activePhase, onChangePhase, o
       {/* ========================================================================= */}
       {/* SEZIONE 3: GRAFICO MULTIMETRICA INTERATTIVO (A TUTTA LARGHEZZA) */}
       {/* ========================================================================= */}
-      <div className="w-full lg:col-span-12 block pt-2">
+      <div className="w-full lg:col-span-12 block pt-1">
         <UIErrorBoundary title="Grafico Multimetrico Temporaneamente Non Disponibile">
           <GraficoMultimetrica tests={testsHistory} />
         </UIErrorBoundary>
