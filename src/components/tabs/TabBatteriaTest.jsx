@@ -957,12 +957,13 @@ export default function TabBatteriaTest({ patient, activePhase, onSaveTest }) {
     : setPhase2Checklist;
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 select-none w-full items-start">
+    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 select-none w-full items-start">
 
       {/* ========================================================================= */}
-      {/* SEZIONE SINISTRA: TABELLA LONGITUDINALE & SESSIONI REPORT (COL 8/12)      */}
+      {/* COLONNA SINISTRA (2/3): TABELLA LONGITUDINALE + GRAFICO MULTIMETRICA      */}
       {/* ========================================================================= */}
-      <div className="lg:col-span-8 bg-slate-800/80 p-5 sm:p-6 rounded-3xl border border-slate-700/60 space-y-4 shadow-xl backdrop-blur-sm w-full flex flex-col justify-between">
+      <div className="lg:col-span-2 flex flex-col gap-6 w-full min-w-0">
+        <div className="bg-slate-900/90 p-4 sm:p-5 rounded-xl border border-slate-800 space-y-4 shadow-xl w-full flex flex-col justify-between">
 
         {/* Header Tabella + Pulsanti Inserimento Modulare e Raggruppamento Report */}
         <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-3 pb-3.5 border-b border-slate-700/60">
@@ -1232,12 +1233,20 @@ export default function TabBatteriaTest({ patient, activePhase, onSaveTest }) {
           </table>
         </div>
 
+        </div>
+
+        {/* GRAFICO MULTIMETRICA ALLINEATO ALLA TABELLA (2/3 LARGHEZZA, SOTTO LA TABELLA) */}
+        <div className="w-full">
+          <UIErrorBoundary title="Grafico Multimetrico Temporaneamente Non Disponibile">
+            <GraficoMultimetrica tests={displayedSessions} />
+          </UIErrorBoundary>
+        </div>
       </div>
 
       {/* ========================================================================= */}
-      {/* SEZIONE DESTRA: BARRE TARGET PRESTATIVI & CHECKLIST QUALITATIVA (COL 4/12) */}
+      {/* COLONNA DESTRA (1/3): BARRE TARGET PRESTATIVI & CHECKLIST QUALITATIVA     */}
       {/* ========================================================================= */}
-      <div className="lg:col-span-4 bg-slate-800/80 p-5 rounded-3xl border border-slate-700/60 space-y-4 shadow-xl backdrop-blur-sm w-full flex flex-col justify-between">
+      <div className="lg:col-span-1 bg-slate-900/90 p-4 sm:p-5 rounded-xl border border-slate-800 space-y-4 shadow-xl w-full flex flex-col justify-between">
 
         {/* Header Barre Target */}
         <div className="flex items-center justify-between pb-3 border-b border-slate-700/60">
@@ -1430,15 +1439,6 @@ export default function TabBatteriaTest({ patient, activePhase, onSaveTest }) {
           </div>
         </div>
 
-      </div>
-
-      {/* ========================================================================= */}
-      {/* SEZIONE 3: GRAFICO MULTIMETRICA INTERATTIVO (FILTRA RIGOROSAMENTE I NULL) */}
-      {/* ========================================================================= */}
-      <div className="w-full lg:col-span-12 block pt-1">
-        <UIErrorBoundary title="Grafico Multimetrico Temporaneamente Non Disponibile">
-          <GraficoMultimetrica tests={displayedSessions} />
-        </UIErrorBoundary>
       </div>
 
       {/* MODAL RILEVAZIONE MODULARE TEST CLINICI LCA */}
