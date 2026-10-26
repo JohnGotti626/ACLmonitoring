@@ -30,10 +30,15 @@ import {
 } from '../../utils/testUtils';
 
 // ============================================================================
-// SYSTEM PROMPT UFFICIALE DEL COPILOT AI (LINEE GUIDA NSCA)
+// SYSTEM PROMPT UFFICIALE DEL COPILOT AI (NSCA CSCS • TURNER • BISHOP • ASPETAR)
 // ============================================================================
 export const NSCA_COPILOT_SYSTEM_PROMPT = `Sei un Clinical Strength & Conditioning Copilot specializzato nella riabilitazione post-ricostruzione LCA.
-Utilizza ESCLUSIVAMENTE le linee guida NSCA (National Strength and Conditioning Association - Essentials of Strength Training and Conditioning) per analizzare:
+Utilizza rigorosamente le evidenze scientifiche e linee guida di:
+- NSCA Strength & Conditioning (CSCS - Essentials of Strength Training and Conditioning: %1RM, Serie x Ripetizioni, Recupero, VBT)
+- Anthony Turner et al. (Stretch-Shortening Cycle, RFD, Reactive Strength Index & Plyometric Continuum)
+- Chris Bishop et al. (Inter-limb Asymmetry Profiling, Unilateral Jump Testing, soglie di asimmetria <10%)
+- Linee Guida Cliniche Aspetar (Kyritsis, Kotsifaki, Read, Aspetar ACL Rehabilitation Criterion-Based Progression)
+Analizza automaticamente:
 1. Gli ultimi test biomeccanici e isometrici inseriti (inclusi trend LSI e metriche personalizzate).
 2. I deficit neuromuscolari e biomeccanici segnalati dal team clinico.
 3. Le direttive operative del terapista e la fase riabilitativa attiva.
@@ -289,86 +294,86 @@ function CopilotEngineInner({ patient }) {
       (rsiVal !== null && rsiVal < activeTargetConfig.targetRsiMod) ||
       recordedDeficits.some(d => d.title?.toLowerCase().includes('stiff') || d.title?.toLowerCase().includes('rsi') || d.title?.toLowerCase().includes('plio'));
 
-    // 1. Raccomandazione NSCA Forza Quadricipite / Reclutamento Neuromuscolare
+    // 1. Raccomandazione NSCA / Aspetar Forza Quadricipite / Reclutamento Neuromuscolare
     if (hasQuadDeficit || lsiQuad === null) {
       const isSevere = lsiQuad !== null && lsiQuad < 75;
       recs.push({
         id: 'nsca_quad',
-        domain: 'NSCA Maximal Strength & Neural Drive (Quadricipite)',
+        domain: 'NSCA CSCS & Aspetar Guidelines — Maximal Strength & Neural Drive (Quadricipite)',
         triggerContext:
           lsiQuad !== null
-            ? `Rilevato LSI Quadricipite ${lsiQuad}% (Target ≥${activeTargetConfig.targetLsiQuad}%)`
-            : 'Focus primario recupero simmetria estensoria ginocchio operato',
+            ? `Rilevato LSI Quadricipite ${lsiQuad}% (Target Aspetar/NSCA ≥${activeTargetConfig.targetLsiQuad}%)`
+            : 'Focus primario recupero simmetria estensoria ginocchio operato (Aspetar Criterion-Based)',
         exercise: isSevere
           ? 'Overcoming Isometric Leg Extension a 60° + Spanish Squat Isocinetico/Tempo'
           : 'Single-Leg Press / Rear-Foot Elevated Split Squat (RFESS) con controllo VBT',
         loadParams: isSevere
-          ? 'Intensity: 80-90% MVC Isometrica • Volume: 5 serie x 6 sec • Rest: 90-120s (NSCA Neural Activation)'
-          : 'Intensity: 80-85% 1RM (VBT 0.45-0.55 m/s) • Volume: 4 serie x 6 reps • Rest: 2-3 min (NSCA Basic/Max Strength)',
-        progression: 'Passare da isometria a 60° a RFESS con carico assiale 85% 1RM (4x5 reps) e Velocity Loss <10%.',
-        regression: 'Ridurre ROM a 45°-60° in catena cinetica chiusa o utilizzare BFR (Blood Flow Restriction 80% LOP, 30-15-15-15 reps al 30% 1RM).'
+          ? 'Intensity: 80-90% MVC Isometrica • Volume: 5 serie x 6 sec • Rest: 90-120s (NSCA Neural Activation / Aspetar Early-Mid)'
+          : 'Intensity: 80-85% 1RM (VBT 0.45-0.55 m/s) • Volume: 4 serie x 6 reps • Rest: 2-3 min (NSCA CSCS Max Strength)',
+        progression: 'Passare da isometria a 60° a RFESS con carico assiale 85% 1RM (4x5 reps, Velocity Loss <10%) riducendo l’asimmetria inter-arto <10% (Bishop et al.).',
+        regression: 'Ridurre ROM a 45°-60° in catena cinetica chiusa o utilizzare BFR (Blood Flow Restriction 80% LOP, 30-15-15-15 reps al 30% 1RM — Linee Guida Aspetar).'
       });
     } else {
       recs.push({
         id: 'nsca_quad_power',
-        domain: 'NSCA Strength-Speed & Power Maintenance (Quadricipite OK)',
+        domain: 'NSCA CSCS & Turner RFD — Strength-Speed & Power Maintenance (Quadricipite OK)',
         triggerContext: `LSI Quadricipite a target (${lsiQuad}% ≥ ${activeTargetConfig.targetLsiQuad}%)`,
-        exercise: 'Trap Bar Deadlift / Safety Bar Squat con Encoder VBT',
-        loadParams: 'Intensity: 75-85% 1RM (Target Velocity 0.55-0.65 m/s) • Volume: 4 serie x 4-5 reps • Rest: 2.5-3 min',
-        progression: 'Contrast Training (French Contrast NSCA): Heavy Squat 85% 1RM + Hurdle Jump + Drop Jump.',
+        exercise: 'Trap Bar Deadlift / Safety Bar Squat con Encoder VBT + Unilateral Jump Transfer',
+        loadParams: 'Intensity: 75-85% 1RM (Target Velocity 0.55-0.65 m/s) • Volume: 4 serie x 4-5 reps • Rest: 2.5-3 min (NSCA CSCS / Turner RFD)',
+        progression: 'Contrast Training (French Contrast NSCA / Turner): Heavy Squat 85% 1RM + Hurdle Jump + Drop Jump.',
         regression: 'Mantenere carico costante 80% 1RM a 3x5 reps senza componente balistica se compare affaticamento.'
       });
     }
 
-    // 2. Raccomandazione NSCA Catena Cinetica Posteriore & H:Q Ratio
+    // 2. Raccomandazione NSCA / Aspetar Catena Cinetica Posteriore & H:Q Ratio
     if (hasHamOrHqDeficit) {
       recs.push({
         id: 'nsca_ham',
-        domain: 'NSCA Posterior Chain & Eccentric Hamstring Torque',
+        domain: 'NSCA CSCS & Aspetar (Kyritsis et al.) — Posterior Chain & Eccentric Hamstring Torque',
         triggerContext:
           hqRatio !== null
-            ? `H:Q Ratio ${hqRatio} (Target ≥${activeTargetConfig.targetHqRatio}) • Innesto ${safePatient.tipo_innesto || 'LCA'}`
-            : `Protezione sinergica agonista-LCA (Innesto ${safePatient.tipo_innesto || 'STG'})`,
+            ? `H:Q Ratio ${hqRatio} (Target Aspetar ≥${activeTargetConfig.targetHqRatio}) • Innesto ${safePatient.tipo_innesto || 'LCA'}`
+            : `Protezione sinergica agonista-LCA (Innesto ${safePatient.tipo_innesto || 'STG'} — Aspetar Protocol)`,
         exercise: 'Nordic Hamstring Eccentric Assistito + Single-Leg RDL (Romanian Deadlift)',
         loadParams: 'Intensity: 75-82% 1RM (Tempo Eccentrico 4-1-1) • Volume: 4 serie x 6-8 reps • Rest: 2 min (NSCA Eccentric Strength)',
-        progression: 'Razor Curl / Hip-Extension Slider ad alta velocità eccentrica (Catch phase) 4x5 reps.',
+        progression: 'Razor Curl / Hip-Extension Slider ad alta velocità eccentrica (Catch phase) 4x5 reps (Turner RFD eccentrico).',
         regression: 'Isometric Hamstring Bridge a lungo braccio di leva (30° flessione ginocchio) 4 serie x 20-30 sec.'
       });
     }
 
-    // 3. Raccomandazione NSCA Assorbimento Eccentrico / Controllo Valgismo & Decelerazione
+    // 3. Raccomandazione NSCA / Bishop / Aspetar (Kotsifaki & Read) Assorbimento Eccentrico & Decelerazione
     if (hasEccentricOrLandingDeficit || brakingAsym === null) {
       recs.push({
         id: 'nsca_decel',
-        domain: 'NSCA Eccentric Braking & Landing Mechanics (RFD)',
+        domain: 'Bishop Asymmetry & Aspetar (Kotsifaki / Read) — Eccentric Braking & Landing Mechanics',
         triggerContext:
           brakingAsym !== null
-            ? `Asimmetria Impulso Frenante CMJ ${brakingAsym}% (Target <${activeTargetConfig.targetBrakingAsym}%)`
-            : 'Rieducazione assorbimento cinetico e simmetria di frenata',
+            ? `Asimmetria Impulso Frenante CMJ ${brakingAsym}% (Target Bishop <${activeTargetConfig.targetBrakingAsym}%)`
+            : 'Rieducazione assorbimento cinetico monopodalico e simmetria di frenata (Bishop / Aspetar)',
         exercise: 'Altitude Drop-to-Stick Monopodalico (Box 20-30cm) + Eccentric Overload Split Squat',
         loadParams: 'Intensity: Peso Corporeo / Sovraccarico 15-20% BM • Volume: 4 serie x 5 atterraggi/lato (Hold 3s) • Rest: 90-120s',
-        progression: 'Decelerazione lineare su 5-10m con arresto monopodalico in 2 passi e cambio di direzione a 45°.',
+        progression: 'Decelerazione lineare su 5-10m con arresto monopodalico in 2 passi e cambio di direzione a 45° (Aspetar Late Stage COD).',
         regression: 'Drop Squat bipodalico rapido (Snap-Down) con feedback visivo per simmetria di carico 50/50.'
       });
     }
 
-    // 4. Raccomandazione NSCA Pliometria & Stretch-Shortening Cycle (SSC)
+    // 4. Raccomandazione NSCA / Turner Pliometria & Stretch-Shortening Cycle (SSC)
     if (hasPlyoOrRsiDeficit || rsiVal !== null) {
       const isReadyForFastSsc = (lsiQuad ?? 0) >= 80;
       recs.push({
         id: 'nsca_plyo',
-        domain: 'NSCA Plyometric SSC & Tendon Stiffness (RSImod)',
+        domain: 'Turner SSC Continuum & NSCA CSCS — Plyometric Stiffness & RSImod',
         triggerContext:
           rsiVal !== null
-            ? `RSI rilevato ${rsiVal} idx (Target Fase ≥${activeTargetConfig.targetRsiMod} idx)`
-            : 'Sviluppo rigidità reattiva complesso caviglia-ginocchio',
+            ? `RSI rilevato ${rsiVal} idx (Target Fase Turner/NSCA ≥${activeTargetConfig.targetRsiMod} idx)`
+            : 'Sviluppo rigidità reattiva complesso caviglia-ginocchio (Turner Plyometric Continuum)',
         exercise: isReadyForFastSsc
           ? 'Drop Jump Bipodalico/Monopodalico (Box 30cm, GCT <220ms) + Pogo Jumps Reattivi'
           : 'Sub-Maximal Ankle Hops & Countermovement Jump con pausa isometrica',
         loadParams: isReadyForFastSsc
-          ? 'Intensity: Fast SSC (Contatto <220ms) • Volume: 4 serie x 6 contatti (24 tocchi/sessione) • Rest: 2-3 min (NSCA Work-to-Rest 1:5-1:10)'
-          : 'Intensity: Low-Moderate SSC • Volume: 3 serie x 8 contatti • Rest: 90s',
-        progression: 'Single-Leg Hurdle Hops continui + Depth Jump da 30-40cm con massimizzazione altezza volo.',
+          ? 'Intensity: Fast SSC (Contatto <220ms, Turner) • Volume: 4 serie x 6 contatti (24 tocchi/sessione) • Rest: 2-3 min (NSCA Work-to-Rest 1:5-1:10)'
+          : 'Intensity: Low-Moderate SSC (Turner) • Volume: 3 serie x 8 contatti • Rest: 90s',
+        progression: 'Single-Leg Hurdle Hops continui + Depth Jump da 30-40cm con massimizzazione altezza volo e asimmetria SL <10% (Bishop / Kotsifaki).',
         regression: 'Sled Push / Pogo Jump bipodalico assistito con bande elastiche per ridurre vGRF di impatto.'
       });
     }

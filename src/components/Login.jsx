@@ -7,7 +7,7 @@ export default function Login({ onOpenSqlModal }) {
   const { login } = useAuth();
   const [email, setEmail] = useState('lead.therapist@medical-acl.it');
   const [password, setPassword] = useState('MedicalSecure2026!');
-  const [role, setRole] = useState('ADMIN'); // ADMIN (Lead Therapist) vs STAFF (Colleghi)
+  const [role, setRole] = useState('ADMIN');
   const [error, setError] = useState('');
   const [infoMsg, setInfoMsg] = useState('');
   const [loading, setLoading] = useState(false);
@@ -21,7 +21,6 @@ export default function Login({ onOpenSqlModal }) {
     const result = await login(email, password, role);
 
     if (!result.success) {
-      // Se l'utente non esiste in Supabase Auth, tenta la registrazione automatica come ADMIN
       if (isSupabaseConfigured && (result.error.includes('Invalid login credentials') || result.error.includes('User not found'))) {
         try {
           setInfoMsg('Creazione nuovo utente Supabase Auth in corso con ruolo ADMIN...');
@@ -42,7 +41,6 @@ export default function Login({ onOpenSqlModal }) {
           }
 
           if (signUpData.user) {
-            // Riprova il login subito dopo il signup
             const retryLogin = await login(email, password, role);
             if (retryLogin.success) {
               setLoading(false);
@@ -63,33 +61,29 @@ export default function Login({ onOpenSqlModal }) {
   };
 
   return (
-    <div className="min-h-screen bg-slate-950 flex flex-col justify-center items-center p-4 relative overflow-hidden">
-      {/* Ambient background blur */}
-      <div className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-cyan-500/10 blur-[120px] rounded-full pointer-events-none"></div>
-      <div className="absolute bottom-10 right-10 w-80 h-80 bg-emerald-500/10 blur-[100px] rounded-full pointer-events-none"></div>
-
+    <div className="min-h-screen bg-slate-100 flex flex-col justify-center items-center p-4 relative overflow-hidden text-slate-900">
       <div className="w-full max-w-md relative z-10">
         {/* Header Branding */}
-        <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center p-3 bg-cyan-500/10 border border-cyan-500/20 rounded-2xl mb-4 text-cyan-400 shadow-lg shadow-cyan-500/5">
-            <Activity className="w-9 h-9 animate-pulse" />
+        <div className="text-center mb-6">
+          <div className="inline-flex items-center justify-center p-3 bg-emerald-50 border border-emerald-200 rounded-2xl mb-3 text-emerald-700 shadow-sm">
+            <Activity className="w-8 h-8 text-emerald-600" />
           </div>
-          <h1 className="text-3xl font-extrabold text-white tracking-tight">
-            ACL-RTS <span className="text-cyan-400">Monitor Pro</span>
+          <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
+            ACL-RTS <span className="text-emerald-600">Monitor Pro</span>
           </h1>
-          <p className="text-slate-400 text-sm mt-1">
+          <p className="text-slate-500 text-xs sm:text-sm mt-1">
             Piattaforma Medicale per la Valutazione Biomeccanica e Return to Sport Post-LCA
           </p>
         </div>
 
         {/* Supabase Status Banner */}
-        <div className={`mb-6 p-3.5 rounded-xl border text-xs flex items-center justify-between ${
+        <div className={`mb-5 p-3.5 rounded-xl border text-xs flex items-center justify-between shadow-xs ${
           isSupabaseConfigured 
-            ? 'bg-emerald-950/40 border-emerald-500/30 text-emerald-300' 
-            : 'bg-amber-950/40 border-amber-500/30 text-amber-300'
+            ? 'bg-emerald-50 border-emerald-200 text-emerald-800' 
+            : 'bg-amber-50 border-amber-200 text-amber-800'
         }`}>
-          <div className="flex items-center gap-2">
-            <Database className="w-4 h-4 flex-shrink-0" />
+          <div className="flex items-center gap-2 font-medium">
+            <Database className="w-4 h-4 flex-shrink-0 text-emerald-600" />
             <span>
               {isSupabaseConfigured 
                 ? 'Connesso al Database Live Supabase' 
@@ -99,29 +93,31 @@ export default function Login({ onOpenSqlModal }) {
           <button 
             type="button" 
             onClick={onOpenSqlModal}
-            className="underline hover:text-white transition-colors flex-shrink-0 font-semibold"
+            className="underline hover:text-emerald-950 transition-colors flex-shrink-0 font-bold cursor-pointer"
           >
             Script SQL
           </button>
         </div>
 
         {/* Login Card */}
-        <div className="glass-panel p-8 rounded-2xl shadow-2xl border border-slate-800/80">
-          <div className="flex items-center gap-2 mb-6 pb-4 border-b border-slate-800">
-            <ShieldCheck className="w-5 h-5 text-cyan-400" />
-            <h2 className="text-lg font-bold text-white">Accesso Riservato Staff Medico</h2>
+        <div className="bg-white p-7 rounded-xl shadow-sm border border-slate-200">
+          <div className="flex items-center gap-2 mb-5 pb-3.5 border-b border-slate-200">
+            <div className="p-1 bg-slate-100 text-slate-600 rounded">
+              <ShieldCheck className="w-4 h-4 text-emerald-600" />
+            </div>
+            <h2 className="text-base font-bold text-slate-900">Accesso Riservato Staff Medico</h2>
           </div>
 
           {infoMsg && (
-            <div className="mb-6 p-3 bg-cyan-950/60 border border-cyan-500/40 rounded-xl text-xs text-cyan-300 flex items-center gap-2">
-              <UserPlus className="w-4 h-4 text-cyan-400 flex-shrink-0" />
+            <div className="mb-5 p-3 bg-emerald-50 border border-emerald-200 rounded-xl text-xs text-emerald-800 flex items-center gap-2">
+              <UserPlus className="w-4 h-4 text-emerald-600 flex-shrink-0" />
               <span>{infoMsg}</span>
             </div>
           )}
 
           {error && (
-            <div className="mb-6 p-3 bg-red-950/50 border border-red-500/40 rounded-xl text-xs text-red-300 flex items-center gap-2">
-              <AlertTriangle className="w-4 h-4 text-red-400 flex-shrink-0" />
+            <div className="mb-5 p-3 bg-rose-50 border border-rose-200 rounded-xl text-xs text-rose-700 flex items-center gap-2">
+              <AlertTriangle className="w-4 h-4 text-rose-600 flex-shrink-0" />
               <span>{error}</span>
             </div>
           )}
@@ -129,86 +125,86 @@ export default function Login({ onOpenSqlModal }) {
           <form onSubmit={handleSubmit} className="space-y-4">
             {/* Email Field */}
             <div>
-              <label className="block text-xs font-semibold text-slate-300 mb-1.5 uppercase tracking-wider">
+              <label className="block text-xs font-bold text-slate-700 mb-1.5 uppercase tracking-wider">
                 Email Operatore
               </label>
               <div className="relative">
-                <Mail className="w-5 h-5 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                <Mail className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
                 <input
                   type="email"
                   required
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="fisioterapista@clinic.it"
-                  className="w-full bg-slate-900/80 border border-slate-700/80 rounded-xl pl-10 pr-4 py-2.5 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500 transition-all"
+                  className="w-full bg-white border border-slate-300 rounded-xl pl-10 pr-4 py-2.5 text-sm text-slate-900 placeholder-slate-400 focus:outline-none focus:border-emerald-600 focus:ring-1 focus:ring-emerald-600 transition-all"
                 />
               </div>
             </div>
 
             {/* Password Field */}
             <div>
-              <label className="block text-xs font-semibold text-slate-300 mb-1.5 uppercase tracking-wider">
+              <label className="block text-xs font-bold text-slate-700 mb-1.5 uppercase tracking-wider">
                 Password
               </label>
               <div className="relative">
-                <Lock className="w-5 h-5 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                <Lock className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
                 <input
                   type="password"
                   required
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="••••••••••••"
-                  className="w-full bg-slate-900/80 border border-slate-700/80 rounded-xl pl-10 pr-4 py-2.5 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500 transition-all"
+                  className="w-full bg-white border border-slate-300 rounded-xl pl-10 pr-4 py-2.5 text-sm text-slate-900 placeholder-slate-400 focus:outline-none focus:border-emerald-600 focus:ring-1 focus:ring-emerald-600 transition-all"
                 />
               </div>
             </div>
 
             {/* Role Selection (RBAC) */}
             <div>
-              <label className="block text-xs font-semibold text-slate-300 mb-1.5 uppercase tracking-wider flex items-center justify-between">
+              <label className="block text-xs font-bold text-slate-700 mb-1.5 uppercase tracking-wider flex items-center justify-between">
                 <span>Ruolo Operativo (RBAC)</span>
-                <span className="text-[10px] text-cyan-400 font-normal">Supabase RBAC</span>
+                <span className="text-[10px] text-emerald-700 font-semibold">Supabase RBAC</span>
               </label>
               <div className="grid grid-cols-2 gap-3">
                 <button
                   type="button"
                   onClick={() => setRole('ADMIN')}
-                  className={`p-3 rounded-xl border text-left transition-all flex items-start gap-2.5 ${
+                  className={`p-3 rounded-xl border text-left transition-all flex items-start gap-2.5 cursor-pointer ${
                     role === 'ADMIN'
-                      ? 'bg-cyan-950/40 border-cyan-500 text-cyan-200 ring-1 ring-cyan-500/50'
-                      : 'bg-slate-900/50 border-slate-800 text-slate-400 hover:border-slate-700'
+                      ? 'bg-emerald-50 border-emerald-600 text-emerald-900 ring-1 ring-emerald-600/30'
+                      : 'bg-slate-50 border-slate-200 text-slate-600 hover:border-slate-300'
                   }`}
                 >
-                  <UserCheck className={`w-4 h-4 mt-0.5 ${role === 'ADMIN' ? 'text-cyan-400' : 'text-slate-500'}`} />
+                  <UserCheck className={`w-4 h-4 mt-0.5 ${role === 'ADMIN' ? 'text-emerald-600' : 'text-slate-400'}`} />
                   <div>
                     <div className="font-bold text-xs">ADMIN</div>
-                    <div className="text-[10px] opacity-75">Lead Therapist</div>
+                    <div className="text-[10px] text-slate-500">Lead Therapist</div>
                   </div>
                 </button>
 
                 <button
                   type="button"
                   onClick={() => setRole('STAFF')}
-                  className={`p-3 rounded-xl border text-left transition-all flex items-start gap-2.5 ${
+                  className={`p-3 rounded-xl border text-left transition-all flex items-start gap-2.5 cursor-pointer ${
                     role === 'STAFF'
-                      ? 'bg-emerald-950/40 border-emerald-500 text-emerald-200 ring-1 ring-emerald-500/50'
-                      : 'bg-slate-900/50 border-slate-800 text-slate-400 hover:border-slate-700'
+                      ? 'bg-emerald-50 border-emerald-600 text-emerald-900 ring-1 ring-emerald-600/30'
+                      : 'bg-slate-50 border-slate-200 text-slate-600 hover:border-slate-300'
                   }`}
                 >
-                  <KeyRound className={`w-4 h-4 mt-0.5 ${role === 'STAFF' ? 'text-emerald-400' : 'text-slate-500'}`} />
+                  <KeyRound className={`w-4 h-4 mt-0.5 ${role === 'STAFF' ? 'text-emerald-600' : 'text-slate-400'}`} />
                   <div>
                     <div className="font-bold text-xs">STAFF</div>
-                    <div className="text-[10px] opacity-75">Colleghi (Mobile)</div>
+                    <div className="text-[10px] text-slate-500">Colleghi (Mobile)</div>
                   </div>
                 </button>
               </div>
             </div>
 
             {/* Audit Log Notice */}
-            <div className="p-3 bg-slate-900/90 rounded-xl border border-slate-800 text-[11px] text-slate-400 flex items-start gap-2">
-              <CheckCircle2 className="w-4 h-4 text-emerald-400 flex-shrink-0 mt-0.5" />
+            <div className="p-3 bg-slate-50 rounded-xl border border-slate-200 text-[11px] text-slate-600 flex items-start gap-2">
+              <CheckCircle2 className="w-4 h-4 text-emerald-600 flex-shrink-0 mt-0.5" />
               <span>
-                <strong>Audit Log Attivo:</strong> Data, ora e ID utente verranno salvati su tabella <code className="text-cyan-300">audit_logs</code> ad ogni accesso.
+                <strong>Audit Log Attivo:</strong> Data, ora e ID utente verranno salvati su tabella <code className="text-emerald-700 font-semibold">audit_logs</code> ad ogni accesso.
               </span>
             </div>
 
@@ -216,7 +212,7 @@ export default function Login({ onOpenSqlModal }) {
             <button
               type="submit"
               disabled={loading}
-              className="w-full py-3 px-4 bg-gradient-to-r from-cyan-600 to-cyan-500 hover:from-cyan-500 hover:to-cyan-400 text-white font-bold rounded-xl shadow-lg shadow-cyan-500/20 transition-all duration-200 disabled:opacity-50 mt-2 flex items-center justify-center gap-2"
+              className="w-full py-3 px-4 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl shadow-sm transition-all duration-200 disabled:opacity-50 mt-2 flex items-center justify-center gap-2 cursor-pointer"
             >
               {loading ? (
                 <span>Autenticazione in corso...</span>
@@ -231,7 +227,7 @@ export default function Login({ onOpenSqlModal }) {
         </div>
 
         <p className="text-center text-xs text-slate-500 mt-6">
-          Conforme alle linee guida di monitoraggio biomeccanico e profilazione Return to Sport post-LCA.
+          Conforme alle linee guida NSCA CSCS, Turner, Bishop &amp; Aspetar per il Return to Sport post-LCA.
         </p>
       </div>
     </div>
