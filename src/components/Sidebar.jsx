@@ -35,18 +35,18 @@ export default function Sidebar({
   };
 
   const sidebarContent = (
-    <div className="flex flex-col h-full justify-between p-4 bg-white border-r border-slate-200/80 w-64 select-none text-slate-900">
+    <div className="flex flex-col h-full justify-between p-4 bg-stone-50 border-r border-stone-300/70 w-64 select-none text-stone-800 shadow-none">
       <div className="space-y-6">
-        <div className="flex items-center justify-between lg:hidden pb-2 border-b border-slate-200">
-          <span className="font-bold text-sm text-slate-700">Menu Navigazione</span>
-          <button onClick={() => setMobileOpen(false)} className="p-1 text-slate-500 hover:text-slate-900">
+        <div className="flex items-center justify-between lg:hidden pb-2 border-b border-stone-300/70">
+          <span className="font-semibold text-sm text-stone-800">Menu Navigazione</span>
+          <button onClick={() => setMobileOpen(false)} className="p-1 text-stone-500 hover:text-stone-800">
             <X className="w-5 h-5" />
           </button>
         </div>
 
         {/* Navigation Links */}
         <div className="space-y-1.5">
-          <div className="px-3 py-1 text-[10px] font-mono uppercase tracking-wider text-slate-500 font-bold">
+          <div className="px-3 py-1 text-[10px] font-mono uppercase tracking-wider text-stone-500 font-semibold">
             Area Clinica &amp; Riabilitativa
           </div>
           {navItems.map((item) => {
@@ -57,15 +57,15 @@ export default function Sidebar({
                 key={item.id}
                 disabled={item.disabled}
                 onClick={() => handleNav(item.id)}
-                className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
                   active
-                    ? 'bg-emerald-700 text-white shadow-sm'
+                    ? 'bg-stone-800 text-stone-100'
                     : item.disabled
-                    ? 'opacity-40 cursor-not-allowed text-slate-400'
-                    : 'text-slate-600 hover:text-slate-900 hover:bg-emerald-50/50'
+                    ? 'opacity-40 cursor-not-allowed text-stone-400'
+                    : 'text-stone-600 hover:text-stone-800 hover:bg-stone-200/50'
                 }`}
               >
-                <Icon className={`w-4 h-4 ${active ? 'text-white' : 'text-emerald-600'}`} />
+                <Icon className={`w-4 h-4 ${active ? 'text-stone-100' : 'text-stone-700'}`} />
                 <span className="truncate">{item.label}</span>
               </button>
             );
@@ -73,8 +73,8 @@ export default function Sidebar({
         </div>
 
         {/* Quick Tools */}
-        <div className="space-y-1.5 pt-4 border-t border-slate-200">
-          <div className="px-3 py-1 text-[10px] font-mono uppercase tracking-wider text-slate-500 font-bold">
+        <div className="space-y-1.5 pt-4 border-t border-stone-300/70">
+          <div className="px-3 py-1 text-[10px] font-mono uppercase tracking-wider text-stone-500 font-semibold">
             Strumenti &amp; Report
           </div>
 
@@ -83,10 +83,10 @@ export default function Sidebar({
               onOpenSqlModal();
               setMobileOpen(false);
             }}
-            className="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-semibold text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition-all cursor-pointer"
+            className="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-semibold text-stone-700 hover:text-stone-800 hover:bg-stone-200/50 transition-all cursor-pointer"
           >
-            <div className="p-1 bg-slate-100 text-slate-600 rounded">
-              <Database className="w-4 h-4 text-emerald-600" />
+            <div className="p-1 bg-stone-200/60 text-stone-700 rounded">
+              <Database className="w-4 h-4 text-stone-700" />
             </div>
             <span>Script SQL Supabase</span>
           </button>
@@ -97,10 +97,10 @@ export default function Sidebar({
               if (onOpenPrintConfigurator) onOpenPrintConfigurator();
               setMobileOpen(false);
             }}
-            className="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-semibold text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition-all cursor-pointer"
+            className="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-semibold text-stone-700 hover:text-stone-800 hover:bg-stone-200/50 transition-all cursor-pointer"
           >
-            <div className="p-1 bg-slate-100 text-slate-600 rounded">
-              <Printer className="w-4 h-4 text-emerald-600" />
+            <div className="p-1 bg-stone-200/60 text-stone-700 rounded">
+              <Printer className="w-4 h-4 text-stone-700" />
             </div>
             <span>Stampa Report A4</span>
           </button>
@@ -108,13 +108,13 @@ export default function Sidebar({
       </div>
 
       {/* Bottom Info Card */}
-      <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200 space-y-2">
-        <div className="flex items-center gap-2 text-emerald-700 text-xs font-bold">
-          <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-600" />
-          <span>NSCA Clinical Engine</span>
+      <div className="p-3.5 rounded-xl bg-stone-100 border border-stone-300/70 space-y-2">
+        <div className="flex items-center gap-2 text-emerald-800 text-xs font-semibold">
+          <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-800" />
+          <span>Clinical Engine Attivo</span>
         </div>
-        <p className="text-[11px] text-slate-500 leading-relaxed">
-          LSI, Metriche Personalizzate, Sessioni 14gg e Copilot AI NSCA attivi.
+        <p className="text-[11px] text-stone-500 font-medium leading-relaxed">
+          LSI, Metriche Personalizzate, Sessioni 14gg e Copilot attivi.
         </p>
       </div>
     </div>
@@ -127,7 +127,7 @@ export default function Sidebar({
       {mobileOpen && (
         <div className="fixed inset-0 z-50 lg:hidden flex print:hidden">
           <div
-            className="fixed inset-0 bg-slate-900/40 backdrop-blur-xs"
+            className="fixed inset-0 bg-stone-900/40 backdrop-blur-xs"
             onClick={() => setMobileOpen(false)}
           />
           <div className="relative z-10">{sidebarContent}</div>

@@ -24,8 +24,8 @@ export default function PatientList({
   const [viewTrash, setViewTrash] = useState(false);
   const [confirmDeletePatient, setConfirmDeletePatient] = useState(null);
 
-  const activePatients = patients.filter(p => !p.is_deleted);
-  const trashedPatients = patients.filter(p => p.is_deleted);
+  const activePatients = patients.filter((p) => !p.is_deleted);
+  const trashedPatients = patients.filter((p) => p.is_deleted);
   const baseList = viewTrash ? trashedPatients : activePatients;
 
   const filtered = baseList.filter((p) => {
@@ -35,19 +35,19 @@ export default function PatientList({
     return matchName && matchSport;
   });
 
-  const sports = ['Tutti', ...new Set(activePatients.map(p => p.sport).filter(Boolean))];
+  const sports = ['Tutti', ...new Set(activePatients.map((p) => p.sport).filter(Boolean))];
 
   return (
-    <div className="space-y-5 text-slate-900">
+    <div className="space-y-5 text-stone-800">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight">
+          <h1 className="text-xl sm:text-2xl font-semibold text-stone-800 tracking-tight">
             {viewTrash ? 'Cestino Pazienti Archiviati' : 'Elenco Pazienti Riabilitazione LCA'}
           </h1>
-          <p className="text-xs sm:text-sm text-slate-500 mt-0.5">
+          <p className="text-xs sm:text-sm text-stone-500 font-medium mt-0.5">
             {viewTrash
               ? 'Ripristina un paziente in archivio attivo oppure eliminalo definitivamente'
-              : 'Seleziona un paziente per accedere a Monitoraggio & Diario, Test & Valutazioni e Copilot AI'}
+              : 'Seleziona un paziente per accedere a Monitoraggio & Diario, Test & Valutazioni e Copilot'}
           </p>
         </div>
 
@@ -55,10 +55,10 @@ export default function PatientList({
           <button
             type="button"
             onClick={() => setViewTrash(!viewTrash)}
-            className={`flex items-center gap-2 px-3.5 py-2.5 rounded-xl font-bold text-xs border transition-all cursor-pointer ${
+            className={`flex items-center gap-2 px-3.5 py-2.5 rounded-xl font-semibold text-xs border transition-all cursor-pointer ${
               viewTrash
-                ? 'bg-amber-50 border-amber-200 text-amber-800'
-                : 'bg-white border-slate-200/80 text-slate-600 hover:text-slate-900 shadow-2xs'
+                ? 'bg-amber-900/10 border-amber-300/50 text-amber-800'
+                : 'bg-stone-50 border-stone-300/70 text-stone-700 hover:bg-stone-100 shadow-none'
             }`}
           >
             <Trash2 className="w-4 h-4" />
@@ -68,7 +68,7 @@ export default function PatientList({
           {!viewTrash && (
             <button
               onClick={onAddNewPatient}
-              className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-sm transition-all cursor-pointer"
+              className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-stone-800 hover:bg-stone-900 text-stone-100 font-semibold text-xs shadow-none transition-all cursor-pointer"
             >
               <UserPlus className="w-4 h-4" />
               <span>+ Nuovo Paziente LCA</span>
@@ -78,29 +78,29 @@ export default function PatientList({
       </div>
 
       {/* Search & Filters */}
-      <div className="bg-white p-4 rounded-xl border border-slate-200/80 shadow-sm flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+      <div className="bg-stone-50 p-4 rounded-xl border border-stone-300/70 shadow-none flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
         <div className="relative flex-1">
-          <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+          <Search className="w-4 h-4 text-stone-500 absolute left-3.5 top-1/2 -translate-y-1/2" />
           <input
             type="text"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Cerca per nome, cognome o chirurgo..."
-            className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-10 pr-4 py-2 text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:border-emerald-600 focus:bg-white"
+            className="w-full bg-stone-100 border border-stone-300/70 rounded-xl pl-10 pr-4 py-2 text-xs text-stone-800 font-medium placeholder-stone-500 focus:outline-none focus:border-stone-600"
           />
         </div>
 
         <div className="flex items-center gap-2">
-          <Filter className="w-4 h-4 text-slate-400 shrink-0" />
+          <Filter className="w-4 h-4 text-stone-500 shrink-0" />
           <div className="flex items-center gap-1.5 overflow-x-auto pb-1 sm:pb-0">
-            {sports.map(sp => (
+            {sports.map((sp) => (
               <button
                 key={sp}
                 onClick={() => setSportFilter(sp)}
-                className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer whitespace-nowrap ${
+                className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-all cursor-pointer whitespace-nowrap ${
                   sportFilter === sp
-                    ? 'bg-emerald-700 text-white shadow-xs'
-                    : 'bg-slate-100 text-slate-600 hover:text-slate-900 border border-slate-200'
+                    ? 'bg-stone-800 text-stone-100'
+                    : 'bg-stone-100 text-stone-600 hover:text-stone-800 hover:bg-stone-200/50 border border-stone-300/70'
                 }`}
               >
                 {sp}
@@ -111,21 +111,21 @@ export default function PatientList({
       </div>
 
       {/* Table */}
-      <div className="bg-white rounded-xl border border-slate-200/80 shadow-sm overflow-hidden">
+      <div className="bg-stone-50 rounded-xl border border-stone-300/70 shadow-none overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse">
             <thead>
-              <tr className="border-b border-slate-200 bg-slate-50/80 text-[11px] font-mono uppercase text-slate-500">
-                <th className="py-3.5 px-4 font-bold">Paziente</th>
-                <th className="py-3.5 px-4 font-bold">Sport &amp; Livello</th>
-                <th className="py-3.5 px-4 font-bold">Lesione / Innesto</th>
-                <th className="py-3.5 px-4 font-bold">Data Intervento</th>
-                <th className="py-3.5 px-4 font-bold">Fase Attuale</th>
-                <th className="py-3.5 px-4 font-bold text-center">Ultimo LSI Quad</th>
-                <th className="py-3.5 px-4 font-bold text-right">Azioni</th>
+              <tr className="border-b border-stone-300/70 bg-stone-100 text-[11px] font-mono uppercase text-stone-500">
+                <th className="py-3.5 px-4 font-semibold">Paziente</th>
+                <th className="py-3.5 px-4 font-semibold">Sport &amp; Livello</th>
+                <th className="py-3.5 px-4 font-semibold">Lesione / Innesto</th>
+                <th className="py-3.5 px-4 font-semibold">Data Intervento</th>
+                <th className="py-3.5 px-4 font-semibold">Fase Attuale</th>
+                <th className="py-3.5 px-4 font-semibold text-center">Ultimo LSI Quad</th>
+                <th className="py-3.5 px-4 font-semibold text-right">Azioni</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-200/80 text-xs">
+            <tbody className="divide-y divide-stone-300/60 text-xs">
               {filtered.map((p, idx) => {
                 const sorted = sortTestsByDate(p.tests);
                 const lsiQ = getLastValidMetricValue(sorted, ['lsiQuad', 'lsi_quad_calculated']);
@@ -134,49 +134,49 @@ export default function PatientList({
                     key={p.id}
                     onClick={() => !viewTrash && onSelectPatient(p)}
                     className={`transition-colors ${
-                      idx % 2 === 0 ? 'bg-white' : 'bg-slate-50/80'
-                    } ${!viewTrash ? 'hover:bg-emerald-50/30 cursor-pointer' : ''}`}
+                      idx % 2 === 0 ? 'bg-stone-50' : 'bg-stone-100'
+                    } ${!viewTrash ? 'hover:bg-stone-200/50 cursor-pointer' : ''}`}
                   >
                     <td className="py-3.5 px-4">
-                      <div className="font-bold text-slate-900 text-sm">
+                      <div className="font-semibold text-stone-800 text-sm">
                         {p.nome} {p.cognome}
                       </div>
-                      <div className="text-[11px] text-slate-500">
+                      <div className="text-[11px] text-stone-500 font-medium">
                         Chirurgo: {p.chirurgo || 'N/D'}
                       </div>
                     </td>
                     <td className="py-3.5 px-4">
-                      <div className="font-semibold text-slate-800">{p.sport}</div>
-                      <div className="text-[11px] text-slate-500">{p.ruolo_sportivo} • {p.livello}</div>
+                      <div className="font-semibold text-stone-800">{p.sport}</div>
+                      <div className="text-[11px] text-stone-500 font-medium">{p.ruolo_sportivo} • {p.livello}</div>
                     </td>
                     <td className="py-3.5 px-4">
-                      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-slate-100 border border-slate-200 font-mono text-slate-800 font-semibold">
+                      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-stone-200/60 border border-stone-300/70 font-mono text-stone-800 font-semibold">
                         Lato {p.lato_lesione} • {p.tipo_innesto}
                       </span>
                     </td>
-                    <td className="py-3.5 px-4 font-mono text-slate-700 font-semibold">
+                    <td className="py-3.5 px-4 font-mono text-stone-700 font-semibold">
                       {p.data_intervento}
                     </td>
                     <td className="py-3.5 px-4">
-                      <span className="px-2.5 py-1 rounded-full text-[11px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                      <span className="px-2.5 py-1 rounded-full text-[11px] font-semibold bg-emerald-900/10 text-emerald-800 border border-emerald-300/40">
                         {formatPhaseDisplay(p.fase_attuale || p.fase_riabilitativa)}
                       </span>
                     </td>
-                    <td className="py-3.5 px-4 text-center font-mono font-bold">
+                    <td className="py-3.5 px-4 text-center font-mono font-semibold">
                       {lsiQ !== null ? (
                         <span
                           className={`px-2.5 py-1 rounded-lg border ${
                             lsiQ >= 90
-                              ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                              ? 'bg-emerald-900/10 text-emerald-800 border-emerald-300/40'
                               : lsiQ >= 75
-                              ? 'bg-amber-50 text-amber-700 border-amber-200'
-                              : 'bg-rose-50 text-rose-700 border-rose-200'
+                              ? 'bg-amber-900/10 text-amber-800 border-amber-300/50'
+                              : 'bg-rose-900/10 text-rose-800 border-rose-300/50'
                           }`}
                         >
                           {lsiQ}%
                         </span>
                       ) : (
-                        <span className="px-2 py-0.5 rounded bg-slate-100 text-slate-400 font-sans text-[11px]">
+                        <span className="px-2 py-0.5 rounded bg-stone-200/60 text-stone-500 font-sans text-[11px] font-medium">
                           Non testato
                         </span>
                       )}
@@ -190,7 +190,7 @@ export default function PatientList({
                               e.stopPropagation();
                               if (onRestorePatient) onRestorePatient(p.id);
                             }}
-                            className="inline-flex items-center gap-1 px-3 py-1.5 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 font-bold text-xs transition-all cursor-pointer"
+                            className="inline-flex items-center gap-1 px-3 py-1.5 rounded-xl bg-emerald-900/10 hover:bg-emerald-900/20 text-emerald-800 border border-emerald-300/40 font-semibold text-xs transition-all cursor-pointer"
                           >
                             <RotateCcw className="w-3.5 h-3.5" />
                             <span>Ripristina</span>
@@ -202,7 +202,7 @@ export default function PatientList({
                               e.stopPropagation();
                               setConfirmDeletePatient({ ...p, permanent: true });
                             }}
-                            className="inline-flex items-center gap-1 px-3 py-1.5 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 font-bold text-xs transition-all cursor-pointer"
+                            className="inline-flex items-center gap-1 px-3 py-1.5 rounded-xl bg-rose-900/10 hover:bg-rose-900/20 text-rose-800 border border-rose-300/50 font-semibold text-xs transition-all cursor-pointer"
                           >
                             <Trash2 className="w-3.5 h-3.5" />
                             <span>Elimina</span>
@@ -216,7 +216,7 @@ export default function PatientList({
                               e.stopPropagation();
                               onSelectPatient(p);
                             }}
-                            className="inline-flex items-center gap-1 px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-2xs transition-all cursor-pointer"
+                            className="inline-flex items-center gap-1 px-3 py-1.5 rounded-xl bg-stone-800 hover:bg-stone-900 text-stone-100 font-semibold text-xs shadow-none transition-all cursor-pointer"
                           >
                             <span>Apri</span>
                             <ArrowRight className="w-3.5 h-3.5" />
@@ -229,7 +229,7 @@ export default function PatientList({
                               setConfirmDeletePatient({ ...p, permanent: false });
                             }}
                             title="Elimina Paziente"
-                            className="p-1.5 rounded-xl bg-slate-100 hover:bg-rose-50 text-slate-500 hover:text-rose-600 border border-slate-200 hover:border-rose-200 transition-all cursor-pointer"
+                            className="p-1.5 rounded-xl bg-stone-100 hover:bg-rose-900/10 text-stone-500 hover:text-rose-700 border border-stone-300/70 hover:border-rose-300/50 transition-all cursor-pointer"
                           >
                             <Trash2 className="w-4 h-4" />
                           </button>
@@ -242,7 +242,7 @@ export default function PatientList({
 
               {filtered.length === 0 && (
                 <tr>
-                  <td colSpan={7} className="py-8 text-center text-slate-500">
+                  <td colSpan={7} className="py-8 text-center text-stone-500 font-medium">
                     {viewTrash
                       ? 'Il cestino è vuoto.'
                       : 'Nessun paziente trovato con i filtri selezionati.'}
@@ -256,31 +256,31 @@ export default function PatientList({
 
       {/* Modal di conferma eliminazione */}
       {confirmDeletePatient && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm">
-          <div className="w-full max-w-md bg-white border border-slate-200 rounded-2xl p-6 space-y-4 shadow-2xl text-slate-900">
-            <div className="flex items-center gap-3 text-rose-600">
-              <div className="p-2.5 rounded-xl bg-rose-50 border border-rose-200">
-                <AlertTriangle className="w-5 h-5 text-rose-600" />
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-stone-900/50 backdrop-blur-xs">
+          <div className="w-full max-w-md bg-stone-50 border border-stone-300/70 rounded-xl p-6 space-y-4 shadow-none text-stone-800">
+            <div className="flex items-center gap-3 text-rose-800">
+              <div className="p-2 rounded-xl bg-rose-900/10 border border-rose-300/50">
+                <AlertTriangle className="w-4 h-4 text-rose-700" />
               </div>
               <div>
-                <h3 className="font-bold text-slate-900 text-base">
+                <h3 className="font-semibold text-stone-800 text-base">
                   Eliminare Paziente?
                 </h3>
-                <p className="text-xs text-slate-500">
-                  Paziente: <strong className="text-slate-900">{confirmDeletePatient.nome} {confirmDeletePatient.cognome}</strong>
+                <p className="text-xs text-stone-500 font-medium">
+                  Paziente: <strong className="text-stone-800 font-semibold">{confirmDeletePatient.nome} {confirmDeletePatient.cognome}</strong>
                 </p>
               </div>
             </div>
 
-            <p className="text-xs text-slate-600 leading-relaxed">
+            <p className="text-xs text-stone-600 font-medium leading-relaxed">
               Questa operazione rimuoverà il paziente e le relative rilevazioni dal database Supabase.
             </p>
 
-            <div className="flex justify-end gap-2.5 pt-2 border-t border-slate-200">
+            <div className="flex justify-end gap-2.5 pt-2 border-t border-stone-300/70">
               <button
                 type="button"
                 onClick={() => setConfirmDeletePatient(null)}
-                className="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-300 text-xs font-bold cursor-pointer"
+                className="px-4 py-2 rounded-xl bg-stone-100 hover:bg-stone-200/50 text-stone-800 border border-stone-300/70 text-xs font-semibold cursor-pointer"
               >
                 Annulla
               </button>
@@ -294,7 +294,7 @@ export default function PatientList({
                   }
                   setConfirmDeletePatient(null);
                 }}
-                className="px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold flex items-center gap-1.5 shadow-sm cursor-pointer"
+                className="px-4 py-2 rounded-xl bg-stone-800 hover:bg-stone-900 text-stone-100 text-xs font-semibold flex items-center gap-1.5 shadow-none cursor-pointer"
               >
                 <Trash2 className="w-4 h-4" />
                 <span>Conferma Eliminazione</span>

@@ -4,18 +4,17 @@
 
 @layer base {
   :root {
-    --bg-primary: #F1F5F9;     /* Grigio Perla bg-slate-100 */
-    --bg-card: #FFFFFF;        /* Bianco Puro */
-    --border-card: #E2E8F0;    /* Slate-200 */
-    --accent-emerald: #059669; /* Emerald-600 */
-    --accent-emerald-dark: #047857; /* Emerald-700 */
-    --text-primary: #0F172A;   /* Slate-900 */
-    --text-muted: #64748B;     /* Slate-500 */
+    --bg-primary: #E7E5E4;     /* Warm Concrete Stone-200 */
+    --bg-card: #FAFAF9;        /* Sabbia Opaco Stone-50 (MAI #FFFFFF) */
+    --border-card: #D6D3D1;    /* Stone-300 */
+    --accent-primary: #292524; /* Stone-800 */
+    --text-primary: #292524;   /* Stone-800 */
+    --text-muted: #78716C;     /* Stone-500 */
   }
 
   body {
-    background-color: #F1F5F9;
-    color: #0F172A;
+    background-color: #E7E5E4;
+    color: #292524;
     font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
     margin: 0;
     padding: 0;
@@ -23,8 +22,8 @@
   }
 
   input, select, textarea {
-    color: #0F172A;
-    background-color: #FFFFFF;
+    color: #292524;
+    background-color: #FAFAF9;
   }
 }
 
@@ -32,65 +31,65 @@
   font-family: 'JetBrains Mono', 'Fira Code', monospace;
 }
 
-/* Card & Container base (Light Mode Clinica: Bianco, Grigio Perla e Verde Smeraldo) */
+/* Card & Container base (Warm Concrete Pearl: Opaco, Sabbia desaturato, zero riflessi) */
 .glass-panel {
-  background-color: #FFFFFF !important;
-  border: 1px solid rgba(226, 232, 240, 0.9) !important;
-  box-shadow: 0 1px 3px 0 rgba(15, 23, 42, 0.06), 0 1px 2px -1px rgba(15, 23, 42, 0.04) !important;
-  color: #0F172A;
+  background-color: #FAFAF9 !important;
+  border: 1px solid rgba(214, 211, 209, 0.75) !important;
+  box-shadow: none !important;
+  color: #292524;
 }
 
 .glass-card {
-  background-color: #FFFFFF !important;
-  border: 1px solid rgba(226, 232, 240, 0.85) !important;
-  box-shadow: 0 1px 2px 0 rgba(15, 23, 42, 0.05) !important;
+  background-color: #FAFAF9 !important;
+  border: 1px solid rgba(214, 211, 209, 0.7) !important;
+  box-shadow: none !important;
   transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-  color: #0F172A;
+  color: #292524;
 }
 
 .glass-card:hover {
-  border-color: #A7F3D0 !important;
-  box-shadow: 0 4px 12px -2px rgba(5, 150, 105, 0.08) !important;
+  border-color: #A8A29E !important;
+  background-color: #F5F5F4 !important;
 }
 
 /* Stili Navigazione Schede (3 Tab Principali) */
 .tab-active {
-  background-color: #047857 !important; /* bg-emerald-700 */
-  color: #FFFFFF !important;
-  border: 1px solid #059669 !important;
-  font-weight: 700;
-  box-shadow: 0 1px 3px 0 rgba(4, 120, 87, 0.25);
+  background-color: #292524 !important; /* bg-stone-800 */
+  color: #F5F5F4 !important;            /* text-stone-100 */
+  border: 1px solid #1C1917 !important;
+  font-weight: 600;
+  box-shadow: none !important;
 }
 
 .tab-inactive {
-  background-color: #F8FAFC !important;
-  color: #475569 !important;
-  border: 1px solid #E2E8F0 !important;
+  background-color: #F5F5F4 !important; /* bg-stone-100 */
+  color: #57534E !important;            /* text-stone-600 */
+  border: 1px solid rgba(214, 211, 209, 0.7) !important;
 }
 
 .tab-inactive:hover {
-  color: #0F172A !important;
-  background-color: #ECFDF5 !important;
-  border-color: #A7F3D0 !important;
+  color: #292524 !important;
+  background-color: rgba(231, 229, 228, 0.6) !important;
+  border-color: #A8A29E !important;
 }
 
-/* Scrollbar sottile e pulita */
+/* Scrollbar opaca */
 ::-webkit-scrollbar {
   width: 6px;
   height: 6px;
 }
 
 ::-webkit-scrollbar-track {
-  background: #F1F5F9;
+  background: #E7E5E4;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #CBD5E1;
+  background: #A8A29E;
   border-radius: 3px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #059669;
+  background: #57534E;
 }
 
 /* ========================================================================== */
@@ -108,8 +107,8 @@
   }
 
   html, body {
-    background-color: #FFFFFF !important;
-    color: #0F172A !important;
+    background-color: #FAFAF9 !important;
+    color: #292524 !important;
     font-size: 9.5pt !important;
     line-height: 1.35 !important;
     margin: 0 !important;
@@ -118,7 +117,6 @@
     overflow: visible !important;
   }
 
-  /* Nasconde barre di controllo, pulsanti, header, sidebar e modali in stampa */
   .no-print,
   .print\:hidden,
   header,
@@ -135,7 +133,7 @@
   body.printing-custom-report .custom-print-modal-overlay {
     position: static !important;
     display: block !important;
-    background: #FFFFFF !important;
+    background: #FAFAF9 !important;
     padding: 0 !important;
     margin: 0 !important;
     overflow: visible !important;
@@ -147,7 +145,7 @@
     width: 100% !important;
     border: none !important;
     box-shadow: none !important;
-    background: #FFFFFF !important;
+    background: #FAFAF9 !important;
     overflow: visible !important;
   }
 
@@ -156,16 +154,16 @@
     max-width: 100% !important;
     margin: 0 !important;
     padding: 0 !important;
-    background: #FFFFFF !important;
+    background: #FAFAF9 !important;
     display: block !important;
   }
 
   .glass-panel,
   .glass-card,
   .break-inside-avoid {
-    background: #FFFFFF !important;
-    color: #0F172A !important;
-    border: 1px solid #CBD5E1 !important;
+    background: #FAFAF9 !important;
+    color: #292524 !important;
+    border: 1px solid #D6D3D1 !important;
     box-shadow: none !important;
     break-inside: avoid !important;
     page-break-inside: avoid !important;

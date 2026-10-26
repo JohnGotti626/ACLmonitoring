@@ -3,7 +3,6 @@ import {
   ArrowLeft,
   Calendar,
   Activity,
-  ShieldAlert,
   Sparkles,
   FileDown,
   Edit2,
@@ -14,7 +13,9 @@ import {
   ClipboardList,
   Compass,
   ChevronDown,
-  ChevronUp
+  ChevronUp,
+  Layers,
+  Check
 } from 'lucide-react';
 import TabDirettiveOperative from './tabs/TabDirettiveOperative';
 import TabBatteriaTest from './tabs/TabBatteriaTest';
@@ -25,18 +26,71 @@ import { UIErrorBoundary } from './UIErrorBoundary';
 import { CANONICAL_PHASES, normalizePhaseForDb } from '../utils/phaseUtils';
 import { sortTestsByDate, getLastValidMetricValue } from '../utils/testUtils';
 
+const FIVE_REHAB_PHASES = [
+  {
+    id: 'EARLY_STAGE',
+    num: 'Fase 1',
+    tag: 'EARLY STAGE',
+    title: 'Controllo Infiammazione & ROM',
+    subtitle: 'Recupero estensione 0°, controllo gonfiore, riattivazione VMO e propriocezione iniziale.',
+    dbPhase: 'Early Phase'
+  },
+  {
+    id: 'MID_STAGE',
+    num: 'Fase 2',
+    tag: 'MID STAGE',
+    title: 'Forza, Jump & Landing',
+    subtitle: 'Rinforzo muscolare progressivo in catena chiusa/aperta, landing mechanics e primi salti.',
+    dbPhase: 'Return to Run'
+  },
+  {
+    id: 'RETURN_TO_RUN',
+    num: 'Fase 3',
+    tag: 'RETURN TO RUN',
+    title: 'Carico, Corsa & RSI',
+    subtitle: 'Introduzione alla corsa lineare, drills meccanici, lavoro su RSI e sviluppo potenza.',
+    dbPhase: 'Return to Run'
+  },
+  {
+    id: 'LATE_STAGE',
+    num: 'Fase 4',
+    tag: 'LATE STAGE',
+    title: 'CODs, Chaos & Plyo',
+    subtitle: 'Cambi di direzione ad alta velocità, ambienti caotici/reattivi e pliometria intensiva.',
+    dbPhase: 'Return to Sport'
+  },
+  {
+    id: 'PERFORMANCE',
+    num: 'Fase 5',
+    tag: 'PERFORMANCE',
+    title: 'Return to Sport & Peak Power',
+    subtitle: 'Ritorno alla performance massimale: sprint, potenza di picco e idoneità agonistica.',
+    dbPhase: 'Return to Play'
+  }
+];
+
+function getStageIdFromPatient(patient) {
+  const raw = String(patient?.fase_attuale || patient?.fase_riabilitativa || '').toLowerCase();
+  if (raw.includes('early') || raw.includes('rom') || raw.includes('fase 1')) return 'EARLY_STAGE';
+  if (raw.includes('mid') || raw.includes('strength') || raw.includes('fase 2')) return 'MID_STAGE';
+  if (raw.includes('run') || raw.includes('drills') || raw.includes('fase 3')) return 'RETURN_TO_RUN';
+  if (raw.includes('late') || raw.includes('cod') || raw.includes('sport') || raw.includes('fase 4')) return 'LATE_STAGE';
+  if (raw.includes('perf') || raw.includes('play') || raw.includes('rts') || raw.includes('fase 5')) return 'PERFORMANCE';
+  return 'RETURN_TO_RUN';
+}
+
 export default function PatientDetail({ patient, onBack, onUpdatePatient }) {
   // Struttura a 3 Schede:
-  // 'tab1' -> 1. Monitoraggio & Diario
-  // 'tab2' -> 2. Test & Valutazioni
-  // 'tab3' -> 3. Copilot AI & Analytics
+  // 'tab1' -> Monitoraggio & Diario
+  // 'tab2' -> Test & Valutazioni
+  // 'tab3' -> Copilot
   const [activeTab, setActiveTab] = useState('tab1');
   const [showEditAnagrafica, setShowEditAnagrafica] = useState(false);
   const [isPrintModalOpen, setIsPrintModalOpen] = useState(false);
   const [toastMobileLink, setToastMobileLink] = useState(false);
   const [showAdvancedDirectives, setShowAdvancedDirectives] = useState(false);
 
-  // Stato per il riquadro sintetico "Fase Riabilitativa & Direttive" in cima alla Tab 1
+  const [selectedStageId, setSelectedStageId] = useState(() => getStageIdFromPatient(patient));
   const [faseAttualeInput, setFaseAttualeInput] = useState(
     normalizePhaseForDb(patient?.fase_attuale || patient?.fase_riabilitativa)
   );
@@ -62,6 +116,7 @@ export default function PatientDetail({ patient, onBack, onUpdatePatient }) {
     if (patient) {
       const normP = normalizePhaseForDb(patient.fase_attuale || patient.fase_riabilitativa);
       setFaseAttualeInput(normP);
+      setSelectedStageId(getStageIdFromPatient(patient));
       setDirettiveTerapistaInput(patient.direttive_terapista || patient.note_operative || '');
       setEditForm({
         nome: patient.nome || '',
@@ -76,7 +131,7 @@ export default function PatientDetail({ patient, onBack, onUpdatePatient }) {
         fase_riabilitativa: normP
       });
     }
-  }, [patient]);
+  }, [patient?.id, patient?.fase_riabilitativa, patient?.fase_attuale, patient?.note_operative, patient?.direttive_terapista]);
 
   if (!patient) return null;
 
@@ -94,7 +149,25 @@ export default function PatientDetail({ patient, onBack, onUpdatePatient }) {
     setShowEditAnagrafica(false);
   };
 
-  // Salvataggio rapido del riquadro sintetico "Fase Riabilitativa & Direttive" su Supabase
+  // Selezione diretta di una delle 5 Fasi Fisse Orizzontali
+  const handleSelectPhaseBlock = (phaseObj) => {
+    setSelectedStageId(phaseObj.id);
+    const normP = normalizePhaseForDb(phaseObj.dbPhase);
+    setFaseAttualeInput(normP);
+    if (onUpdatePatient) {
+      onUpdatePatient({
+        ...patient,
+        fase_riabilitativa: normP,
+        fase_attuale: normP,
+        note_operative: direttiveTerapistaInput,
+        direttive_terapista: direttiveTerapistaInput
+      });
+    }
+    setSavedDirectivesToast(true);
+    setTimeout(() => setSavedDirectivesToast(false), 2500);
+  };
+
+  // Salvataggio rapido delle Direttive del Terapista su Supabase
   const handleSaveSyntheticDirectives = (e) => {
     if (e) e.preventDefault();
     if (!onUpdatePatient) return;
@@ -110,20 +183,12 @@ export default function PatientDetail({ patient, onBack, onUpdatePatient }) {
     setTimeout(() => setSavedDirectivesToast(false), 2800);
   };
 
-  const handleQuickPhaseSwitch = (newPhaseValue) => {
-    const normP = normalizePhaseForDb(newPhaseValue);
-    setFaseAttualeInput(normP);
-    if (onUpdatePatient) {
-      onUpdatePatient({
-        ...patient,
-        fase_riabilitativa: normP,
-        fase_attuale: normP,
-        note_operative: direttiveTerapistaInput,
-        direttive_terapista: direttiveTerapistaInput
-      });
-    }
-    setSavedDirectivesToast(true);
-    setTimeout(() => setSavedDirectivesToast(false), 2500);
+  const handleSaveDirectivesFromPanel = (partialUpdates) => {
+    if (!onUpdatePatient) return;
+    onUpdatePatient({
+      ...patient,
+      ...partialUpdates
+    });
   };
 
   const handleSaveNewTest = (updatedTestsArray) => {
@@ -165,44 +230,45 @@ export default function PatientDetail({ patient, onBack, onUpdatePatient }) {
     'rsiCmj',
     'rsi_cmj'
   ]);
-  const currentPhaseDisplay = normalizePhaseForDb(patient.fase_attuale || patient.fase_riabilitativa);
+  const activeStageMeta = FIVE_REHAB_PHASES.find((p) => p.id === selectedStageId) || FIVE_REHAB_PHASES[2];
+  const currentPhaseDisplay = `${activeStageMeta.num}: ${activeStageMeta.title}`;
 
-  // SOLO 3 SCHEDE PRINCIPALI COME RICHIESTO
+  // 3 SCHEDE PRINCIPALI ESATTE: Monitoraggio & Diario | Test & Valutazioni | Copilot
   const tabs = [
     {
       id: 'tab1',
-      label: '1. Monitoraggio & Diario',
+      label: 'Monitoraggio & Diario',
       icon: ClipboardList
     },
     {
       id: 'tab2',
-      label: '2. Test & Valutazioni',
+      label: 'Test & Valutazioni',
       icon: Activity
     },
     {
       id: 'tab3',
-      label: '3. Copilot AI & Analytics',
+      label: 'Copilot',
       icon: Sparkles
     }
   ];
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-5 text-stone-800">
       {/* Toast conferma copia Link Mobile Paziente */}
       {toastMobileLink && (
-        <div className="fixed bottom-5 right-5 z-50 bg-emerald-700 border border-emerald-500 text-white px-4 py-3 rounded-xl shadow-lg flex items-center gap-2.5 text-xs font-bold print:hidden">
-          <CheckCircle2 className="w-4 h-4 text-emerald-200 shrink-0" />
+        <div className="fixed bottom-5 right-5 z-50 bg-stone-800 border border-stone-700 text-stone-100 px-4 py-3 rounded-xl flex items-center gap-2.5 text-xs font-semibold print:hidden">
+          <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
           <span>Link Mobile Paziente copiato negli appunti!</span>
         </div>
       )}
 
-      {/* Top Breadcrumb & Action Bar (print:hidden fa sparire completamente i controlli in stampa PDF) */}
+      {/* Top Breadcrumb & Action Bar (print:hidden) */}
       <div className="flex flex-wrap items-center justify-between gap-4 print:hidden">
         <button
           onClick={onBack}
-          className="flex items-center gap-2 text-xs font-bold text-slate-600 hover:text-slate-900 bg-white hover:bg-slate-50 px-3.5 py-2 rounded-xl border border-slate-200/80 shadow-xs transition-all cursor-pointer"
+          className="flex items-center gap-2 text-xs font-semibold text-stone-700 hover:text-stone-900 bg-stone-50 hover:bg-stone-100 px-3.5 py-2 rounded-xl border border-stone-300/70 shadow-none transition-all cursor-pointer"
         >
-          <ArrowLeft className="w-4 h-4 text-emerald-600" />
+          <ArrowLeft className="w-4 h-4 text-stone-700" />
           <span>Torna all&apos;Elenco Pazienti</span>
         </button>
 
@@ -210,25 +276,25 @@ export default function PatientDetail({ patient, onBack, onUpdatePatient }) {
         <div className="flex flex-wrap items-center gap-2.5 print:hidden">
           <button
             onClick={handleCopyClientPortalLink}
-            className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-white hover:bg-emerald-50/50 text-slate-700 hover:text-emerald-800 border border-slate-200/80 text-xs font-bold shadow-xs transition-all cursor-pointer"
+            className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-stone-50 hover:bg-stone-100 text-stone-700 hover:text-stone-900 border border-stone-300/70 text-xs font-semibold shadow-none transition-all cursor-pointer"
             title="Copia il link diretto al Diario Carichi Mobile del Paziente"
           >
-            <Smartphone className="w-3.5 h-3.5 text-emerald-600" />
+            <Smartphone className="w-3.5 h-3.5 text-stone-700" />
             <span>Condividi Link Mobile</span>
           </button>
 
           <button
             onClick={() => setShowEditAnagrafica(true)}
-            className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-white hover:bg-slate-50 text-slate-700 hover:text-slate-900 border border-slate-200/80 text-xs font-bold shadow-xs transition-all cursor-pointer"
+            className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-stone-50 hover:bg-stone-100 text-stone-700 hover:text-stone-900 border border-stone-300/70 text-xs font-semibold shadow-none transition-all cursor-pointer"
           >
-            <Edit2 className="w-3.5 h-3.5 text-emerald-600" />
+            <Edit2 className="w-3.5 h-3.5 text-stone-700" />
             <span>Modifica Anagrafica</span>
           </button>
 
           <button
             type="button"
             onClick={() => setIsPrintModalOpen(true)}
-            className="flex items-center gap-2 px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-sm transition-all cursor-pointer"
+            className="flex items-center gap-2 px-4 py-2 rounded-xl bg-stone-800 hover:bg-stone-900 text-stone-100 font-semibold text-xs shadow-none transition-all cursor-pointer"
           >
             <FileDown className="w-4 h-4" />
             <span>Stampa / Esporta PDF A4</span>
@@ -236,60 +302,60 @@ export default function PatientDetail({ patient, onBack, onUpdatePatient }) {
         </div>
       </div>
 
-      {/* Patient Clinical Header Card (Light Mode) */}
-      <div className="bg-white p-5 rounded-xl border border-slate-200/80 shadow-sm relative overflow-hidden break-inside-avoid">
+      {/* Patient Clinical Header Card (Warm Concrete Pearl) */}
+      <div className="bg-stone-50 p-5 rounded-xl border border-stone-300/70 shadow-none relative overflow-hidden break-inside-avoid">
         <div className="relative z-10 flex flex-col lg:flex-row lg:items-center justify-between gap-5">
           <div className="flex items-start sm:items-center gap-4">
-            <div className="w-14 h-14 rounded-xl bg-emerald-50 border border-emerald-200 flex items-center justify-center font-bold text-xl text-emerald-700 shadow-2xs shrink-0">
+            <div className="w-14 h-14 rounded-xl bg-stone-200/70 border border-stone-300/70 flex items-center justify-center font-semibold text-xl text-stone-800 shrink-0">
               {patient.nome?.[0]}{patient.cognome?.[0]}
             </div>
             <div>
               <div className="flex flex-wrap items-center gap-2">
-                <h1 className="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight">
+                <h1 className="text-xl sm:text-2xl font-semibold text-stone-800 tracking-tight">
                   {patient.nome} {patient.cognome}
                 </h1>
-                <span className="text-xs px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 font-bold">
+                <span className="text-xs px-2.5 py-0.5 rounded-full bg-emerald-900/10 text-emerald-800 border border-emerald-300/40 font-semibold">
                   Ginocchio {patient.lato_lesione} • {patient.tipo_innesto}
                 </span>
-                <span className="text-xs px-2.5 py-0.5 rounded-full bg-slate-100 text-slate-700 border border-slate-200 font-semibold">
+                <span className="text-xs px-2.5 py-0.5 rounded-full bg-stone-200/60 text-stone-700 border border-stone-300/70 font-medium">
                   {patient.sport} ({patient.ruolo_sportivo || patient.livello})
                 </span>
               </div>
 
-              <div className="flex flex-wrap items-center gap-4 text-xs text-slate-500 mt-1.5">
+              <div className="flex flex-wrap items-center gap-4 text-xs text-stone-500 font-medium mt-1.5">
                 <span className="flex items-center gap-1.5">
-                  <Calendar className="w-3.5 h-3.5 text-emerald-600" />
-                  Intervento: <strong className="text-slate-900 font-mono">{patient.data_intervento}</strong>
+                  <Calendar className="w-3.5 h-3.5 text-stone-700" />
+                  Intervento: <strong className="text-stone-800 font-mono font-semibold">{patient.data_intervento}</strong>
                 </span>
                 <span>•</span>
                 <span>
-                  Chirurgo: <strong className="text-slate-900">{patient.chirurgo || 'N/D'}</strong>
+                  Chirurgo: <strong className="text-stone-800 font-semibold">{patient.chirurgo || 'N/D'}</strong>
                 </span>
                 <span>•</span>
                 <span>
-                  Fase Attuale: <strong className="text-emerald-700 font-bold">{currentPhaseDisplay}</strong>
+                  Fase Attuale: <strong className="text-emerald-800 font-semibold">{currentPhaseDisplay}</strong>
                 </span>
               </div>
             </div>
           </div>
 
           {/* KPI Strip */}
-          <div className="grid grid-cols-3 gap-3 sm:gap-4 pt-3 lg:pt-0 border-t lg:border-t-0 border-slate-200">
-            <div className="bg-slate-50 px-3.5 py-2.5 rounded-xl border border-slate-200 text-center">
-              <div className="text-[10px] text-slate-500 uppercase tracking-wider font-bold">Time Post-Op</div>
-              <div className="text-sm sm:text-base font-bold font-mono text-slate-900 mt-0.5">
+          <div className="grid grid-cols-3 gap-3 sm:gap-4 pt-3 lg:pt-0 border-t lg:border-t-0 border-stone-300/70">
+            <div className="bg-stone-100 px-3.5 py-2.5 rounded-xl border border-stone-300/70 text-center">
+              <div className="text-[10px] text-stone-500 uppercase tracking-wider font-semibold">Time Post-Op</div>
+              <div className="text-sm sm:text-base font-semibold font-mono text-stone-800 mt-0.5">
                 {months}m {days}g
               </div>
             </div>
-            <div className="bg-slate-50 px-3.5 py-2.5 rounded-xl border border-slate-200 text-center">
-              <div className="text-[10px] text-slate-500 uppercase tracking-wider font-bold">LSI Quad</div>
-              <div className={`text-sm sm:text-base font-bold font-mono mt-0.5 ${lastQuadLsi !== null && lastQuadLsi >= 85 ? 'text-emerald-700' : 'text-amber-600'}`}>
+            <div className="bg-stone-100 px-3.5 py-2.5 rounded-xl border border-stone-300/70 text-center">
+              <div className="text-[10px] text-stone-500 uppercase tracking-wider font-semibold">LSI Quad</div>
+              <div className={`text-sm sm:text-base font-semibold font-mono mt-0.5 ${lastQuadLsi !== null && lastQuadLsi >= 85 ? 'text-emerald-800' : 'text-amber-800'}`}>
                 {lastQuadLsi !== null ? `${lastQuadLsi}%` : 'Non testato'}
               </div>
             </div>
-            <div className="bg-slate-50 px-3.5 py-2.5 rounded-xl border border-slate-200 text-center">
-              <div className="text-[10px] text-slate-500 uppercase tracking-wider font-bold">RSImod</div>
-              <div className="text-sm sm:text-base font-bold font-mono text-emerald-700 mt-0.5">
+            <div className="bg-stone-100 px-3.5 py-2.5 rounded-xl border border-stone-300/70 text-center">
+              <div className="text-[10px] text-stone-500 uppercase tracking-wider font-semibold">RSImod</div>
+              <div className="text-sm sm:text-base font-semibold font-mono text-emerald-800 mt-0.5">
                 {lastRsiMod !== null ? lastRsiMod : 'Non testato'}
               </div>
             </div>
@@ -297,8 +363,8 @@ export default function PatientDetail({ patient, onBack, onUpdatePatient }) {
         </div>
       </div>
 
-      {/* BARRA DI NAVIGAZIONE A 3 SCHEDE (1. Monitoraggio & Diario | 2. Test & Valutazioni | 3. Copilot AI & Analytics) */}
-      <div className="bg-white p-1.5 rounded-xl border border-slate-200/80 shadow-sm flex overflow-x-auto gap-2 print:hidden">
+      {/* BARRA DI NAVIGAZIONE A 3 SCHEDE (Monitoraggio & Diario | Test & Valutazioni | Copilot) */}
+      <div className="bg-stone-50 p-1.5 rounded-xl border border-stone-300/70 shadow-none flex overflow-x-auto gap-2 print:hidden">
         {tabs.map((tab) => {
           const Icon = tab.icon;
           const isActive = activeTab === tab.id;
@@ -306,13 +372,13 @@ export default function PatientDetail({ patient, onBack, onUpdatePatient }) {
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
-              className={`flex-1 min-w-[200px] flex items-center justify-center gap-2 py-2.5 px-4 rounded-lg text-xs font-bold transition-all cursor-pointer whitespace-nowrap ${
+              className={`flex-1 min-w-[180px] flex items-center justify-center gap-2 py-2.5 px-4 rounded-lg text-xs font-semibold transition-all cursor-pointer whitespace-nowrap ${
                 isActive
-                  ? 'bg-emerald-700 text-white shadow-sm'
-                  : 'bg-slate-50 text-slate-600 hover:text-slate-900 hover:bg-emerald-50/40 border border-slate-200/60'
+                  ? 'bg-stone-800 text-stone-100'
+                  : 'bg-stone-100 text-stone-600 hover:text-stone-800 hover:bg-stone-200/50 border border-stone-300/60'
               }`}
             >
-              <Icon className={`w-4 h-4 ${isActive ? 'text-white' : 'text-emerald-600'}`} />
+              <Icon className={`w-4 h-4 ${isActive ? 'text-stone-100' : 'text-stone-700'}`} />
               <span>{tab.label}</span>
             </button>
           );
@@ -322,49 +388,120 @@ export default function PatientDetail({ patient, onBack, onUpdatePatient }) {
       {/* CONTENUTO DELLE 3 SCHEDE */}
       <div className="min-h-[420px]">
         {/* ===================================================================== */}
-        {/* TAB 1: 1. MONITORAGGIO & DIARIO                                       */}
+        {/* TAB 1: MONITORAGGIO & DIARIO                                          */}
         {/* ===================================================================== */}
         {activeTab === 'tab1' && (
-          <div className="space-y-6">
-            {/* RIQUADRO SINTETICO IN CIMA: "FASE RIABILITATIVA & DIRETTIVE" (collegato a fase_attuale e direttive_terapista su pazienti) */}
-            <div className="bg-white p-5 rounded-xl border border-slate-200/80 shadow-sm space-y-4 break-inside-avoid">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-200">
+          <div className="space-y-5">
+            {/* 1. LE 5 FASI RIABILITATIVE IN ALTO FISSE E ORIZZONTALI A BLOCCHI (NO TENDINE A SCOMPARSA) */}
+            <div className="bg-stone-50 p-4 sm:p-5 rounded-xl border border-stone-300/70 shadow-none space-y-3.5 break-inside-avoid">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-2.5 border-b border-stone-300/70">
                 <div className="flex items-center gap-2.5">
-                  <div className="p-1 bg-slate-100 text-slate-600 rounded shrink-0">
-                    <Compass className="w-4 h-4 text-emerald-600" />
+                  <div className="p-1 bg-stone-200/60 text-stone-700 rounded shrink-0">
+                    <Layers className="w-4 h-4 text-stone-700" />
                   </div>
                   <div>
-                    <h2 className="text-sm sm:text-base font-bold text-slate-900 uppercase tracking-wide">
-                      Fase Riabilitativa &amp; Direttive Terapista
+                    <h2 className="text-sm sm:text-base font-semibold text-stone-800 uppercase tracking-wide">
+                      Fasi Riabilitative LCA (Seleziona la Fase Attuale)
                     </h2>
-                    <p className="text-xs text-slate-500">
-                      Sincronizzato su Supabase (<code className="text-emerald-700 font-mono">fase_attuale</code> &amp; <code className="text-emerald-700 font-mono">direttive_terapista</code>) e utilizzato dal Copilot AI
+                    <p className="text-xs text-stone-500 font-medium">
+                      Clicca sul blocco corrispondente per impostare o aggiornare la fase clinica attiva del paziente
                     </p>
                   </div>
                 </div>
 
-                <div className="flex items-center gap-2 print:hidden">
-                  {savedDirectivesToast && (
-                    <span className="px-2.5 py-1 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-700 text-xs font-bold flex items-center gap-1">
-                      <CheckCircle2 className="w-3.5 h-3.5" />
-                      Salvato nel Cloud
-                    </span>
-                  )}
+                {savedDirectivesToast && (
+                  <span className="px-2.5 py-1 rounded-lg bg-emerald-900/10 border border-emerald-300/40 text-emerald-800 text-xs font-semibold flex items-center gap-1 self-start sm:self-auto print:hidden">
+                    <CheckCircle2 className="w-3.5 h-3.5" />
+                    Salvato nel Cloud
+                  </span>
+                )}
+              </div>
 
+              {/* Griglia fissa orizzontale a 5 Blocchi */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
+                {FIVE_REHAB_PHASES.map((ph) => {
+                  const isSelected = selectedStageId === ph.id;
+                  return (
+                    <button
+                      key={ph.id}
+                      type="button"
+                      onClick={() => handleSelectPhaseBlock(ph)}
+                      className={`p-3.5 rounded-xl text-left transition-all flex flex-col justify-between space-y-2.5 cursor-pointer ${
+                        isSelected
+                          ? 'bg-emerald-900/10 border-2 border-emerald-700/60 text-stone-800'
+                          : 'bg-stone-100 border border-stone-300/70 hover:bg-stone-200/50 text-stone-700'
+                      }`}
+                    >
+                      <div className="space-y-1.5">
+                        <div className="flex items-center justify-between gap-1">
+                          <span
+                            className={`text-[10px] font-semibold uppercase px-2 py-0.5 rounded ${
+                              isSelected
+                                ? 'bg-stone-800 text-stone-100'
+                                : 'bg-stone-200/70 text-stone-600'
+                            }`}
+                          >
+                            {ph.num} • {ph.tag}
+                          </span>
+                        </div>
+
+                        <h3 className="text-stone-800 font-semibold text-xs sm:text-sm leading-snug pt-0.5">
+                          {ph.title}
+                        </h3>
+
+                        <p className="text-stone-500 font-medium text-[11px] leading-relaxed">
+                          {ph.subtitle}
+                        </p>
+                      </div>
+
+                      <div
+                        className={`pt-2 border-t flex items-center justify-between text-[11px] font-semibold ${
+                          isSelected
+                            ? 'border-emerald-700/30 text-emerald-800'
+                            : 'border-stone-300/60 text-stone-500'
+                        }`}
+                      >
+                        <span>{isSelected ? 'Fase Attiva' : 'Imposta Fase'}</span>
+                        {isSelected && <Check className="w-3.5 h-3.5 text-emerald-800" />}
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* 2. SUBITO SOTTO LE 5 FASI: CARD CON LE DIRETTIVE DEL TERAPISTA */}
+            <div className="bg-stone-50 p-4 sm:p-5 rounded-xl border border-stone-300/70 shadow-none space-y-4 break-inside-avoid">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-stone-300/70">
+                <div className="flex items-center gap-2.5">
+                  <div className="p-1 bg-stone-200/60 text-stone-700 rounded shrink-0">
+                    <Compass className="w-4 h-4 text-stone-700" />
+                  </div>
+                  <div>
+                    <h2 className="text-sm sm:text-base font-semibold text-stone-800 uppercase tracking-wide">
+                      Direttive del Terapista &amp; Priorità Cliniche
+                    </h2>
+                    <p className="text-xs text-stone-500 font-medium">
+                      Consegne operative per lo staff e il paziente sincronizzate automaticamente con il Copilot
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex flex-wrap items-center gap-2 print:hidden">
                   <button
                     type="button"
-                    onClick={() => setShowAdvancedDirectives(prev => !prev)}
-                    className="px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer"
+                    onClick={() => setShowAdvancedDirectives((prev) => !prev)}
+                    className="px-3 py-1.5 rounded-xl bg-stone-100 hover:bg-stone-200/50 text-stone-700 border border-stone-300/70 text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer"
                   >
                     {showAdvancedDirectives ? (
                       <>
                         <ChevronUp className="w-3.5 h-3.5" />
-                        <span>Chiudi Deficit &amp; Focus VBT</span>
+                        <span>Chiudi Gestione Deficit &amp; Focus VBT</span>
                       </>
                     ) : (
                       <>
                         <ChevronDown className="w-3.5 h-3.5" />
-                        <span>Gestisci Deficit ({(patient.deficits_list || []).length}) &amp; Focus Esercizi</span>
+                        <span>Gestisci Deficit ({(patient.deficits_list || []).length}) &amp; Prescrizioni VBT</span>
                       </>
                     )}
                   </button>
@@ -372,7 +509,7 @@ export default function PatientDetail({ patient, onBack, onUpdatePatient }) {
                   <button
                     type="button"
                     onClick={handleSaveSyntheticDirectives}
-                    className="px-4 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs flex items-center gap-1.5 shadow-sm transition-all cursor-pointer"
+                    className="px-4 py-1.5 rounded-xl bg-stone-800 hover:bg-stone-900 text-stone-100 font-semibold text-xs flex items-center gap-1.5 shadow-none transition-all cursor-pointer"
                   >
                     <Save className="w-3.5 h-3.5" />
                     <span>Salva Direttive</span>
@@ -381,85 +518,73 @@ export default function PatientDetail({ patient, onBack, onUpdatePatient }) {
               </div>
 
               <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 items-start">
-                {/* Colonna Sinistra (4/12): Selettore Fase Riabilitativa Attuale */}
-                <div className="lg:col-span-4 space-y-2">
-                  <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider">
-                    Fase Riabilitativa Attuale
-                  </label>
-                  <select
-                    value={faseAttualeInput}
-                    onChange={(e) => handleQuickPhaseSwitch(e.target.value)}
-                    className="w-full bg-slate-50 border border-slate-300 rounded-xl p-2.5 text-xs font-bold text-slate-900 focus:border-emerald-600 focus:bg-white focus:outline-none"
-                  >
-                    {CANONICAL_PHASES.map(ph => (
-                      <option key={ph} value={ph}>{ph}</option>
-                    ))}
-                  </select>
-
-                  {/* Riepilogo rapido Deficit Attivi */}
-                  <div className="pt-1">
-                    <span className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1.5">
-                      Deficit Biomeccanici Segnalati:
-                    </span>
-                    {Array.isArray(patient.deficits_list) && patient.deficits_list.length > 0 ? (
-                      <div className="flex flex-wrap gap-1.5">
-                        {patient.deficits_list.map(def => (
-                          <span
-                            key={def.id}
-                            className={`px-2 py-0.5 rounded-md text-[10.5px] font-bold border ${
-                              def.severity === 'ALTA'
-                                ? 'bg-rose-50 text-rose-700 border-rose-200'
-                                : def.severity === 'MEDIA'
-                                ? 'bg-amber-50 text-amber-700 border-amber-200'
-                                : 'bg-emerald-50 text-emerald-700 border-emerald-200'
-                            }`}
-                          >
-                            {def.title} ({def.severity})
-                          </span>
-                        ))}
-                      </div>
-                    ) : (
-                      <span className="text-xs text-slate-400 italic">
-                        Nessun deficit registrato (clicca &quot;Gestisci Deficit&quot; per aggiungerne)
-                      </span>
-                    )}
-                  </div>
-                </div>
-
-                {/* Colonna Destra (8/12): Direttive Operative del Terapista */}
+                {/* Colonna Sinistra (8/12): Note / Direttive del Terapista */}
                 <div className="lg:col-span-8 space-y-1.5">
-                  <div className="flex items-center justify-between">
-                    <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider">
-                      Direttive Operative &amp; Consegne Cliniche del Terapista
-                    </label>
-                    <span className="text-[11px] text-emerald-700 font-semibold">
-                      Inviate automaticamente al Copilot AI (Linee Guida NSCA)
-                    </span>
-                  </div>
+                  <label className="block text-xs font-semibold text-stone-700 uppercase tracking-wider">
+                    Direttive Operative del Terapista
+                  </label>
                   <textarea
                     rows={3}
                     value={direttiveTerapistaInput}
                     onChange={(e) => setDirettiveTerapistaInput(e.target.value)}
-                    placeholder="Inserisci qui le direttive operative per il team e per il paziente (es. Focus recupero estensione attiva 0°, carichi isometrici a 60° di flessione, evitare valgismo dinamico in decelerazione...)"
-                    className="w-full bg-slate-50 border border-slate-300 rounded-xl p-3 text-xs text-slate-900 font-medium leading-relaxed focus:border-emerald-600 focus:bg-white focus:outline-none"
+                    placeholder="Inserisci qui le direttive operative per il team e per il paziente (es. Focus recupero estensione attiva 0°, carichi isometrici a 60° di flessione, controllo valgismo dinamico in decelerazione...)"
+                    className="w-full bg-stone-100 border border-stone-300/70 rounded-xl p-3 text-xs text-stone-800 font-medium leading-relaxed focus:border-stone-600 focus:outline-none"
                   />
+                </div>
+
+                {/* Colonna Destra (4/12): Riepilogo Deficit Attivi */}
+                <div className="lg:col-span-4 space-y-2 bg-stone-100 p-3.5 rounded-xl border border-stone-300/70">
+                  <span className="block text-[11px] font-semibold text-stone-700 uppercase tracking-wider">
+                    Deficit Biomeccanici Segnalati ({(patient.deficits_list || []).length})
+                  </span>
+                  {Array.isArray(patient.deficits_list) && patient.deficits_list.length > 0 ? (
+                    <div className="flex flex-wrap gap-1.5">
+                      {patient.deficits_list.map((def) => {
+                        const sev = String(def.severity || '').toUpperCase();
+                        const isHigh = sev === 'ALTA' || sev === 'ROSSO';
+                        const isMed = sev === 'MEDIA' || sev === 'GIALLO';
+                        return (
+                          <span
+                            key={def.id}
+                            className={`px-2.5 py-1 rounded-lg text-[11px] font-semibold border ${
+                              isHigh
+                                ? 'bg-rose-900/10 text-rose-800 border-rose-300/50'
+                                : isMed
+                                ? 'bg-amber-900/10 text-amber-800 border-amber-300/50'
+                                : 'bg-emerald-900/10 text-emerald-800 border-emerald-300/40'
+                            }`}
+                          >
+                            {def.title}
+                          </span>
+                        );
+                      })}
+                    </div>
+                  ) : (
+                    <span className="text-xs text-stone-500 font-medium block">
+                      Nessun deficit specifico registrato. Usa &quot;Gestisci Deficit&quot; per aggiungerne.
+                    </span>
+                  )}
                 </div>
               </div>
 
               {/* Pannello espandibile per gestione dettagliata Deficit & Esercizi Prescritti */}
               {showAdvancedDirectives && (
-                <div className="pt-4 border-t border-slate-200">
+                <div className="pt-4 border-t border-stone-300/70">
                   <UIErrorBoundary title="Modulo Direttive Dettagliate">
                     <TabDirettiveOperative
                       patient={patient}
-                      onUpdatePatient={onUpdatePatient}
+                      onSaveDirectives={handleSaveDirectivesFromPanel}
+                      onChangePhase={(dbP) => {
+                        const normP = normalizePhaseForDb(dbP);
+                        setFaseAttualeInput(normP);
+                      }}
                     />
                   </UIErrorBoundary>
                 </div>
               )}
             </div>
 
-            {/* SUBITO SOTTO: DIARIO E RILEVAZIONI CARICHI DI LAVORO */}
+            {/* 3. SUBITO SOTTO: SCHEDA DI REGISTRAZIONE CARICHI / ESERCIZI DEL PAZIENTE */}
             <UIErrorBoundary title="Errore nel caricamento del Diario e Rilevazioni Carichi">
               <RilevazioniCarichiTab
                 patient={patient}
@@ -470,23 +595,23 @@ export default function PatientDetail({ patient, onBack, onUpdatePatient }) {
         )}
 
         {/* ===================================================================== */}
-        {/* TAB 2: 2. TEST & VALUTAZIONI                                          */}
+        {/* TAB 2: TEST & VALUTAZIONI                                             */}
         {/* ===================================================================== */}
         {activeTab === 'tab2' && (
           <UIErrorBoundary title="Errore nel caricamento di Test & Valutazioni">
             <TabBatteriaTest
               patient={patient}
-              activePhase={currentPhaseDisplay}
+              activePhase={faseAttualeInput}
               onSaveTest={handleSaveNewTest}
             />
           </UIErrorBoundary>
         )}
 
         {/* ===================================================================== */}
-        {/* TAB 3: 3. COPILOT AI & ANALYTICS                                      */}
+        {/* TAB 3: COPILOT                                                        */}
         {/* ===================================================================== */}
         {activeTab === 'tab3' && (
-          <UIErrorBoundary title="Errore nel caricamento del Copilot AI & Analytics">
+          <UIErrorBoundary title="Errore nel caricamento del Copilot">
             <TabCopilotPdf patient={patient} />
           </UIErrorBoundary>
         )}
@@ -501,13 +626,13 @@ export default function PatientDetail({ patient, onBack, onUpdatePatient }) {
 
       {/* Modal Modifica Dati Anagrafici e Clinici Paziente */}
       {showEditAnagrafica && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm print:hidden">
-          <div className="w-full max-w-lg bg-white border border-slate-200 rounded-2xl p-6 space-y-4 shadow-2xl text-slate-900">
-            <div className="flex items-center justify-between pb-3 border-b border-slate-200">
-              <h3 className="font-bold text-slate-900 text-base">Modifica Anagrafica Paziente</h3>
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-stone-900/50 backdrop-blur-xs print:hidden">
+          <div className="w-full max-w-lg bg-stone-50 border border-stone-300/70 rounded-xl p-6 space-y-4 shadow-none text-stone-800">
+            <div className="flex items-center justify-between pb-3 border-b border-stone-300/70">
+              <h3 className="font-semibold text-stone-800 text-base">Modifica Anagrafica Paziente</h3>
               <button
                 onClick={() => setShowEditAnagrafica(false)}
-                className="text-slate-500 hover:text-slate-900 cursor-pointer"
+                className="text-stone-500 hover:text-stone-800 cursor-pointer"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -516,67 +641,67 @@ export default function PatientDetail({ patient, onBack, onUpdatePatient }) {
             <form onSubmit={handleSaveAnagrafica} className="space-y-3 text-xs">
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-slate-500 font-semibold mb-1">Nome</label>
+                  <label className="block text-stone-500 font-medium mb-1">Nome</label>
                   <input
                     type="text"
                     required
                     value={editForm.nome}
                     onChange={(e) => setEditForm({ ...editForm, nome: e.target.value })}
-                    className="w-full bg-slate-50 border border-slate-300 rounded-lg p-2 text-slate-900 font-semibold focus:border-emerald-600 focus:outline-none"
+                    className="w-full bg-stone-100 border border-stone-300/70 rounded-lg p-2 text-stone-800 font-semibold focus:border-stone-600 focus:outline-none"
                   />
                 </div>
                 <div>
-                  <label className="block text-slate-500 font-semibold mb-1">Cognome</label>
+                  <label className="block text-stone-500 font-medium mb-1">Cognome</label>
                   <input
                     type="text"
                     required
                     value={editForm.cognome}
                     onChange={(e) => setEditForm({ ...editForm, cognome: e.target.value })}
-                    className="w-full bg-slate-50 border border-slate-300 rounded-lg p-2 text-slate-900 font-semibold focus:border-emerald-600 focus:outline-none"
+                    className="w-full bg-stone-100 border border-stone-300/70 rounded-lg p-2 text-stone-800 font-semibold focus:border-stone-600 focus:outline-none"
                   />
                 </div>
               </div>
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-slate-500 font-semibold mb-1">Sport</label>
+                  <label className="block text-stone-500 font-medium mb-1">Sport</label>
                   <input
                     type="text"
                     required
                     value={editForm.sport}
                     onChange={(e) => setEditForm({ ...editForm, sport: e.target.value })}
-                    className="w-full bg-slate-50 border border-slate-300 rounded-lg p-2 text-slate-900 font-semibold focus:border-emerald-600 focus:outline-none"
+                    className="w-full bg-stone-100 border border-stone-300/70 rounded-lg p-2 text-stone-800 font-semibold focus:border-stone-600 focus:outline-none"
                   />
                 </div>
                 <div>
-                  <label className="block text-slate-500 font-semibold mb-1">Ruolo / Disciplina</label>
+                  <label className="block text-stone-500 font-medium mb-1">Ruolo / Disciplina</label>
                   <input
                     type="text"
                     value={editForm.ruolo_sportivo}
                     onChange={(e) => setEditForm({ ...editForm, ruolo_sportivo: e.target.value })}
-                    className="w-full bg-slate-50 border border-slate-300 rounded-lg p-2 text-slate-900 font-semibold focus:border-emerald-600 focus:outline-none"
+                    className="w-full bg-stone-100 border border-stone-300/70 rounded-lg p-2 text-stone-800 font-semibold focus:border-stone-600 focus:outline-none"
                   />
                 </div>
               </div>
 
               <div className="grid grid-cols-3 gap-3">
                 <div>
-                  <label className="block text-slate-500 font-semibold mb-1">Lato Operato</label>
+                  <label className="block text-stone-500 font-medium mb-1">Lato Operato</label>
                   <select
                     value={editForm.lato_lesione}
                     onChange={(e) => setEditForm({ ...editForm, lato_lesione: e.target.value })}
-                    className="w-full bg-slate-50 border border-slate-300 rounded-lg p-2 text-slate-900 font-semibold focus:border-emerald-600 focus:outline-none"
+                    className="w-full bg-stone-100 border border-stone-300/70 rounded-lg p-2 text-stone-800 font-semibold focus:border-stone-600 focus:outline-none"
                   >
                     <option value="Dx">Destro (Dx)</option>
                     <option value="Sx">Sinistro (Sx)</option>
                   </select>
                 </div>
                 <div>
-                  <label className="block text-slate-500 font-semibold mb-1">Tipo Innesto</label>
+                  <label className="block text-stone-500 font-medium mb-1">Tipo Innesto</label>
                   <select
                     value={editForm.tipo_innesto}
                     onChange={(e) => setEditForm({ ...editForm, tipo_innesto: e.target.value })}
-                    className="w-full bg-slate-50 border border-slate-300 rounded-lg p-2 text-slate-900 font-semibold focus:border-emerald-600 focus:outline-none"
+                    className="w-full bg-stone-100 border border-stone-300/70 rounded-lg p-2 text-stone-800 font-semibold focus:border-stone-600 focus:outline-none"
                   >
                     <option value="STG">STG</option>
                     <option value="Rotuleo">Rotuleo (BPTB)</option>
@@ -585,52 +710,52 @@ export default function PatientDetail({ patient, onBack, onUpdatePatient }) {
                   </select>
                 </div>
                 <div>
-                  <label className="block text-slate-500 font-semibold mb-1">Data Intervento</label>
+                  <label className="block text-stone-500 font-medium mb-1">Data Intervento</label>
                   <input
                     type="date"
                     required
                     value={editForm.data_intervento}
                     onChange={(e) => setEditForm({ ...editForm, data_intervento: e.target.value })}
-                    className="w-full bg-slate-50 border border-slate-300 rounded-lg p-2 text-slate-900 font-mono font-semibold focus:border-emerald-600 focus:outline-none"
+                    className="w-full bg-stone-100 border border-stone-300/70 rounded-lg p-2 text-stone-800 font-mono font-semibold focus:border-stone-600 focus:outline-none"
                   />
                 </div>
               </div>
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-slate-500 font-semibold mb-1">Chirurgo Ortopedico</label>
+                  <label className="block text-stone-500 font-medium mb-1">Chirurgo Ortopedico</label>
                   <input
                     type="text"
                     value={editForm.chirurgo}
                     onChange={(e) => setEditForm({ ...editForm, chirurgo: e.target.value })}
-                    className="w-full bg-slate-50 border border-slate-300 rounded-lg p-2 text-slate-900 font-semibold focus:border-emerald-600 focus:outline-none"
+                    className="w-full bg-stone-100 border border-stone-300/70 rounded-lg p-2 text-stone-800 font-semibold focus:border-stone-600 focus:outline-none"
                   />
                 </div>
                 <div>
-                  <label className="block text-slate-500 font-semibold mb-1">Fase Riabilitativa</label>
+                  <label className="block text-stone-500 font-medium mb-1">Fase Riabilitativa</label>
                   <select
                     value={editForm.fase_riabilitativa}
                     onChange={(e) => setEditForm({ ...editForm, fase_riabilitativa: e.target.value })}
-                    className="w-full bg-slate-50 border border-slate-300 rounded-lg p-2 text-slate-900 font-semibold focus:border-emerald-600 focus:outline-none"
+                    className="w-full bg-stone-100 border border-stone-300/70 rounded-lg p-2 text-stone-800 font-semibold focus:border-stone-600 focus:outline-none"
                   >
-                    {CANONICAL_PHASES.map(ph => (
+                    {CANONICAL_PHASES.map((ph) => (
                       <option key={ph} value={ph}>{ph}</option>
                     ))}
                   </select>
                 </div>
               </div>
 
-              <div className="pt-3 border-t border-slate-200 flex justify-end gap-2">
+              <div className="pt-3 border-t border-stone-300/70 flex justify-end gap-2">
                 <button
                   type="button"
                   onClick={() => setShowEditAnagrafica(false)}
-                  className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-300 rounded-xl font-bold cursor-pointer"
+                  className="px-4 py-2 bg-stone-100 hover:bg-stone-200/50 text-stone-800 border border-stone-300/70 rounded-xl font-semibold cursor-pointer"
                 >
                   Annulla
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold flex items-center gap-1.5 shadow-sm cursor-pointer"
+                  className="px-4 py-2 bg-stone-800 hover:bg-stone-900 text-stone-100 rounded-xl font-semibold flex items-center gap-1.5 cursor-pointer"
                 >
                   <Save className="w-4 h-4" />
                   <span>Salva Modifiche</span>

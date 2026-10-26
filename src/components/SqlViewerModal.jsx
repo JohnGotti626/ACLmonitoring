@@ -176,29 +176,29 @@ END $$;`;
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm">
-      <div className="w-full max-w-4xl bg-white border border-slate-200 rounded-2xl shadow-2xl flex flex-col max-h-[85vh] overflow-hidden">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-stone-900/50 backdrop-blur-sm">
+      <div className="w-full max-w-4xl bg-stone-50 border border-stone-300/70 rounded-xl shadow-none flex flex-col max-h-[85vh] overflow-hidden">
         
         {/* Header Modal */}
-        <div className="p-4 border-b border-slate-200 flex items-center justify-between bg-slate-50">
+        <div className="p-4 border-b border-stone-300/70 flex items-center justify-between bg-stone-100">
           <div className="flex items-center gap-2.5">
-            <div className="p-1.5 bg-emerald-50 border border-emerald-200 rounded-lg text-emerald-700">
+            <div className="p-1 bg-stone-200/60 text-stone-700 rounded">
               <Database className="w-4 h-4" />
             </div>
             <div>
-              <h3 className="font-bold text-slate-900 text-base">Script SQL Supabase (Metriche Personalizzate, RLS &amp; Sessioni)</h3>
-              <p className="text-xs text-slate-500">Include custom_metric_definitions, patient_custom_metrics e policy RLS per lo staff</p>
+              <h3 className="font-semibold text-stone-800 text-base">Script SQL Supabase (Metriche Personalizzate, RLS &amp; Sessioni)</h3>
+              <p className="text-xs text-stone-500 font-medium">Include custom_metric_definitions, patient_custom_metrics e policy RLS per lo staff</p>
             </div>
           </div>
 
           <div className="flex items-center gap-2">
             <button
               onClick={handleCopy}
-              className="px-3.5 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs flex items-center gap-1.5 transition-all shadow-sm cursor-pointer"
+              className="px-3.5 py-1.5 rounded-xl bg-stone-800 hover:bg-stone-900 text-stone-100 font-semibold text-xs flex items-center gap-1.5 transition-all cursor-pointer"
             >
               {copied ? (
                 <>
-                  <Check className="w-4 h-4 text-white" />
+                  <Check className="w-4 h-4 text-stone-100" />
                   <span>Copiato!</span>
                 </>
               ) : (
@@ -211,7 +211,7 @@ END $$;`;
 
             <button
               onClick={onClose}
-              className="p-1.5 text-slate-500 hover:text-slate-900 rounded-lg hover:bg-slate-200 transition-colors cursor-pointer"
+              className="p-1.5 text-stone-500 hover:text-stone-800 rounded-lg hover:bg-stone-200/50 transition-colors cursor-pointer"
             >
               <X className="w-5 h-5" />
             </button>
@@ -219,16 +219,16 @@ END $$;`;
         </div>
 
         {/* Code Content */}
-        <div className="p-4 overflow-y-auto font-mono text-xs text-slate-800 bg-slate-50 space-y-2 select-all leading-relaxed border-b border-slate-200">
+        <div className="p-4 overflow-y-auto font-mono text-xs text-stone-800 bg-stone-100/70 space-y-2 select-all leading-relaxed border-b border-stone-300/70">
           <pre>{sqlScript}</pre>
         </div>
 
         {/* Footer */}
-        <div className="p-3 bg-white text-xs text-slate-600 flex items-center justify-between">
+        <div className="p-3 bg-stone-50 text-xs text-stone-600 flex items-center justify-between">
           <span>Incolla questo codice nel menu <strong>SQL Editor</strong> di Supabase e premi <strong>RUN</strong>.</span>
           <button
             onClick={onClose}
-            className="px-4 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-800 border border-slate-300 rounded-xl font-bold cursor-pointer"
+            className="px-4 py-1.5 bg-stone-100 hover:bg-stone-200/50 text-stone-800 border border-stone-300/70 rounded-xl font-semibold cursor-pointer"
           >
             Chiudi
           </button>

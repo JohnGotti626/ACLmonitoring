@@ -109,12 +109,12 @@ export default function GraficoMultimetrica({ tests }) {
 
   if (rawTests.length === 0) {
     return (
-      <div className="w-full bg-white p-4 rounded-xl border border-slate-200/80 text-center space-y-2 no-print shadow-sm">
-        <div className="p-2 bg-slate-100 text-slate-600 rounded-lg w-fit mx-auto">
-          <TrendingUp className="w-4 h-4 text-emerald-600" />
+      <div className="w-full bg-stone-50 p-4 rounded-xl border border-stone-300/70 text-center space-y-2 no-print shadow-none">
+        <div className="p-1 bg-stone-200/60 text-stone-700 rounded w-fit mx-auto">
+          <TrendingUp className="w-4 h-4 text-stone-700" />
         </div>
-        <h4 className="text-sm font-bold text-slate-900">Nessuna sessione disponibile per il Grafico Storico</h4>
-        <p className="text-xs text-slate-500">Inserisci almeno un test nella Batteria Test per visualizzare il trend temporale.</p>
+        <h4 className="text-sm font-semibold text-stone-800">Nessuna sessione disponibile per il Grafico Storico</h4>
+        <p className="text-xs text-stone-500 font-medium">Inserisci almeno un test nella Batteria Test per visualizzare il trend temporale.</p>
       </div>
     );
   }
@@ -204,31 +204,31 @@ export default function GraficoMultimetrica({ tests }) {
   const midVal = ((maxVal + minVal) / 2).toFixed(1);
 
   return (
-    <div className="w-full bg-white border border-slate-200/80 rounded-xl p-4 shadow-sm no-print break-inside-avoid">
+    <div className="w-full bg-stone-50 border border-stone-300/70 rounded-xl p-4 shadow-none no-print break-inside-avoid">
       {/* 1. HEADER COMPATTO + TOGGLE MODALITÀ */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 pb-3 mb-3 border-b border-slate-200">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 pb-3 mb-3 border-b border-stone-300/70">
         <div className="flex items-center gap-2">
-          <div className="p-1 rounded bg-slate-100 text-slate-600 shrink-0">
-            <TrendingUp className="w-4 h-4 text-emerald-600" />
+          <div className="p-1 rounded bg-stone-200/60 text-stone-700 shrink-0">
+            <TrendingUp className="w-4 h-4 text-stone-700" />
           </div>
           <div>
-            <h3 className="text-xs sm:text-sm font-bold text-slate-900 uppercase tracking-wide leading-tight">
+            <h3 className="text-xs sm:text-sm font-semibold text-stone-800 uppercase tracking-wide leading-tight">
               GRAFICO MULTIMETRICA (TREND TEMPORALE)
             </h3>
-            <p className="text-[11px] text-slate-500 font-medium leading-tight">
+            <p className="text-[11px] text-stone-500 font-medium leading-tight">
               Confronto storico tra sessioni (i test non eseguiti vengono ignorati)
             </p>
           </div>
         </div>
 
-        <div className="flex items-center bg-slate-100 p-1 rounded-lg border border-slate-200 self-start sm:self-auto shrink-0">
+        <div className="flex items-center bg-stone-100 p-1 rounded-lg border border-stone-300/70 self-start sm:self-auto shrink-0">
           <button
             type="button"
             onClick={() => setViewMode('relative')}
             className={`px-2.5 py-1 rounded-md text-[11px] font-semibold flex items-center gap-1 transition-all cursor-pointer ${
               viewMode === 'relative'
-                ? 'bg-emerald-600 text-white shadow-xs'
-                : 'text-slate-600 hover:text-slate-900'
+                ? 'bg-stone-800 text-stone-100'
+                : 'text-stone-600 hover:text-stone-800'
             }`}
           >
             <Percent className="w-3 h-3" />
@@ -240,8 +240,8 @@ export default function GraficoMultimetrica({ tests }) {
             onClick={() => setViewMode('absolute')}
             className={`px-2.5 py-1 rounded-md text-[11px] font-semibold flex items-center gap-1 transition-all cursor-pointer ${
               viewMode === 'absolute'
-                ? 'bg-emerald-600 text-white shadow-xs'
-                : 'text-slate-600 hover:text-slate-900'
+                ? 'bg-stone-800 text-stone-100'
+                : 'text-stone-600 hover:text-stone-800'
             }`}
           >
             <BarChart2 className="w-3 h-3" />
@@ -262,16 +262,16 @@ export default function GraficoMultimetrica({ tests }) {
               onClick={() => toggleMetric(m.id)}
               className={`px-2.5 py-1 rounded-lg text-[11px] font-semibold border transition-all flex items-center gap-1.5 cursor-pointer ${
                 isActive
-                  ? 'bg-emerald-50/70 text-slate-900 border-emerald-300 shadow-xs'
-                  : 'bg-slate-50 text-slate-500 border-slate-200 hover:text-slate-800 hover:border-slate-300'
+                  ? 'bg-emerald-900/10 text-stone-800 border-emerald-300/40'
+                  : 'bg-stone-100 text-stone-500 border-stone-300/70 hover:text-stone-800 hover:bg-stone-200/50'
               }`}
             >
               <span
                 className="w-2 h-2 rounded-full shrink-0"
-                style={{ backgroundColor: isActive ? m.color : '#94A3B8' }}
+                style={{ backgroundColor: isActive ? m.color : '#78716C' }}
               />
               <span>{m.label}</span>
-              <span className="text-[10px] text-slate-500 font-mono">
+              <span className="text-[10px] text-stone-500 font-mono">
                 ({count > 0 ? `${count}` : 'N/A'})
               </span>
             </button>
@@ -280,10 +280,10 @@ export default function GraficoMultimetrica({ tests }) {
       </div>
 
       {/* 3. CONTENITORE GRAFICO CON ALTEZZA FISSA h-[380px] */}
-      <div className="w-full h-[380px] min-h-[380px] bg-slate-50/60 rounded-lg border border-slate-200/80 p-3 flex flex-col justify-between relative">
+      <div className="w-full h-[380px] min-h-[380px] bg-stone-100/70 rounded-lg border border-stone-300/70 p-3 flex flex-col justify-between relative">
         <div className="w-full flex-1 relative">
           {metricLinesData.length === 0 ? (
-            <div className="h-full flex items-center justify-center text-xs text-slate-500 font-medium">
+            <div className="h-full flex items-center justify-center text-xs text-stone-500 font-medium">
               Nessun dato numerico rilevato per le metriche selezionate (Stato: Non testato / N/A).
             </div>
           ) : (
@@ -295,18 +295,18 @@ export default function GraficoMultimetrica({ tests }) {
               className="w-full h-full overflow-visible"
             >
               {/* Griglia orizzontale e valori asse Y */}
-              <line x1="50" y1={topY} x2="975" y2={topY} stroke="#E2E8F0" strokeDasharray="4 4" strokeWidth="1" />
-              <text x="42" y={topY + 4} textAnchor="end" fill="#64748B" fontSize="11" fontFamily="monospace">
+              <line x1="50" y1={topY} x2="975" y2={topY} stroke="#D6D3D1" strokeDasharray="4 4" strokeWidth="1" />
+              <text x="42" y={topY + 4} textAnchor="end" fill="#57534E" fontSize="11" fontFamily="monospace">
                 {viewMode === 'relative' ? `${maxVal >= 0 ? '+' : ''}${maxVal}%` : maxVal}
               </text>
 
-              <line x1="50" y1={(topY + bottomY) / 2} x2="975" y2={(topY + bottomY) / 2} stroke="#CBD5E1" strokeDasharray="4 4" strokeWidth="1" />
-              <text x="42" y={(topY + bottomY) / 2 + 4} textAnchor="end" fill="#64748B" fontSize="11" fontFamily="monospace">
+              <line x1="50" y1={(topY + bottomY) / 2} x2="975" y2={(topY + bottomY) / 2} stroke="#D6D3D1" strokeDasharray="4 4" strokeWidth="1" />
+              <text x="42" y={(topY + bottomY) / 2 + 4} textAnchor="end" fill="#57534E" fontSize="11" fontFamily="monospace">
                 {viewMode === 'relative' ? `${midVal >= 0 ? '+' : ''}${midVal}%` : midVal}
               </text>
 
-              <line x1="50" y1={bottomY} x2="975" y2={bottomY} stroke="#E2E8F0" strokeDasharray="4 4" strokeWidth="1" />
-              <text x="42" y={bottomY + 4} textAnchor="end" fill="#64748B" fontSize="11" fontFamily="monospace">
+              <line x1="50" y1={bottomY} x2="975" y2={bottomY} stroke="#D6D3D1" strokeDasharray="4 4" strokeWidth="1" />
+              <text x="42" y={bottomY + 4} textAnchor="end" fill="#57534E" fontSize="11" fontFamily="monospace">
                 {viewMode === 'relative' ? `${minVal >= 0 ? '+' : ''}${minVal}%` : minVal}
               </text>
 
@@ -330,7 +330,7 @@ export default function GraficoMultimetrica({ tests }) {
                         cy={pt.y}
                         r="6"
                         fill={mLine.def.color}
-                        stroke="#FFFFFF"
+                        stroke="#FAFAF9"
                         strokeWidth="2"
                         onMouseEnter={() =>
                           setHoveredPoint({
@@ -346,7 +346,7 @@ export default function GraficoMultimetrica({ tests }) {
                         x={pt.x}
                         y={pt.y - 12}
                         textAnchor="middle"
-                        fill="#0F172A"
+                        fill="#292524"
                         fontSize="11"
                         fontWeight="bold"
                         fontFamily="monospace"
@@ -361,15 +361,15 @@ export default function GraficoMultimetrica({ tests }) {
           )}
 
           {hoveredPoint && (
-            <div className="absolute top-2 right-2 bg-white border border-slate-200 p-3 rounded-xl shadow-lg text-[11px] space-y-1 font-sans pointer-events-none z-30">
-              <div className="text-slate-900 font-bold flex items-center justify-between gap-3 border-b border-slate-100 pb-1">
+            <div className="absolute top-2 right-2 bg-stone-50 border border-stone-300/70 p-3 rounded-xl shadow-none text-[11px] space-y-1 font-sans pointer-events-none z-30">
+              <div className="text-stone-800 font-semibold flex items-center justify-between gap-3 border-b border-stone-200 pb-1">
                 <span>{hoveredPoint.testLabel}</span>
-                <span className="text-[10px] text-emerald-700 font-mono font-bold">{hoveredPoint.date}</span>
+                <span className="text-[10px] text-emerald-800 font-mono font-semibold">{hoveredPoint.date}</span>
               </div>
               <div className="flex items-center gap-1.5 pt-0.5">
                 <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: hoveredPoint.color }} />
-                <span className="text-slate-600 font-semibold">{hoveredPoint.metricLabel}:</span>
-                <span className="text-slate-900 font-mono font-bold text-xs">
+                <span className="text-stone-600 font-semibold">{hoveredPoint.metricLabel}:</span>
+                <span className="text-stone-800 font-mono font-semibold text-xs">
                   {hoveredPoint.absVal} {hoveredPoint.unit}
                 </span>
               </div>
@@ -378,13 +378,13 @@ export default function GraficoMultimetrica({ tests }) {
         </div>
 
         {/* Etichette Asse Orizzontale */}
-        <div className="w-full flex justify-between text-xs font-mono font-bold text-slate-600 px-6 pt-2.5 border-t border-slate-200">
+        <div className="w-full flex justify-between text-xs font-mono font-semibold text-stone-600 px-6 pt-2.5 border-t border-stone-300/70">
           {rawTests.map((t, idx) => (
             <div key={t.id || idx} className="text-center">
-              <span className="block text-slate-900 font-bold text-xs">
+              <span className="block text-stone-800 font-semibold text-xs">
                 {t.session_name || t.label || `Sessione #${idx + 1}`}
               </span>
-              <span className="block text-[10px] text-emerald-700 font-semibold">
+              <span className="block text-[10px] text-emerald-800 font-medium">
                 {t.dateRange || t.date || ''}
               </span>
             </div>

@@ -303,16 +303,16 @@ export default function TabDirettiveOperative({ patient, onSaveDirectives, onCha
       )}
 
       {/* BLOCCO 1: FASE RIABILITATIVA */}
-      <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 space-y-2.5">
+      <div className="p-4 rounded-xl bg-stone-50 border border-stone-300/70 shadow-none space-y-2.5">
         <div className="flex items-center gap-2">
-          <div className="p-1 rounded bg-slate-100 text-slate-600">
+          <div className="p-1 rounded bg-stone-200/60 text-stone-700">
             <Layers className="w-4 h-4" />
           </div>
           <div>
-            <h3 className="text-slate-900 font-bold text-sm">
-              1. Dettaglio Fasi Riabilitative LCA (5 Step NSCA)
+            <h3 className="text-stone-800 font-semibold text-sm">
+              1. Dettaglio Fasi Riabilitative LCA (5 Step)
             </h3>
-            <p className="text-slate-500 text-xs">
+            <p className="text-stone-500 font-medium text-xs">
               Seleziona lo stadio specifico per aggiornare la fase clinica del paziente
             </p>
           </div>
@@ -327,31 +327,31 @@ export default function TabDirettiveOperative({ patient, onSaveDirectives, onCha
                 onClick={() => handleSelectPhase(ph)}
                 className={`p-3 rounded-xl cursor-pointer transition-all flex flex-col justify-between space-y-2 relative ${
                   isSelected
-                    ? 'bg-emerald-50 border-2 border-emerald-600 shadow-sm'
-                    : 'bg-white border border-slate-200 hover:border-slate-300'
+                    ? 'bg-emerald-900/10 border-2 border-emerald-600 shadow-none'
+                    : 'bg-stone-100 border border-stone-300/70 hover:bg-stone-200/50'
                 }`}
               >
                 <div>
                   <div className="flex items-center justify-between gap-1 mb-1">
-                    <span className={`text-[10px] font-bold uppercase px-1.5 py-0.5 rounded ${
-                      isSelected ? 'bg-emerald-600 text-white' : 'bg-slate-100 text-slate-600'
+                    <span className={`text-[10px] font-semibold uppercase px-1.5 py-0.5 rounded ${
+                      isSelected ? 'bg-stone-800 text-stone-100' : 'bg-stone-200/70 text-stone-700'
                     }`}>
                       {ph.num}. {ph.tag}
                     </span>
                   </div>
 
-                  <h4 className="text-slate-900 font-bold text-xs mt-1 leading-tight">
+                  <h4 className="text-stone-800 font-semibold text-xs mt-1 leading-tight">
                     {ph.title}
                   </h4>
 
-                  <p className="text-slate-500 text-[11px] leading-tight mt-1.5">
+                  <p className="text-stone-500 text-[11px] leading-tight mt-1.5">
                     {ph.subtitle}
                   </p>
                 </div>
 
                 {isSelected && (
-                  <div className="pt-1.5 border-t border-emerald-200 flex items-center gap-1 text-emerald-700 text-[10.5px] font-bold">
-                    <Check className="w-3.5 h-3.5 text-emerald-600" />
+                  <div className="pt-1.5 border-t border-emerald-300/40 flex items-center gap-1 text-emerald-800 text-[10.5px] font-semibold">
+                    <Check className="w-3.5 h-3.5 text-emerald-700" />
                     <span>Fase Attiva</span>
                   </div>
                 )}
@@ -362,17 +362,17 @@ export default function TabDirettiveOperative({ patient, onSaveDirectives, onCha
       </div>
 
       {/* BLOCCO 2: PRIORITÀ E DEFICIT CLINICI REGISTRATI */}
-      <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 space-y-3">
+      <div className="p-4 rounded-xl bg-stone-50 border border-stone-300/70 shadow-none space-y-3">
         <div className="flex items-center justify-between gap-2">
           <div>
-            <h3 className="text-slate-900 font-bold text-sm">
+            <h3 className="text-stone-800 font-semibold text-sm">
               2. Priorità e Deficit Clinici Registrati (Rosso, Giallo, Verde)
             </h3>
-            <p className="text-slate-500 text-xs">
-              I deficit inseriti vengono letti automaticamente dal Copilot AI NSCA
+            <p className="text-stone-500 font-medium text-xs">
+              I deficit inseriti vengono letti automaticamente dal Copilot
             </p>
           </div>
-          <div className="px-2.5 py-1 bg-white border border-slate-200 rounded-lg text-slate-700 font-bold text-xs shrink-0">
+          <div className="px-2.5 py-1 bg-stone-100 border border-stone-300/70 rounded-lg text-stone-700 font-semibold text-xs shrink-0">
             {deficitsList.length} Deficit
           </div>
         </div>
