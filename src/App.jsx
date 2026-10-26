@@ -221,7 +221,7 @@ function MainApp() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-200/60 text-slate-800 flex flex-col">
+    <div className="min-h-screen bg-[#EAEFF4] text-slate-900 flex flex-col">
       <Header
         onToggleMobileSidebar={() => setMobileOpen(!mobileOpen)}
         onOpenSqlModal={() => setSqlModalOpen(true)}
@@ -229,7 +229,7 @@ function MainApp() {
       />
 
       {dbErrorBanner && (
-        <div className="bg-rose-100/80 border border-rose-300/60 px-4 py-3 text-xs text-rose-900 flex items-center justify-between max-w-7xl w-full mx-auto mt-2 rounded-xl shadow-none print:hidden">
+        <div className="bg-[#FDE2E2] border border-[#F8C9C9] px-4 py-3 text-xs text-rose-950 flex items-center justify-between max-w-7xl w-full mx-auto mt-2 rounded-xl shadow-none print:hidden">
           <div className="flex items-center gap-2 font-bold">
             <AlertTriangle className="w-4 h-4 text-rose-700 shrink-0" />
             <span>{dbErrorBanner}</span>
@@ -243,7 +243,7 @@ function MainApp() {
         </div>
       )}
 
-      <div className={`flex-1 flex max-w-7xl w-full mx-auto ${isPrintModalOpen ? 'app-shell-when-modal-print' : ''}`}>
+      <div className={`flex-1 flex w-full ${isPrintModalOpen ? 'app-shell-when-modal-print' : ''}`}>
         <Sidebar
           currentView={currentView}
           setCurrentView={setCurrentView}
@@ -255,32 +255,34 @@ function MainApp() {
         />
 
         <main className="flex-1 p-4 sm:p-6 md:p-8 overflow-y-auto">
-          {currentView === 'dashboard' && (
-            <Dashboard
-              patients={patients.filter(p => !p.is_deleted)}
-              onSelectPatient={handleSelectPatient}
-              onNavigateToPatients={() => setCurrentView('patients')}
-            />
-          )}
+          <div className="max-w-7xl mx-auto w-full">
+            {currentView === 'dashboard' && (
+              <Dashboard
+                patients={patients.filter(p => !p.is_deleted)}
+                onSelectPatient={handleSelectPatient}
+                onNavigateToPatients={() => setCurrentView('patients')}
+              />
+            )}
 
-          {currentView === 'patients' && (
-            <PatientList
-              patients={patients}
-              onSelectPatient={handleSelectPatient}
-              onAddNewPatient={() => setShowNewPatientModal(true)}
-              onDeletePatient={handleDeletePatientOnSupabase}
-              onRestorePatient={() => fetchPatientsFromCloud()}
-              onPermanentDeletePatient={handleDeletePatientOnSupabase}
-            />
-          )}
+            {currentView === 'patients' && (
+              <PatientList
+                patients={patients}
+                onSelectPatient={handleSelectPatient}
+                onAddNewPatient={() => setShowNewPatientModal(true)}
+                onDeletePatient={handleDeletePatientOnSupabase}
+                onRestorePatient={() => fetchPatientsFromCloud()}
+                onPermanentDeletePatient={handleDeletePatientOnSupabase}
+              />
+            )}
 
-          {currentView === 'patient-detail' && (
-            <PatientDetail
-              patient={selectedPatient}
-              onBack={() => setCurrentView('patients')}
-              onUpdatePatient={handleUpdatePatient}
-            />
-          )}
+            {currentView === 'patient-detail' && (
+              <PatientDetail
+                patient={selectedPatient}
+                onBack={() => setCurrentView('patients')}
+                onUpdatePatient={handleUpdatePatient}
+              />
+            )}
+          </div>
         </main>
       </div>
 

@@ -7,12 +7,12 @@ export default function Header({ onToggleMobileSidebar, onOpenSqlModal, currentV
   const isPortal = currentView === 'client-portal' || role === 'patient';
 
   return (
-    <header className="sticky top-0 z-30 bg-slate-50 border-b border-slate-300/60 px-4 sm:px-6 py-3 flex items-center justify-between print:hidden shadow-none">
+    <header className="sticky top-0 z-30 bg-[#F7F6F2] border-b border-slate-300/80 px-4 sm:px-6 py-3 flex items-center justify-between print:hidden shadow-none">
       <div className="flex items-center gap-3">
         {!isPortal && (
           <button
             onClick={onToggleMobileSidebar}
-            className="lg:hidden p-2 rounded-lg text-slate-500 hover:text-slate-800 hover:bg-slate-200/60 transition-colors cursor-pointer"
+            className="lg:hidden p-2 rounded-lg text-slate-600 hover:text-slate-900 hover:bg-slate-200/60 transition-colors cursor-pointer"
             aria-label="Menu"
           >
             <Menu className="w-5 h-5" />
@@ -20,15 +20,15 @@ export default function Header({ onToggleMobileSidebar, onOpenSqlModal, currentV
         )}
 
         <div className="flex items-center gap-2.5">
-          <div className="w-9 h-9 rounded-xl bg-emerald-100/80 border border-emerald-300/50 flex items-center justify-center">
-            <Activity className="w-4 h-4 text-emerald-900" />
+          <div className="w-9 h-9 rounded-xl bg-[#1D63FE] flex items-center justify-center shadow-xs">
+            <Activity className="w-4 h-4 text-white" />
           </div>
           <div>
             <div className="flex items-center gap-2">
-              <span className="font-bold text-base sm:text-lg tracking-tight text-slate-800">
-                ACL <span className="text-emerald-800">RETURN TO SPORT</span>
+              <span className="font-bold text-base sm:text-lg tracking-tight text-slate-900">
+                ACL <span className="text-[#1D63FE]">RETURN TO SPORT</span>
               </span>
-              <span className="hidden md:inline-block text-[10px] font-mono uppercase tracking-widest px-2 py-0.5 rounded-full bg-emerald-100/80 text-emerald-900 border border-emerald-300/50 font-bold">
+              <span className="hidden md:inline-block text-[10px] font-mono uppercase tracking-widest px-2.5 py-0.5 rounded-full bg-[#DCEBFE] text-[#1D63FE] border border-[#C5DCFA] font-bold">
                 Clinical Suite
               </span>
             </div>
@@ -44,34 +44,34 @@ export default function Header({ onToggleMobileSidebar, onOpenSqlModal, currentV
           <>
             <button
               onClick={onOpenSqlModal}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-sky-100/80 hover:bg-sky-200/70 border border-sky-300/50 text-xs font-bold text-sky-900 transition-all cursor-pointer"
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#DCEBFE] hover:bg-[#CBE0FC] border border-[#B9D5FA] text-xs font-bold text-slate-900 transition-all cursor-pointer"
               title="Apri Script SQL Supabase (staff_users, custom_metric_definitions, patient_custom_metrics)"
             >
-              <Database className="w-3.5 h-3.5 text-sky-900" />
+              <Database className="w-3.5 h-3.5 text-[#1D63FE]" />
               <span>Script SQL Supabase</span>
             </button>
 
             <button
               onClick={onOpenSqlModal}
-              className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-purple-100/80 hover:bg-purple-200/70 border border-purple-300/50 text-xs font-bold text-purple-900 transition-all cursor-pointer"
+              className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-200/80 hover:bg-slate-300/70 border border-slate-300 text-xs font-bold text-slate-800 transition-all cursor-pointer"
               title="Visualizza Schema SQL completo"
             >
-              <Database className="w-3.5 h-3.5 text-purple-900" />
+              <Database className="w-3.5 h-3.5 text-[#F59E0B]" />
               <span>Schema SQL</span>
             </button>
           </>
         )}
 
-        <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-100/80 border border-emerald-300/50">
+        <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#D1F4E2] border border-[#B5E8CE]">
           {role === 'admin' ? (
             <>
-              <ShieldCheck className="w-4 h-4 text-emerald-900" />
-              <span className="text-xs font-bold text-emerald-900 hidden md:inline">Staff Clinico Autorizzato</span>
+              <ShieldCheck className="w-4 h-4 text-[#16A34A]" />
+              <span className="text-xs font-bold text-emerald-950 hidden md:inline">Staff Clinico Autorizzato</span>
             </>
           ) : (
             <>
-              <UserCheck className="w-4 h-4 text-emerald-900" />
-              <span className="text-xs font-bold text-emerald-900 hidden md:inline">Vista Atleta</span>
+              <UserCheck className="w-4 h-4 text-[#16A34A]" />
+              <span className="text-xs font-bold text-emerald-950 hidden md:inline">Vista Atleta</span>
             </>
           )}
         </div>

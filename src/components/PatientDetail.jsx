@@ -302,64 +302,64 @@ export default function PatientDetail({ patient, onBack, onUpdatePatient }) {
         </div>
       </div>
 
-      {/* Patient Clinical Header Card (Soft Pastel Medical) */}
-      <div className="bg-slate-50 p-5 rounded-xl border border-slate-300/60 shadow-none relative overflow-hidden break-inside-avoid">
+      {/* Patient Clinical Header Card */}
+      <div className="bg-[#F7F6F2] p-5 rounded-2xl border border-slate-300/80 shadow-none relative overflow-hidden break-inside-avoid">
         <div className="relative z-10 flex flex-col lg:flex-row lg:items-center justify-between gap-5">
           <div className="flex items-start sm:items-center gap-4">
-            <div className="w-14 h-14 rounded-xl bg-emerald-100/80 border border-emerald-300/50 flex items-center justify-center font-bold text-xl text-emerald-900 shrink-0">
+            <div className="w-14 h-14 rounded-2xl bg-[#0B1736] text-white flex items-center justify-center font-bold text-xl shrink-0">
               {patient.nome?.[0]}{patient.cognome?.[0]}
             </div>
             <div>
               <div className="flex flex-wrap items-center gap-2">
-                <h1 className="text-xl sm:text-2xl font-bold text-slate-800 tracking-tight">
+                <h1 className="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight">
                   {patient.nome} {patient.cognome}
                 </h1>
-                <span className="text-xs px-2.5 py-0.5 rounded-full bg-slate-200/70 text-slate-700 border border-slate-300/60 font-bold">
+                <span className="text-xs px-3 py-0.5 rounded-full bg-[#DCE3EC] text-slate-800 font-semibold">
                   Ginocchio {patient.lato_lesione} • {patient.tipo_innesto}
                 </span>
-                <span className="text-xs px-2.5 py-0.5 rounded-full bg-sky-100/80 text-sky-900 border border-sky-300/50 font-bold">
+                <span className="text-xs px-3 py-0.5 rounded-full bg-[#DCEBFE] text-slate-900 border border-[#C5DCFA] font-bold">
                   {patient.sport} ({patient.ruolo_sportivo || patient.livello})
                 </span>
               </div>
 
-              <div className="flex flex-wrap items-center gap-4 text-xs text-slate-500 font-medium mt-1.5">
+              <div className="flex flex-wrap items-center gap-4 text-xs text-slate-600 font-medium mt-1.5">
                 <span className="flex items-center gap-1.5">
                   <Calendar className="w-3.5 h-3.5 text-slate-700" />
-                  Intervento: <strong className="text-slate-800 font-mono font-bold">{patient.data_intervento}</strong>
+                  Intervento: <strong className="text-slate-900 font-mono font-bold">{patient.data_intervento}</strong>
                 </span>
                 <span>•</span>
                 <span>
-                  Chirurgo: <strong className="text-slate-800 font-bold">{patient.chirurgo || 'N/D'}</strong>
+                  Chirurgo: <strong className="text-slate-900 font-bold">{patient.chirurgo || 'N/D'}</strong>
                 </span>
                 <span>•</span>
-                <span className="px-2 py-0.5 rounded-md bg-emerald-100/80 text-emerald-900 border border-emerald-300/50 font-bold">
+                <span className="px-2.5 py-0.5 rounded-lg bg-[#D1F4E2] text-emerald-950 border border-[#B5E8CE] font-bold">
                   {currentPhaseDisplay}
                 </span>
               </div>
             </div>
           </div>
 
-          {/* KPI Strip Pastello Opaco */}
+          {/* KPI Strip Pastello */}
           <div className="grid grid-cols-3 gap-3 sm:gap-4 pt-3 lg:pt-0 border-t lg:border-t-0 border-slate-300/60">
-            <div className="bg-sky-100/80 px-3.5 py-2.5 rounded-xl border border-sky-300/50 text-center">
-              <div className="text-[10px] text-sky-900/70 uppercase tracking-wider font-bold">Time Post-Op</div>
-              <div className="text-sm sm:text-base font-bold font-mono text-sky-900 mt-0.5">
+            <div className="bg-[#DCEBFE] px-3.5 py-2.5 rounded-xl border border-[#C5DCFA] text-center">
+              <div className="text-[10px] text-slate-700 uppercase tracking-wider font-bold">Time Post-Op</div>
+              <div className="text-sm sm:text-base font-bold font-mono text-slate-900 mt-0.5">
                 {months}m {days}g
               </div>
             </div>
             <div className={`px-3.5 py-2.5 rounded-xl border text-center ${
               lastQuadLsi !== null && lastQuadLsi >= 85
-                ? 'bg-emerald-100/80 border-emerald-300/50 text-emerald-900'
-                : 'bg-rose-100/80 border-rose-300/50 text-rose-900'
+                ? 'bg-[#D1F4E2] border-[#B5E8CE] text-slate-900'
+                : 'bg-[#FDE2E2] border-[#F8C9C9] text-slate-900'
             }`}>
-              <div className="text-[10px] opacity-75 uppercase tracking-wider font-bold">LSI Quad</div>
+              <div className="text-[10px] text-slate-700 uppercase tracking-wider font-bold">LSI Quad</div>
               <div className="text-sm sm:text-base font-bold font-mono mt-0.5">
                 {lastQuadLsi !== null ? `${lastQuadLsi}%` : 'Non testato'}
               </div>
             </div>
-            <div className="bg-purple-100/80 px-3.5 py-2.5 rounded-xl border border-purple-300/50 text-center">
-              <div className="text-[10px] text-purple-900/70 uppercase tracking-wider font-bold">RSImod</div>
-              <div className="text-sm sm:text-base font-bold font-mono text-purple-900 mt-0.5">
+            <div className="bg-[#EDE9FE] px-3.5 py-2.5 rounded-xl border border-[#DCD4FD] text-center">
+              <div className="text-[10px] text-slate-700 uppercase tracking-wider font-bold">RSImod</div>
+              <div className="text-sm sm:text-base font-bold font-mono text-slate-900 mt-0.5">
                 {lastRsiMod !== null ? lastRsiMod : 'Non testato'}
               </div>
             </div>
@@ -368,7 +368,7 @@ export default function PatientDetail({ patient, onBack, onUpdatePatient }) {
       </div>
 
       {/* BARRA DI NAVIGAZIONE A 3 SCHEDE (Monitoraggio & Diario | Test & Valutazioni | Copilot) */}
-      <div className="bg-slate-50 p-1.5 rounded-xl border border-slate-300/60 shadow-none flex overflow-x-auto gap-2 print:hidden">
+      <div className="bg-[#F7F6F2] p-1.5 rounded-2xl border border-slate-300/80 shadow-none flex overflow-x-auto gap-2 print:hidden">
         {tabs.map((tab) => {
           const Icon = tab.icon;
           const isActive = activeTab === tab.id;
@@ -376,13 +376,13 @@ export default function PatientDetail({ patient, onBack, onUpdatePatient }) {
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
-              className={`flex-1 min-w-[180px] flex items-center justify-center gap-2 py-2.5 px-4 rounded-lg text-xs font-bold transition-all cursor-pointer whitespace-nowrap ${
+              className={`flex-1 min-w-[180px] flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl text-xs font-bold transition-all cursor-pointer whitespace-nowrap ${
                 isActive
-                  ? 'bg-emerald-100/80 text-emerald-900 border border-emerald-300/50'
-                  : 'bg-slate-100 text-slate-600 hover:text-slate-800 hover:bg-slate-200/50 border border-slate-300/60'
+                  ? 'bg-[#1D63FE] text-white shadow-xs'
+                  : 'bg-slate-200/70 text-slate-700 hover:text-slate-900 hover:bg-slate-300/60'
               }`}
             >
-              <Icon className={`w-4 h-4 ${isActive ? 'text-emerald-900' : 'text-slate-600'}`} />
+              <Icon className={`w-4 h-4 ${isActive ? 'text-white' : 'text-slate-600'}`} />
               <span>{tab.label}</span>
             </button>
           );
