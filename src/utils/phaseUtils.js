@@ -6,6 +6,13 @@
  * - 'Return to Sport'
  * - 'Return to Play'
  */
+export const CANONICAL_PHASES = [
+  'Early Phase',
+  'Return to Run',
+  'Return to Sport',
+  'Return to Play'
+];
+
 export function normalizePhaseForDb(phase) {
   if (!phase) return 'Return to Run';
   const str = String(phase).toLowerCase().trim();
@@ -47,3 +54,5 @@ export function formatPhaseForDisplay(phase) {
       return 'Fase 3 (Return to Run)';
   }
 }
+
+export const formatPhaseDisplay = formatPhaseForDisplay;
