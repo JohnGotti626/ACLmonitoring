@@ -1,291 +1,170 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
-
-:root {
-  --bg-primary: #0F172A;      /* Slate Scuro (slate-900) */
-  --bg-surface: #1E293B;      /* Dark Slate Card / Tabelle (slate-800) */
-  --bg-elevated: #0F172A;     /* Recessed / Input surface (slate-900) */
-  --border-subtle: #334155;   /* Bordi sottili (slate-700) */
-  --text-primary: #FFFFFF;    /* Bianco Puro ad alto contrasto */
-  --text-secondary: #94A3B8;  /* Slate Chiaro per etichette (slate-400) */
-  --accent-teal: #0D9488;     /* Teal Muto (teal-600) */
-  --accent-cyan: #06B6D4;     /* Cyan Clinico (cyan-500) */
-}
+@import "tailwindcss";
 
 @layer base {
+  :root {
+    --bg-primary: #F1F5F9;     /* Grigio Perla bg-slate-100 */
+    --bg-card: #FFFFFF;        /* Bianco Puro */
+    --border-card: #E2E8F0;    /* Slate-200 */
+    --accent-emerald: #059669; /* Emerald-600 */
+    --accent-emerald-dark: #047857; /* Emerald-700 */
+    --text-primary: #0F172A;   /* Slate-900 */
+    --text-muted: #64748B;     /* Slate-500 */
+  }
+
   body {
-    background-color: #0F172A;
-    color: #FFFFFF;
-    @apply font-sans selection:bg-cyan-500 selection:text-slate-950 antialiased;
+    background-color: #F1F5F9;
+    color: #0F172A;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    margin: 0;
+    padding: 0;
+    overflow-x: hidden;
   }
 
-  /* Numeri nitidi e allineati nelle tabelle e metriche */
-  table,
-  .font-mono,
-  strong {
-    font-variant-numeric: tabular-nums;
+  input, select, textarea {
+    color: #0F172A;
+    background-color: #FFFFFF;
   }
 }
 
-/* Custom scrollbars - Deep Slate Dark Premium UI */
-::-webkit-scrollbar {
-  width: 7px;
-  height: 7px;
-}
-::-webkit-scrollbar-track {
-  background: #0F172A;
-}
-::-webkit-scrollbar-thumb {
-  background: #334155;
-  border-radius: 4px;
-  border: 1px solid #475569;
-}
-::-webkit-scrollbar-thumb:hover {
-  background: #0D9488;
+.font-mono-num {
+  font-family: 'JetBrains Mono', 'Fira Code', monospace;
 }
 
-/* Deep Slate / Dark Premium Panels & Cards */
+/* Card & Container base (Light Mode Clinica: Bianco, Grigio Perla e Verde Smeraldo) */
 .glass-panel {
-  background: #1E293B !important;
-  border: 1px solid #334155 !important;
-  box-shadow: 0 10px 25px -5px rgba(2, 6, 23, 0.45), 0 4px 10px -2px rgba(2, 6, 23, 0.3) !important;
-  color: #FFFFFF;
+  background-color: #FFFFFF !important;
+  border: 1px solid rgba(226, 232, 240, 0.9) !important;
+  box-shadow: 0 1px 3px 0 rgba(15, 23, 42, 0.06), 0 1px 2px -1px rgba(15, 23, 42, 0.04) !important;
+  color: #0F172A;
 }
 
 .glass-card {
-  background: #1E293B !important;
-  border: 1px solid #334155 !important;
-  box-shadow: 0 4px 14px -2px rgba(2, 6, 23, 0.35) !important;
-  color: #FFFFFF;
+  background-color: #FFFFFF !important;
+  border: 1px solid rgba(226, 232, 240, 0.85) !important;
+  box-shadow: 0 1px 2px 0 rgba(15, 23, 42, 0.05) !important;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  color: #0F172A;
 }
 
-.card-contrast {
-  background: #0F172A !important;
-  border: 1px solid #334155 !important;
-  color: #FFFFFF;
+.glass-card:hover {
+  border-color: #A7F3D0 !important;
+  box-shadow: 0 4px 12px -2px rgba(5, 150, 105, 0.08) !important;
 }
 
-/* Normalizzazione di eventuali sfondi legacy neri o neon verso Deep Slate (#0F172A / #1E293B) */
-.bg-\[\#050c17\],
-.bg-\[\#020914\],
-.bg-\[\#070b14\] {
-  background-color: #0F172A !important;
-}
-
-.bg-\[\#0a1628\],
-.bg-\[\#090e1c\] {
-  background-color: #1E293B !important;
-}
-
-/* Sostituzione accenti fosforescenti/neon legacy con Cyan Clinico (#06B6D4) e Teal Muto (#0D9488) */
-.text-\[\#00ff88\],
-.text-\[\#39ff14\] {
-  color: #10B981 !important;
-}
-
-.text-\[\#00e5ff\] {
-  color: #06B6D4 !important;
-}
-
-.bg-\[\#00e5ff\] {
-  background-color: #06B6D4 !important;
-}
-
-.bg-\[\#00ff88\] {
-  background-color: #0D9488 !important;
-}
-
-/* Input, Select e Textarea Dark Premium UI (escluso il foglio di stampa A4) */
-body input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not(.print-report-container *),
-body select:not(.print-report-container *),
-body textarea:not(.print-report-container *) {
-  background-color: #0F172A;
-  color: #FFFFFF;
-  border-color: #334155;
-}
-
-body input:not(.print-report-container *):focus,
-body select:not(.print-report-container *):focus,
-body textarea:not(.print-report-container *):focus {
-  border-color: #06B6D4;
-  outline: none;
-}
-
-body input:not(.print-report-container *)::placeholder,
-body textarea:not(.print-report-container *)::placeholder {
-  color: #94A3B8;
-}
-
-/* Effetti sobri e non fosforescenti per gli indicatori di stato */
-.cup-unlocked {
-  box-shadow: 0 0 0 1px rgba(13, 148, 136, 0.4), 0 4px 12px rgba(13, 148, 136, 0.2);
-}
-
-.cup-danger {
-  box-shadow: 0 0 0 1px rgba(239, 68, 68, 0.4), 0 4px 12px rgba(239, 68, 68, 0.2);
-}
-
-/* High Contrast Tab Active Pill - Teal Muto (#0D9488) & Cyan Clinico (#06B6D4) */
+/* Stili Navigazione Schede (3 Tab Principali) */
 .tab-active {
-  background: linear-gradient(135deg, #0D9488 0%, #06B6D4 100%) !important;
+  background-color: #047857 !important; /* bg-emerald-700 */
   color: #FFFFFF !important;
-  box-shadow: 0 4px 12px rgba(6, 182, 212, 0.22) !important;
-  border: 1px solid #06B6D4 !important;
+  border: 1px solid #059669 !important;
+  font-weight: 700;
+  box-shadow: 0 1px 3px 0 rgba(4, 120, 87, 0.25);
 }
 
 .tab-inactive {
-  background: #0F172A !important;
-  color: #94A3B8 !important;
-  border: 1px solid #334155 !important;
+  background-color: #F8FAFC !important;
+  color: #475569 !important;
+  border: 1px solid #E2E8F0 !important;
 }
+
 .tab-inactive:hover {
-  background: #1E293B !important;
-  color: #FFFFFF !important;
-  border-color: #475569 !important;
+  color: #0F172A !important;
+  background-color: #ECFDF5 !important;
+  border-color: #A7F3D0 !important;
 }
 
-/* ============================================================================
-   3. FORMATTAZIONE A4 E ISOLAMENTO TOTALE DEL REPORT (@media print)
-   ============================================================================ */
-@page {
-  size: A4 portrait;
-  margin: 10mm;
+/* Scrollbar sottile e pulita */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
 }
 
+::-webkit-scrollbar-track {
+  background: #F1F5F9;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #CBD5E1;
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #059669;
+}
+
+/* ========================================================================== */
+/* OTTIMIZZAZIONE REPORT & STAMPA PDF A4 (@media print)                       */
+/* ========================================================================== */
 @media print {
-  /* Forza il mantenimento dei colori e dei background delle card durante la stampa */
-  html,
-  body,
-  .print-report-container,
-  .print-report-container * {
+  @page {
+    size: A4 portrait;
+    margin: 12mm;
+  }
+
+  * {
     -webkit-print-color-adjust: exact !important;
     print-color-adjust: exact !important;
-    color-adjust: exact !important;
   }
 
-  /* Reset totale di html, body e #root per evitare altezze min-h-screen o sfondi scuri */
-  html,
-  body,
-  #root,
-  #root > div {
-    background: #ffffff !important;
-    background-color: #ffffff !important;
-    color: #0f172a !important;
+  html, body {
+    background-color: #FFFFFF !important;
+    color: #0F172A !important;
+    font-size: 9.5pt !important;
+    line-height: 1.35 !important;
     margin: 0 !important;
     padding: 0 !important;
     width: 100% !important;
-    height: auto !important;
-    min-height: 0 !important;
-    max-height: none !important;
     overflow: visible !important;
-    display: block !important;
-    position: static !important;
   }
 
-  /* 1. Isolamento Totale del Report: nascondi tutti gli elementi della pagina web tranne il report */
-  body * {
-    visibility: hidden;
-  }
-
-  .print-report-container,
-  .print-report-container * {
-    visibility: visible;
-  }
-
-  .print-report-container {
-    position: absolute !important;
-    left: 0 !important;
-    top: 0 !important;
-    width: 100% !important;
-    max-width: 100% !important;
-    margin: 0 !important;
-    padding: 0 !important;
-    background: #ffffff !important;
-    color: #0f172a !important;
-    border: none !important;
-    border-radius: 0 !important;
-    box-shadow: none !important;
-    /* 2. Eliminazione Pagine Bianche iniziali e finali */
-    page-break-before: avoid !important;
-    break-before: avoid !important;
-    page-break-after: avoid !important;
-    break-after: avoid !important;
-  }
-
-  /* Quando il modal di stampa A4 è aperto (montato via Portal su body),
-     collassa #root a 0px così l'interfaccia di sfondo non genera pagine vuote */
-  body.print-modal-open > #root,
+  /* Nasconde barre di controllo, pulsanti, header, sidebar e modali in stampa */
   .no-print,
+  .print\:hidden,
   header,
-  nav,
   aside,
-  .app-shell-when-modal-print {
+  nav,
+  button:not(.print-keep) {
     display: none !important;
-    height: 0 !important;
-    min-height: 0 !important;
-    margin: 0 !important;
-    padding: 0 !important;
   }
 
-  /* Neutralizza gli involucri del modal in stampa (nessun backdrop-filter, scroll o altezza fissa) */
-  .print-modal-backdrop,
-  .print-modal-container,
-  .print-modal-body,
-  .print-preview-pane {
+  body.printing-custom-report .app-shell-when-modal-print {
+    display: none !important;
+  }
+
+  body.printing-custom-report .custom-print-modal-overlay {
     position: static !important;
     display: block !important;
-    width: 100% !important;
-    max-width: 100% !important;
-    height: auto !important;
-    min-height: 0 !important;
-    max-height: none !important;
-    margin: 0 !important;
+    background: #FFFFFF !important;
     padding: 0 !important;
+    margin: 0 !important;
+    overflow: visible !important;
+  }
+
+  body.printing-custom-report .custom-print-modal-box {
+    max-width: 100% !important;
+    max-height: none !important;
+    width: 100% !important;
     border: none !important;
     box-shadow: none !important;
-    background: transparent !important;
+    background: #FFFFFF !important;
     overflow: visible !important;
-    transform: none !important;
-    backdrop-filter: none !important;
-    -webkit-backdrop-filter: none !important;
-    filter: none !important;
   }
 
-  /* Nascondi i controlli interattivi dentro il report durante la stampa */
-  .print-report-container .no-print {
-    display: none !important;
-  }
-
-  /* Mostra le etichette statiche di stampa dentro il report */
-  .print-report-container .print-only-block {
+  #root, main {
+    width: 100% !important;
+    max-width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    background: #FFFFFF !important;
     display: block !important;
   }
 
-  .print-report-container .print-only-inline {
-    display: inline-block !important;
-  }
-
-  /* Griglia a 2 colonne fisse su foglio A4 */
-  .print-report-container .print-cards-grid {
-    display: grid !important;
-    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
-    gap: 8px !important;
-  }
-
-  .print-report-container .print-col-span-2 {
-    grid-column: span 2 / span 2 !important;
-  }
-
-  .print-report-container .print-col-span-1 {
-    grid-column: span 1 / span 1 !important;
-  }
-
-  /* 2. Impedisci che singole schede o sezioni vengano spezzate a metà tra due pagine */
-  .print-report-card,
-  .report-card-vald,
-  .print-report-section,
+  .glass-panel,
+  .glass-card,
   .break-inside-avoid {
+    background: #FFFFFF !important;
+    color: #0F172A !important;
+    border: 1px solid #CBD5E1 !important;
+    box-shadow: none !important;
     break-inside: avoid !important;
     page-break-inside: avoid !important;
   }

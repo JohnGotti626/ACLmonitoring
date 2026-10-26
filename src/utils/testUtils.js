@@ -1,6 +1,280 @@
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
 
 /**
+ * Mappa il modulo UI al codice canonico `test_type` usato nel DB per `custom_metric_definitions` e `patient_custom_metrics`.
+ */
+export const MODULE_TO_TEST_TYPE = {
+  ISO_EXT: 'ISO_PUSH_LEG_EXT',
+  ISO_CURL: 'ISO_PUSH_LEG_CURL',
+  FORZA_DINAMICA: 'FORZA_ACCESSORIA',
+  CMJ_BILATERAL: 'CMJ_BILATERALE',
+  CMJ_SL: 'CMJ_MONOPODALICO',
+  DJ_BILATERAL: 'RSI_DROP_JUMP',
+  DJ_SL: 'SL_DROP_JUMP',
+  CLINICAL_SCORES: 'SCORE_CLINICI',
+  LSI: 'ISO_PUSH_LEG_EXT',
+  FORZA: 'ISO_PUSH_LEG_EXT'
+};
+
+export function normalizeTestTypeCode(modOrType) {
+  if (!modOrType) return 'CMJ_BILATERALE';
+  return MODULE_TO_TEST_TYPE[modOrType] || String(modOrType).toUpperCase();
+}
+
+/**
+ * Suggerimenti predefiniti per ogni `test_type` (uniti a quelli salvati su Supabase in `custom_metric_definitions`).
+ */
+export const DEFAULT_CUSTOM_METRIC_SUGGESTIONS = {
+  ISO_PUSH_LEG_EXT: [
+    { metric_name: 'Angolo Flessione Ginocchio', unit: 'gradi' },
+    { metric_name: 'RFD 0-100ms Quadricipite SX', unit: 'N/s' },
+    { metric_name: 'RFD 0-100ms Quadricipite DX', unit: 'N/s' },
+    { metric_name: 'Torque di Picco Normalizzato', unit: 'N/m' },
+    { metric_name: 'VAS Dolore Rotuleo durante spinta', unit: '/10' }
+  ],
+  ISO_PUSH_LEG_CURL: [
+    { metric_name: 'Angolo Flessione Ischiocrurali', unit: 'gradi' },
+    { metric_name: 'Picco Forza Ischiocrurali 30°', unit: 'N' },
+    { metric_name: 'RFD 0-100ms Ischiocrurali', unit: 'N/s' }
+  ],
+  FORZA_ACCESSORIA: [
+    { metric_name: 'ROM Dorsiflessione Caviglia (WBLT)', unit: 'cm' },
+    { metric_name: '1RM Stimato Leg Press Monopodalica', unit: 'kg' },
+    { metric_name: 'Velocità Media Concentrica VBT', unit: 'm/s' }
+  ],
+  CMJ_BILATERALE: [
+    { metric_name: 'Angolo Flessione Ginocchio Max', unit: 'gradi' },
+    { metric_name: 'Tempo di Volo', unit: 'ms' },
+    { metric_name: 'Velocità di Stacco (Takeoff Velocity)', unit: 'm/s' },
+    { metric_name: 'Picco Forza Concentrica', unit: 'N' }
+  ],
+  CMJ_MONOPODALICO: [
+    { metric_name: 'Valgismo Dinamico Ginocchio (FPPA 2D)', unit: 'gradi' },
+    { metric_name: 'Tempo Stabilizzazione Atterraggio (TTS)', unit: 's' },
+    { metric_name: 'Picco Forza Verticale Atterraggio', unit: 'BW' }
+  ],
+  RSI_DROP_JUMP: [
+    { metric_name: 'Angolo Flessione Ginocchio al Contatto', unit: 'gradi' },
+    { metric_name: 'Picco Forza Verticale vGRF', unit: 'BW' },
+    { metric_name: 'Stiffness Verticale Kvert', unit: 'kN/m' }
+  ],
+  SL_DROP_JUMP: [
+    { metric_name: 'Controllo Frontale Pelvi-Ginocchio', unit: 'gradi' },
+    { metric_name: 'Picco Forza Atterraggio Monopodalico', unit: 'BW' }
+  ],
+  SCORE_CLINICI: [
+    { metric_name: 'Scala Tegner Activity Level', unit: 'pts' },
+    { metric_name: 'Marx Activity Rating Scale', unit: 'pts' },
+    { metric_name: 'Y-Balance Test Composite LSI', unit: '%' }
+  ]
+};
+
+/**
+ * Esegue query su `public.custom_metric_definitions` filtrando per `test_type`
+ * e unisce i risultati con i suggerimenti clinici di base.
+ */
+export async function fetchCustomMetricDefinitions(testTypeInput) {
+  const testType = normalizeTestTypeCode(testTypeInput);
+  const baseList = DEFAULT_CUSTOM_METRIC_SUGGESTIONS[testType] || [];
+  const mergedMap = new Map();
+
+  baseList.forEach(item => {
+    mergedMap.set(item.metric_name.toLowerCase(), {
+      test_type: testType,
+      metric_name: item.metric_name,
+      unit: item.unit || ''
+    });
+  });
+
+  if (!isSupabaseConfigured) {
+    return Array.from(mergedMap.values());
+  }
+
+  try {
+    const { data, error } = await supabase
+      .from('custom_metric_definitions')
+      .select('id, test_type, metric_name, unit')
+      .eq('test_type', testType)
+      .order('metric_name', { ascending: true });
+
+    if (!error && Array.isArray(data)) {
+      data.forEach(row => {
+        if (row?.metric_name) {
+          mergedMap.set(row.metric_name.trim().toLowerCase(), {
+            id: row.id,
+            test_type: row.test_type,
+            metric_name: row.metric_name.trim(),
+            unit: row.unit || ''
+          });
+        }
+      });
+    }
+  } catch (err) {
+    console.warn('Info fetchCustomMetricDefinitions:', err);
+  }
+
+  return Array.from(mergedMap.values());
+}
+
+/**
+ * Recupera lo storico delle metriche personalizzate già utilizzate dal singolo paziente per un dato `test_type`
+ * (sia dalla tabella `patient_custom_metrics` sia dallo storico `patient.tests`),
+ * così da pre-popolare automaticamente i campi quando il paziente ripete il test a distanza di settimane.
+ */
+export async function fetchPatientPreviousCustomMetrics(patient, testTypeInput) {
+  const testType = normalizeTestTypeCode(testTypeInput);
+  const templateMap = new Map();
+  const hiddenSet = new Set();
+
+  // 1. Ricerca nello storico locale/JSONB `patient.tests`
+  const tests = Array.isArray(patient?.tests) ? patient.tests : [];
+  tests.forEach(t => {
+    const byType = t?.custom_metrics?.[testType];
+    if (Array.isArray(byType)) {
+      byType.forEach(m => {
+        if (!m?.metric_name) return;
+        const key = m.metric_name.trim().toLowerCase();
+        if (m.is_hidden) {
+          hiddenSet.add(key);
+        } else if (!hiddenSet.has(key)) {
+          templateMap.set(key, {
+            metric_name: m.metric_name.trim(),
+            unit: m.unit || ''
+          });
+        }
+      });
+    }
+  });
+
+  // 2. Ricerca sulla tabella Supabase `public.patient_custom_metrics`
+  const isUuid =
+    typeof patient?.id === 'string' &&
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(patient.id);
+
+  if (isSupabaseConfigured && isUuid) {
+    try {
+      const { data, error } = await supabase
+        .from('patient_custom_metrics')
+        .select('metric_name, unit, is_hidden, created_at')
+        .eq('patient_id', patient.id)
+        .eq('test_type', testType)
+        .order('created_at', { ascending: true });
+
+      if (!error && Array.isArray(data)) {
+        data.forEach(row => {
+          if (!row?.metric_name) return;
+          const key = row.metric_name.trim().toLowerCase();
+          if (row.is_hidden) {
+            hiddenSet.add(key);
+            templateMap.delete(key);
+          } else if (!hiddenSet.has(key)) {
+            templateMap.set(key, {
+              metric_name: row.metric_name.trim(),
+              unit: row.unit || templateMap.get(key)?.unit || ''
+            });
+          }
+        });
+      }
+    } catch (err) {
+      console.warn('Info fetchPatientPreviousCustomMetrics:', err);
+    }
+  }
+
+  return Array.from(templateMap.values());
+}
+
+/**
+ * Salva le metriche personalizzate:
+ * 1. Inserisce eventuali nuove definizioni in `public.custom_metric_definitions` (ON CONFLICT DO NOTHING / upsert)
+ * 2. Salva i valori misurati nella tabella `public.patient_custom_metrics`
+ */
+export async function saveCustomMetricsToSupabase({
+  patientId,
+  evaluationId,
+  sessionKey,
+  testTypeInput,
+  customMetricsList
+}) {
+  if (!isSupabaseConfigured || !Array.isArray(customMetricsList) || customMetricsList.length === 0) {
+    return;
+  }
+
+  const testType = normalizeTestTypeCode(testTypeInput);
+  const validDefinitions = customMetricsList
+    .filter(m => m && typeof m.metric_name === 'string' && m.metric_name.trim() !== '' && !m.is_hidden)
+    .map(m => ({
+      test_type: testType,
+      metric_name: m.metric_name.trim(),
+      unit: m.unit ? m.unit.trim() : null
+    }));
+
+  // 1. Upsert in `public.custom_metric_definitions` per i suggerimenti globali futuri
+  if (validDefinitions.length > 0) {
+    try {
+      await supabase
+        .from('custom_metric_definitions')
+        .upsert(validDefinitions, { onConflict: 'test_type,metric_name' });
+    } catch (err) {
+      console.warn('Info salvataggio custom_metric_definitions:', err);
+    }
+  }
+
+  // 2. Salvataggio valori misurati su `public.patient_custom_metrics`
+  const isPatientUuid =
+    typeof patientId === 'string' &&
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(patientId);
+  const isEvalUuid =
+    typeof evaluationId === 'string' &&
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(evaluationId);
+
+  if (!isPatientUuid) return;
+
+  const measuredRows = customMetricsList
+    .filter(m => m && typeof m.metric_name === 'string' && m.metric_name.trim() !== '')
+    .map(m => ({
+      patient_id: patientId,
+      evaluation_id: isEvalUuid ? evaluationId : null,
+      session_key: sessionKey || String(evaluationId || ''),
+      test_type: testType,
+      metric_name: m.metric_name.trim(),
+      unit: m.unit ? m.unit.trim() : null,
+      metric_value: toStrictNullOrNumber(m.metric_value, true),
+      is_hidden: Boolean(m.is_hidden)
+    }));
+
+  if (measuredRows.length > 0) {
+    try {
+      await supabase.from('patient_custom_metrics').insert(measuredRows);
+    } catch (err) {
+      console.warn('Info salvataggio patient_custom_metrics:', err);
+    }
+  }
+}
+
+/**
+ * Nasconde/elimina una metrica personalizzata per un paziente su Supabase
+ */
+export async function hideCustomMetricInSupabase(patientId, testTypeInput, metricName) {
+  if (!isSupabaseConfigured || !patientId || !metricName) return;
+  const testType = normalizeTestTypeCode(testTypeInput);
+  const isPatientUuid =
+    typeof patientId === 'string' &&
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(patientId);
+  if (!isPatientUuid) return;
+
+  try {
+    await supabase
+      .from('patient_custom_metrics')
+      .update({ is_hidden: true })
+      .eq('patient_id', patientId)
+      .eq('test_type', testType)
+      .ilike('metric_name', metricName.trim());
+  } catch (err) {
+    console.warn('Info hideCustomMetricInSupabase:', err);
+  }
+}
+
+/**
  * Converte un valore in numero valido oppure rigorosamente `null`.
  * Campi vuoti ('', '-', undefined, null, NaN) o <= 0 (quando allowZero=false) restituiscono SEMPRE `null`, MAI 0.
  */
@@ -31,7 +305,6 @@ export function extractMetricFromSingleTest(test, keys, allowZero = false) {
   // 2. Derivazione intelligente dai dati grezzi se tutti gli input necessari sono validi (> 0)
   const keySet = new Set(keyList);
 
-  // LSI Quadricipite da quadSano / quadOp o iso_leg_ext_sx / dx
   if (keySet.has('lsiQuad') || keySet.has('lsi_quad_calculated')) {
     const sx = toStrictNullOrNumber(test.quadSano ?? test.iso_leg_ext_sx);
     const dx = toStrictNullOrNumber(test.quadOp ?? test.iso_leg_ext_dx);
@@ -40,7 +313,6 @@ export function extractMetricFromSingleTest(test, keys, allowZero = false) {
     }
   }
 
-  // LSI Flessori da flexSano / flexOp o iso_leg_curl_sx / dx
   if (keySet.has('lsiFlex') || keySet.has('lsi_curl_calculated')) {
     const sx = toStrictNullOrNumber(test.flexSano ?? test.iso_leg_curl_sx);
     const dx = toStrictNullOrNumber(test.flexOp ?? test.iso_leg_curl_dx);
@@ -49,7 +321,6 @@ export function extractMetricFromSingleTest(test, keys, allowZero = false) {
     }
   }
 
-  // Forza Relativa Quadricipite (Nm/kg) da quadOp o iso_leg_ext_dx/sx
   if (keySet.has('quadOpNmKg') || keySet.has('quad_rel_op')) {
     const qOp = toStrictNullOrNumber(test.quadOp ?? test.iso_leg_ext_dx ?? test.quadSano ?? test.iso_leg_ext_sx);
     if (qOp !== null && qOp > 0) {
@@ -57,7 +328,6 @@ export function extractMetricFromSingleTest(test, keys, allowZero = false) {
     }
   }
 
-  // H:Q Ratio da flexOp/quadOp o flexSano/quadSano
   if (keySet.has('hqRatio')) {
     const fOp = toStrictNullOrNumber(test.flexOp ?? test.iso_leg_curl_dx);
     const qOp = toStrictNullOrNumber(test.quadOp ?? test.iso_leg_ext_dx);
@@ -71,7 +341,6 @@ export function extractMetricFromSingleTest(test, keys, allowZero = false) {
     }
   }
 
-  // Simmetria Impulso Frenante CMJ da eccBrakingSX/DX o brakingAsym
   if (keySet.has('cmjImpulseLsi') || keySet.has('lsi_cmj_braking')) {
     const sx = toStrictNullOrNumber(test.eccBrakingSX ?? test.ecc_braking_sx);
     const dx = toStrictNullOrNumber(test.eccBrakingDX ?? test.ecc_braking_dx);
@@ -84,7 +353,6 @@ export function extractMetricFromSingleTest(test, keys, allowZero = false) {
     }
   }
 
-  // LSI Altezza SL CMJ da slCmjHeightSX / slCmjHeightDX
   if (keySet.has('slCmjHeightLsi') || keySet.has('lsi_sl_cmj_height_calculated')) {
     const sx = toStrictNullOrNumber(test.slCmjHeightSX ?? test.sl_cmj_height_sx);
     const dx = toStrictNullOrNumber(test.slCmjHeightDX ?? test.sl_cmj_height_dx);
@@ -93,7 +361,6 @@ export function extractMetricFromSingleTest(test, keys, allowZero = false) {
     }
   }
 
-  // RSI Drop Jump da djJumpHeight e djContactTime
   if (keySet.has('rsiDropJump') || keySet.has('dj_rsi') || keySet.has('djRSI')) {
     const h = toStrictNullOrNumber(test.djJumpHeight ?? test.dj_jump_height);
     const ct = toStrictNullOrNumber(test.djContactTime ?? test.dj_contact_time);
@@ -102,7 +369,6 @@ export function extractMetricFromSingleTest(test, keys, allowZero = false) {
     }
   }
 
-  // RSI CMJ da jumpHeight e contractionTime
   if (keySet.has('rsiCmj') || keySet.has('rsi_cmj') || keySet.has('rsi_mod')) {
     const h = toStrictNullOrNumber(test.jumpHeight ?? test.jump_height_cm ?? test.altezza_salto);
     const ct = toStrictNullOrNumber(test.contractionTime ?? test.contraction_time_ms ?? test.tempo_contrazione);
@@ -152,6 +418,81 @@ export function getLastValidMetricWithMeta(tests, metricKeys, options = {}) {
 export function getLastValidMetricValue(tests, metricKeys, options = {}) {
   const meta = getLastValidMetricWithMeta(tests, metricKeys, options);
   return meta ? meta.value : null;
+}
+
+/**
+ * Normalizza e pulisce una mappa di metriche personalizzate `{ [test_type]: [{ metric_name, unit, metric_value, is_hidden }] }`
+ */
+export function sanitizeCustomMetricsMap(customMetricsMap) {
+  if (!customMetricsMap || typeof customMetricsMap !== 'object') return {};
+  const cleaned = {};
+  Object.entries(customMetricsMap).forEach(([testTypeKey, list]) => {
+    if (!Array.isArray(list)) return;
+    const normKey = normalizeTestTypeCode(testTypeKey);
+    const items = [];
+    const seen = new Set();
+    list.forEach(item => {
+      if (!item || typeof item.metric_name !== 'string') return;
+      const name = item.metric_name.trim();
+      if (!name) return;
+      const lower = name.toLowerCase();
+      if (seen.has(lower)) return;
+      seen.add(lower);
+      items.push({
+        metric_name: name,
+        unit: item.unit ? String(item.unit).trim() : '',
+        metric_value: toStrictNullOrNumber(item.metric_value, true),
+        is_hidden: Boolean(item.is_hidden)
+      });
+    });
+    if (items.length > 0) {
+      cleaned[normKey] = items;
+    }
+  });
+  return cleaned;
+}
+
+/**
+ * Unisce due mappe di metriche personalizzate preservando i valori non-null e lo stato `is_hidden`.
+ */
+export function mergeCustomMetricsMaps(oldMap, newMap) {
+  const base = sanitizeCustomMetricsMap(oldMap);
+  const incoming = sanitizeCustomMetricsMap(newMap);
+  const result = { ...base };
+
+  Object.entries(incoming).forEach(([testType, incList]) => {
+    const existingList = Array.isArray(result[testType]) ? [...result[testType]] : [];
+    const byName = new Map();
+    existingList.forEach(item => {
+      byName.set(item.metric_name.toLowerCase(), { ...item });
+    });
+
+    incList.forEach(incItem => {
+      const key = incItem.metric_name.toLowerCase();
+      const prev = byName.get(key);
+      if (incItem.is_hidden) {
+        byName.set(key, {
+          ...prev,
+          ...incItem,
+          is_hidden: true
+        });
+      } else {
+        byName.set(key, {
+          metric_name: incItem.metric_name,
+          unit: incItem.unit || prev?.unit || '',
+          metric_value:
+            incItem.metric_value !== null && incItem.metric_value !== undefined
+              ? incItem.metric_value
+              : (prev?.metric_value ?? null),
+          is_hidden: false
+        });
+      }
+    });
+
+    result[testType] = Array.from(byName.values());
+  });
+
+  return result;
 }
 
 /**
@@ -312,6 +653,7 @@ export const createTestObject = (newValData, patientId, testIndex = 1) => {
   const sessionName = newValData.session_name || newValData.label || `Test #${newNum}`;
   const testModule = newValData.test_module || 'ALL';
   const existingModuleDates = newValData.module_dates || {};
+  const customMetricsClean = sanitizeCustomMetricsMap(newValData.custom_metrics);
 
   const newTest = {
     id: newValData.id || `test-${newNum}-${Date.now()}`,
@@ -326,6 +668,7 @@ export const createTestObject = (newValData, patientId, testIndex = 1) => {
       ...existingModuleDates,
       [testModule]: evalDateFormatted
     },
+    custom_metrics: customMetricsClean,
     date: evalDateFormatted,
     data_valutazione: evalDateIso,
     ginocchio_operato: opKnee,
@@ -452,6 +795,8 @@ export function mergeTestIntoSession(existingSession, newPartialData, patientId)
     return oldVal !== undefined && oldVal !== '' && oldVal !== '-' ? oldVal : null;
   };
 
+  const mergedCustomMetrics = mergeCustomMetricsMaps(base.custom_metrics, incoming.custom_metrics);
+
   const mergedRaw = {
     ...base,
     id: base.id || incoming.id,
@@ -469,6 +814,7 @@ export function mergeTestIntoSession(existingSession, newPartialData, patientId)
       ...(base.module_dates || {}),
       ...(incoming.module_dates || {})
     },
+    custom_metrics: mergedCustomMetrics,
 
     iso_leg_ext_sx: pickNonNull(incoming.quadSano, base.quadSano ?? base.iso_leg_ext_sx),
     iso_leg_ext_dx: pickNonNull(incoming.quadOp, base.quadOp ?? base.iso_leg_ext_dx),
@@ -676,7 +1022,6 @@ export function sortTestsByDate(tests) {
     let lsiQuadDelta = null;
     let lsiFlexDelta = null;
 
-    // Cerca a ritroso l'ultimo test precedente che aveva effettivamente lsiQuad valido
     const curQuad = extractMetricFromSingleTest(t, ['lsiQuad', 'lsi_quad_calculated']);
     if (curQuad !== null && idx > 0) {
       for (let p = idx - 1; p >= 0; p--) {
@@ -689,7 +1034,6 @@ export function sortTestsByDate(tests) {
       }
     }
 
-    // Cerca a ritroso l'ultimo test precedente che aveva effettivamente lsiFlex valido
     const curFlex = extractMetricFromSingleTest(t, ['lsiFlex', 'lsi_curl_calculated']);
     if (curFlex !== null && idx > 0) {
       for (let p = idx - 1; p >= 0; p--) {
@@ -706,6 +1050,7 @@ export function sortTestsByDate(tests) {
       ...t,
       num,
       label,
+      custom_metrics: sanitizeCustomMetricsMap(t.custom_metrics),
       lsiQuad: curQuad ?? toStrictNullOrNumber(t.lsiQuad),
       lsiFlex: curFlex ?? toStrictNullOrNumber(t.lsiFlex),
       lsiQuadDelta,

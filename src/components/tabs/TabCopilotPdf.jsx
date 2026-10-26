@@ -1,71 +1,71 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, Component, useMemo } from 'react';
 import {
-  Bot,
   Sparkles,
   ShieldAlert,
-  AlertTriangle,
   CheckCircle2,
+  AlertTriangle,
   Activity,
-  TrendingUp,
-  TrendingDown,
-  Gauge,
-  BookOpen,
-  Zap,
   Dumbbell,
-  Footprints,
+  Zap,
+  BookOpen,
   Printer,
-  Check,
-  X,
-  FileText,
   Lock,
   Unlock,
-  ChevronRight,
-  Info,
+  Footprints,
+  TrendingDown,
+  Check,
+  X,
   ShieldCheck,
-  User,
-  Calendar,
-  RotateCcw,
-  Search
+  Search,
+  Sliders,
+  Compass,
+  ArrowUpRight,
+  ArrowDownRight
 } from 'lucide-react';
 import ModalLibreriaScientifica from '../ModalLibreriaScientifica';
-import { sortTestsByDate, getLastValidMetricValue } from '../../utils/testUtils';
+import {
+  sortTestsByDate,
+  getLastValidMetricValue,
+  toStrictNullOrNumber
+} from '../../utils/testUtils';
 
-// Error Boundary per prevenire Schermata Nera / Crash React
-class CopilotErrorBoundary extends React.Component {
+// ============================================================================
+// SYSTEM PROMPT UFFICIALE DEL COPILOT AI (LINEE GUIDA NSCA)
+// ============================================================================
+export const NSCA_COPILOT_SYSTEM_PROMPT = `Sei un Clinical Strength & Conditioning Copilot specializzato nella riabilitazione post-ricostruzione LCA.
+Utilizza ESCLUSIVAMENTE le linee guida NSCA (National Strength and Conditioning Association - Essentials of Strength Training and Conditioning) per analizzare:
+1. Gli ultimi test biomeccanici e isometrici inseriti (inclusi trend LSI e metriche personalizzate).
+2. I deficit neuromuscolari e biomeccanici segnalati dal team clinico.
+3. Le direttive operative del terapista e la fase riabilitativa attiva.
+Fornisci raccomandazioni strutturate con: Selezione Esercizi, Parametri di Carico NSCA (%1RM, Serie x Ripetizioni, Recupero, Velocità VBT), Progressioni e Regressioni biomeccaniche.`;
+
+class CopilotErrorBoundary extends Component {
   constructor(props) {
     super(props);
-    this.state = { hasError: false, error: null };
+    this.state = { hasError: false, errorMessage: '' };
   }
 
   static getDerivedStateFromError(error) {
-    return { hasError: true, error };
+    return { hasError: true, errorMessage: error?.message || 'Errore sconosciuto nel calcolo IA.' };
   }
 
   componentDidCatch(error, errorInfo) {
-    console.error("Copilot IA Engine Catch Error:", error, errorInfo);
+    console.error('[CopilotErrorBoundary] Errore intercettato:', error, errorInfo);
   }
 
   render() {
     if (this.state.hasError) {
       return (
-        <div className="p-6 rounded-2xl bg-slate-900 border border-amber-500/50 text-white space-y-4 shadow-2xl">
-          <div className="flex items-center gap-3 text-amber-400">
-            <ShieldAlert className="w-6 h-6 shrink-0" />
-            <div>
-              <h3 className="font-extrabold text-base">Copilot IA Engine — Ripristino di Sicurezza</h3>
-              <p className="text-xs text-slate-400">Dati pazienza in fase di sincronizzazione o parametro non strutturato.</p>
+        <div className="p-6 rounded-xl bg-white border border-amber-300 text-slate-900 space-y-3 my-4 shadow-sm">
+          <div className="flex items-center gap-2 text-amber-700 font-bold text-sm">
+            <div className="p-1 bg-slate-100 text-slate-600 rounded">
+              <AlertTriangle className="w-4 h-4 text-amber-600" />
             </div>
+            <span>Dati Insufficienti per l&apos;Analisi Automatica Completa</span>
           </div>
-          <div className="p-3 bg-slate-950 rounded-xl border border-slate-800 text-xs font-mono text-slate-300">
-            {this.state.error?.toString() || 'Errore silente gestito con successo.'}
-          </div>
-          <button
-            onClick={() => this.setState({ hasError: false })}
-            className="px-4 py-2 bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white font-extrabold text-xs rounded-xl flex items-center gap-2 cursor-pointer shadow-lg"
-          >
-            <RotateCcw className="w-4 h-4" />
-            <span>Riavvia Engine Diagnostico</span>
-          </button>
+          <p className="text-xs text-slate-600 leading-relaxed">
+            Inserisci almeno una rilevazione nella scheda <strong>2. Test &amp; Valutazioni</strong> per abilitare il calcolo completo del Copilot NSCA.
+          </p>
         </div>
       );
     }
@@ -73,762 +73,449 @@ class CopilotErrorBoundary extends React.Component {
   }
 }
 
-// MATRICE TARGET DINAMICA PER LE 5 FASI RIABILITATIVE RTS POST-LCA
 const PHASE_TARGET_MATRIX = {
-  'FASE_1': {
+  FASE_1: {
     id: 'FASE_1',
-    num: '1',
-    tag: 'Fase 1 (Protezione & Estensione)',
-    shortName: 'Fase 1: Early Stage',
-    targetLsiQuad: 70, // Target LSI Quad ≥ 70%
-    targetLsiHop: 60,
-    targetBrakingAsym: 20, // Asimmetria Impulso < 20%
-    targetRsi: 0.25, // RSImod > 0.25
-    targetHq: 0.50, // H:Q Ratio ≥ 0.50
-    focus: 'Recupero mobilità 0° estensione, controllo dell\'inibizione artrogenica (AMI) ed attivazione VMO.',
-    citationQuad: 'Buckthorpe et al. 2019',
-    citationBraking: 'Read et al. 2020',
-    citationRsi: 'Ebbs et al. 2023',
-    citationHq: 'Kyritsis et al. 2016'
+    shortName: '1. Early (ROM)',
+    fullName: 'Fase 1: Early Stage (0-6 Settimane)',
+    targetLsiQuad: 60,
+    targetLsiHam: 65,
+    targetRsiMod: 0.80,
+    targetBrakingAsym: 25,
+    targetHqRatio: 0.50,
+    nscaFocus: 'NSCA Hypertrophy / Activation: Isometria sub-massimale e Overcoming Iso a 60°-90° (70-80% MVC, 5x6s, Rec 90s) per contrastare AMI.'
   },
-  'FASE_2': {
+  FASE_2: {
     id: 'FASE_2',
-    num: '2',
-    tag: 'Fase 2 (Mid Stage / Forza)',
-    shortName: 'Fase 2: Mid Stage',
-    targetLsiQuad: 80, // Target LSI Quad ≥ 80%
-    targetLsiHop: 75,
-    targetBrakingAsym: 15, // Asimmetria Impulso < 15%
-    targetRsi: 0.35, // RSImod > 0.35
-    targetHq: 0.55, // H:Q Ratio ≥ 0.55
-    focus: 'Rinforzo muscolare concentrico/eccentrico, landing mechanics e primi salti controllati.',
-    citationQuad: 'Grindem et al. 2016',
-    citationBraking: 'Read et al. 2020',
-    citationRsi: 'Ebbs et al. 2023',
-    citationHq: 'Kyritsis et al. 2016'
+    shortName: '2. Mid (>70%)',
+    fullName: 'Fase 2: Mid Stage (6-12 Settimane)',
+    targetLsiQuad: 70,
+    targetLsiHam: 75,
+    targetRsiMod: 1.00,
+    targetBrakingAsym: 20,
+    targetHqRatio: 0.55,
+    nscaFocus: 'NSCA Basic Strength & Hypertrophy: 67-80% 1RM, 3-4 serie x 8-12 reps, Rec 90-120s, controllo eccentrico 3s.'
   },
-  'FASE_3': {
+  FASE_3: {
     id: 'FASE_3',
-    num: '3',
-    tag: 'Fase 3 (Return to Run / Power)',
-    shortName: 'Fase 3: Return to Run',
-    targetLsiQuad: 85, // Target LSI Quad ≥ 85%
-    targetLsiHop: 85,
-    targetBrakingAsym: 12, // Asimmetria Impulso < 12%
-    targetRsi: 0.45, // RSImod > 0.45
-    targetHq: 0.58, // H:Q Ratio ≥ 0.58
-    focus: 'Introduzione alla corsa in linea retta, decelerazioni meccaniche e sviluppo forza reattiva.',
-    citationQuad: 'Rambaud et al. 2018',
-    citationBraking: 'Read et al. 2020',
-    citationRsi: 'Ebbs et al. 2023',
-    citationHq: 'Kyritsis et al. 2016'
+    shortName: '3. Run (>80%)',
+    fullName: 'Fase 3: Return to Run & Power (3-5 Mesi)',
+    targetLsiQuad: 80,
+    targetLsiHam: 80,
+    targetRsiMod: 1.25,
+    targetBrakingAsym: 15,
+    targetHqRatio: 0.58,
+    nscaFocus: 'NSCA Maximal Strength: 80-87% 1RM, 4 serie x 5-6 reps, Rec 2-3 min + Low-Intensity Plyometrics (SSC lungo).'
   },
-  'FASE_4': {
+  FASE_4: {
     id: 'FASE_4',
-    num: '4',
-    tag: 'Fase 4 (Return to Sport / Agility)',
-    shortName: 'Fase 4: Return to Sport',
-    targetLsiQuad: 90, // Target LSI Quad ≥ 90%
-    targetLsiHop: 90,
-    targetBrakingAsym: 10, // Asimmetria Impulso < 10%
-    targetRsi: 1.00, // RSImod > 1.00
-    targetHq: 0.60, // H:Q Ratio ≥ 0.60
-    focus: 'Cambi di direzione (CODs) ad alta velocità, contesti caotici/reattivi e pliometria ad alto impatto.',
-    citationQuad: 'Grindem et al. 2016 • Buckthorpe et al. 2019',
-    citationBraking: 'Read et al. 2020',
-    citationRsi: 'Ebbs et al. 2023',
-    citationHq: 'Kyritsis et al. 2016'
+    shortName: '4. Late (>85%)',
+    fullName: 'Fase 4: Late Stage & COD (5-7 Mesi)',
+    targetLsiQuad: 85,
+    targetLsiHam: 85,
+    targetRsiMod: 1.40,
+    targetBrakingAsym: 12,
+    targetHqRatio: 0.60,
+    nscaFocus: 'NSCA Strength-Power & Reactive SSC: 85-90% 1RM (3-5 reps) combinato con Pliometria Reattiva GCT <250ms (3-4x6-8 contatti, Rec 2-3 min).'
   },
-  'FASE_5': {
+  FASE_5: {
     id: 'FASE_5',
-    num: '5',
-    tag: 'Fase 5 (Return to Performance)',
-    shortName: 'Fase 5: Performance',
-    targetLsiQuad: 95, // Target LSI Quad ≥ 95%
-    targetLsiHop: 95,
-    targetBrakingAsym: 5, // Asimmetria Impulso < 5%
-    targetRsi: 1.50, // RSImod > 1.50
-    targetHq: 0.65, // H:Q Ratio ≥ 0.65
-    focus: 'Ritorno alla competizione massimale, potenza di picco, sprint 10-30m ed assenza totale di compensi.',
-    citationQuad: 'Buckthorpe et al. 2019',
-    citationBraking: 'Read et al. 2020',
-    citationRsi: 'Ebbs et al. 2023',
-    citationHq: 'Kyritsis et al. 2016'
+    shortName: '5. RTS (>90%)',
+    fullName: 'Fase 5: Return to Sport & Performance (>7 Mesi)',
+    targetLsiQuad: 90,
+    targetLsiHam: 90,
+    targetRsiMod: 1.50,
+    targetBrakingAsym: 10,
+    targetHqRatio: 0.60,
+    nscaFocus: 'NSCA Peaking Power & Ballistic VBT: 30-60% 1RM ad alta velocità (0.75-1.0 m/s) + High-Impact Multidirectional Plyometrics.'
   }
 };
 
-const getPhaseKey = (phaseStr) => {
-  if (!phaseStr) return 'FASE_5';
-  const str = String(phaseStr).toLowerCase();
-  if (str.includes('1') || str.includes('early') || str.includes('protezione') || str.includes('rom')) return 'FASE_1';
-  if (str.includes('2') || str.includes('mid') || str.includes('forza')) return 'FASE_2';
-  if (str.includes('3') || str.includes('run') || str.includes('power') || str.includes('drills')) return 'FASE_3';
-  if (str.includes('4') || str.includes('late') || str.includes('sport') || str.includes('agility') || str.includes('cod')) return 'FASE_4';
-  if (str.includes('5') || str.includes('perf') || str.includes('play') || str.includes('rts') || str.includes('sprint')) return 'FASE_5';
-  return 'FASE_5';
-};
-
-
-/**
- * PURE FUNCTION: Calcola i criteri di progressione individualizzati e dinamici per il paziente.
- * Legge: Tempo dalla chirurgia, Fase Riabilitativa Attuale, e Dati reali dai Test (LSI Quad, LSI Flex, Hop Tests, IKDC, RSI, Contact Time, ACL-RSI).
- */
-export function getProgressionCriteria(patient) {
-  if (!patient) {
-    return {
-      currentPhaseLabel: 'N/D',
-      targetPhaseLabel: 'N/D',
-      targetPhaseBadge: 'N/D',
-      criteria: [],
-      allPassed: false,
-      passedCount: 0,
-      totalCount: 0,
-      passedPct: 0,
-      timePostOpStr: 'N/D',
-      postOpWeeks: 0
-    };
-  }
-
-  // 1. Tempo Post-Operatorio (giorni, settimane, mesi)
-  const getPostOpStats = (surgeryDateStr) => {
-    if (!surgeryDateStr) return { days: 0, weeks: 0, months: 0, str: 'Data N/D' };
-    try {
-      let year, month, day;
-      if (surgeryDateStr.includes('-')) {
-        const parts = surgeryDateStr.split('-');
-        if (parts[0].length === 4) {
-          year = parseInt(parts[0], 10);
-          month = parseInt(parts[1], 10) - 1;
-          day = parseInt(parts[2], 10);
-        }
-      } else if (surgeryDateStr.includes('/')) {
-        const parts = surgeryDateStr.split('/');
-        if (parts[2].length === 4) {
-          year = parseInt(parts[2], 10);
-          month = parseInt(parts[1], 10) - 1;
-          day = parseInt(parts[0], 10);
-        }
-      }
-      if (!year || isNaN(month)) return { days: 0, weeks: 0, months: 0, str: 'Data N/D' };
-      const surgDate = new Date(year, month, day || 1);
-      const now = new Date();
-      const diffMs = now.getTime() - surgDate.getTime();
-      const days = Math.max(0, Math.floor(diffMs / (1000 * 60 * 60 * 24)));
-      const weeks = Math.max(0, Math.floor(days / 7));
-      const months = Math.max(0, Math.floor(days / 30.4375));
-      return { days, weeks, months, str: `${months} mesi (${weeks} sett.)` };
-    } catch {
-      return { days: 0, weeks: 0, months: 0, str: 'Data N/D' };
-    }
-  };
-
-  const postOp = getPostOpStats(patient.data_intervento);
-
-  // 2. Estrazione dati persistenti dall'ultimo test valido in ordine cronologico temporale
-  const rawTests = sortTestsByDate(patient.tests);
-  const latestTest = rawTests.length > 0 ? rawTests[rawTests.length - 1] : null;
-
-  const parseNum = (val) => {
-    if (val === undefined || val === null || val === '' || val === '-') return null;
-    const n = typeof val === 'number' ? val : parseFloat(String(val).replace(',', '.'));
-    return isNaN(n) ? null : n;
-  };
-
-  const lsiQuad = getLastValidMetricValue(rawTests, ['lsiQuad', 'lsi_quad', 'lsi_quad_calculated']);
-  const lsiFlex = getLastValidMetricValue(rawTests, ['lsiFlex', 'lsi_flex', 'lsi_curl_calculated']);
-  const lsiSingleHop = getLastValidMetricValue(rawTests, ['lsiSingleHop', 'lsi_single_hop']);
-  const lsiTripleHop = getLastValidMetricValue(rawTests, ['lsiTripleHop', 'lsi_triple_hop']);
-  const ikdc = getLastValidMetricValue(rawTests, ['ikdc', 'ikdc_score']) ?? parseNum(patient.ikdc_score);
-  const aclrsi = getLastValidMetricValue(rawTests, ['aclrsi', 'acl_rsi']) ?? parseNum(patient.aclrsi_score_iniziale);
-  const rsiVal = getLastValidMetricValue(rawTests, ['rsiDropJump', 'djRSI', 'dj_rsi', 'rsiCmj', 'rsi_cmj', 'rsi']);
-  const djContactTime = getLastValidMetricValue(rawTests, ['djContactTime', 'dj_contact_time']);
-  const brakingAsym = getLastValidMetricValue(rawTests, ['brakingAsym', 'braking_asym', 'ecc_braking_asym_calculated'], { allowZero: true });
-  const hqRatio = getLastValidMetricValue(rawTests, ['hqRatio', 'hq_ratio']);
-
-  // 3. Determinazione Fase Attuale e Target di Sblocco
-  const rawPhase = String(patient.fase_riabilitativa || patient.fase_attuale || '').toLowerCase();
-
-  let currentPhaseId = 'FASE_3';
-  if (rawPhase.includes('1') || rawPhase.includes('early') || rawPhase.includes('rom')) {
-    currentPhaseId = 'FASE_1';
-  } else if (rawPhase.includes('2') || rawPhase.includes('mid') || rawPhase.includes('forza')) {
-    currentPhaseId = 'FASE_2';
-  } else if (rawPhase.includes('3') || rawPhase.includes('run') || rawPhase.includes('drills')) {
-    currentPhaseId = 'FASE_3';
-  } else if (rawPhase.includes('4') || rawPhase.includes('late') || rawPhase.includes('cod') || rawPhase.includes('agility')) {
-    currentPhaseId = 'FASE_4';
-  } else if (rawPhase.includes('5') || rawPhase.includes('perf') || rawPhase.includes('rts') || rawPhase.includes('sport') || rawPhase.includes('play')) {
-    currentPhaseId = 'FASE_5';
-  }
-
-  let criteriaList = [];
-  let currentPhaseLabel = '';
-  let targetPhaseLabel = '';
-  let targetPhaseBadge = '';
-
-  if (currentPhaseId === 'FASE_1') {
-    currentPhaseLabel = 'Fase 1: Early Stage (ROM & Protezione)';
-    targetPhaseLabel = 'Fase 2: Mid Stage (Forza & Ipertrofia)';
-    targetPhaseBadge = 'Sblocco Fase 2';
-
-    criteriaList = [
-      {
-        id: 'time_post_op',
-        label: 'Tempo Post-Operatorio Minimo',
-        required: '≥ 4 Settimane (1 Mese)',
-        passed: postOp.weeks >= 4,
-        currentVal: postOp.weeks > 0 ? `${postOp.weeks} sett.` : 'Meno di 1 sett.'
-      },
-      {
-        id: 'extension_rom',
-        label: 'Estensione Completa Ginocchio (0°)',
-        required: '0° (Parificato al sano)',
-        passed: true,
-        currentVal: '0° Raggiunti'
-      },
-      {
-        id: 'ami_vmo',
-        label: 'Controllo Inibizione Artrogena (AMI / VMO)',
-        required: 'Attivazione Isometrica VMO Valida',
-        passed: true,
-        currentVal: 'VMO Reclutato'
-      },
-      {
-        id: 'lsi_quad_f1',
-        label: 'Simmetria Forza Quadricipite LSI',
-        required: 'LSI Quad ≥ 70%',
-        passed: lsiQuad !== null && lsiQuad >= 70,
-        currentVal: lsiQuad !== null ? `${lsiQuad}%` : 'Non Valutato'
-      },
-      {
-        id: 'effusion_control',
-        label: 'Controllo Versamento & Flogosi',
-        required: 'Assenza Idrarto / Calore a riposo',
-        passed: true,
-        currentVal: 'Flogosi Assente'
-      }
-    ];
-  } else if (currentPhaseId === 'FASE_2') {
-    currentPhaseLabel = 'Fase 2: Mid Stage (Forza & Ipertrofia)';
-    targetPhaseLabel = 'Fase 3: Return to Run & Pliometria';
-    targetPhaseBadge = 'Sblocco Fase 3';
-
-    criteriaList = [
-      {
-        id: 'time_post_op',
-        label: 'Tempo Post-Operatorio Minimo',
-        required: '≥ 12 Settimane (3 Mesi)',
-        passed: postOp.weeks >= 12,
-        currentVal: `${postOp.weeks} sett.`
-      },
-      {
-        id: 'flexion_rom',
-        label: 'Flessione Completa ROM Articolare',
-        required: 'Flessione ≥ 130°',
-        passed: true,
-        currentVal: '> 130° Raggiunti'
-      },
-      {
-        id: 'lsi_quad_f2',
-        label: 'Simmetria Forza Quadricipite LSI',
-        required: 'LSI Quad ≥ 80%',
-        passed: lsiQuad !== null && lsiQuad >= 80,
-        currentVal: lsiQuad !== null ? `${lsiQuad}%` : 'Non Valutato'
-      },
-      {
-        id: 'hq_ratio_f2',
-        label: 'Rapporto Isocinetico Ischiocrurali/Quadricipite (H:Q)',
-        required: 'H:Q Ratio ≥ 0.55',
-        passed: hqRatio !== null ? hqRatio >= 0.55 : (lsiFlex !== null && lsiQuad !== null ? (lsiFlex / lsiQuad) >= 0.55 : true),
-        currentVal: hqRatio !== null ? hqRatio.toFixed(2) : (lsiFlex !== null && lsiQuad !== null ? (lsiFlex / lsiQuad).toFixed(2) : 'Valido')
-      },
-      {
-        id: 'ikdc_f2',
-        label: 'Punteggio IKDC Subjective Score',
-        required: 'IKDC > 70 / 100',
-        passed: ikdc !== null && ikdc > 70,
-        currentVal: ikdc !== null ? `${ikdc}/100` : 'Non Valutato'
-      },
-      {
-        id: 'post_load_pain',
-        label: 'Tolleranza al Carico 24h Post-Sessione',
-        required: 'NPS < 2 / Assenza Versamento',
-        passed: true,
-        currentVal: 'Tollerato (NPS < 2)'
-      }
-    ];
-  } else if (currentPhaseId === 'FASE_3') {
-    currentPhaseLabel = 'Fase 3: Return to Run & Pliometria';
-    targetPhaseLabel = 'Fase 4: Return to Sport & Agility (CODs)';
-    targetPhaseBadge = 'Sblocco Fase 4';
-
-    criteriaList = [
-      {
-        id: 'time_post_op',
-        label: 'Tempo Post-Operatorio Minimo',
-        required: '≥ 24 Settimane (6 Mesi)',
-        passed: postOp.weeks >= 24,
-        currentVal: `${postOp.weeks} sett.`
-      },
-      {
-        id: 'lsi_quad_f3',
-        label: 'Simmetria Forza Quadricipite LSI',
-        required: 'LSI Quad ≥ 90%',
-        passed: lsiQuad !== null && lsiQuad >= 90,
-        currentVal: lsiQuad !== null ? `${lsiQuad}%` : 'Non Valutato'
-      },
-      {
-        id: 'lsi_single_hop',
-        label: 'Single Hop Test LSI',
-        required: 'Single Hop LSI ≥ 90%',
-        passed: lsiSingleHop !== null && lsiSingleHop >= 90,
-        currentVal: lsiSingleHop !== null ? `${lsiSingleHop}%` : 'Non Valutato'
-      },
-      {
-        id: 'lsi_triple_hop',
-        label: 'Triple Hop Test LSI',
-        required: 'Triple Hop LSI ≥ 90%',
-        passed: lsiTripleHop !== null && lsiTripleHop >= 90,
-        currentVal: lsiTripleHop !== null ? `${lsiTripleHop}%` : 'Non Valutato'
-      },
-      {
-        id: 'ikdc_f3',
-        label: 'Punteggio IKDC Subjective Score',
-        required: 'IKDC Score > 85 / 100',
-        passed: ikdc !== null && ikdc > 85,
-        currentVal: ikdc !== null ? `${ikdc}/100` : 'Non Valutato'
-      },
-      {
-        id: 'rsi_drop_jump',
-        label: 'Indice Reattivo Drop Jump (RSImod)',
-        required: 'RSI > 1.80 idx',
-        passed: rsiVal !== null && rsiVal > 1.80,
-        currentVal: rsiVal !== null ? `${rsiVal} idx` : 'Non Valutato'
-      },
-      {
-        id: 'contact_time',
-        label: 'Tempo di Contatto al Suolo (GCT Drop Jump)',
-        required: 'Contact Time < 250 ms',
-        passed: djContactTime !== null ? djContactTime < 250 : (rsiVal !== null && rsiVal >= 1.8),
-        currentVal: djContactTime !== null ? `${djContactTime} ms` : (rsiVal !== null ? '<250 ms (Stimato)' : 'Non Valutato')
-      }
-    ];
-  } else {
-    currentPhaseLabel = currentPhaseId === 'FASE_4' ? 'Fase 4: Return to Sport & Agility' : 'Fase 5: Return to Performance';
-    targetPhaseLabel = 'Fase 5: Return to Performance & Competizione (Match Play)';
-    targetPhaseBadge = 'Sblocco Full RTS';
-
-    criteriaList = [
-      {
-        id: 'time_post_op',
-        label: 'Tempo Post-Operatorio Minimo',
-        required: '≥ 36 Settimane (9 Mesi)',
-        passed: postOp.weeks >= 36,
-        currentVal: `${postOp.weeks} sett.`
-      },
-      {
-        id: 'lsi_quad_flex_f4',
-        label: 'Simmetria Massimale Quadricipite & Ischiocrurali',
-        required: 'LSI Quad & Flex ≥ 95%',
-        passed: lsiQuad !== null && lsiQuad >= 95 && (lsiFlex === null || lsiFlex >= 95),
-        currentVal: lsiQuad !== null ? `Quad: ${lsiQuad}%${lsiFlex !== null ? ` | Flex: ${lsiFlex}%` : ''}` : 'Non Valutato'
-      },
-      {
-        id: 'lsi_hop_battery',
-        label: 'Simmetria Completa Hop Test Battery',
-        required: 'Single & Triple Hop LSI ≥ 95%',
-        passed: lsiSingleHop !== null && lsiSingleHop >= 95 && (lsiTripleHop === null || lsiTripleHop >= 95),
-        currentVal: lsiSingleHop !== null ? `Single: ${lsiSingleHop}%${lsiTripleHop !== null ? ` | Triple: ${lsiTripleHop}%` : ''}` : 'Non Valutato'
-      },
-      {
-        id: 'aclrsi_score',
-        label: 'Prontezza Psicologica ACL-RSI Score',
-        required: 'ACL-RSI ≥ 85 / 100',
-        passed: aclrsi !== null && aclrsi >= 85,
-        currentVal: aclrsi !== null ? `${aclrsi}/100` : 'Non Valutato'
-      },
-      {
-        id: 'rsi_drop_jump_max',
-        label: 'Capacità Reattiva Pliometrica Massimale (RSI)',
-        required: 'Drop Jump RSI > 2.00 idx',
-        passed: rsiVal !== null && rsiVal >= 2.00,
-        currentVal: rsiVal !== null ? `${rsiVal} idx` : 'Non Valutato'
-      },
-      {
-        id: 'braking_asym',
-        label: 'Asimmetria Impulso di Frenata (Force Plates)',
-        required: 'Asimmetria Frenata < 5.0%',
-        passed: brakingAsym !== null && brakingAsym <= 5.0,
-        currentVal: brakingAsym !== null ? `${brakingAsym}%` : 'Non Valutato'
-      },
-      {
-        id: 'ikdc_f4',
-        label: 'Punteggio IKDC Subjective Score',
-        required: 'IKDC > 90 / 100',
-        passed: ikdc !== null && ikdc >= 90,
-        currentVal: ikdc !== null ? `${ikdc}/100` : 'Non Valutato'
-      }
-    ];
-  }
-
-  const passedCount = criteriaList.filter(c => c.passed).length;
-  const totalCount = criteriaList.length;
-  const allPassed = passedCount === totalCount;
-  const passedPct = totalCount > 0 ? Math.round((passedCount / totalCount) * 100) : 0;
-
-  return {
-    currentPhaseLabel,
-    targetPhaseLabel,
-    targetPhaseBadge,
-    criteria: criteriaList,
-    allPassed,
-    passedCount,
-    totalCount,
-    passedPct,
-    timePostOpStr: postOp.str,
-    postOpWeeks: postOp.weeks
-  };
+function mapPatientPhaseToKey(phaseString = '') {
+  const s = String(phaseString).toLowerCase();
+  if (s.includes('1') || s.includes('early') || s.includes('rom')) return 'FASE_1';
+  if (s.includes('2') || s.includes('mid') || s.includes('forza')) return 'FASE_2';
+  if (s.includes('3') || s.includes('run') || s.includes('power') || s.includes('drills')) return 'FASE_3';
+  if (s.includes('4') || s.includes('late') || s.includes('cod') || s.includes('agility')) return 'FASE_4';
+  if (s.includes('5') || s.includes('rts') || s.includes('perf') || s.includes('sport') || s.includes('play')) return 'FASE_5';
+  return 'FASE_3';
 }
 
 function CopilotEngineInner({ patient }) {
-  // Isolamento SSR di sicurezza
-  if (typeof window === 'undefined') return null;
-
-  // 1. SAFETY CHECKS & FALLBACK PATIENT (Evita qualsiasi crash se patient è null/undefined)
-  const safePatient = patient || {
-    nome: 'Francesco',
-    cognome: 'Gabbani',
-    lato_lesione: 'Dx',
-    tipo_innesto: 'Tendine Rotuleo (BTB)',
-    fase_riabilitativa: 'Fase 5 (RTS)',
-    data_intervento: '2025-12-15',
-    chirurgo: 'Dr. Roberto Mariani',
-    sport: 'Calcio'
-  };
-
-  const parseSafeFloat = (val, fallback) => {
-    if (val === undefined || val === null || val === '') return fallback;
-    const num = typeof val === 'number' ? val : parseFloat(String(val).replace(',', '.'));
-    return isNaN(num) ? fallback : num;
-  };
-
-  const formattedName = safePatient.nome && safePatient.cognome 
-    ? `${safePatient.nome} ${safePatient.cognome}` 
-    : safePatient.nome || 'Francesco Gabbani';
-
-  const operatedKnee = safePatient.lato_lesione || safePatient.lato || 'Dx';
-  const graftType = safePatient.tipo_innesto || 'Tendine Rotuleo (BTB)';
-  const activePatientPhase = safePatient.fase_riabilitativa || 'Fase 5 (RTS)';
-  const surgeon = safePatient.chirurgo || 'Dr. Roberto Mariani';
-  const sport = safePatient.sport || 'Calcio';
-
-  // Stato Fase Selezionata per il Copilot Engine (sincronizzato di default con la fase del paziente)
-  const [selectedPhaseKey, setSelectedPhaseKey] = useState(() => getPhaseKey(activePatientPhase));
   const [isBiblioModalOpen, setIsBiblioModalOpen] = useState(false);
 
-  useEffect(() => {
-    if (safePatient?.fase_riabilitativa) {
-      setSelectedPhaseKey(getPhaseKey(safePatient.fase_riabilitativa));
+  const safePatient = patient && typeof patient === 'object' ? patient : {};
+  const patientName = `${safePatient.nome || 'Paziente'} ${safePatient.cognome || ''}`.trim();
+  const activePatientPhase = safePatient.fase_attuale || safePatient.fase_riabilitativa || 'Fase 3: Running & Early Power';
+  const therapistDirectives = safePatient.direttive_terapista || safePatient.note_operative || '';
+  const recordedDeficits = Array.isArray(safePatient.deficits_list) ? safePatient.deficits_list : [];
+
+  const [selectedPhaseKey, setSelectedPhaseKey] = useState(() =>
+    mapPatientPhaseToKey(activePatientPhase)
+  );
+
+  React.useEffect(() => {
+    if (safePatient.fase_attuale || safePatient.fase_riabilitativa) {
+      setSelectedPhaseKey(mapPatientPhaseToKey(safePatient.fase_attuale || safePatient.fase_riabilitativa));
     }
-  }, [safePatient?.fase_riabilitativa]);
+  }, [safePatient.id, safePatient.fase_attuale, safePatient.fase_riabilitativa]);
 
-  // Configurazione Target della Fase Selezionata
-  const activeTargetConfig = PHASE_TARGET_MATRIX[selectedPhaseKey] || PHASE_TARGET_MATRIX['FASE_5'];
-  const progressionData = getProgressionCriteria(safePatient);
+  const activeTargetConfig = PHASE_TARGET_MATRIX[selectedPhaseKey] || PHASE_TARGET_MATRIX.FASE_3;
 
-  // Calcolo Mesi Post-Op in sicurezza
-  const getMonthsPostOp = (dStr) => {
-    if (!dStr) return 9;
-    try {
-      let year, month, day;
-      if (dStr.includes('-')) {
-        const parts = dStr.split('-');
-        if (parts[0].length === 4) {
-          year = parseInt(parts[0]);
-          month = parseInt(parts[1]) - 1;
-          day = parseInt(parts[2]);
-        }
-      } else if (dStr.includes('/')) {
-        const parts = dStr.split('/');
-        if (parts[2].length === 4) {
-          year = parseInt(parts[2]);
-          month = parseInt(parts[1]) - 1;
-          day = parseInt(parts[0]);
-        }
-      }
-      if (!year || isNaN(month)) return 9;
-      const surgeryDate = new Date(year, month, day || 1);
-      const now = new Date();
-      const diffMonths = (now.getFullYear() - surgeryDate.getFullYear()) * 12 + (now.getMonth() - surgeryDate.getMonth());
-      return diffMonths > 0 ? diffMonths : 1;
-    } catch {
-      return 9;
-    }
-  };
+  const sortedTests = useMemo(() => sortTestsByDate(safePatient?.tests), [safePatient?.tests]);
+  const hasRealTests = sortedTests.length > 0;
+  const latestSession = hasRealTests ? sortedTests[sortedTests.length - 1] : null;
 
-  const monthsPostOp = getMonthsPostOp(safePatient.data_intervento);
+  // Estrazione metriche dagli ultimi test validi (ignorando null)
+  const rawQuadLsi = getLastValidMetricValue(sortedTests, ['lsiQuad', 'lsi_quad_calculated']);
+  const rawHamLsi = getLastValidMetricValue(sortedTests, ['lsiFlex', 'lsi_curl_calculated']);
+  const rawQuadSano = getLastValidMetricValue(sortedTests, ['quadSano', 'iso_leg_ext_sx']);
+  const rawQuadOp = getLastValidMetricValue(sortedTests, ['quadOp', 'iso_leg_ext_dx']);
+  const rawFlexSano = getLastValidMetricValue(sortedTests, ['flexSano', 'iso_leg_curl_sx']);
+  const rawFlexOp = getLastValidMetricValue(sortedTests, ['flexOp', 'iso_leg_curl_dx']);
 
-  // Estrazione rigorosa dei test del paziente attivo (ordinati cronologicamente per data di esecuzione)
-  const patientTests = sortTestsByDate(safePatient?.tests);
-  const latestTest = patientTests.length > 0 ? patientTests[patientTests.length - 1] : null;
-  const hasTests = latestTest !== null;
+  const lsiQuad =
+    rawQuadLsi ??
+    (rawQuadSano !== null && rawQuadOp !== null && rawQuadSano > 0
+      ? Number(((Math.min(rawQuadOp, rawQuadSano) / Math.max(rawQuadOp, rawQuadSano)) * 100).toFixed(1))
+      : null);
 
-  // Metriche Cliniche Paziente (Se non ci sono test registrati, lo stato rimane pulito N/D)
-  const lsiQuad = hasTests ? parseSafeFloat(latestTest.lsiQuad ?? latestTest.lsi_quad, null) : null;
-  const lsiFlex = hasTests ? parseSafeFloat(latestTest.lsiFlex ?? latestTest.lsi_flex, null) : null;
-  const lsiSingleHop = hasTests ? parseSafeFloat(latestTest.lsiSingleHop ?? latestTest.lsi_single_hop, null) : null;
-  const rsiVal = hasTests ? parseSafeFloat(latestTest.rsiDropJump ?? latestTest.rsiCmj ?? latestTest.rsi_cmj, null) : null;
-  const brakingAsym = hasTests ? parseSafeFloat(latestTest.brakingAsym ?? latestTest.braking_asym, null) : null;
-  const hqRatio = hasTests ? parseSafeFloat(latestTest.hqRatio ?? latestTest.hq_ratio, null) : null;
-  const ikdcVal = hasTests ? parseSafeFloat(latestTest.ikdc ?? safePatient.aclrsi_score_iniziale, null) : null;
+  const lsiHam =
+    rawHamLsi ??
+    (rawFlexSano !== null && rawFlexOp !== null && rawFlexSano > 0
+      ? Number(((Math.min(rawFlexOp, rawFlexSano) / Math.max(rawFlexOp, rawFlexSano)) * 100).toFixed(1))
+      : null);
 
-  const safeHqDisplay = hqRatio !== null && !isNaN(hqRatio) ? hqRatio.toFixed(2) : 'N/D';
+  // Calcolo trend LSI (variazione tra le ultime due rilevazioni valide)
+  const lsiQuadTrendDelta = useMemo(() => {
+    const validQuads = sortedTests
+      .map(t => toStrictNullOrNumber(t?.lsiQuad ?? t?.lsi_quad_calculated))
+      .filter(v => v !== null);
+    if (validQuads.length < 2) return null;
+    const diff = validQuads[validQuads.length - 1] - validQuads[validQuads.length - 2];
+    return Number(diff.toFixed(1));
+  }, [sortedTests]);
 
-  // ---------------------------------------------------------------------------
-  // RICALCOLO AUTOMATICO DINAMICO DEL READINESS SCORE (0-100%) IN BASE ALLA FASE
-  // ---------------------------------------------------------------------------
-  const recalculateCopilotScore = (metrics, targetConfig) => {
-    if (!hasTests || metrics.lsiQuad === null) return null;
+  const rawRsi = getLastValidMetricValue(sortedTests, ['rsiDropJump', 'djRSI', 'dj_rsi', 'rsiCmj', 'rsi_cmj']);
+  const rsiVal = rawRsi !== null ? Number(rawRsi.toFixed(2)) : null;
 
-    let score = 0;
+  const rawCmjImpulseLsi = getLastValidMetricValue(sortedTests, ['cmjImpulseLsi', 'lsi_cmj_braking']);
+  const rawBrakingAsym = getLastValidMetricValue(sortedTests, ['brakingAsym', 'ecc_braking_asym_calculated'], {
+    allowZero: true
+  });
+  const brakingAsym =
+    rawBrakingAsym !== null
+      ? Number(Math.abs(rawBrakingAsym).toFixed(1))
+      : rawCmjImpulseLsi !== null
+      ? Number(Math.max(0, 100 - rawCmjImpulseLsi).toFixed(1))
+      : null;
 
-    // 1. Quad LSI Component (Max 30 pt)
-    const quadRatio = metrics.lsiQuad / targetConfig.targetLsiQuad;
-    score += Math.min(30, quadRatio * 30);
+  const hqRatio =
+    rawFlexOp !== null && rawQuadOp !== null && rawQuadOp > 0
+      ? Number((rawFlexOp / rawQuadOp).toFixed(2))
+      : rawFlexSano !== null && rawQuadSano !== null && rawQuadSano > 0
+      ? Number((rawFlexSano / rawQuadSano).toFixed(2))
+      : null;
 
-    // 2. Single Hop LSI Component (Max 20 pt)
-    const hopRatio = (metrics.lsiSingleHop || 0) / targetConfig.targetLsiHop;
-    score += Math.min(20, hopRatio * 20);
-
-    // 3. Braking Asymmetry Component (Max 20 pt)
-    if (metrics.brakingAsym !== null) {
-      if (metrics.brakingAsym <= targetConfig.targetBrakingAsym) {
-        score += 20;
-      } else {
-        const diff = metrics.brakingAsym - targetConfig.targetBrakingAsym;
-        score += Math.max(0, 20 - (diff * 1.5));
-      }
-    }
-
-    // 4. RSImod Component (Max 15 pt)
-    if (metrics.rsiVal !== null) {
-      const rsiRatio = metrics.rsiVal / targetConfig.targetRsi;
-      score += Math.min(15, rsiRatio * 15);
-    }
-
-    // 5. H:Q Ratio Component (Max 15 pt)
-    if (metrics.hqRatio !== null) {
-      const hqRatioNorm = metrics.hqRatio / targetConfig.targetHq;
-      score += Math.min(15, hqRatioNorm * 15);
-    }
-
-    return Math.min(100, Math.max(0, Math.round(score)));
-  };
-
-  const metrics = { lsiQuad, lsiSingleHop, brakingAsym, rsiVal, hqRatio };
-  const readinessScore = recalculateCopilotScore(metrics, activeTargetConfig);
-
-  // ---------------------------------------------------------------------------
-  // GENERAZIONE DINAMICA ALERT CLINICI IN BASE AI TARGET DI FASE
-  // ---------------------------------------------------------------------------
-  const getDynamicAlerts = (metrics, targetConfig) => {
-    const alertsList = [];
-
-    if (!hasTests || metrics.lsiQuad === null) {
-      alertsList.push({
-        type: 'yellow',
-        title: 'IN ATTESA DI PRIMA VALUTAZIONE CLINICA 🟡',
-        metric: 'Nessun test registrato',
-        description: `Questo paziente non ha ancora misurazioni o test biometrici registrati. Inserisci il primo test tramite il pulsante "+ Nuova Valutazione Clinica" per sbloccare l'analisi del Copilot IA Engine.`,
-        citation: 'Protocollo Clinico ACL RTS Monitor'
+  // Raccoglie tutte le metriche personalizzate misurate sul paziente
+  const latestCustomMetrics = useMemo(() => {
+    const map = new Map();
+    sortedTests.forEach(t => {
+      const cm = t?.custom_metrics;
+      if (!cm || typeof cm !== 'object') return;
+      Object.entries(cm).forEach(([tType, arr]) => {
+        if (!Array.isArray(arr)) return;
+        arr.forEach(item => {
+          if (!item.is_hidden && item.metric_name && item.metric_value !== null && item.metric_value !== undefined && item.metric_value !== '') {
+            map.set(`${tType}::${item.metric_name}`, {
+              testType: tType,
+              name: item.metric_name,
+              value: item.metric_value,
+              unit: item.unit || '',
+              sessionLabel: t.session_name || t.label
+            });
+          }
+        });
       });
-      return alertsList;
-    }
+    });
+    return Array.from(map.values());
+  }, [sortedTests]);
 
-    // 1. Alert Quadricipite (Buckthorpe et al. 2019, Grindem et al. 2016)
-    if (metrics.lsiQuad >= targetConfig.targetLsiQuad) {
-      alertsList.push({
-        type: 'green',
-        title: `TARGET RAGGIUNTO 🟢: Simmetria Forza Quadricipite Validata per ${targetConfig.shortName}`,
-        metric: `LSI Quadricipite: ${metrics.lsiQuad}% (Target Fase: ≥${targetConfig.targetLsiQuad}%)`,
-        description: `Il valore di simmetria (${metrics.lsiQuad}%) soddisfa i criteri di forza richiesti per la ${targetConfig.tag}.`,
-        citation: targetConfig.citationQuad
-      });
-    } else if (metrics.lsiQuad >= targetConfig.targetLsiQuad - 6) {
-      alertsList.push({
-        type: 'yellow',
-        title: `IN PROGRESSIONE 🟡: Deficit LSI Lieve-Moderato in Corso per ${targetConfig.shortName}`,
-        metric: `LSI Quadricipite: ${metrics.lsiQuad}% (Target Fase: ≥${targetConfig.targetLsiQuad}%)`,
-        description: `Parametro in evoluzione vicina al target di fase. Mantenere progressione VBT isometrica e dinamica.`,
-        citation: targetConfig.citationQuad
+  // Calcolo Readiness Score (0-100%) sui parametri realmente testati
+  const readinessScore = useMemo(() => {
+    if (!hasRealTests) return null;
+    const scores = [];
+    if (lsiQuad !== null) scores.push(Math.min(100, (lsiQuad / activeTargetConfig.targetLsiQuad) * 100));
+    if (lsiHam !== null) scores.push(Math.min(100, (lsiHam / activeTargetConfig.targetLsiHam) * 100));
+    if (rsiVal !== null) scores.push(Math.min(100, (rsiVal / activeTargetConfig.targetRsiMod) * 100));
+    if (brakingAsym !== null) {
+      scores.push(
+        brakingAsym <= activeTargetConfig.targetBrakingAsym
+          ? 100
+          : Math.max(0, 100 - (brakingAsym - activeTargetConfig.targetBrakingAsym) * 3.5)
+      );
+    }
+    if (hqRatio !== null) scores.push(Math.min(100, (hqRatio / activeTargetConfig.targetHqRatio) * 100));
+    if (scores.length === 0) return null;
+    return Math.round(scores.reduce((a, b) => a + b, 0) / scores.length);
+  }, [hasRealTests, lsiQuad, lsiHam, rsiVal, brakingAsym, hqRatio, activeTargetConfig]);
+
+  // ==========================================================================
+  // GENERATORE DINAMICO DI RACCOMANDAZIONI & ESERCIZI SECONDO LINEE GUIDA NSCA
+  // ==========================================================================
+  const nscaRecommendations = useMemo(() => {
+    const recs = [];
+    const dirLower = therapistDirectives.toLowerCase();
+    const hasQuadDeficit =
+      (lsiQuad !== null && lsiQuad < activeTargetConfig.targetLsiQuad) ||
+      recordedDeficits.some(d => d.title?.toLowerCase().includes('quad') || d.title?.toLowerCase().includes('ami')) ||
+      dirLower.includes('quad') ||
+      dirLower.includes('estensione');
+
+    const hasHamOrHqDeficit =
+      (lsiHam !== null && lsiHam < activeTargetConfig.targetLsiHam) ||
+      (hqRatio !== null && hqRatio < activeTargetConfig.targetHqRatio) ||
+      safePatient.tipo_innesto === 'STG' ||
+      recordedDeficits.some(d => d.title?.toLowerCase().includes('ham') || d.title?.toLowerCase().includes('flessor'));
+
+    const hasEccentricOrLandingDeficit =
+      (brakingAsym !== null && brakingAsym > activeTargetConfig.targetBrakingAsym) ||
+      recordedDeficits.some(d => d.title?.toLowerCase().includes('valg') || d.title?.toLowerCase().includes('decel') || d.title?.toLowerCase().includes('frenat')) ||
+      dirLower.includes('valg') ||
+      dirLower.includes('eccentric') ||
+      dirLower.includes('atterraggio');
+
+    const hasPlyoOrRsiDeficit =
+      (rsiVal !== null && rsiVal < activeTargetConfig.targetRsiMod) ||
+      recordedDeficits.some(d => d.title?.toLowerCase().includes('stiff') || d.title?.toLowerCase().includes('rsi') || d.title?.toLowerCase().includes('plio'));
+
+    // 1. Raccomandazione NSCA Forza Quadricipite / Reclutamento Neuromuscolare
+    if (hasQuadDeficit || lsiQuad === null) {
+      const isSevere = lsiQuad !== null && lsiQuad < 75;
+      recs.push({
+        id: 'nsca_quad',
+        domain: 'NSCA Maximal Strength & Neural Drive (Quadricipite)',
+        triggerContext:
+          lsiQuad !== null
+            ? `Rilevato LSI Quadricipite ${lsiQuad}% (Target ≥${activeTargetConfig.targetLsiQuad}%)`
+            : 'Focus primario recupero simmetria estensoria ginocchio operato',
+        exercise: isSevere
+          ? 'Overcoming Isometric Leg Extension a 60° + Spanish Squat Isocinetico/Tempo'
+          : 'Single-Leg Press / Rear-Foot Elevated Split Squat (RFESS) con controllo VBT',
+        loadParams: isSevere
+          ? 'Intensity: 80-90% MVC Isometrica • Volume: 5 serie x 6 sec • Rest: 90-120s (NSCA Neural Activation)'
+          : 'Intensity: 80-85% 1RM (VBT 0.45-0.55 m/s) • Volume: 4 serie x 6 reps • Rest: 2-3 min (NSCA Basic/Max Strength)',
+        progression: 'Passare da isometria a 60° a RFESS con carico assiale 85% 1RM (4x5 reps) e Velocity Loss <10%.',
+        regression: 'Ridurre ROM a 45°-60° in catena cinetica chiusa o utilizzare BFR (Blood Flow Restriction 80% LOP, 30-15-15-15 reps al 30% 1RM).'
       });
     } else {
-      alertsList.push({
-        type: 'red',
-        title: `CRITICITÀ HIGH RISK 🔴: Inibizione Artrogenica Muscolare (AMI) o Deficit Marcato Quadricipite`,
-        metric: `LSI Quadricipite: ${metrics.lsiQuad}% (Target Fase: ≥${targetConfig.targetLsiQuad}%)`,
-        description: `Il valore (${metrics.lsiQuad}%) è fortemente inferiore alla soglia di sicurezza del ${targetConfig.targetLsiQuad}% richiesta in ${targetConfig.shortName}. Rischio fino a 4x di re-injury ed inibizione riflessa spinale (AMI).`,
-        citation: targetConfig.citationQuad
+      recs.push({
+        id: 'nsca_quad_power',
+        domain: 'NSCA Strength-Speed & Power Maintenance (Quadricipite OK)',
+        triggerContext: `LSI Quadricipite a target (${lsiQuad}% ≥ ${activeTargetConfig.targetLsiQuad}%)`,
+        exercise: 'Trap Bar Deadlift / Safety Bar Squat con Encoder VBT',
+        loadParams: 'Intensity: 75-85% 1RM (Target Velocity 0.55-0.65 m/s) • Volume: 4 serie x 4-5 reps • Rest: 2.5-3 min',
+        progression: 'Contrast Training (French Contrast NSCA): Heavy Squat 85% 1RM + Hurdle Jump + Drop Jump.',
+        regression: 'Mantenere carico costante 80% 1RM a 3x5 reps senza componente balistica se compare affaticamento.'
       });
     }
 
-    // 2. Alert Braking Impulse / Assorbimento (Read et al. 2020)
-    if (metrics.brakingAsym !== null) {
-      if (metrics.brakingAsym <= targetConfig.targetBrakingAsym) {
-        alertsList.push({
-          type: 'green',
-          title: `TARGET RAGGIUNTO 🟢: Assorbimento Eccentrico del Carico Bilanciato`,
-          metric: `Asimmetria Impulso Frenata: ${metrics.brakingAsym}% (Target Fase: <${targetConfig.targetBrakingAsym}%)`,
-          description: `Meccanica di decelerazione ed assorbimento bilaterale del carico bilanciata e priva di compensi.`,
-          citation: targetConfig.citationBraking
-        });
-      } else if (metrics.brakingAsym <= targetConfig.targetBrakingAsym + 5) {
-        alertsList.push({
-          type: 'yellow',
-          title: `IN PROGRESSIONE 🟡: Lieve Asimmetria di Frenata Eccentrica`,
-          metric: `Asimmetria Impulso Frenata: ${metrics.brakingAsym}% (Target Fase: <${targetConfig.targetBrakingAsym}%)`,
-          description: `Controllo motorio in affinamento; raccomandato biofeedback visivo nei salti monopodalici.`,
-          citation: targetConfig.citationBraking
-        });
-      } else {
-        alertsList.push({
-          type: 'red',
-          title: `CRITICITÀ HIGH RISK 🔴: Mancato Assorbimento Eccentrico del Carico`,
-          metric: `Asimmetria Impulso Frenata: ${metrics.brakingAsym}% (Target Fase: <${targetConfig.targetBrakingAsym}%)`,
-          description: `L'atleta trasferisce il carico sull'arto sano durante le frenate (CMJ/Drop Jump). Rischio di sovraccarico controlaterale e meccanica d'atterraggio alterata.`,
-          citation: targetConfig.citationBraking
-        });
-      }
+    // 2. Raccomandazione NSCA Catena Cinetica Posteriore & H:Q Ratio
+    if (hasHamOrHqDeficit) {
+      recs.push({
+        id: 'nsca_ham',
+        domain: 'NSCA Posterior Chain & Eccentric Hamstring Torque',
+        triggerContext:
+          hqRatio !== null
+            ? `H:Q Ratio ${hqRatio} (Target ≥${activeTargetConfig.targetHqRatio}) • Innesto ${safePatient.tipo_innesto || 'LCA'}`
+            : `Protezione sinergica agonista-LCA (Innesto ${safePatient.tipo_innesto || 'STG'})`,
+        exercise: 'Nordic Hamstring Eccentric Assistito + Single-Leg RDL (Romanian Deadlift)',
+        loadParams: 'Intensity: 75-82% 1RM (Tempo Eccentrico 4-1-1) • Volume: 4 serie x 6-8 reps • Rest: 2 min (NSCA Eccentric Strength)',
+        progression: 'Razor Curl / Hip-Extension Slider ad alta velocità eccentrica (Catch phase) 4x5 reps.',
+        regression: 'Isometric Hamstring Bridge a lungo braccio di leva (30° flessione ginocchio) 4 serie x 20-30 sec.'
+      });
     }
 
-    // 3. Alert Stiffness & RSI (Ebbs et al. 2023)
-    if (metrics.rsiVal !== null) {
-      if (metrics.rsiVal >= targetConfig.targetRsi) {
-        alertsList.push({
-          type: 'green',
-          title: `TARGET RAGGIUNTO 🟢: Stiffness Tendinea & Rigidità Reattiva Elevata`,
-          metric: `RSImod Drop Jump: ${metrics.rsiVal} idx (Target Fase: >${targetConfig.targetRsi} idx)`,
-          description: `Capacità reattiva plio-metrica sviluppata in linea con gli standard idonei della ${targetConfig.shortName}.`,
-          citation: targetConfig.citationRsi
-        });
-      } else {
-        alertsList.push({
-          type: 'yellow',
-          title: `IN PROGRESSIONE 🟡: Carenza di Stiffness Tendinea & Rigidità Reattiva`,
-          metric: `RSImod Drop Jump: ${metrics.rsiVal} idx (Target Fase: >${targetConfig.targetRsi} idx)`,
-          description: `Tempi di contatto al suolo prolungati ed insufficiente accumulo di energia elastica (Stretch-Shortening Cycle).`,
-          citation: targetConfig.citationRsi
-        });
-      }
+    // 3. Raccomandazione NSCA Assorbimento Eccentrico / Controllo Valgismo & Decelerazione
+    if (hasEccentricOrLandingDeficit || brakingAsym === null) {
+      recs.push({
+        id: 'nsca_decel',
+        domain: 'NSCA Eccentric Braking & Landing Mechanics (RFD)',
+        triggerContext:
+          brakingAsym !== null
+            ? `Asimmetria Impulso Frenante CMJ ${brakingAsym}% (Target <${activeTargetConfig.targetBrakingAsym}%)`
+            : 'Rieducazione assorbimento cinetico e simmetria di frenata',
+        exercise: 'Altitude Drop-to-Stick Monopodalico (Box 20-30cm) + Eccentric Overload Split Squat',
+        loadParams: 'Intensity: Peso Corporeo / Sovraccarico 15-20% BM • Volume: 4 serie x 5 atterraggi/lato (Hold 3s) • Rest: 90-120s',
+        progression: 'Decelerazione lineare su 5-10m con arresto monopodalico in 2 passi e cambio di direzione a 45°.',
+        regression: 'Drop Squat bipodalico rapido (Snap-Down) con feedback visivo per simmetria di carico 50/50.'
+      });
     }
 
-    // 4. Alert H:Q Ratio (Kyritsis et al. 2016)
-    if (metrics.hqRatio !== null) {
-      if (metrics.hqRatio >= targetConfig.targetHq) {
-        alertsList.push({
-          type: 'green',
-          title: `TARGET RAGGIUNTO 🟢: Equilibrio Agonista/Antagonista H:Q Ratio Ottimale`,
-          metric: `Rapporto H:Q Isocinetico: ${typeof metrics.hqRatio === 'number' ? metrics.hqRatio.toFixed(2) : metrics.hqRatio} (Target Fase: ≥${targetConfig.targetHq})`,
-          description: `Co-attivazione degli ischiocrurali adeguata per la protezione traslatoria della tibia rispetto al femore.`,
-          citation: targetConfig.citationHq
-        });
-      } else {
-        alertsList.push({
-          type: 'red',
-          title: `CRITICITÀ 🔴: Squilibrio Agonista/Antagonista H:Q Ratio`,
-          metric: `Rapporto H:Q Isocinetico: ${typeof metrics.hqRatio === 'number' ? metrics.hqRatio.toFixed(2) : metrics.hqRatio} (Target Fase: ≥${targetConfig.targetHq})`,
-          description: `Insufficiente forza di ritenzione degli ischiocrurali a protezione del neoligamento in estensione.`,
-          citation: targetConfig.citationHq
-        });
-      }
+    // 4. Raccomandazione NSCA Pliometria & Stretch-Shortening Cycle (SSC)
+    if (hasPlyoOrRsiDeficit || rsiVal !== null) {
+      const isReadyForFastSsc = (lsiQuad ?? 0) >= 80;
+      recs.push({
+        id: 'nsca_plyo',
+        domain: 'NSCA Plyometric SSC & Tendon Stiffness (RSImod)',
+        triggerContext:
+          rsiVal !== null
+            ? `RSI rilevato ${rsiVal} idx (Target Fase ≥${activeTargetConfig.targetRsiMod} idx)`
+            : 'Sviluppo rigidità reattiva complesso caviglia-ginocchio',
+        exercise: isReadyForFastSsc
+          ? 'Drop Jump Bipodalico/Monopodalico (Box 30cm, GCT <220ms) + Pogo Jumps Reattivi'
+          : 'Sub-Maximal Ankle Hops & Countermovement Jump con pausa isometrica',
+        loadParams: isReadyForFastSsc
+          ? 'Intensity: Fast SSC (Contatto <220ms) • Volume: 4 serie x 6 contatti (24 tocchi/sessione) • Rest: 2-3 min (NSCA Work-to-Rest 1:5-1:10)'
+          : 'Intensity: Low-Moderate SSC • Volume: 3 serie x 8 contatti • Rest: 90s',
+        progression: 'Single-Leg Hurdle Hops continui + Depth Jump da 30-40cm con massimizzazione altezza volo.',
+        regression: 'Sled Push / Pogo Jump bipodalico assistito con bande elastiche per ridurre vGRF di impatto.'
+      });
     }
 
-    return alertsList;
-  };
+    return recs;
+  }, [
+    lsiQuad,
+    lsiHam,
+    hqRatio,
+    brakingAsym,
+    rsiVal,
+    activeTargetConfig,
+    therapistDirectives,
+    recordedDeficits,
+    safePatient.tipo_innesto
+  ]);
 
-  const alerts = getDynamicAlerts(metrics, activeTargetConfig);
+  // Alert diagnostici sintetici
+  const alerts = useMemo(() => {
+    const list = [];
+    if (!hasRealTests) {
+      list.push({
+        type: 'yellow',
+        title: 'In Attesa di Rilevazione Test Strumentali',
+        metric: 'Stato: Nessuna sessione di test registrata',
+        description:
+          'Il Copilot NSCA sta operando sulle direttive del terapista e sui deficit segnalati. Inserisci i test nella scheda 2 per attivare lo scoring biometrico.',
+        citation: 'NSCA Needs Analysis Protocol'
+      });
+      return list;
+    }
 
-  const handlePrint = () => {
-    window.print();
-  };
+    if (lsiQuad !== null) {
+      list.push({
+        type: lsiQuad >= activeTargetConfig.targetLsiQuad ? 'green' : lsiQuad >= activeTargetConfig.targetLsiQuad - 10 ? 'yellow' : 'red',
+        title: lsiQuad >= activeTargetConfig.targetLsiQuad ? 'Simmetria Estensoria Quadricipite a Target' : 'Deficit Forza Quadricipite (LSI sotto soglia)',
+        metric: `LSI Quad: ${lsiQuad}% (Target ≥${activeTargetConfig.targetLsiQuad}%)${lsiQuadTrendDelta !== null ? ` • Trend: ${lsiQuadTrendDelta >= 0 ? `+${lsiQuadTrendDelta}%` : `${lsiQuadTrendDelta}%`}` : ''}`,
+        description:
+          lsiQuad >= activeTargetConfig.targetLsiQuad
+            ? 'Forza isometrica simmetrica. Procedere con progressioni di potenza e pliometria NSCA.'
+            : 'Mantenere priorità su reclutamento ad alta soglia (80-85% 1RM / Overcoming Iso) prima di volumi pliometrici intensivi.',
+        citation: 'Grindem et al. 2016 • NSCA Guidelines'
+      });
+    }
+
+    if (rsiVal !== null) {
+      list.push({
+        type: rsiVal >= activeTargetConfig.targetRsiMod ? 'green' : 'yellow',
+        title: rsiVal >= activeTargetConfig.targetRsiMod ? 'Efficienza Reattiva SSC Validata' : 'Indice Reattivo RSI in Costruzione',
+        metric: `RSI: ${rsiVal} idx (Target ≥${activeTargetConfig.targetRsiMod} idx)`,
+        description:
+          rsiVal >= activeTargetConfig.targetRsiMod
+            ? 'Ottima rigidità reattiva neuromuscolare nel ciclo allungamento-accorciamento.'
+            : 'Integrare Pogo Jumps e Drop Jump a box controllato rispettando il rapporto recupero NSCA 1:5 - 1:10.',
+        citation: 'Ebbs et al. 2023 • NSCA Plyometric Progression'
+      });
+    }
+
+    if (brakingAsym !== null) {
+      list.push({
+        type: brakingAsym <= activeTargetConfig.targetBrakingAsym ? 'green' : 'red',
+        title: brakingAsym <= activeTargetConfig.targetBrakingAsym ? 'Assorbimento Eccentrico Simmetrico' : 'Asimmetria di Frenata Eccentrica (Offloading)',
+        metric: `Asimmetria Frenata: ${brakingAsym}% (Target ≤${activeTargetConfig.targetBrakingAsym}%)`,
+        description:
+          brakingAsym <= activeTargetConfig.targetBrakingAsym
+            ? 'Ripartizione simmetrica delle forze di decelerazione tra arto operato e arto sano.'
+            : 'Strategia di scarico sull’arto sano in frenata. Prescrivere eccentrica lenta (3-4s) e Altitude Landings monopodalici.',
+        citation: 'Read et al. 2020 • NSCA Deceleration Mechanics'
+      });
+    }
+
+    if (hqRatio !== null) {
+      list.push({
+        type: hqRatio >= activeTargetConfig.targetHqRatio ? 'green' : 'yellow',
+        title: hqRatio >= activeTargetConfig.targetHqRatio ? 'Rapporto Agonista/Antagonista H:Q Ottimale' : 'Squilibrio H:Q Ratio (Protezione LCA)',
+        metric: `H:Q Ratio: ${hqRatio} (Target ≥${activeTargetConfig.targetHqRatio})`,
+        description:
+          hqRatio >= activeTargetConfig.targetHqRatio
+            ? 'Adeguata co-contrazione protettiva degli ischiocrurali contro la traslazione tibiale anteriore.'
+            : 'Rinforzare selettivamente gli ischiocrurali in allungamento (Nordic / RDL) secondo parametri NSCA.',
+        citation: 'Kyritsis et al. 2016 • NSCA'
+      });
+    }
+
+    return list;
+  }, [hasRealTests, lsiQuad, lsiQuadTrendDelta, rsiVal, brakingAsym, hqRatio, activeTargetConfig]);
 
   return (
-    <div
-      style={{
-        pageBreakBefore: 'avoid',
-        breakBefore: 'avoid',
-        WebkitPrintColorAdjust: 'exact',
-        printColorAdjust: 'exact'
-      }}
-      className="print-report-container space-y-6 font-sans"
-    >
-      
+    <div className="space-y-6 select-none text-slate-900">
+
       {/* ========================================================================= */}
-      {/* 1. HEADER BANNER PAZIENTE & READINESS SCORE (0-100) */}
+      {/* 1. HEADER CLINICAL COPILOT AI + READINESS SCORE + CONTESTO DINAMICO       */}
       {/* ========================================================================= */}
-      <div className="glass-panel p-6 rounded-2xl border border-slate-700 bg-gradient-to-br from-slate-900 via-[#0a1628] to-slate-950 shadow-2xl relative overflow-hidden">
-        
-        {/* Glow Decorativo Background */}
-        <div className="absolute top-0 right-0 w-96 h-96 bg-cyan-500/10 rounded-full blur-3xl pointer-events-none"></div>
-
-        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 relative z-10">
-          
-          {/* Info Paziente & Fase Attiva */}
-          <div className="space-y-3">
-            <div className="flex items-center gap-2">
-              <span className="p-1.5 rounded-lg bg-cyan-500/20 border border-cyan-500/40 text-cyan-400">
-                <Bot className="w-5 h-5 animate-pulse" />
-              </span>
-              <span className="text-xs font-black text-cyan-400 uppercase tracking-widest">
-                ENGINE DIAGNOSTICO CLINICO COPILOT IA
-              </span>
-              <span className="text-[10px] px-2 py-0.5 rounded-full bg-slate-800 text-slate-300 font-mono border border-slate-700">
-                RTS Evidence-Based Protocol
-              </span>
-            </div>
-
-            <div className="space-y-1">
-              <h2 className="text-3xl font-black text-white tracking-tight flex items-center gap-3">
-                <span>{formattedName}</span>
-                <span className="text-xs font-mono font-bold px-2.5 py-1 rounded-lg bg-emerald-950/80 border border-emerald-500/40 text-emerald-300">
-                  {monthsPostOp}° Mese Post-Op
-                </span>
-              </h2>
-
-              <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-slate-300 pt-1">
-                <span>Sport: <strong className="text-white">{sport}</strong></span>
-                <span>•</span>
-                <span>Ginocchio: <strong className="text-cyan-300 font-bold">{operatedKnee === 'Dx' ? 'Destro (Dx)' : 'Sinistro (Sx)'}</strong></span>
-                <span>•</span>
-                <span>Innesto: <strong className="text-slate-200">{graftType}</strong></span>
-                <span>•</span>
-                <span>Chirurgo: <strong className="text-slate-200">{surgeon}</strong></span>
+      <div className="bg-white p-5 rounded-xl border border-slate-200/80 shadow-sm space-y-5 break-inside-avoid">
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-5">
+          <div className="space-y-2">
+            <div className="flex flex-wrap items-center gap-2">
+              <div className="p-1 bg-slate-100 text-slate-600 rounded">
+                <Sparkles className="w-4 h-4 text-emerald-600" />
               </div>
+              <span className="px-2.5 py-0.5 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-700 font-bold text-[10px] uppercase tracking-wider">
+                NSCA Certified Clinical Copilot AI
+              </span>
+              <span className="text-xs text-slate-500 font-mono">
+                • Sincronizzato in tempo reale con Test, LSI, Deficit e Direttive
+              </span>
             </div>
 
-            <div className="flex items-center gap-2 pt-1">
-              <span className="text-xs text-slate-400 font-bold">Fase Riabilitativa Attiva:</span>
-              <span className="px-3 py-1 rounded-lg bg-cyan-950 border border-cyan-500/50 text-cyan-300 font-black text-xs uppercase tracking-wider shadow-sm">
-                {activePatientPhase}
+            <h2 className="text-lg sm:text-xl font-bold text-slate-900 tracking-tight">
+              Analisi Predittiva &amp; Prescrizione Carichi NSCA — {patientName}
+            </h2>
+
+            <div className="flex flex-wrap items-center gap-2 text-xs text-slate-600">
+              <span>
+                Fase Attuale: <strong className="text-emerald-700 font-bold">{activePatientPhase}</strong>
+              </span>
+              <span>•</span>
+              <span>
+                Ultima Sessione Test:{' '}
+                <strong className="text-slate-900 font-mono">
+                  {latestSession ? `${latestSession.session_name || latestSession.label} (${latestSession.dateRange || latestSession.date})` : 'Nessun test'}
+                </strong>
               </span>
             </div>
           </div>
 
-          {/* READINESS SCORE (0-100%) GAUGE INDICATOR */}
-          <div className="p-4 rounded-2xl bg-slate-950/90 border border-slate-800 shadow-2xl flex items-center gap-5 min-w-[280px] shrink-0">
-            
-            {/* Visual Circular Readiness Counter */}
-            <div className="relative w-20 h-20 flex items-center justify-center">
+          {/* READINESS SCORE (0-100%) GAUGE IN LIGHT MODE */}
+          <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 flex items-center gap-4 min-w-[270px] shrink-0">
+            <div className="relative w-16 h-16 flex items-center justify-center shrink-0">
               <svg className="w-full h-full -rotate-90" viewBox="0 0 36 36">
                 <path
-                  className="text-slate-800"
+                  className="text-slate-200"
                   strokeWidth="3.5"
                   stroke="currentColor"
                   fill="none"
                   d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
                 />
                 <path
-                  className={readinessScore === null ? 'text-slate-700' : readinessScore >= 90 ? 'text-emerald-400' : readinessScore >= 75 ? 'text-amber-400' : 'text-rose-500'}
+                  className={
+                    readinessScore === null
+                      ? 'text-slate-300'
+                      : readinessScore >= 85
+                      ? 'text-emerald-600'
+                      : readinessScore >= 70
+                      ? 'text-amber-500'
+                      : 'text-rose-600'
+                  }
                   strokeDasharray={`${readinessScore ?? 0}, 100`}
                   strokeWidth="3.5"
                   strokeLinecap="round"
@@ -838,47 +525,103 @@ function CopilotEngineInner({ patient }) {
                 />
               </svg>
               <div className="absolute inset-0 flex flex-col items-center justify-center text-center">
-                <span className="text-xl font-black font-mono text-white leading-none">
-                  {readinessScore !== null ? `${readinessScore}%` : 'N/D'}
+                <span className="text-base font-bold font-mono text-slate-900 leading-none">
+                  {readinessScore !== null ? `${readinessScore}%` : 'N/A'}
                 </span>
-                <span className="text-[8px] text-slate-400 font-bold uppercase mt-0.5">Score</span>
               </div>
             </div>
 
-            <div className="space-y-1">
-              <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider block">
-                READINESS CLINICA RTS
+            <div className="space-y-0.5">
+              <span className="text-[10px] text-slate-500 font-bold uppercase tracking-wider block">
+                READINESS DI FASE (NSCA)
               </span>
-              <strong className="text-sm font-extrabold text-white block">
-                {readinessScore === null 
-                  ? '🟡 In Attesa del Primo Test' 
-                  : readinessScore >= 85 
-                    ? '🌟 Idoneità Fase Validata' 
-                    : readinessScore >= 70 
-                      ? '🟡 In Progressione' 
-                      : '🔴 Deficit Critici Rilevati'}
+              <strong className="text-xs font-bold text-slate-900 block">
+                {readinessScore === null
+                  ? 'In Attesa del Primo Test'
+                  : readinessScore >= 85
+                  ? 'Idoneità Fase Validata'
+                  : readinessScore >= 70
+                  ? 'In Progressione Clinica'
+                  : 'Priorità Correzione Deficit'}
               </strong>
-              <p className="text-[10.5px] text-slate-400 font-medium">
-                {readinessScore === null 
-                  ? 'Effettua la prima valutazione per attivare lo score.' 
-                  : readinessScore >= 85 
-                    ? 'Target di fase pienamente soddisfatti.' 
-                    : 'Parametri sotto le soglie target della fase.'}
+              <p className="text-[11px] text-slate-500">
+                {readinessScore === null
+                  ? 'Rileva un test nella scheda 2.'
+                  : `Calcolato sugli ultimi test non-null.`}
               </p>
             </div>
-
           </div>
-
         </div>
 
-        {/* Selettore Dinamico delle 5 Fasi Riabilitative per Copilot IA */}
-        <div className="mt-5 pt-4 border-t border-slate-800/80 space-y-2 relative z-10">
+        {/* CONTESTO DINAMICO LETTO DAL COPILOT (Direttive Terapista + Deficit + Metriche Custom) */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3 pt-3 border-t border-slate-200 text-xs">
+          <div className="p-3 rounded-xl bg-slate-50 border border-slate-200 space-y-1">
+            <div className="flex items-center gap-1.5 text-slate-500 font-bold text-[10px] uppercase tracking-wider">
+              <div className="p-1 bg-slate-100 text-slate-600 rounded">
+                <Compass className="w-3.5 h-3.5 text-emerald-600" />
+              </div>
+              <span>Direttive Terapista in Ingresso</span>
+            </div>
+            <p className="text-slate-800 font-medium leading-snug line-clamp-3">
+              {therapistDirectives || 'Nessuna nota specifica inserita nella Scheda 1.'}
+            </p>
+          </div>
+
+          <div className="p-3 rounded-xl bg-slate-50 border border-slate-200 space-y-1">
+            <div className="flex items-center gap-1.5 text-slate-500 font-bold text-[10px] uppercase tracking-wider">
+              <div className="p-1 bg-slate-100 text-slate-600 rounded">
+                <ShieldAlert className="w-3.5 h-3.5 text-amber-600" />
+              </div>
+              <span>Deficit Attivi Rilevati ({recordedDeficits.length})</span>
+            </div>
+            {recordedDeficits.length > 0 ? (
+              <div className="flex flex-wrap gap-1 pt-0.5">
+                {recordedDeficits.map((d) => (
+                  <span
+                    key={d.id}
+                    className="px-2 py-0.5 rounded bg-amber-50 border border-amber-200 text-amber-800 font-bold text-[10.5px]"
+                  >
+                    {d.title}
+                  </span>
+                ))}
+              </div>
+            ) : (
+              <p className="text-slate-500 italic">Nessun deficit attivo segnalato.</p>
+            )}
+          </div>
+
+          <div className="p-3 rounded-xl bg-slate-50 border border-slate-200 space-y-1">
+            <div className="flex items-center gap-1.5 text-slate-500 font-bold text-[10px] uppercase tracking-wider">
+              <div className="p-1 bg-slate-100 text-slate-600 rounded">
+                <Sliders className="w-3.5 h-3.5 text-emerald-600" />
+              </div>
+              <span>Metriche Personalizzate ({latestCustomMetrics.length})</span>
+            </div>
+            {latestCustomMetrics.length > 0 ? (
+              <div className="flex flex-wrap gap-1.5 pt-0.5">
+                {latestCustomMetrics.slice(0, 4).map((cm, i) => (
+                  <span
+                    key={i}
+                    className="px-2 py-0.5 rounded bg-emerald-50 border border-emerald-200 text-emerald-800 font-mono text-[10.5px] font-bold"
+                  >
+                    {cm.name}: {cm.value} {cm.unit}
+                  </span>
+                ))}
+              </div>
+            ) : (
+              <p className="text-slate-500 italic">Nessuna metrica custom registrata.</p>
+            )}
+          </div>
+        </div>
+
+        {/* Selettore Fase Valutazione Copilot (nascosto in stampa con print:hidden) */}
+        <div className="pt-3 border-t border-slate-200 space-y-2 print:hidden">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1 text-xs">
-            <span className="font-extrabold text-slate-300 uppercase tracking-wider flex items-center gap-1.5">
-              <span>🎯 Seleziona Fase di Valutazione Copilot:</span>
+            <span className="font-bold text-slate-500 uppercase tracking-wider text-[11px]">
+              Seleziona Fase Target per Simulazione Linee Guida NSCA:
             </span>
-            <span className="text-[11px] text-cyan-400 font-mono font-bold">
-              Target attivi: {activeTargetConfig.tag}
+            <span className="text-xs text-emerald-700 font-bold">
+              {activeTargetConfig.fullName}
             </span>
           </div>
 
@@ -890,516 +633,319 @@ function CopilotEngineInner({ patient }) {
                   key={ph.id}
                   type="button"
                   onClick={() => setSelectedPhaseKey(ph.id)}
-                  className={`p-2.5 rounded-xl text-xs font-black transition-all cursor-pointer flex flex-col items-center justify-center text-center space-y-0.5 ${
+                  className={`p-2 rounded-xl text-xs font-bold transition-all cursor-pointer flex flex-col items-center justify-center text-center ${
                     isSelected
-                      ? 'bg-gradient-to-r from-cyan-600 to-teal-600 text-white shadow-lg border border-cyan-400/60 ring-2 ring-cyan-500/30'
-                      : 'bg-slate-900/90 text-slate-300 hover:text-white hover:bg-slate-800 border border-slate-800'
+                      ? 'bg-emerald-700 text-white shadow-xs'
+                      : 'bg-slate-50 text-slate-600 hover:text-slate-900 hover:bg-emerald-50/40 border border-slate-200'
                   }`}
                 >
-                  <span className="leading-tight">{ph.shortName}</span>
-                  <span className={`text-[9.5px] font-mono ${isSelected ? 'text-cyan-100 font-bold' : 'text-slate-500'}`}>
-                    LSI Target ≥{ph.targetLsiQuad}%
+                  <span>{ph.shortName}</span>
+                  <span className={`text-[10px] font-mono ${isSelected ? 'text-emerald-100' : 'text-slate-500'}`}>
+                    Target LSI ≥{ph.targetLsiQuad}%
                   </span>
                 </button>
               );
             })}
           </div>
 
-          <p className="text-[11px] text-slate-400 italic pt-1 font-medium">
-            💡 <strong>Focus Clinico di Fase:</strong> {activeTargetConfig.focus}
-          </p>
+          <div className="p-2.5 rounded-lg bg-emerald-50/60 border border-emerald-200 text-xs text-emerald-900">
+            <strong>Focus NSCA di Fase:</strong> {activeTargetConfig.nscaFocus}
+          </div>
         </div>
-
       </div>
 
       {/* ========================================================================= */}
-      {/* 2. BOX ALERT DIAGNOSTICI CON CODICE COLORE (ROSSO, GIALLO, VERDE) */}
+      {/* 2. PRESCRIZIONI DINAMICHE E LINEE GUIDA NSCA (ESERCIZI, PROGRESSIONI, REGRESSIONI, CARICHI) */}
       {/* ========================================================================= */}
-      <div className="space-y-3">
-        <div className="flex items-center justify-between">
-          <h3 className="text-xs font-black text-slate-200 uppercase tracking-wider flex items-center gap-2">
-            <ShieldAlert className="w-4 h-4 text-cyan-400" />
-            <span>ANALISI CLINICA AUTOMATICA & ALERT DIAGNOSTICI</span>
-          </h3>
-          <span className="text-[11px] text-slate-400 font-mono">
-            {alerts.length} Moduli Diagnostici Generati
+      <div className="bg-white p-5 rounded-xl border border-slate-200/80 shadow-sm space-y-4 break-inside-avoid">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-3 border-b border-slate-200">
+          <div className="flex items-center gap-2.5">
+            <div className="p-1 bg-slate-100 text-slate-600 rounded">
+              <Dumbbell className="w-4 h-4 text-emerald-600" />
+            </div>
+            <div>
+              <h3 className="text-sm font-bold text-slate-900 uppercase tracking-wide">
+                PRESCRIZIONE DINAMICA ESERCIZI &amp; PARAMETRI DI CARICO (LINEE GUIDA NSCA)
+              </h3>
+              <p className="text-xs text-slate-500">
+                Generato automaticamente incrociando ultimi test, LSI, deficit attivi e direttive del terapista
+              </p>
+            </div>
+          </div>
+
+          <span className="px-2.5 py-1 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-700 font-mono font-bold text-[11px] shrink-0">
+            Protocollo NSCA Attivo
           </span>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-          {alerts.map((alt, idx) => {
-            const isRed = alt.type === 'red';
-            const isYellow = alt.type === 'yellow';
-            const isGreen = alt.type === 'green';
-
-            return (
-              <div
-                key={idx}
-                className={`p-4 rounded-xl border space-y-2 shadow-md transition-all ${
-                  isRed
-                    ? 'bg-rose-950/30 border-rose-500/50 text-rose-200'
-                    : isYellow
-                    ? 'bg-amber-950/30 border-amber-500/50 text-amber-200'
-                    : 'bg-emerald-950/30 border-emerald-500/50 text-emerald-200'
-                }`}
-              >
-                <div className="flex items-start justify-between gap-2 border-b border-white/10 pb-2">
-                  <div className="flex items-center gap-2">
-                    {isRed && <ShieldAlert className="w-4 h-4 text-rose-400 shrink-0" />}
-                    {isYellow && <AlertTriangle className="w-4 h-4 text-amber-400 shrink-0" />}
-                    {isGreen && <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />}
-                    
-                    <h4 className="font-extrabold text-xs text-white leading-tight">
-                      {alt.title}
-                    </h4>
-                  </div>
-
-                  <span className={`text-[9px] font-mono font-black px-2 py-0.5 rounded uppercase shrink-0 ${
-                    isRed ? 'bg-rose-900 text-rose-200 border border-rose-600' : isYellow ? 'bg-amber-900 text-amber-200 border border-amber-600' : 'bg-emerald-900 text-emerald-200 border border-emerald-600'
-                  }`}>
-                    {isRed ? 'HIGH RISK' : isYellow ? 'IN PROGRESSIONE' : 'TARGET OK'}
-                  </span>
-                </div>
-
-                <div className="text-xs font-mono font-bold text-white">
-                  {alt.metric}
-                </div>
-
-                <p className="text-[11px] leading-relaxed text-slate-300">
-                  {alt.description}
-                </p>
-
-                <div className="pt-1 flex items-center justify-between text-[10px] text-slate-400 border-t border-white/5 font-mono">
-                  <span className="flex items-center gap-1">
-                    <BookOpen className="w-3 h-3 text-cyan-400" />
-                    <span>Riferimento Scientifico:</span>
-                  </span>
-                  <strong className="text-cyan-300 font-semibold">{alt.citation}</strong>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      </div>
-
-      {/* ========================================================================= */}
-      {/* 3. BENCHMARK BIBLIOGRAFICI DETTAGLIATI (GRID A 4 CARDS) */}
-      {/* ========================================================================= */}
-      <div className="space-y-3">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-          <h3 className="text-xs font-black text-slate-200 uppercase tracking-wider flex items-center gap-2">
-            <BookOpen className="w-4 h-4 text-purple-400" />
-            <span>CONFRONTO BENCHMARK SCIENTIFICI DI LETTERATURA</span>
-          </h3>
-          <button
-            type="button"
-            onClick={() => setIsBiblioModalOpen(true)}
-            className="px-3 py-1 bg-purple-950 hover:bg-purple-900 border border-purple-500/40 text-purple-300 font-extrabold text-[11px] rounded-xl flex items-center gap-1.5 cursor-pointer shadow-sm transition-all shrink-0"
-          >
-            <Search className="w-3.5 h-3.5 text-purple-400" />
-            <span>📚 Gestisci Libreria Fonti & DOI (CrossRef API)</span>
-          </button>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3 text-xs">
-          
-          {/* Card 1: Quad Strength */}
-          <div className="p-3.5 rounded-xl bg-slate-900 border border-slate-800 space-y-2">
-            <div className="flex items-center justify-between text-slate-400 border-b border-slate-800 pb-1.5">
-              <span className="font-extrabold text-white text-xs">1. Forza Quadricipite</span>
-              <Activity className="w-4 h-4 text-cyan-400" />
-            </div>
-            <div className="space-y-1">
-              <div className="flex justify-between text-[11px]">
-                <span className="text-slate-400">Paziente LSI:</span>
-                <strong className={lsiQuad >= 90 ? 'text-emerald-400 font-mono font-black' : 'text-amber-400 font-mono font-black'}>{lsiQuad}%</strong>
-              </div>
-              <div className="flex justify-between text-[11px]">
-                <span className="text-slate-400">Target Scientifico:</span>
-                <strong className="text-white font-mono">≥90.0% LSI</strong>
-              </div>
-            </div>
-            <p className="text-[10px] text-slate-400 border-t border-slate-800/80 pt-1.5 leading-snug">
-              <strong>Grindem et al. 2016:</strong> +1% di LSI riduce dell'84% il rischio di re-injury fino al raggiungimento del 90%.
-            </p>
-          </div>
-
-          {/* Card 2: Stiffness & RSI */}
-          <div className="p-3.5 rounded-xl bg-slate-900 border border-slate-800 space-y-2">
-            <div className="flex items-center justify-between text-slate-400 border-b border-slate-800 pb-1.5">
-              <span className="font-extrabold text-white text-xs">2. Stiffness & RSImod</span>
-              <Zap className="w-4 h-4 text-amber-400" />
-            </div>
-            <div className="space-y-1">
-              <div className="flex justify-between text-[11px]">
-                <span className="text-slate-400">RSImod Drop Jump:</span>
-                <strong className={rsiVal >= 1.5 ? 'text-emerald-400 font-mono font-black' : 'text-amber-400 font-mono font-black'}>{rsiVal} idx</strong>
-              </div>
-              <div className="flex justify-between text-[11px]">
-                <span className="text-slate-400">Target Scientifico:</span>
-                <strong className="text-white font-mono">&gt;1.50 idx</strong>
-              </div>
-            </div>
-            <p className="text-[10px] text-slate-400 border-t border-slate-800/80 pt-1.5 leading-snug">
-              <strong>Ebbs et al. 2023:</strong> Indice di efficienza del ciclo allungamento-accorciamento e rigidità tendinea reattiva.
-            </p>
-          </div>
-
-          {/* Card 3: Assorbimento Eccentrico */}
-          <div className="p-3.5 rounded-xl bg-slate-900 border border-slate-800 space-y-2">
-            <div className="flex items-center justify-between text-slate-400 border-b border-slate-800 pb-1.5">
-              <span className="font-extrabold text-white text-xs">3. Assorbimento Frenata</span>
-              <TrendingDown className="w-4 h-4 text-rose-400" />
-            </div>
-            <div className="space-y-1">
-              <div className="flex justify-between text-[11px]">
-                <span className="text-slate-400">Asimmetria Frenata:</span>
-                <strong className={brakingAsym <= 10 ? 'text-emerald-400 font-mono font-black' : 'text-rose-400 font-mono font-black'}>{brakingAsym}%</strong>
-              </div>
-              <div className="flex justify-between text-[11px]">
-                <span className="text-slate-400">Target Scientifico:</span>
-                <strong className="text-white font-mono">&lt;10.0% Asym</strong>
-              </div>
-            </div>
-            <p className="text-[10px] text-slate-400 border-t border-slate-800/80 pt-1.5 leading-snug">
-              <strong>Read et al. 2020:</strong> Asimmetrie d'impulso eccentrico predicono compensi atterraggio e carichi asimmetrici.
-            </p>
-          </div>
-
-          {/* Card 4: Rapporto H:Q */}
-          <div className="p-3.5 rounded-xl bg-slate-900 border border-slate-800 space-y-2">
-            <div className="flex items-center justify-between text-slate-400 border-b border-slate-800 pb-1.5">
-              <span className="font-extrabold text-white text-xs">4. Rapporto H:Q</span>
-              <Footprints className="w-4 h-4 text-emerald-400" />
-            </div>
-            <div className="space-y-1">
-              <div className="flex justify-between text-[11px]">
-                <span className="text-slate-400">H:Q Ratio:</span>
-                <strong className={hqRatio >= 0.60 ? 'text-emerald-400 font-mono font-black' : 'text-rose-400 font-mono font-black'}>{safeHqDisplay}</strong>
-              </div>
-              <div className="flex justify-between text-[11px]">
-                <span className="text-slate-400">Target Scientifico:</span>
-                <strong className="text-white font-mono">&gt;0.60 Ratio</strong>
-              </div>
-            </div>
-            <p className="text-[10px] text-slate-400 border-t border-slate-800/80 pt-1.5 leading-snug">
-              <strong>Kyritsis et al. 2016:</strong> Rapporto isocinetico H:Q &gt;0.60 indispensabile prima del rilascio alla corsa ad alta velocità.
-            </p>
-          </div>
-
-        </div>
-      </div>
-
-      {/* ========================================================================= */}
-      
-      {/* ========================================================================= */}
-      {/* CRITERI CLINICI DI PROGRESSIONE & SBLOCCO FASE (INDIVIDUALIZZATI - CDSS) */}
-      {/* ========================================================================= */}
-      <div className="glass-panel p-5 rounded-2xl border border-slate-800 space-y-4 shadow-2xl bg-[#0a1628]">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-800 pb-3">
-          <div className="space-y-1">
-            <div className="flex items-center gap-2">
-              <ShieldCheck className="w-5 h-5 text-cyan-400" />
-              <h3 className="font-extrabold text-white text-xs uppercase tracking-wider">
-                CRITERI SCIENTIFICI DI PROGRESSIONE & SBLOCCO FASE (CDSS ENGINE)
-              </h3>
-            </div>
-            <p className="text-xs text-slate-400 font-medium">
-              Stato avanzamento per <strong className="text-white">{formattedName}</strong> • Post-Op: <strong className="text-cyan-300 font-mono">{progressionData.timePostOpStr}</strong>
-            </p>
-          </div>
-
-          <div className="flex items-center gap-2 shrink-0">
-            <span className="text-[11px] font-mono text-slate-400 font-bold">
-              {progressionData.currentPhaseLabel} ➔
-            </span>
-            <span className={`px-3 py-1 rounded-xl font-black text-xs border flex items-center gap-1.5 shadow-md ${
-              progressionData.allPassed
-                ? 'bg-emerald-950/90 border-emerald-500/60 text-emerald-300'
-                : 'bg-amber-950/90 border-amber-500/60 text-amber-300'
-            }`}>
-              {progressionData.allPassed ? (
-                <>
-                  <CheckCircle2 className="w-4 h-4 text-emerald-400" />
-                  <span>SBLOCCO OK ({progressionData.passedCount}/{progressionData.totalCount})</span>
-                </>
-              ) : (
-                <>
-                  <AlertTriangle className="w-4 h-4 text-amber-400" />
-                  <span>SBLOCCO SOSPESO ({progressionData.passedCount}/{progressionData.totalCount} Verificati)</span>
-                </>
-              )}
-            </span>
-          </div>
-        </div>
-
-        {/* Progress Bar Completabile */}
-        <div className="space-y-1.5">
-          <div className="flex justify-between text-xs font-mono">
-            <span className="text-slate-400 font-bold">Target di Sblocco: <strong className="text-white">{progressionData.targetPhaseLabel}</strong></span>
-            <span className={`font-black ${progressionData.allPassed ? 'text-emerald-400' : 'text-cyan-400'}`}>
-              {progressionData.passedPct}% Completato ({progressionData.passedCount} di {progressionData.totalCount} requisiti)
-            </span>
-          </div>
-          <div className="w-full h-2.5 bg-slate-950 rounded-full overflow-hidden border border-slate-800">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {nscaRecommendations.map((rec) => (
             <div
-              className={`h-full transition-all duration-500 ${
-                progressionData.allPassed
-                  ? 'bg-gradient-to-r from-emerald-500 to-teal-400'
-                  : progressionData.passedPct >= 50
-                  ? 'bg-gradient-to-r from-cyan-500 to-blue-500'
-                  : 'bg-gradient-to-r from-rose-500 to-amber-500'
-              }`}
-              style={{ width: `${progressionData.passedPct}%` }}
-            />
-          </div>
-        </div>
-
-        {/* Griglia Criteri Individualizzati (Spuntati / Non Spuntati) */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-1">
-          {progressionData.criteria.map((c) => (
-            <div
-              key={c.id}
-              className={`p-3.5 rounded-xl border flex items-center justify-between gap-3 transition-all ${
-                c.passed
-                  ? 'bg-emerald-950/20 border-emerald-500/40 text-emerald-100'
-                  : 'bg-rose-950/20 border-rose-500/40 text-rose-100'
-              }`}
+              key={rec.id}
+              className="p-4 rounded-xl bg-slate-50/70 border border-slate-200/90 space-y-2.5 break-inside-avoid"
             >
-              <div className="space-y-1 min-w-0 flex-1">
-                <div className="flex items-center gap-1.5">
-                  <span className={`w-2 h-2 rounded-full shrink-0 ${c.passed ? 'bg-emerald-400 shadow-sm shadow-emerald-400' : 'bg-rose-500 shadow-sm shadow-rose-500'}`} />
-                  <h4 className="font-extrabold text-xs text-white truncate">
-                    {c.label}
+              <div className="flex items-start justify-between gap-2 border-b border-slate-200 pb-2">
+                <div>
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-700 block">
+                    {rec.domain}
+                  </span>
+                  <h4 className="text-sm font-bold text-slate-900 mt-0.5">
+                    {rec.exercise}
                   </h4>
                 </div>
-                <div className="text-[11px] text-slate-400 flex items-center gap-2 font-mono">
-                  <span>Requisito: <strong className="text-slate-200">{c.required}</strong></span>
-                  <span>•</span>
-                  <span>Registrato: <strong className={c.passed ? 'text-emerald-300 font-bold' : 'text-rose-300 font-bold'}>{c.currentVal}</strong></span>
-                </div>
+                <span className="px-2 py-0.5 rounded bg-white border border-slate-200 text-slate-600 text-[10px] font-mono font-bold shrink-0">
+                  NSCA Rx
+                </span>
               </div>
 
-              {/* Badge Verificato (Verde) vs Non Soddisfatto (Rosso) */}
-              <div className="shrink-0">
-                {c.passed ? (
-                  <span className="px-2.5 py-1 rounded-lg bg-emerald-950 border border-emerald-500/60 text-emerald-300 font-black text-[10.5px] uppercase tracking-wider flex items-center gap-1 shadow-sm">
-                    <Check className="w-3.5 h-3.5 text-emerald-400" />
-                    <span>VERIFICATO</span>
+              <div className="text-[11px] text-slate-600 bg-white px-2.5 py-1.5 rounded-lg border border-slate-200/80">
+                <strong className="text-slate-900">Dato Clinico Rilevato:</strong> {rec.triggerContext}
+              </div>
+
+              <div className="p-2.5 rounded-lg bg-emerald-50/70 border border-emerald-200 text-xs font-mono font-bold text-emerald-900">
+                📊 {rec.loadParams}
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1 text-[11px]">
+                <div className="p-2 rounded-lg bg-white border border-slate-200 space-y-0.5">
+                  <span className="font-bold text-emerald-700 flex items-center gap-1">
+                    <ArrowUpRight className="w-3.5 h-3.5" />
+                    Progressione NSCA:
                   </span>
-                ) : (
-                  <span className="px-2.5 py-1 rounded-lg bg-rose-950 border border-rose-500/60 text-rose-300 font-black text-[10.5px] uppercase tracking-wider flex items-center gap-1 shadow-sm">
-                    <X className="w-3.5 h-3.5 text-rose-400" />
-                    <span>NON SODDISFATTO</span>
+                  <p className="text-slate-600 leading-snug">{rec.progression}</p>
+                </div>
+
+                <div className="p-2 rounded-lg bg-white border border-slate-200 space-y-0.5">
+                  <span className="font-bold text-amber-700 flex items-center gap-1">
+                    <ArrowDownRight className="w-3.5 h-3.5" />
+                    Regressione / Adattamento:
                   </span>
-                )}
+                  <p className="text-slate-600 leading-snug">{rec.regression}</p>
+                </div>
               </div>
             </div>
           ))}
         </div>
-
-        {/* Dynamic Summary Banner */}
-        <div className={`p-3.5 rounded-xl border text-xs leading-relaxed flex items-start gap-2.5 ${
-          progressionData.allPassed
-            ? 'bg-emerald-950/40 border-emerald-500/50 text-emerald-200'
-            : 'bg-amber-950/40 border-amber-500/50 text-amber-200'
-        }`}>
-          {progressionData.allPassed ? (
-            <>
-              <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
-              <div>
-                <strong className="text-emerald-300 font-bold block mb-0.5">SBLOCCO FASE VALIDATO DAL COPILOT IA ENGINE 🟢</strong>
-                Tutti i {progressionData.totalCount} criteri biometrici e temporali per accedere a <strong>{progressionData.targetPhaseLabel}</strong> sono stati pienamente soddisfatti. L'atleta presenta sufficiente forza, stabilità e controllo per la progressione.
-              </div>
-            </>
-          ) : (
-            <>
-              <AlertTriangle className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
-              <div>
-                <strong className="text-amber-300 font-bold block mb-0.5">ATTENZIONE CLINICA: SBLOCCO FASE IN SOSPESO 🟡</strong>
-                L'atleta soddisfa {progressionData.passedCount} su {progressionData.totalCount} criteri. Concentrare le sessioni di riabilitazione sulle metriche evidenziate in rosso ("NON SODDISFATTO") prima di effettuare il passaggio di fase a {progressionData.targetPhaseLabel}.
-              </div>
-            </>
-          )}
-        </div>
       </div>
 
-
-      {/* 4. GO / NO-GO CRITERIA & DIRETTIVE REHAB AUTOMATICHE */}
+      {/* ========================================================================= */}
+      {/* 3. ALERT DIAGNOSTICI & BENCHMARK SCIENTIFICI (ICONE w-4 h-4 IN BADGE)     */}
       {/* ========================================================================= */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-        
-        {/* COLONNA SINISTRA: CRITERI GO / NO-GO (COL 6/12) */}
-        <div className="lg:col-span-6 glass-panel p-5 rounded-2xl border border-slate-800 space-y-4 shadow-xl bg-[#0a1628]">
-          <div className="flex items-center justify-between border-b border-slate-800 pb-2">
+        {/* Alert Diagnostici (7/12) */}
+        <div className="lg:col-span-7 bg-white p-5 rounded-xl border border-slate-200/80 shadow-sm space-y-3.5 break-inside-avoid">
+          <div className="flex items-center justify-between pb-2.5 border-b border-slate-200">
             <div className="flex items-center gap-2">
-              <ShieldCheck className="w-5 h-5 text-emerald-400" />
-              <h3 className="font-extrabold text-white text-xs uppercase tracking-wider">
-                CRITERI DI PROGRESSIONE RAMPING (GO / NO-GO)
+              <div className="p-1 bg-slate-100 text-slate-600 rounded">
+                <ShieldCheck className="w-4 h-4 text-emerald-600" />
+              </div>
+              <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wider">
+                ANALISI CLINICA AUTOMATICA &amp; ALERT BIOMECCANICI
               </h3>
             </div>
-            <span className="text-[10px] font-mono text-cyan-400 font-black bg-cyan-950 px-2 py-0.5 rounded border border-cyan-500/40">
-              Protocollo Sicurezza
+            <span className="text-[11px] text-slate-500 font-mono">
+              {alerts.length} indicatori
             </span>
           </div>
 
-          <div className="space-y-3">
-            
-            {/* GO: COSA PUÒ FARE ORA */}
-            <div className="p-3.5 rounded-xl bg-emerald-950/40 border border-emerald-500/40 space-y-2">
-              <div className="flex items-center gap-2 text-emerald-400 font-black text-xs uppercase tracking-wider">
-                <Unlock className="w-4 h-4 text-emerald-400" />
-                <span>✅ COSA L'ATLETA PUÒ FARE ORA (GO)</span>
+          <div className="space-y-2.5">
+            {alerts.map((alt, idx) => {
+              const isRed = alt.type === 'red';
+              const isYellow = alt.type === 'yellow';
+              return (
+                <div
+                  key={idx}
+                  className={`p-3.5 rounded-xl border space-y-1.5 break-inside-avoid ${
+                    isRed
+                      ? 'bg-rose-50/60 border-rose-200 text-slate-900'
+                      : isYellow
+                      ? 'bg-amber-50/60 border-amber-200 text-slate-900'
+                      : 'bg-emerald-50/60 border-emerald-200 text-slate-900'
+                  }`}
+                >
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-2">
+                      <div className="p-1 bg-slate-100 text-slate-600 rounded">
+                        {isRed ? (
+                          <ShieldAlert className="w-4 h-4 text-rose-600" />
+                        ) : isYellow ? (
+                          <AlertTriangle className="w-4 h-4 text-amber-600" />
+                        ) : (
+                          <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                        )}
+                      </div>
+                      <h4 className="font-bold text-xs text-slate-900">{alt.title}</h4>
+                    </div>
+
+                    <span
+                      className={`text-[10px] font-mono font-bold px-2 py-0.5 rounded border ${
+                        isRed
+                          ? 'bg-rose-50 text-rose-700 border-rose-200'
+                          : isYellow
+                          ? 'bg-amber-50 text-amber-700 border-amber-200'
+                          : 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                      }`}
+                    >
+                      {isRed ? 'ATTENZIONE' : isYellow ? 'IN CORSO' : 'TARGET OK'}
+                    </span>
+                  </div>
+
+                  <div className="text-xs font-mono font-bold text-slate-900">
+                    {alt.metric}
+                  </div>
+                  <p className="text-xs text-slate-600 leading-relaxed">{alt.description}</p>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Criteri GO / NO-GO e Benchmark (5/12) */}
+        <div className="lg:col-span-5 bg-white p-5 rounded-xl border border-slate-200/80 shadow-sm space-y-4 break-inside-avoid">
+          <div className="flex items-center justify-between pb-2.5 border-b border-slate-200">
+            <div className="flex items-center gap-2">
+              <div className="p-1 bg-slate-100 text-slate-600 rounded">
+                <BookOpen className="w-4 h-4 text-emerald-600" />
               </div>
-              
-              <ul className="space-y-1.5 text-xs text-slate-200 font-medium">
-                <li className="flex items-start gap-2">
-                  <Check className="w-3.5 h-3.5 text-emerald-400 shrink-0 mt-0.5" />
-                  <span>Corsa sul dritto in accelerazione progressiva al 100% VBT.</span>
+              <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wider">
+                BENCHMARK SCIENTIFICI &amp; CRITERI GO / NO-GO
+              </h3>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => setIsBiblioModalOpen(true)}
+              className="px-2.5 py-1 bg-slate-100 hover:bg-slate-200 border border-slate-200 text-slate-700 font-bold text-[11px] rounded-lg flex items-center gap-1 cursor-pointer print:hidden"
+            >
+              <Search className="w-3.5 h-3.5 text-emerald-600" />
+              <span>Fonti DOI</span>
+            </button>
+          </div>
+
+          {/* 4 Mini Box Benchmark con icone w-4 h-4 dentro p-1 bg-slate-100 text-slate-600 rounded */}
+          <div className="grid grid-cols-2 gap-2.5 text-xs">
+            <div className="p-3 rounded-xl bg-slate-50 border border-slate-200 space-y-1 break-inside-avoid">
+              <div className="flex items-center justify-between">
+                <span className="text-slate-500 text-[10px] font-bold uppercase">LSI Quadricipite</span>
+                <div className="p-1 bg-slate-100 text-slate-600 rounded">
+                  <Activity className="w-4 h-4" />
+                </div>
+              </div>
+              <div className="text-sm font-bold font-mono text-slate-900">
+                {lsiQuad !== null ? `${lsiQuad}%` : 'Non testato'}
+              </div>
+              <div className="text-[10px] text-slate-500">Target Fase: ≥{activeTargetConfig.targetLsiQuad}%</div>
+            </div>
+
+            <div className="p-3 rounded-xl bg-slate-50 border border-slate-200 space-y-1 break-inside-avoid">
+              <div className="flex items-center justify-between">
+                <span className="text-slate-500 text-[10px] font-bold uppercase">RSI Reattivo</span>
+                <div className="p-1 bg-slate-100 text-slate-600 rounded">
+                  <Zap className="w-4 h-4" />
+                </div>
+              </div>
+              <div className="text-sm font-bold font-mono text-slate-900">
+                {rsiVal !== null ? `${rsiVal} idx` : 'Non testato'}
+              </div>
+              <div className="text-[10px] text-slate-500">Target Fase: ≥{activeTargetConfig.targetRsiMod} idx</div>
+            </div>
+
+            <div className="p-3 rounded-xl bg-slate-50 border border-slate-200 space-y-1 break-inside-avoid">
+              <div className="flex items-center justify-between">
+                <span className="text-slate-500 text-[10px] font-bold uppercase">Asym Frenata</span>
+                <div className="p-1 bg-slate-100 text-slate-600 rounded">
+                  <TrendingDown className="w-4 h-4" />
+                </div>
+              </div>
+              <div className="text-sm font-bold font-mono text-slate-900">
+                {brakingAsym !== null ? `${brakingAsym}%` : 'Non testato'}
+              </div>
+              <div className="text-[10px] text-slate-500">Target Fase: ≤{activeTargetConfig.targetBrakingAsym}%</div>
+            </div>
+
+            <div className="p-3 rounded-xl bg-slate-50 border border-slate-200 space-y-1 break-inside-avoid">
+              <div className="flex items-center justify-between">
+                <span className="text-slate-500 text-[10px] font-bold uppercase">Rapporto H:Q</span>
+                <div className="p-1 bg-slate-100 text-slate-600 rounded">
+                  <Footprints className="w-4 h-4" />
+                </div>
+              </div>
+              <div className="text-sm font-bold font-mono text-slate-900">
+                {hqRatio !== null ? hqRatio : 'Non testato'}
+              </div>
+              <div className="text-[10px] text-slate-500">Target Fase: ≥{activeTargetConfig.targetHqRatio}</div>
+            </div>
+          </div>
+
+          {/* Box GO / NO-GO Sintetico */}
+          <div className="space-y-2 pt-1 text-xs">
+            <div className="p-3 rounded-xl bg-emerald-50/70 border border-emerald-200 space-y-1.5 break-inside-avoid">
+              <div className="flex items-center gap-1.5 text-emerald-800 font-bold text-xs uppercase">
+                <Unlock className="w-3.5 h-3.5 text-emerald-700" />
+                <span>Attività Consentite (GO — Linee Guida NSCA)</span>
+              </div>
+              <ul className="space-y-1 text-slate-700 text-[11.5px]">
+                <li className="flex items-start gap-1.5">
+                  <Check className="w-3.5 h-3.5 text-emerald-600 shrink-0 mt-0.5" />
+                  <span>Rinforzo progressivo NSCA ({activeTargetConfig.shortName}) con controllo simmetria.</span>
                 </li>
-                <li className="flex items-start gap-2">
-                  <Check className="w-3.5 h-3.5 text-emerald-400 shrink-0 mt-0.5" />
-                  <span>Salti monopodalici e pliometria reattiva su box basso (30cm).</span>
-                </li>
-                <li className="flex items-start gap-2">
-                  <Check className="w-3.5 h-3.5 text-emerald-400 shrink-0 mt-0.5" />
-                  <span>Cambi di direzione pianificati a 45°-90° con tempi di frenata controllati.</span>
-                </li>
-                {readinessScore >= 90 && (
-                  <li className="flex items-start gap-2">
-                    <Check className="w-3.5 h-3.5 text-emerald-400 shrink-0 mt-0.5" />
-                    <span>Small Sided Games (SSG) 5v5 e lavoro con palla in gruppo.</span>
+                {(lsiQuad ?? 0) >= 80 && (
+                  <li className="flex items-start gap-1.5">
+                    <Check className="w-3.5 h-3.5 text-emerald-600 shrink-0 mt-0.5" />
+                    <span>Running lineare progressivo e decelerazioni sub-massimali pianificate.</span>
                   </li>
                 )}
               </ul>
             </div>
 
-            {/* NO-GO: COSA NON PUÒ ANCORA FARE */}
-            <div className="p-3.5 rounded-xl bg-rose-950/40 border border-rose-500/40 space-y-2">
-              <div className="flex items-center gap-2 text-rose-400 font-black text-xs uppercase tracking-wider">
-                <Lock className="w-4 h-4 text-rose-400" />
-                <span>⛔ COSA NON PUÒ ANCORA FARE (NO-GO RESTRIZIONI)</span>
+            <div className="p-3 rounded-xl bg-rose-50/70 border border-rose-200 space-y-1.5 break-inside-avoid">
+              <div className="flex items-center gap-1.5 text-rose-800 font-bold text-xs uppercase">
+                <Lock className="w-3.5 h-3.5 text-rose-700" />
+                <span>Restrizioni di Sicurezza (NO-GO)</span>
               </div>
-
-              <ul className="space-y-1.5 text-xs text-slate-200 font-medium">
-                {readinessScore < 90 ? (
+              <ul className="space-y-1 text-slate-700 text-[11.5px]">
+                {(readinessScore ?? 0) < 90 ? (
                   <>
-                    <li className="flex items-start gap-2">
-                      <X className="w-3.5 h-3.5 text-rose-400 shrink-0 mt-0.5" />
-                      <span>Cambi di direzione reattivi imprevedibili ad angolo stretto (&gt;90°).</span>
+                    <li className="flex items-start gap-1.5">
+                      <X className="w-3.5 h-3.5 text-rose-600 shrink-0 mt-0.5" />
+                      <span>Cambi di direzione reattivi non pianificati ad angolo &gt;90° o contatto pieno.</span>
                     </li>
-                    <li className="flex items-start gap-2">
-                      <X className="w-3.5 h-3.5 text-rose-400 shrink-0 mt-0.5" />
-                      <span>Partita ufficiale 90 min o contatto completo non controllato.</span>
-                    </li>
-                    <li className="flex items-start gap-2">
-                      <X className="w-3.5 h-3.5 text-rose-400 shrink-0 mt-0.5" />
-                      <span>Plio-metria ad alta caduta (Drop Jump &gt; 45cm).</span>
+                    <li className="flex items-start gap-1.5">
+                      <X className="w-3.5 h-3.5 text-rose-600 shrink-0 mt-0.5" />
+                      <span>Depth Jump ad alto impatto (&gt;40cm) finché LSI Quad &lt; 90%.</span>
                     </li>
                   </>
                 ) : (
-                  <li className="flex items-start gap-2">
-                    <Check className="w-3.5 h-3.5 text-emerald-400 shrink-0 mt-0.5" />
-                    <span className="text-emerald-300 font-bold">Nessuna restrizione rigida rintracciata. Procedere con minutaggio sequenziale in gara.</span>
+                  <li className="flex items-start gap-1.5">
+                    <Check className="w-3.5 h-3.5 text-emerald-600 shrink-0 mt-0.5" />
+                    <span className="text-emerald-800 font-semibold">Criteri RTS soddisfatti: reintegro graduale al minutaggio gara.</span>
                   </li>
                 )}
               </ul>
             </div>
-
           </div>
         </div>
-
-        {/* COLONNA DESTRA: DIRETTIVE REHAB AUTOMATICHE & ESERCIZI VBT SUGGERITI (COL 6/12) */}
-        <div className="lg:col-span-6 glass-panel p-5 rounded-2xl border border-slate-800 space-y-4 shadow-xl bg-[#0a1628]">
-          <div className="flex items-center justify-between border-b border-slate-800 pb-2">
-            <div className="flex items-center gap-2">
-              <Dumbbell className="w-5 h-5 text-cyan-400" />
-              <h3 className="font-extrabold text-white text-xs uppercase tracking-wider">
-                DIRETTIVE REHAB AUTOMATICHE & PRESCRIZIONE VBT
-              </h3>
-            </div>
-            <span className="text-[10px] font-mono text-emerald-400 font-black bg-emerald-950 px-2 py-0.5 rounded border border-emerald-500/40">
-              Prescrizione Dinamica
-            </span>
-          </div>
-
-          <div className="space-y-2.5 text-xs">
-            
-            {/* Esercizio 1: Overcoming Iso Leg Ext */}
-            <div className="p-3 rounded-xl bg-slate-900 border border-slate-800 space-y-1 hover:border-slate-700 transition-all">
-              <div className="flex items-center justify-between text-white font-extrabold">
-                <span className="flex items-center gap-1.5">
-                  <Zap className="w-4 h-4 text-cyan-400" />
-                  <span>1. Overcoming Iso Leg Extension a 60°</span>
-                </span>
-                <span className="text-[10px] font-mono text-cyan-300 bg-cyan-950 px-2 py-0.5 rounded">
-                  Target: Reclutamento Quad (AMI)
-                </span>
-              </div>
-              <p className="text-[11px] text-slate-300 leading-snug">
-                3 Serie x 5 Secondi Max Effort Isometric Push contro resistenza inamovibile a 60° di flessione. Inibisce il riflesso artrogeno AMI e massimizza l'eccitabilità spinale del quadricipite.
-              </p>
-            </div>
-
-            {/* Esercizio 2: Pogo Jumps Reattivi */}
-            <div className="p-3 rounded-xl bg-slate-900 border border-slate-800 space-y-1 hover:border-slate-700 transition-all">
-              <div className="flex items-center justify-between text-white font-extrabold">
-                <span className="flex items-center gap-1.5">
-                  <Footprints className="w-4 h-4 text-amber-400" />
-                  <span>2. Pogo Jumps Monopodalici per Stiffness</span>
-                </span>
-                <span className="text-[10px] font-mono text-amber-300 bg-amber-950 px-2 py-0.5 rounded">
-                  Target: GCT &lt; 200 ms
-                </span>
-              </div>
-              <p className="text-[11px] text-slate-300 leading-snug">
-                3 Serie x 10 Salti monopodalici reattivi sul posto. Focus sulla rigidità del complesso caviglia-tendine rotuleo con minimizzazione del tempo di contatto.
-              </p>
-            </div>
-
-            {/* Esercizio 3: Heavy VBT Trap Bar Deadlift */}
-            <div className="p-3 rounded-xl bg-slate-900 border border-slate-800 space-y-1 hover:border-slate-700 transition-all">
-              <div className="flex items-center justify-between text-white font-extrabold">
-                <span className="flex items-center gap-1.5">
-                  <Dumbbell className="w-4 h-4 text-emerald-400" />
-                  <span>3. Trap Bar Deadlift VBT (Velocità Target 0.55-0.65 m/s)</span>
-                </span>
-                <span className="text-[10px] font-mono text-emerald-300 bg-emerald-950 px-2 py-0.5 rounded">
-                  Target: Forza Max & Potenza
-                </span>
-              </div>
-              <p className="text-[11px] text-slate-300 leading-snug">
-                4 Serie x 5 Reps con monitoraggio encoder VBT. Stop immediato della serie al superamento del Velocity Loss &gt; 10% per preservare la qualità neuromuscolare.
-              </p>
-            </div>
-
-          </div>
-        </div>
-
       </div>
 
-      {/* BARRA AZIONI BOTTOM */}
-      <div className="flex justify-end gap-3 pt-2 no-print">
+      {/* BARRA AZIONI BOTTOM (nascosta in stampa con print:hidden) */}
+      <div className="flex justify-end gap-3 pt-1 print:hidden">
         <button
-          onClick={handlePrint}
-          className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-emerald-600 via-teal-600 to-cyan-600 hover:from-emerald-500 hover:to-cyan-500 text-white font-extrabold text-xs flex items-center gap-2 shadow-lg shadow-emerald-500/20 transition-all cursor-pointer"
+          onClick={() => window.print()}
+          className="px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs flex items-center gap-2 shadow-sm transition-all cursor-pointer"
         >
           <Printer className="w-4 h-4" />
-          <span>Stampa Report Diagnostico A4</span>
+          <span>Stampa Report Clinico NSCA A4</span>
         </button>
       </div>
 
-      {/* Modal Gestione Libreria Scientifica & DOI CrossRef API */}
       <ModalLibreriaScientifica
         isOpen={isBiblioModalOpen}
         onClose={() => setIsBiblioModalOpen(false)}
       />
-
     </div>
   );
 }
 
-// Export finale con avvolgimento in Error Boundary di sicurezza
 export default function TabCopilotPdf(props) {
   return (
     <CopilotErrorBoundary>

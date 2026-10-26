@@ -20,7 +20,7 @@ const METRIC_CONFIG = [
     cleanKey: 'lsi_quad',
     label: 'LSI Quadricipite',
     unit: '%',
-    color: '#06B6D4',
+    color: '#059669', // Emerald-600
     getRawValue: (t) => {
       const direct = parsePositiveNum(t?.lsiQuad ?? t?.lsi_quad_calculated);
       if (direct !== null) return direct;
@@ -37,7 +37,7 @@ const METRIC_CONFIG = [
     cleanKey: 'cmj_height',
     label: 'Altezza CMJ',
     unit: 'cm',
-    color: '#10B981',
+    color: '#10B981', // Emerald-500
     getRawValue: (t) => parsePositiveNum(t?.jumpHeight ?? t?.jump_height_cm ?? t?.altezza_salto)
   },
   {
@@ -45,7 +45,7 @@ const METRIC_CONFIG = [
     cleanKey: 'rsi_mod',
     label: 'RSImod',
     unit: 'm/s',
-    color: '#F59E0B',
+    color: '#D97706', // Amber-600
     getRawValue: (t) => {
       const direct = parsePositiveNum(t?.rsiCmj ?? t?.rsi_cmj ?? t?.rsi_mod);
       if (direct !== null) return direct;
@@ -62,7 +62,7 @@ const METRIC_CONFIG = [
     cleanKey: 'single_hop',
     label: 'Single Hop LSI',
     unit: '%',
-    color: '#F43F5E',
+    color: '#E11D48', // Rose-600
     getRawValue: (t) => parsePositiveNum(t?.lsiSingleHop ?? t?.lsi_single_hop)
   },
   {
@@ -70,7 +70,7 @@ const METRIC_CONFIG = [
     cleanKey: 'peak_power',
     label: 'Peak Power',
     unit: 'W/kg',
-    color: '#A855F7',
+    color: '#7C3AED', // Violet-600
     getRawValue: (t) => parsePositiveNum(t?.peakPower ?? t?.peak_power_w ?? t?.potenza_picco)
   },
   {
@@ -78,7 +78,7 @@ const METRIC_CONFIG = [
     cleanKey: 'ecc_braking',
     label: 'Eccentric Impulse SX',
     unit: 'N·s',
-    color: '#FB923C',
+    color: '#EA580C', // Orange-600
     getRawValue: (t) => parsePositiveNum(t?.eccBrakingSX ?? t?.ecc_braking_sx)
   },
   {
@@ -86,7 +86,7 @@ const METRIC_CONFIG = [
     cleanKey: 'lsi_flex',
     label: 'LSI Flessori',
     unit: '%',
-    color: '#38BDF8',
+    color: '#0D9488', // Teal-600
     getRawValue: (t) => {
       const direct = parsePositiveNum(t?.lsiFlex ?? t?.lsi_curl_calculated);
       if (direct !== null) return direct;
@@ -105,11 +105,11 @@ function CustomChartTooltip({ active, payload, label, viewMode }) {
   const sessionMeta = payload[0]?.payload;
 
   return (
-    <div className="bg-slate-950/95 border border-slate-700 p-3 rounded-xl shadow-2xl text-xs space-y-1.5 backdrop-blur-md">
-      <div className="flex items-center justify-between gap-4 border-b border-slate-800 pb-1.5">
-        <span className="font-bold text-slate-100">{sessionMeta?.sessionLabel || label}</span>
+    <div className="bg-white border border-slate-200 p-3 rounded-xl shadow-xl text-xs space-y-1.5">
+      <div className="flex items-center justify-between gap-4 border-b border-slate-200 pb-1.5">
+        <span className="font-bold text-slate-900">{sessionMeta?.sessionLabel || label}</span>
         {sessionMeta?.sessionDate && (
-          <span className="text-[10px] font-mono font-semibold text-sky-400">
+          <span className="text-[10px] font-mono font-semibold text-emerald-700">
             {sessionMeta.sessionDate}
           </span>
         )}
@@ -127,16 +127,16 @@ function CustomChartTooltip({ active, payload, label, viewMode }) {
                   className="w-2.5 h-2.5 rounded-full shrink-0"
                   style={{ backgroundColor: mDef.color }}
                 />
-                <span className="text-slate-300 font-medium">{mDef.label}:</span>
+                <span className="text-slate-600 font-medium">{mDef.label}:</span>
               </div>
-              <div className="font-mono font-bold text-white">
+              <div className="font-mono font-bold text-slate-900">
                 {viewMode === 'relative' ? (
                   <>
-                    <span className={entry.value >= 0 ? 'text-emerald-400' : 'text-rose-400'}>
+                    <span className={entry.value >= 0 ? 'text-emerald-700' : 'text-rose-600'}>
                       {entry.value >= 0 ? `+${entry.value}%` : `${entry.value}%`}
                     </span>
                     {absVal !== null && absVal !== undefined && (
-                      <span className="text-slate-400 text-[10px] ml-1.5">
+                      <span className="text-slate-500 text-[10px] ml-1.5">
                         ({absVal} {mDef.unit})
                       </span>
                     )}
@@ -156,7 +156,7 @@ function CustomChartTooltip({ active, payload, label, viewMode }) {
 }
 
 export default function GraficoMultimetrica({ tests }) {
-  const [viewMode, setViewMode] = useState('relative'); // 'relative' | 'absolute'
+  const [viewMode, setViewMode] = useState('relative');
   const [activeMetrics, setActiveMetrics] = useState(['lsiQuad', 'jumpHeight', 'rsiCmj']);
 
   const toggleMetric = (id) => {
@@ -171,8 +171,7 @@ export default function GraficoMultimetrica({ tests }) {
 
   const rawTests = useMemo(() => sortTestsByDate(tests), [tests]);
 
-  // Calcola il conteggio di rilevazioni valide (non-null) e il primo valore baseline valido per ciascuna metrica
-  const { validCountByMetric, baselinesByMetric, chartData, hasAnyPlottedValue } = useMemo(() => {
+  const { validCountByMetric, chartData, hasAnyPlottedValue } = useMemo(() => {
     const counts = {};
     const baselines = {};
 
@@ -201,7 +200,7 @@ export default function GraficoMultimetrica({ tests }) {
         rowObj[`${m.id}_abs`] = rawVal;
 
         if (rawVal === null || rawVal === undefined) {
-          rowObj[m.id] = null; // Rigorosamente null se non testato
+          rowObj[m.id] = null;
         } else {
           if (activeMetrics.includes(m.id)) anyValid = true;
           if (viewMode === 'relative') {
@@ -221,7 +220,6 @@ export default function GraficoMultimetrica({ tests }) {
 
     return {
       validCountByMetric: counts,
-      baselinesByMetric: baselines,
       chartData: rows,
       hasAnyPlottedValue: anyValid
     };
@@ -231,12 +229,14 @@ export default function GraficoMultimetrica({ tests }) {
 
   if (rawTests.length === 0) {
     return (
-      <div className="w-full bg-slate-900/90 p-4 rounded-xl border border-slate-800 text-center space-y-2 no-print shadow-xl">
-        <TrendingUp className="w-6 h-6 text-sky-400 mx-auto" />
-        <h4 className="text-sm font-bold text-slate-100">
+      <div className="w-full bg-white p-4 rounded-xl border border-slate-200/80 text-center space-y-2 print:hidden shadow-sm">
+        <div className="w-8 h-8 rounded-lg bg-slate-100 text-slate-600 flex items-center justify-center mx-auto">
+          <TrendingUp className="w-4 h-4 text-emerald-600" />
+        </div>
+        <h4 className="text-sm font-bold text-slate-900">
           Nessuna sessione disponibile per il Grafico Multimetrica
         </h4>
-        <p className="text-xs text-slate-400">
+        <p className="text-xs text-slate-500">
           Inserisci almeno un test nella Batteria Test per visualizzare il trend temporale.
         </p>
       </div>
@@ -244,32 +244,31 @@ export default function GraficoMultimetrica({ tests }) {
   }
 
   return (
-    <div className="w-full bg-slate-900/90 border border-slate-800 rounded-xl p-4 shadow-xl no-print font-sans text-white flex flex-col">
+    <div className="w-full bg-white border border-slate-200/80 rounded-xl p-4 shadow-sm print:hidden font-sans text-slate-900 flex flex-col">
       {/* HEADER + TOGGLE MODALITÀ */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 pb-3 mb-3 border-b border-slate-800">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 pb-3 mb-3 border-b border-slate-200">
         <div className="flex items-center gap-2">
-          <div className="p-1.5 bg-slate-950 border border-slate-800 rounded-lg text-sky-400">
-            <TrendingUp className="w-4 h-4" />
+          <div className="p-1 bg-slate-100 text-slate-600 rounded">
+            <TrendingUp className="w-4 h-4 text-emerald-600" />
           </div>
           <div>
-            <h3 className="font-bold text-slate-100 text-xs sm:text-sm uppercase tracking-wide">
+            <h3 className="font-bold text-slate-900 text-xs sm:text-sm uppercase tracking-wide">
               Grafico Multimetrica (Andamento Storico)
             </h3>
-            <p className="text-[11px] text-slate-400">
+            <p className="text-[11px] text-slate-500">
               Confronto longitudinale sui soli test realmente eseguiti
             </p>
           </div>
         </div>
 
-        {/* Toggle [% Variazione Relativa | Valori Assoluti] */}
-        <div className="flex items-center gap-1 bg-slate-950 p-1 rounded-xl border border-slate-800 self-start sm:self-auto shrink-0">
+        <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-xl border border-slate-200 self-start sm:self-auto shrink-0">
           <button
             type="button"
             onClick={() => setViewMode('relative')}
             className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition-all flex items-center gap-1 cursor-pointer ${
               viewMode === 'relative'
                 ? 'bg-emerald-600 text-white shadow-xs'
-                : 'text-slate-400 hover:text-white'
+                : 'text-slate-600 hover:text-slate-900'
             }`}
           >
             <Percent className="w-3 h-3" />
@@ -281,8 +280,8 @@ export default function GraficoMultimetrica({ tests }) {
             onClick={() => setViewMode('absolute')}
             className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition-all flex items-center gap-1 cursor-pointer ${
               viewMode === 'absolute'
-                ? 'bg-sky-500 text-slate-950 shadow-xs'
-                : 'text-slate-400 hover:text-white'
+                ? 'bg-emerald-700 text-white shadow-xs'
+                : 'text-slate-600 hover:text-slate-900'
             }`}
           >
             <BarChart2 className="w-3 h-3" />
@@ -303,8 +302,8 @@ export default function GraficoMultimetrica({ tests }) {
               onClick={() => toggleMetric(m.id)}
               className={`px-2.5 py-1 rounded-lg text-[11px] font-semibold transition-all flex items-center gap-1.5 cursor-pointer border ${
                 isActive
-                  ? 'bg-slate-800 text-white border-slate-600 shadow-xs'
-                  : 'bg-slate-950/60 text-slate-400 border-slate-800/80 opacity-75 hover:opacity-100'
+                  ? 'bg-emerald-50 text-emerald-800 border-emerald-300 shadow-2xs'
+                  : 'bg-slate-50 text-slate-500 border-slate-200 opacity-80 hover:opacity-100'
               }`}
             >
               <span
@@ -312,7 +311,7 @@ export default function GraficoMultimetrica({ tests }) {
                 style={{ backgroundColor: m.color }}
               />
               <span>{isActive ? `✓ ${m.label}` : m.label}</span>
-              <span className="text-[10px] font-mono text-slate-400">
+              <span className="text-[10px] font-mono text-slate-500">
                 {validCount > 0 ? `(${m.unit})` : '(N/A)'}
               </span>
             </button>
@@ -321,9 +320,9 @@ export default function GraficoMultimetrica({ tests }) {
       </div>
 
       {/* CONTENITORE GRAFICO AD ALTEZZA FISSA E RESPONSIVE (h-[380px]) */}
-      <div className="w-full h-[380px] bg-slate-950/60 rounded-xl border border-slate-800/80 p-3">
+      <div className="w-full h-[380px] bg-slate-50/70 rounded-xl border border-slate-200 p-3">
         {!hasAnyPlottedValue ? (
-          <div className="w-full h-full flex items-center justify-center text-xs text-slate-400 font-medium text-center px-4">
+          <div className="w-full h-full flex items-center justify-center text-xs text-slate-500 font-medium text-center px-4">
             Nessun dato rilevato per le metriche selezionate (Stato: Non testato / N/A).
           </div>
         ) : (
@@ -332,27 +331,27 @@ export default function GraficoMultimetrica({ tests }) {
               data={chartData}
               margin={{ top: 20, right: 24, left: 4, bottom: 8 }}
             >
-              <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" vertical={false} />
+              <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" vertical={false} />
               <XAxis
                 dataKey="name"
-                stroke="#94a3b8"
-                tick={{ fill: '#cbd5e1', fontSize: 11, fontWeight: 600 }}
-                tickLine={{ stroke: '#334155' }}
-                axisLine={{ stroke: '#334155' }}
+                stroke="#64748b"
+                tick={{ fill: '#334155', fontSize: 11, fontWeight: 600 }}
+                tickLine={{ stroke: '#cbd5e1' }}
+                axisLine={{ stroke: '#cbd5e1' }}
                 padding={{ left: 24, right: 24 }}
               />
               <YAxis
-                stroke="#94a3b8"
-                tick={{ fill: '#94a3b8', fontSize: 11 }}
-                tickLine={{ stroke: '#334155' }}
-                axisLine={{ stroke: '#334155' }}
+                stroke="#64748b"
+                tick={{ fill: '#64748b', fontSize: 11 }}
+                tickLine={{ stroke: '#cbd5e1' }}
+                axisLine={{ stroke: '#cbd5e1' }}
                 width={46}
                 tickFormatter={(val) => (viewMode === 'relative' ? `${val}%` : val)}
               />
               <Tooltip content={<CustomChartTooltip viewMode={viewMode} />} />
 
               {viewMode === 'relative' && (
-                <ReferenceLine y={0} stroke="#475569" strokeDasharray="4 4" />
+                <ReferenceLine y={0} stroke="#94a3b8" strokeDasharray="4 4" />
               )}
 
               {activeMetricDefs.map((m) => (
@@ -367,18 +366,18 @@ export default function GraficoMultimetrica({ tests }) {
                   dot={{
                     r: 5,
                     fill: m.color,
-                    stroke: '#0f172a',
+                    stroke: '#ffffff',
                     strokeWidth: 2
                   }}
                   activeDot={{
                     r: 7,
                     fill: m.color,
-                    stroke: '#f8fafc',
+                    stroke: '#0f172a',
                     strokeWidth: 2
                   }}
                   label={{
                     position: 'top',
-                    fill: '#f8fafc',
+                    fill: '#0f172a',
                     fontSize: 11,
                     fontWeight: 700,
                     formatter: (val) => {

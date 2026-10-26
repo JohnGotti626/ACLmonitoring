@@ -79,32 +79,49 @@ export const AuthProvider = ({ children }) => {
     }
   ]);
 
+  const AUTHORIZED_STAFF_EMAILS = [
+    'ceresoli.andrea@gmail.com',
+    'andreagotti96@outlook.it',
+    'benemapelli@gmail.com',
+    'nicolanasatti@gmail.com',
+    'nasattialice@gmail.com'
+  ];
+
   // Ascolta il rientro dal Magic Link (OTP via Email) di Supabase:
+  // - Se l'email è in staff_users / AUTHORIZED_STAFF_EMAILS, autorizza come ADMIN (Terapista).
   // - Se il dispositivo è di un Cliente, forza role = 'patient'.
-  // - Se il dispositivo è il TUO (Terapista) e torni sull'URL del gestionale, ti riconosce automaticamente come ADMIN!
   useEffect(() => {
     if (!isSupabaseConfigured) return;
 
     const handleSession = async (activeSession) => {
       if (!activeSession?.user) return;
-      const access = checkDeviceAccess();
-      if (access.isTherapistDevice && !access.viewingClientPortal) {
-        // Il Terapista sta aprendo il gestionale sul proprio dispositivo: disconnette l'eventuale sessione Magic Link di test
-        supabase.auth.signOut().catch(() => {});
-        setSession(null);
-        setRole('ADMIN');
-        return;
-      }
+      const normalizedEmail = (activeSession.user.email || '').trim().toLowerCase();
 
-      // Verifica se l'email del Magic Link appartiene a un collega Terapista/Admin registrato in profili_utenti
-      if (activeSession.user.email) {
-        const { data: staffProfile } = await supabase
-          .from('profili_utenti')
-          .select('ruolo')
-          .ilike('email', activeSession.user.email.trim())
-          .maybeSingle();
+      // 1. Controllo immediato email Terapisti autorizzati (lista + tabella staff_users + profili_utenti)
+      if (normalizedEmail) {
+        let isAuthorizedStaff = AUTHORIZED_STAFF_EMAILS.includes(normalizedEmail);
 
-        if (staffProfile && ['ADMIN', 'STAFF'].includes((staffProfile.ruolo || '').toUpperCase())) {
+        if (!isAuthorizedStaff) {
+          const { data: staffRow } = await supabase
+            .from('staff_users')
+            .select('email')
+            .ilike('email', normalizedEmail)
+            .maybeSingle();
+          if (staffRow?.email) isAuthorizedStaff = true;
+        }
+
+        if (!isAuthorizedStaff) {
+          const { data: staffProfile } = await supabase
+            .from('profili_utenti')
+            .select('ruolo')
+            .ilike('email', normalizedEmail)
+            .maybeSingle();
+          if (staffProfile && ['ADMIN', 'STAFF'].includes((staffProfile.ruolo || '').toUpperCase())) {
+            isAuthorizedStaff = true;
+          }
+        }
+
+        if (isAuthorizedStaff) {
           try {
             localStorage.setItem('acl_therapist_device', 'true');
             localStorage.removeItem('acl_client_only');
@@ -114,6 +131,15 @@ export const AuthProvider = ({ children }) => {
           setRole('ADMIN');
           return;
         }
+      }
+
+      const access = checkDeviceAccess();
+      if (access.isTherapistDevice && !access.viewingClientPortal) {
+        // Il Terapista sta aprendo il gestionale sul proprio dispositivo: disconnette l'eventuale sessione Magic Link di test
+        supabase.auth.signOut().catch(() => {});
+        setSession(null);
+        setRole('ADMIN');
+        return;
       }
 
       setSession(activeSession);

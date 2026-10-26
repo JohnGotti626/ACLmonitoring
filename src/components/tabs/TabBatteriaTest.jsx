@@ -10,7 +10,9 @@ import {
   CheckSquare,
   Check,
   Layers,
-  CalendarRange
+  CalendarRange,
+  Sliders,
+  Trash2
 } from 'lucide-react';
 import ModalNuovaValutazione from '../ModalNuovaValutazione';
 import GraficoMultimetrica from '../GraficoMultimetrica';
@@ -21,7 +23,8 @@ import {
   saveTestToSupabase,
   sortTestsByDate,
   getLastValidMetricWithMeta,
-  toStrictNullOrNumber
+  toStrictNullOrNumber,
+  hideCustomMetricInSupabase
 } from '../../utils/testUtils';
 import { UIErrorBoundary } from '../UIErrorBoundary';
 
@@ -40,21 +43,16 @@ const calcRatioLsi = (val1, val2) => {
 };
 
 export default function TabBatteriaTest({ patient, activePhase, onSaveTest }) {
-  // State Modal Rilevazione Modulare Test
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingTest, setEditingTest] = useState(null);
   const [initialModalModule, setInitialModalModule] = useState('ISO_EXT');
-
-  // Toggle Raggruppamento in Sessione/Report (14 giorni) vs Singole Rilevazioni
   const [groupByReportSession, setGroupByReportSession] = useState(true);
-
-  // Sub-Tab Superiori a Sinistra (Default: CMJ Bilaterale)
   const [activeSubTab, setActiveSubTab] = useState('CMJ_BILATERAL');
 
-  // Mappa la sotto-tab attiva al modulo corrispondente nel modale
   const getDefaultModuleForSubTab = (subTab) => {
     switch (subTab) {
       case 'LSI':
+        return 'CLINICAL_SCORES';
       case 'FORZA':
         return 'ISO_EXT';
       case 'CMJ_BILATERAL':
@@ -70,7 +68,26 @@ export default function TabBatteriaTest({ patient, activePhase, onSaveTest }) {
     }
   };
 
-  // Mapper fase riabilitativa -> chiave fase per la Batteria Test
+  // Mappa la sotto-tab ai codici `test_type` di cui mostrare le metriche personalizzate
+  const getCustomTestTypesForSubTab = (subTab) => {
+    switch (subTab) {
+      case 'LSI':
+        return ['SCORE_CLINICI', 'ISO_PUSH_LEG_EXT', 'ISO_PUSH_LEG_CURL'];
+      case 'FORZA':
+        return ['ISO_PUSH_LEG_EXT', 'ISO_PUSH_LEG_CURL', 'FORZA_ACCESSORIA'];
+      case 'CMJ_BILATERAL':
+        return ['CMJ_BILATERALE'];
+      case 'CMJ_SL':
+        return ['CMJ_MONOPODALICO'];
+      case 'DJ_BILATERAL':
+        return ['RSI_DROP_JUMP'];
+      case 'DJ_SL':
+        return ['SL_DROP_JUMP'];
+      default:
+        return ['ISO_PUSH_LEG_EXT'];
+    }
+  };
+
   const getPhaseKeyForBatteria = (fase) => {
     if (!fase) return 'Fase 3 (>80%)';
     const str = String(fase).toLowerCase();
@@ -93,7 +110,6 @@ export default function TabBatteriaTest({ patient, activePhase, onSaveTest }) {
     }
   }, [patient?.fase_riabilitativa, activePhase]);
 
-  // CHECKLIST QUALITATIVA FASI 2, 3, 4
   const [phase2Checklist, setPhase2Checklist] = useState({
     extensionComplete: true,
     noEffusion: true,
@@ -114,7 +130,6 @@ export default function TabBatteriaTest({ patient, activePhase, onSaveTest }) {
     weeklyLoadTolerance: true
   });
 
-  // STORICO TEST REGISTRATI NEL TEMPO
   const [testsHistory, setTestsHistory] = useState(() => sortTestsByDate(patient?.tests));
   const [selectedTestId, setSelectedTestId] = useState(() => {
     const cleanTests = sortTestsByDate(patient?.tests);
@@ -131,7 +146,6 @@ export default function TabBatteriaTest({ patient, activePhase, onSaveTest }) {
     }
   }, [patient?.id, patient?.tests]);
 
-  // Elenco sessioni visualizzate: aggregate in Report (finestra 14gg / session_id) oppure singole
   const displayedSessions = useMemo(() => {
     if (groupByReportSession) {
       return aggregateTestsIntoSessions(testsHistory, 14);
@@ -143,7 +157,6 @@ export default function TabBatteriaTest({ patient, activePhase, onSaveTest }) {
     displayedSessions.find(t => t.id === selectedTestId) ||
     (displayedSessions.length > 0 ? displayedSessions[displayedSessions.length - 1] : null);
 
-  // CONFIGURAZIONE CLINICA FASI & TARGET
   const phaseConfig = {
     'Fase 1': {
       name: '🔴 FASE 1: Early Stage (ROM & AMI)',
@@ -172,7 +185,6 @@ export default function TabBatteriaTest({ patient, activePhase, onSaveTest }) {
 
   const currentPhase = phaseConfig[selectedPhase] || phaseConfig['Fase 3 (>80%)'];
 
-  // CONFIGURAZIONE BARRE TARGET PRESTATIVI (Titoli completi leggibili, zero date, null filtrati)
   let cupsData = [];
 
   if (currentPhase.isEarlyStage) {
@@ -424,7 +436,6 @@ export default function TabBatteriaTest({ patient, activePhase, onSaveTest }) {
     ];
   }
 
-  // Salvataggio o merge in una Sessione / Report esistente (preservando i test precedenti della sessione e mantenendo null i campi non testati)
   const handleModalSave = async (newValData) => {
     const targetId = newValData.id || editingTest?.id;
     const existingMatch = targetId ? testsHistory.find(t => t.id === targetId) : null;
@@ -464,7 +475,36 @@ export default function TabBatteriaTest({ patient, activePhase, onSaveTest }) {
     }
   };
 
-  // SOTTO-TAB PER TUTTI I DOMINI (Senza alcun numero hardcoded fittizio: se non testato restituisce 'Non testato')
+  // Elimina/Nasconde una metrica personalizzata direttamente dalla tabella longitudinale
+  const handleHideCustomMetricFromTable = async (testType, metricName) => {
+    const updatedHistory = testsHistory.map(session => {
+      const cm = session.custom_metrics;
+      if (!cm || !Array.isArray(cm[testType])) return session;
+      const nextList = cm[testType].map(item => {
+        if (item.metric_name?.trim().toLowerCase() === metricName.trim().toLowerCase()) {
+          return { ...item, is_hidden: true };
+        }
+        return item;
+      });
+      return {
+        ...session,
+        custom_metrics: {
+          ...cm,
+          [testType]: nextList
+        }
+      };
+    });
+
+    const sortedUpdated = sortTestsByDate(updatedHistory);
+    setTestsHistory(sortedUpdated);
+    if (onSaveTest) {
+      onSaveTest(sortedUpdated);
+    }
+    if (patient?.id) {
+      await hideCustomMetricInSupabase(patient.id, testType, metricName);
+    }
+  };
+
   const getSubTabRows = () => {
     const fmtSingle = (val, unitStr = '') => {
       const n = toStrictNullOrNumber(val, false);
@@ -478,15 +518,17 @@ export default function TabBatteriaTest({ patient, activePhase, onSaveTest }) {
       return `${sx ?? 'N/A'} / ${dx ?? 'N/A'}`;
     };
 
+    let standardRows = [];
+
     switch (activeSubTab) {
       case 'LSI':
-        return [
+        standardRows = [
           {
             key: 'lsiQuad',
             deltaKey: 'lsiQuadDelta',
             label: 'LSI Quadricipite Iso Push',
             unit: '%',
-            dotColor: 'bg-emerald-400',
+            dotColor: 'bg-emerald-600',
             getRawValue: (t) => toStrictNullOrNumber(t?.lsiQuad ?? t?.lsi_quad_calculated),
             getValue: (t) => fmtSingle(t?.lsiQuad ?? t?.lsi_quad_calculated, '%')
           },
@@ -495,7 +537,7 @@ export default function TabBatteriaTest({ patient, activePhase, onSaveTest }) {
             deltaKey: 'lsiFlexDelta',
             label: 'LSI Ischiocrurali Leg Curl',
             unit: '%',
-            dotColor: 'bg-emerald-400',
+            dotColor: 'bg-emerald-600',
             getRawValue: (t) => toStrictNullOrNumber(t?.lsiFlex ?? t?.lsi_curl_calculated),
             getValue: (t) => fmtSingle(t?.lsiFlex ?? t?.lsi_curl_calculated, '%')
           },
@@ -503,7 +545,7 @@ export default function TabBatteriaTest({ patient, activePhase, onSaveTest }) {
             key: 'lsiSingleHop',
             label: 'LSI Single Hop Test',
             unit: '%',
-            dotColor: 'bg-emerald-400',
+            dotColor: 'bg-emerald-600',
             getRawValue: (t) => toStrictNullOrNumber(t?.lsiSingleHop ?? t?.lsi_single_hop),
             getValue: (t) => fmtSingle(t?.lsiSingleHop ?? t?.lsi_single_hop, '%')
           },
@@ -511,7 +553,7 @@ export default function TabBatteriaTest({ patient, activePhase, onSaveTest }) {
             key: 'lsiTripleHop',
             label: 'LSI Triple Hop Test',
             unit: '%',
-            dotColor: 'bg-emerald-400',
+            dotColor: 'bg-emerald-600',
             getRawValue: (t) => toStrictNullOrNumber(t?.lsiTripleHop ?? t?.lsi_triple_hop),
             getValue: (t) => fmtSingle(t?.lsiTripleHop ?? t?.lsi_triple_hop, '%')
           },
@@ -519,7 +561,7 @@ export default function TabBatteriaTest({ patient, activePhase, onSaveTest }) {
             key: 'ikdc',
             label: 'Score IKDC Soggettivo',
             unit: '/100',
-            dotColor: 'bg-sky-400',
+            dotColor: 'bg-teal-600',
             getRawValue: (t) => toStrictNullOrNumber(t?.ikdc ?? t?.ikdc_score),
             getValue: (t) => fmtSingle(t?.ikdc ?? t?.ikdc_score, 'pts')
           },
@@ -527,19 +569,20 @@ export default function TabBatteriaTest({ patient, activePhase, onSaveTest }) {
             key: 'aclrsi',
             label: 'Score ACL-RSI Psicometrico',
             unit: '/100',
-            dotColor: 'bg-cyan-400',
+            dotColor: 'bg-teal-600',
             getRawValue: (t) => toStrictNullOrNumber(t?.aclrsi ?? t?.acl_rsi),
             getValue: (t) => fmtSingle(t?.aclrsi ?? t?.acl_rsi, 'pts')
           }
         ];
+        break;
 
       case 'FORZA':
-        return [
+        standardRows = [
           {
             key: 'quadSano',
             label: 'Iso Push Leg Ext (SX)',
             unit: 'N',
-            dotColor: 'bg-sky-400',
+            dotColor: 'bg-emerald-600',
             getRawValue: (t) => toStrictNullOrNumber(t?.quadSano ?? t?.iso_leg_ext_sx),
             getValue: (t) => fmtSingle(t?.quadSano ?? t?.iso_leg_ext_sx, 'N')
           },
@@ -547,7 +590,7 @@ export default function TabBatteriaTest({ patient, activePhase, onSaveTest }) {
             key: 'quadOp',
             label: 'Iso Push Leg Ext (DX)',
             unit: 'N',
-            dotColor: 'bg-pink-400',
+            dotColor: 'bg-teal-600',
             getRawValue: (t) => toStrictNullOrNumber(t?.quadOp ?? t?.iso_leg_ext_dx),
             getValue: (t) => fmtSingle(t?.quadOp ?? t?.iso_leg_ext_dx, 'N')
           },
@@ -555,7 +598,7 @@ export default function TabBatteriaTest({ patient, activePhase, onSaveTest }) {
             key: 'flexSano',
             label: 'Iso Push Leg Curl (SX)',
             unit: 'N',
-            dotColor: 'bg-sky-400',
+            dotColor: 'bg-emerald-600',
             getRawValue: (t) => toStrictNullOrNumber(t?.flexSano ?? t?.iso_leg_curl_sx),
             getValue: (t) => fmtSingle(t?.flexSano ?? t?.iso_leg_curl_sx, 'N')
           },
@@ -563,7 +606,7 @@ export default function TabBatteriaTest({ patient, activePhase, onSaveTest }) {
             key: 'flexOp',
             label: 'Iso Push Leg Curl (DX)',
             unit: 'N',
-            dotColor: 'bg-pink-400',
+            dotColor: 'bg-teal-600',
             getRawValue: (t) => toStrictNullOrNumber(t?.flexOp ?? t?.iso_leg_curl_dx),
             getValue: (t) => fmtSingle(t?.flexOp ?? t?.iso_leg_curl_dx, 'N')
           },
@@ -571,7 +614,7 @@ export default function TabBatteriaTest({ patient, activePhase, onSaveTest }) {
             key: 'bulgarianSX',
             label: 'Bulgarian 6RM (SX)',
             unit: 'kg',
-            dotColor: 'bg-sky-400',
+            dotColor: 'bg-emerald-600',
             getRawValue: (t) => toStrictNullOrNumber(t?.bulgarianSX ?? t?.bulgarian_sx),
             getValue: (t) => fmtSingle(t?.bulgarianSX ?? t?.bulgarian_sx, 'kg')
           },
@@ -579,7 +622,7 @@ export default function TabBatteriaTest({ patient, activePhase, onSaveTest }) {
             key: 'bulgarianDX',
             label: 'Bulgarian 6RM (DX)',
             unit: 'kg',
-            dotColor: 'bg-pink-400',
+            dotColor: 'bg-teal-600',
             getRawValue: (t) => toStrictNullOrNumber(t?.bulgarianDX ?? t?.bulgarian_dx),
             getValue: (t) => fmtSingle(t?.bulgarianDX ?? t?.bulgarian_dx, 'kg')
           },
@@ -587,7 +630,7 @@ export default function TabBatteriaTest({ patient, activePhase, onSaveTest }) {
             key: 'soleoSX',
             label: 'Soleo Seduto (SX)',
             unit: 'kg',
-            dotColor: 'bg-sky-400',
+            dotColor: 'bg-emerald-600',
             getRawValue: (t) => toStrictNullOrNumber(t?.soleoSX ?? t?.soleo_sx),
             getValue: (t) => fmtSingle(t?.soleoSX ?? t?.soleo_sx, 'kg')
           },
@@ -595,7 +638,7 @@ export default function TabBatteriaTest({ patient, activePhase, onSaveTest }) {
             key: 'soleoDX',
             label: 'Soleo Seduto (DX)',
             unit: 'kg',
-            dotColor: 'bg-pink-400',
+            dotColor: 'bg-teal-600',
             getRawValue: (t) => toStrictNullOrNumber(t?.soleoDX ?? t?.soleo_dx),
             getValue: (t) => fmtSingle(t?.soleoDX ?? t?.soleo_dx, 'kg')
           },
@@ -603,19 +646,20 @@ export default function TabBatteriaTest({ patient, activePhase, onSaveTest }) {
             key: 'imtpForce',
             label: 'IMTP Peak Force',
             unit: 'N',
-            dotColor: 'bg-amber-400',
+            dotColor: 'bg-amber-500',
             getRawValue: (t) => toStrictNullOrNumber(t?.imtpForce ?? t?.imtp_peak_force),
             getValue: (t) => fmtSingle(t?.imtpForce ?? t?.imtp_peak_force, 'N')
           }
         ];
+        break;
 
       case 'CMJ_BILATERAL':
-        return [
+        standardRows = [
           {
             key: 'jumpHeight',
             label: 'Altezza Salto',
             unit: 'cm',
-            dotColor: 'bg-emerald-400',
+            dotColor: 'bg-emerald-600',
             getRawValue: (t) => toStrictNullOrNumber(t?.jumpHeight ?? t?.jump_height_cm ?? t?.altezza_salto),
             getValue: (t) => fmtSingle(t?.jumpHeight ?? t?.jump_height_cm ?? t?.altezza_salto, 'cm')
           },
@@ -623,7 +667,7 @@ export default function TabBatteriaTest({ patient, activePhase, onSaveTest }) {
             key: 'rsiCmj',
             label: 'RSImod',
             unit: 'm/s',
-            dotColor: 'bg-emerald-400',
+            dotColor: 'bg-emerald-600',
             getRawValue: (t) => {
               const direct = toStrictNullOrNumber(t?.rsiCmj ?? t?.rsi_cmj ?? t?.rsi_mod);
               if (direct !== null) return direct;
@@ -646,7 +690,7 @@ export default function TabBatteriaTest({ patient, activePhase, onSaveTest }) {
             key: 'peakPower',
             label: 'Peak Power / BM',
             unit: 'W/kg',
-            dotColor: 'bg-emerald-400',
+            dotColor: 'bg-emerald-600',
             getRawValue: (t) => toStrictNullOrNumber(t?.peakPower ?? t?.peak_power_w ?? t?.potenza_picco),
             getValue: (t) => fmtSingle(t?.peakPower ?? t?.peak_power_w ?? t?.potenza_picco, 'W/kg')
           },
@@ -654,7 +698,7 @@ export default function TabBatteriaTest({ patient, activePhase, onSaveTest }) {
             key: 'cmjDepth',
             label: 'Countermovement Depth',
             unit: 'cm',
-            dotColor: 'bg-cyan-400',
+            dotColor: 'bg-teal-600',
             getRawValue: (t) => toStrictNullOrNumber(t?.cmjDepth ?? t?.cmj_depth),
             getValue: (t) => fmtSingle(t?.cmjDepth ?? t?.cmj_depth, 'cm')
           },
@@ -662,7 +706,7 @@ export default function TabBatteriaTest({ patient, activePhase, onSaveTest }) {
             key: 'contractionTime',
             label: 'Contraction Time',
             unit: 'ms',
-            dotColor: 'bg-amber-400',
+            dotColor: 'bg-amber-500',
             getRawValue: (t) => toStrictNullOrNumber(t?.contractionTime ?? t?.contraction_time_ms),
             getValue: (t) => fmtSingle(t?.contractionTime ?? t?.contraction_time_ms, 'ms')
           },
@@ -670,7 +714,7 @@ export default function TabBatteriaTest({ patient, activePhase, onSaveTest }) {
             key: 'eccBrakingRfd',
             label: 'Eccentric Braking RFD',
             unit: 'N/s',
-            dotColor: 'bg-purple-400',
+            dotColor: 'bg-teal-600',
             getRawValue: (t) => toStrictNullOrNumber(t?.eccBrakingRfd ?? t?.ecc_braking_rfd),
             getValue: (t) => fmtSingle(t?.eccBrakingRfd ?? t?.ecc_braking_rfd, 'N/s')
           },
@@ -678,7 +722,7 @@ export default function TabBatteriaTest({ patient, activePhase, onSaveTest }) {
             key: 'concImpulseSplit',
             label: 'Concentric Impulse (SX / DX)',
             unit: 'N·s',
-            dotColor: 'bg-cyan-400',
+            dotColor: 'bg-emerald-600',
             getValue: (t) => fmtPair(t?.concImpulseSX ?? t?.conc_impulse_sx, t?.concImpulseDX ?? t?.conc_impulse_dx),
             getTooltip: (t) => {
               const sx = toStrictNullOrNumber(t?.concImpulseSX ?? t?.conc_impulse_sx);
@@ -695,14 +739,15 @@ export default function TabBatteriaTest({ patient, activePhase, onSaveTest }) {
             }
           }
         ];
+        break;
 
       case 'CMJ_SL':
-        return [
+        standardRows = [
           {
             key: 'slCmjHeightSplit',
             label: 'Altezza Salto (SX / DX)',
             unit: 'cm',
-            dotColor: 'bg-cyan-400',
+            dotColor: 'bg-emerald-600',
             getValue: (t) => fmtPair(t?.slCmjHeightSX, t?.slCmjHeightDX),
             getTooltip: (t) => {
               const sx = toStrictNullOrNumber(t?.slCmjHeightSX);
@@ -717,7 +762,7 @@ export default function TabBatteriaTest({ patient, activePhase, onSaveTest }) {
             key: 'slCmjPeakPowerSplit',
             label: 'Peak Power / BM (SX / DX)',
             unit: 'W/kg',
-            dotColor: 'bg-sky-400',
+            dotColor: 'bg-teal-600',
             getValue: (t) => fmtPair(t?.slCmjPeakPowerSX, t?.slCmjPeakPowerDX),
             getTooltip: (t) => {
               const sx = toStrictNullOrNumber(t?.slCmjPeakPowerSX);
@@ -732,7 +777,7 @@ export default function TabBatteriaTest({ patient, activePhase, onSaveTest }) {
             key: 'slCmjRsiSplit',
             label: 'RSImod (SX / DX)',
             unit: 'm/s',
-            dotColor: 'bg-emerald-400',
+            dotColor: 'bg-emerald-600',
             getValue: (t) => fmtPair(t?.slCmjRsiSX, t?.slCmjRsiDX),
             getTooltip: (t) => {
               const sx = toStrictNullOrNumber(t?.slCmjRsiSX);
@@ -747,7 +792,7 @@ export default function TabBatteriaTest({ patient, activePhase, onSaveTest }) {
             key: 'slCmjDepthSplit',
             label: 'Countermovement Depth (SX / DX)',
             unit: 'cm',
-            dotColor: 'bg-purple-400',
+            dotColor: 'bg-teal-600',
             getValue: (t) => fmtPair(t?.slCmjDepthSX, t?.slCmjDepthDX),
             getTooltip: (t) => {
               const sx = toStrictNullOrNumber(t?.slCmjDepthSX);
@@ -759,14 +804,15 @@ export default function TabBatteriaTest({ patient, activePhase, onSaveTest }) {
             }
           }
         ];
+        break;
 
       case 'DJ_BILATERAL':
-        return [
+        standardRows = [
           {
             key: 'djBoxHeight',
             label: 'Altezza Caduta Box',
             unit: '-',
-            dotColor: 'bg-amber-400',
+            dotColor: 'bg-amber-500',
             getValue: (t) => {
               const hasAnyDj =
                 toStrictNullOrNumber(t?.djJumpHeight) !== null ||
@@ -779,7 +825,7 @@ export default function TabBatteriaTest({ patient, activePhase, onSaveTest }) {
             key: 'djJumpHeight',
             label: 'Altezza Salto (cm)',
             unit: 'cm',
-            dotColor: 'bg-emerald-400',
+            dotColor: 'bg-emerald-600',
             getRawValue: (t) => toStrictNullOrNumber(t?.djJumpHeight),
             getValue: (t) => fmtSingle(t?.djJumpHeight, 'cm')
           },
@@ -787,7 +833,7 @@ export default function TabBatteriaTest({ patient, activePhase, onSaveTest }) {
             key: 'djContactTime',
             label: 'Ground Contact Time GCT (<250ms)',
             unit: 'ms',
-            dotColor: 'bg-amber-400',
+            dotColor: 'bg-amber-500',
             getRawValue: (t) => toStrictNullOrNumber(t?.djContactTime),
             getValue: (t) => fmtSingle(t?.djContactTime, 'ms')
           },
@@ -795,7 +841,7 @@ export default function TabBatteriaTest({ patient, activePhase, onSaveTest }) {
             key: 'rsiDropJump',
             label: '1. Efficienza Pliometrica RSI (>2.0)',
             unit: 'idx',
-            dotColor: 'bg-emerald-400',
+            dotColor: 'bg-emerald-600',
             getRawValue: (t) => toStrictNullOrNumber(t?.rsiDropJump ?? t?.djRSI ?? t?.dj_rsi),
             getValue: (t) => fmtSingle(t?.rsiDropJump ?? t?.djRSI ?? t?.dj_rsi, 'idx')
           },
@@ -803,7 +849,7 @@ export default function TabBatteriaTest({ patient, activePhase, onSaveTest }) {
             key: 'djTtpfMs',
             label: '2. Time to Peak Force TTPF (80-120ms)',
             unit: 'ms',
-            dotColor: 'bg-cyan-400',
+            dotColor: 'bg-teal-600',
             getRawValue: (t) => toStrictNullOrNumber(t?.djTtpfMs),
             getValue: (t) => fmtSingle(t?.djTtpfMs, 'ms')
           },
@@ -811,7 +857,7 @@ export default function TabBatteriaTest({ patient, activePhase, onSaveTest }) {
             key: 'djTakeoffAsymMs',
             label: '3. Asimmetria Temporale Stacco (<10ms)',
             unit: 'ms',
-            dotColor: 'bg-emerald-400',
+            dotColor: 'bg-emerald-600',
             getRawValue: (t) => toStrictNullOrNumber(t?.djTakeoffAsymMs, true),
             getValue: (t) => {
               const v = toStrictNullOrNumber(t?.djTakeoffAsymMs, true);
@@ -822,7 +868,7 @@ export default function TabBatteriaTest({ patient, activePhase, onSaveTest }) {
             key: 'djLandingPeakLsi',
             label: 'Landing Peak Force LSI (>=90%)',
             unit: '%',
-            dotColor: 'bg-pink-400',
+            dotColor: 'bg-emerald-600',
             getRawValue: (t) => {
               const direct = toStrictNullOrNumber(t?.djLandingPeakLsi);
               if (direct !== null) return direct;
@@ -840,7 +886,7 @@ export default function TabBatteriaTest({ patient, activePhase, onSaveTest }) {
             key: 'djConcImpulseLsi',
             label: 'Concentric Impulse LSI (>=95%)',
             unit: '%',
-            dotColor: 'bg-cyan-400',
+            dotColor: 'bg-teal-600',
             getRawValue: (t) => {
               const direct = toStrictNullOrNumber(t?.djConcImpulseLsi);
               if (direct !== null) return direct;
@@ -855,14 +901,15 @@ export default function TabBatteriaTest({ patient, activePhase, onSaveTest }) {
             }
           }
         ];
+        break;
 
       case 'DJ_SL':
-        return [
+        standardRows = [
           {
             key: 'slDjBoxHeight',
             label: 'Altezza Caduta Box',
             unit: 'cm',
-            dotColor: 'bg-amber-400',
+            dotColor: 'bg-amber-500',
             getValue: (t) => {
               const hasAnySlDj =
                 toStrictNullOrNumber(t?.slDjCtSX) !== null ||
@@ -875,45 +922,102 @@ export default function TabBatteriaTest({ patient, activePhase, onSaveTest }) {
             key: 'slDjCtSplit',
             label: 'Ground Contact Time (SX / DX)',
             unit: 'ms',
-            dotColor: 'bg-amber-400',
+            dotColor: 'bg-amber-500',
             getValue: (t) => fmtPair(t?.slDjCtSX, t?.slDjCtDX)
           },
           {
             key: 'slDjRsiSplit',
             label: 'RSI (SX / DX)',
             unit: 'm/s',
-            dotColor: 'bg-emerald-400',
+            dotColor: 'bg-emerald-600',
             getValue: (t) => fmtPair(t?.slDjRsiSX, t?.slDjRsiDX)
           },
           {
             key: 'slDjHeightSplit',
             label: 'Altezza Salto (SX / DX)',
             unit: 'cm',
-            dotColor: 'bg-sky-400',
+            dotColor: 'bg-teal-600',
             getValue: (t) => fmtPair(t?.slDjHeightSX, t?.slDjHeightDX)
           },
           {
             key: 'slDjBrakingSplit',
             label: 'Braking Impulse (SX / DX)',
             unit: 'N·s',
-            dotColor: 'bg-purple-400',
+            dotColor: 'bg-emerald-600',
             getValue: (t) => fmtPair(t?.slDjBrakingSX, t?.slDjBrakingDX)
           }
         ];
+        break;
 
       default:
-        return [];
+        standardRows = [];
     }
+
+    // Estrae tutte le metriche personalizzate (non nascoste) associate al dominio corrente
+    const relevantTestTypes = getCustomTestTypesForSubTab(activeSubTab);
+    const customMetricsMap = new Map();
+    const hiddenMetricsSet = new Set();
+
+    displayedSessions.forEach(sess => {
+      const cmObj = sess?.custom_metrics;
+      if (!cmObj || typeof cmObj !== 'object') return;
+      relevantTestTypes.forEach(tType => {
+        const list = cmObj[tType];
+        if (!Array.isArray(list)) return;
+        list.forEach(m => {
+          if (!m?.metric_name) return;
+          const compositeKey = `${tType}::${m.metric_name.trim().toLowerCase()}`;
+          if (m.is_hidden) {
+            hiddenMetricsSet.add(compositeKey);
+            customMetricsMap.delete(compositeKey);
+          } else if (!hiddenMetricsSet.has(compositeKey)) {
+            customMetricsMap.set(compositeKey, {
+              testType: tType,
+              metricName: m.metric_name.trim(),
+              unit: m.unit || customMetricsMap.get(compositeKey)?.unit || ''
+            });
+          }
+        });
+      });
+    });
+
+    const dynamicCustomRows = Array.from(customMetricsMap.values()).map(cmDef => ({
+      key: `custom_${cmDef.testType}_${cmDef.metricName}`,
+      label: cmDef.metricName,
+      unit: cmDef.unit || '',
+      isCustomMetric: true,
+      customTestType: cmDef.testType,
+      customMetricName: cmDef.metricName,
+      dotColor: 'bg-emerald-500',
+      getRawValue: (t) => {
+        const arr = t?.custom_metrics?.[cmDef.testType];
+        if (!Array.isArray(arr)) return null;
+        const found = arr.find(
+          item => !item.is_hidden && item.metric_name?.trim().toLowerCase() === cmDef.metricName.toLowerCase()
+        );
+        return found ? toStrictNullOrNumber(found.metric_value, true) : null;
+      },
+      getValue: (t) => {
+        const arr = t?.custom_metrics?.[cmDef.testType];
+        if (!Array.isArray(arr)) return 'Non testato';
+        const found = arr.find(
+          item => !item.is_hidden && item.metric_name?.trim().toLowerCase() === cmDef.metricName.toLowerCase()
+        );
+        const val = found ? toStrictNullOrNumber(found.metric_value, true) : null;
+        if (val === null) return 'Non testato';
+        return `${val}${cmDef.unit ? ` ${cmDef.unit}` : ''}`;
+      }
+    }));
+
+    return [...standardRows, ...dynamicCustomRows];
   };
 
   const rows = getSubTabRows();
 
-  // Calcolo variazione percentuale % ignorando rigorosamente i test intermedi in cui la metrica è null / Non testata
   const getDeltaText = (row, currTest, tIdx) => {
     const currVal = row.getRawValue ? row.getRawValue(currTest) : toStrictNullOrNumber(currTest?.[row.key]);
     if (currVal === null || tIdx === 0) return null;
 
-    // Cerca a ritroso la sessione precedente più recente in cui questa metrica era stata effettivamente rilevata
     for (let p = tIdx - 1; p >= 0; p--) {
       const prevSession = displayedSessions[p];
       const prevVal = row.getRawValue ? row.getRawValue(prevSession) : toStrictNullOrNumber(prevSession?.[row.key]);
@@ -963,280 +1067,302 @@ export default function TabBatteriaTest({ patient, activePhase, onSaveTest }) {
       {/* COLONNA SINISTRA (2/3): TABELLA LONGITUDINALE + GRAFICO MULTIMETRICA      */}
       {/* ========================================================================= */}
       <div className="lg:col-span-2 flex flex-col gap-6 w-full min-w-0">
-        <div className="bg-slate-900/90 p-4 sm:p-5 rounded-xl border border-slate-800 space-y-4 shadow-xl w-full flex flex-col justify-between">
+        <div className="bg-white p-4 sm:p-5 rounded-xl border border-slate-200/80 space-y-4 shadow-sm w-full flex flex-col justify-between break-inside-avoid">
 
-        {/* Header Tabella + Pulsanti Inserimento Modulare e Raggruppamento Report */}
-        <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-3 pb-3.5 border-b border-slate-700/60">
-          <div className="flex items-center gap-2.5">
-            <div className="p-2 rounded-xl bg-slate-900 border border-slate-700/70 text-emerald-400 shadow-xs">
-              <Flame className="w-4 h-4 text-emerald-400" />
+          {/* Header Tabella + Pulsanti Inserimento Modulare e Raggruppamento Report */}
+          <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-3 pb-3.5 border-b border-slate-200">
+            <div className="flex items-center gap-2.5">
+              <div className="p-1 bg-slate-100 text-slate-600 rounded shrink-0">
+                <Flame className="w-4 h-4 text-emerald-600" />
+              </div>
+              <div>
+                <h3 className="font-bold text-slate-900 text-sm sm:text-base tracking-wide uppercase">
+                  REPORT &amp; SESSIONI DI VALUTAZIONE CLINICA
+                </h3>
+                <p className="text-xs text-slate-500 font-medium mt-0.5">
+                  I test effettuati in giorni diversi (7-14 gg) confluiscono nel Report; include metriche standard e personalizzate
+                </p>
+              </div>
             </div>
-            <div>
-              <h3 className="font-bold text-slate-100 text-sm sm:text-base tracking-wide uppercase">
-                REPORT &amp; SESSIONI DI VALUTAZIONE CLINICA
-              </h3>
-              <p className="text-xs text-slate-400 font-medium mt-0.5">
-                I test effettuati in giorni diversi (7-14 gg) confluiscono nel Report di Sessione; i test assenti sono ignorati (<code className="text-slate-300">Non testato</code>)
-              </p>
-            </div>
-          </div>
 
-          <div className="flex flex-wrap items-center gap-2 self-start xl:self-auto">
-            {/* Toggle Raggruppamento Report 14gg vs Singole Date */}
-            <button
-              type="button"
-              onClick={() => setGroupByReportSession(prev => !prev)}
-              title="Unisce automaticamente i singoli test eseguiti nell'arco di 7-14 giorni in un unico Report di Valutazione"
-              className={`px-3 py-2 rounded-xl text-xs font-semibold flex items-center gap-1.5 border transition-all cursor-pointer ${
-                groupByReportSession
-                  ? 'bg-sky-500/15 text-sky-300 border-sky-500/40'
-                  : 'bg-slate-900 text-slate-400 border-slate-700 hover:text-slate-200'
-              }`}
-            >
-              <CalendarRange className="w-3.5 h-3.5" />
-              <span>{groupByReportSession ? 'Report Aggregato (7-14gg)' : 'Singole Rilevazioni'}</span>
-            </button>
+            <div className="flex flex-wrap items-center gap-2 self-start xl:self-auto print:hidden">
+              <button
+                type="button"
+                onClick={() => setGroupByReportSession(prev => !prev)}
+                title="Unisce automaticamente i singoli test eseguiti nell'arco di 7-14 giorni in un unico Report di Valutazione"
+                className={`px-3 py-2 rounded-xl text-xs font-semibold flex items-center gap-1.5 border transition-all cursor-pointer ${
+                  groupByReportSession
+                    ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                    : 'bg-slate-50 text-slate-600 border-slate-200 hover:text-slate-900'
+                }`}
+              >
+                <CalendarRange className="w-3.5 h-3.5" />
+                <span>{groupByReportSession ? 'Report Aggregato (7-14gg)' : 'Singole Rilevazioni'}</span>
+              </button>
 
-            {activeTest && (
+              {activeTest && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setEditingTest(activeTest);
+                    setInitialModalModule(getDefaultModuleForSubTab(activeSubTab));
+                    setIsModalOpen(true);
+                  }}
+                  className="px-3.5 py-2 bg-slate-100 hover:bg-slate-200 text-slate-800 font-semibold rounded-xl text-xs flex items-center gap-1.5 border border-slate-300 transition-all cursor-pointer shrink-0 shadow-xs"
+                >
+                  <Edit3 className="w-3.5 h-3.5 text-emerald-700" />
+                  <span>Modifica / + Metrica in {activeTest.session_name || activeTest.label}</span>
+                </button>
+              )}
+
               <button
                 type="button"
                 onClick={() => {
-                  setEditingTest(activeTest);
+                  setEditingTest(null);
                   setInitialModalModule(getDefaultModuleForSubTab(activeSubTab));
                   setIsModalOpen(true);
                 }}
-                className="px-3.5 py-2 bg-slate-900 hover:bg-slate-700 text-slate-100 font-semibold rounded-xl text-xs flex items-center gap-1.5 border border-slate-600/80 hover:border-slate-400 transition-all cursor-pointer shrink-0 shadow-xs"
+                className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl text-xs flex items-center gap-1.5 shadow-sm transition-all cursor-pointer shrink-0"
               >
-                <Edit3 className="w-3.5 h-3.5 text-amber-400" />
-                <span>Aggiungi / Modifica in {activeTest.session_name || activeTest.label}</span>
+                <Plus className="w-4 h-4 text-white" />
+                <span>+ Rileva Singolo Test</span>
               </button>
-            )}
-
-            <button
-              type="button"
-              onClick={() => {
-                setEditingTest(null);
-                setInitialModalModule(getDefaultModuleForSubTab(activeSubTab));
-                setIsModalOpen(true);
-              }}
-              className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-xl text-xs flex items-center gap-1.5 shadow-md border border-emerald-400/40 transition-all cursor-pointer shrink-0"
-            >
-              <Plus className="w-4 h-4 text-white" />
-              <span>+ Rileva Singolo Test</span>
-            </button>
+            </div>
           </div>
-        </div>
 
-        {/* 6 Pills Sotto-Tab per Dominio */}
-        <div className="flex items-center gap-1.5 flex-nowrap overflow-x-auto scrollbar-none p-1.5 bg-slate-900/90 rounded-2xl border border-slate-700/60">
-          {[
-            { id: 'LSI', label: '⚡ Simmetrie & LSI (%)' },
-            { id: 'FORZA', label: '🔥 Dominio della Forza' },
-            { id: 'CMJ_BILATERAL', label: '📈 CMJ Bilaterale' },
-            { id: 'CMJ_SL', label: '🦶 CMJ Monopodalico' },
-            { id: 'DJ_BILATERAL', label: '📦 Drop Jump Bilaterale' },
-            { id: 'DJ_SL', label: '⚡ SL Drop Jump' }
-          ].map((tab) => {
-            const isActive = activeSubTab === tab.id;
-            return (
-              <button
-                key={tab.id}
-                onClick={() => setActiveSubTab(tab.id)}
-                className={`px-3.5 py-2 rounded-xl text-xs transition-all whitespace-nowrap cursor-pointer shrink-0 ${
-                  isActive
-                    ? 'bg-slate-700 text-white border border-slate-500 font-bold shadow-sm'
-                    : 'text-slate-400 hover:text-slate-100 hover:bg-slate-800/70 font-medium border border-transparent'
-                }`}
-              >
-                {tab.label}
-              </button>
-            );
-          })}
-        </div>
+          {/* 6 Pills Sotto-Tab per Dominio */}
+          <div className="flex items-center gap-1.5 flex-nowrap overflow-x-auto scrollbar-none p-1.5 bg-slate-100 rounded-xl border border-slate-200 print:hidden">
+            {[
+              { id: 'LSI', label: '⚡ Simmetrie & LSI (%)' },
+              { id: 'FORZA', label: '🔥 Dominio della Forza' },
+              { id: 'CMJ_BILATERAL', label: '📈 CMJ Bilaterale' },
+              { id: 'CMJ_SL', label: '🦶 CMJ Monopodalico' },
+              { id: 'DJ_BILATERAL', label: '📦 Drop Jump Bilaterale' },
+              { id: 'DJ_SL', label: '⚡ SL Drop Jump' }
+            ].map((tab) => {
+              const isActive = activeSubTab === tab.id;
+              return (
+                <button
+                  key={tab.id}
+                  onClick={() => setActiveSubTab(tab.id)}
+                  className={`px-3.5 py-2 rounded-lg text-xs transition-all whitespace-nowrap cursor-pointer shrink-0 ${
+                    isActive
+                      ? 'bg-emerald-700 text-white font-bold shadow-xs'
+                      : 'text-slate-600 hover:text-slate-900 hover:bg-white font-medium'
+                  }`}
+                >
+                  {tab.label}
+                </button>
+              );
+            })}
+          </div>
 
-        {/* TABELLA STORICO LONGITUDINALE MULTI-SESSIONE */}
-        <div className="overflow-x-auto overflow-y-auto max-h-[500px] rounded-2xl border border-slate-700/70 bg-slate-900 shadow-inner w-full scrollbar-thin">
-          <table className="w-full min-w-max text-left border-collapse">
-            <thead>
-              <tr className="border-b-2 border-slate-700/80 text-[11px] font-mono font-bold text-slate-300 uppercase tracking-wider bg-slate-800">
-                <th className="sticky top-0 left-0 z-40 bg-slate-800 border-b-2 border-r border-slate-700/80 py-3.5 px-4 text-slate-100 font-bold min-w-[230px] w-[240px]">
-                  Parametro Metrica
-                </th>
+          {/* TABELLA STORICO LONGITUDINALE MULTI-SESSIONE */}
+          <div className="overflow-x-auto overflow-y-auto max-h-[520px] rounded-xl border border-slate-200 bg-white w-full scrollbar-thin">
+            <table className="w-full min-w-max text-left border-collapse">
+              <thead>
+                <tr className="border-b border-slate-200 text-[11px] font-mono font-bold text-slate-500 uppercase tracking-wider bg-slate-50/80">
+                  <th className="sticky top-0 left-0 z-40 bg-slate-50 border-b border-r border-slate-200 py-3.5 px-4 text-slate-900 font-bold min-w-[240px] w-[250px]">
+                    Parametro Metrica
+                  </th>
 
-                {displayedSessions.map((t) => {
-                  const isSelected = t.id === selectedTestId;
-                  return (
-                    <th
-                      key={t.id}
-                      onClick={() => setSelectedTestId(t.id)}
-                      className={`sticky top-0 z-30 py-3 px-3.5 text-center cursor-pointer transition-all border-b-2 border-r border-slate-700/60 min-w-[135px] ${
-                        isSelected
-                          ? 'bg-slate-900 text-white font-bold border-t-2 border-t-emerald-400 shadow-inner'
-                          : 'bg-slate-800 hover:bg-slate-700/70 text-slate-300'
-                      }`}
-                    >
-                      <div className="flex items-center justify-center gap-1.5">
-                        <span className="font-bold text-xs tracking-tight text-slate-100">
-                          {t.session_name || t.label}
-                        </span>
-                        <button
-                          type="button"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setSelectedTestId(t.id);
-                            setEditingTest(t);
-                            setInitialModalModule(getDefaultModuleForSubTab(activeSubTab));
-                            setIsModalOpen(true);
-                          }}
-                          title={`Aggiungi o modifica test in ${t.session_name || t.label}`}
-                          className="p-1 hover:bg-slate-700 rounded-md transition-colors text-slate-400 hover:text-amber-400"
-                        >
-                          <Edit3 className="w-3 h-3 text-amber-400" />
-                        </button>
-                      </div>
-                      <div className="text-[10px] text-slate-400 font-mono font-semibold mt-0.5">
-                        {t.dateRange || t.date}
-                      </div>
-                      {t.aggregatedCount > 1 && (
-                        <div className="mt-1 inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-sky-500/15 border border-sky-500/30 text-[9px] text-sky-300 font-sans font-bold">
-                          <Layers className="w-2.5 h-2.5" />
-                          <span>{t.aggregatedCount} rilevazioni</span>
+                  {displayedSessions.map((t) => {
+                    const isSelected = t.id === selectedTestId;
+                    return (
+                      <th
+                        key={t.id}
+                        onClick={() => setSelectedTestId(t.id)}
+                        className={`sticky top-0 z-30 py-3 px-3.5 text-center cursor-pointer transition-all border-b border-r border-slate-200 min-w-[135px] ${
+                          isSelected
+                            ? 'bg-emerald-50/70 text-slate-900 font-bold border-t-2 border-t-emerald-600'
+                            : 'bg-slate-50/80 hover:bg-emerald-50/30 text-slate-700'
+                        }`}
+                      >
+                        <div className="flex items-center justify-center gap-1.5">
+                          <span className="font-bold text-xs tracking-tight text-slate-900">
+                            {t.session_name || t.label}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setSelectedTestId(t.id);
+                              setEditingTest(t);
+                              setInitialModalModule(getDefaultModuleForSubTab(activeSubTab));
+                              setIsModalOpen(true);
+                            }}
+                            title={`Aggiungi o modifica test in ${t.session_name || t.label}`}
+                            className="p-1 hover:bg-slate-200 rounded transition-colors text-slate-500 hover:text-emerald-700 print:hidden"
+                          >
+                            <Edit3 className="w-3 h-3" />
+                          </button>
                         </div>
-                      )}
-                    </th>
-                  );
-                })}
-              </tr>
-            </thead>
-
-            <tbody className="divide-y divide-slate-700/50 text-xs">
-              {displayedSessions.length === 0 ? (
-                <tr>
-                  <td colSpan={10} className="py-14 text-center text-slate-400 font-medium bg-slate-900">
-                    <div className="space-y-2.5 max-w-sm mx-auto">
-                      <Activity className="w-8 h-8 text-emerald-400 mx-auto" />
-                      <p className="text-sm font-bold text-slate-100">
-                        Nessun test registrato per {patient?.nome} {patient?.cognome}
-                      </p>
-                      <p className="text-xs text-slate-400">
-                        Clicca su <strong className="text-emerald-400 font-bold">&quot;+ Rileva Singolo Test&quot;</strong> per scegliere quale test clinico inserire.
-                      </p>
-                    </div>
-                  </td>
+                        <div className="text-[10px] text-slate-500 font-mono font-semibold mt-0.5">
+                          {t.dateRange || t.date}
+                        </div>
+                        {t.aggregatedCount > 1 && (
+                          <div className="mt-1 inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-emerald-50 border border-emerald-200 text-[9px] text-emerald-700 font-sans font-bold">
+                            <Layers className="w-2.5 h-2.5" />
+                            <span>{t.aggregatedCount} rilevazioni</span>
+                          </div>
+                        )}
+                      </th>
+                    );
+                  })}
                 </tr>
-              ) : (
-                rows.map((row, rowIdx) => (
-                  <tr
-                    key={row.key}
-                    className={`transition-colors border-b border-slate-700/50 ${
-                      rowIdx % 2 === 0 ? 'bg-slate-900/80' : 'bg-slate-800/45'
-                    } hover:bg-slate-700/45`}
-                  >
-                    {/* Colonna 1: Parametro Metrica */}
-                    <td
-                      className={`sticky left-0 z-20 border-r border-slate-700/70 py-3.5 px-4 min-w-[230px] w-[240px] ${
-                        rowIdx % 2 === 0 ? 'bg-slate-900' : 'bg-slate-800'
-                      }`}
-                    >
-                      <div className="flex items-center gap-2">
-                        <span className={`w-2.5 h-2.5 rounded-full ${row.dotColor || 'bg-emerald-400'} shrink-0 shadow-xs`} />
-                        <span className="text-[13px] font-semibold text-slate-100 leading-snug">
-                          {row.label}
-                          {row.unit && row.unit !== '-' && (
-                            <span className="ml-1.5 text-slate-400 font-normal text-[11px] font-mono">
-                              ({row.unit})
-                            </span>
-                          )}
-                        </span>
+              </thead>
+
+              <tbody className="divide-y divide-slate-200/80 text-xs">
+                {displayedSessions.length === 0 ? (
+                  <tr>
+                    <td colSpan={10} className="py-14 text-center text-slate-500 font-medium bg-white">
+                      <div className="space-y-2.5 max-w-sm mx-auto">
+                        <div className="w-8 h-8 rounded-lg bg-slate-100 text-slate-600 flex items-center justify-center mx-auto">
+                          <Activity className="w-4 h-4 text-emerald-600" />
+                        </div>
+                        <p className="text-sm font-bold text-slate-900">
+                          Nessun test registrato per {patient?.nome} {patient?.cognome}
+                        </p>
+                        <p className="text-xs text-slate-500">
+                          Clicca su <strong className="text-emerald-700 font-bold">&quot;+ Rileva Singolo Test&quot;</strong> per scegliere quale test clinico inserire.
+                        </p>
                       </div>
                     </td>
-
-                    {/* Colonne Sessioni Registrate */}
-                    {displayedSessions.map((t, tIdx) => {
-                      const isSelected = t.id === selectedTestId;
-                      const displayVal = row.getValue
-                        ? row.getValue(t)
-                        : toStrictNullOrNumber(t[row.key]) !== null
-                        ? String(t[row.key])
-                        : 'Non testato';
-                      const isUntested =
-                        displayVal === 'Non testato' || displayVal === 'N/A' || displayVal === 'N/D' || displayVal === '-';
-                      const delta = !isUntested ? getDeltaText(row, t, tIdx) : null;
-                      const tooltipData = !isUntested && row.getTooltip ? row.getTooltip(t) : null;
-
-                      return (
-                        <td
-                          key={t.id}
-                          onClick={() => setSelectedTestId(t.id)}
-                          className={`relative group py-3 px-3 text-center font-mono cursor-pointer transition-all border-r border-slate-700/40 min-w-[135px] ${
-                            isSelected
-                              ? 'bg-slate-800/90 font-bold ring-1 ring-inset ring-emerald-500/30'
-                              : 'hover:bg-slate-700/35'
-                          }`}
-                        >
-                          {isUntested ? (
-                            <span className="inline-block px-2 py-0.5 rounded bg-slate-800/70 text-slate-500 text-[11px] font-sans font-medium">
-                              Non testato
-                            </span>
-                          ) : (
-                            <div className="flex items-center justify-center gap-1.5 flex-wrap">
-                              <span className="font-bold text-[13px] text-white tabular-nums">
-                                {displayVal}
+                  </tr>
+                ) : (
+                  rows.map((row, rowIdx) => (
+                    <tr
+                      key={row.key}
+                      className={`transition-colors border-b border-slate-200/70 ${
+                        rowIdx % 2 === 0 ? 'bg-white' : 'bg-slate-50/80'
+                      } hover:bg-emerald-50/30`}
+                    >
+                      {/* Colonna 1: Parametro Metrica */}
+                      <td
+                        className={`sticky left-0 z-20 border-r border-slate-200 py-3.5 px-4 min-w-[240px] w-[250px] ${
+                          rowIdx % 2 === 0 ? 'bg-white' : 'bg-slate-50'
+                        }`}
+                      >
+                        <div className="flex items-center justify-between gap-2">
+                          <div className="flex items-center gap-2 min-w-0">
+                            <span className={`w-2 h-2 rounded-full ${row.dotColor || 'bg-emerald-600'} shrink-0`} />
+                            <div className="min-w-0">
+                              <span className="text-[13px] font-bold text-slate-900 leading-snug">
+                                {row.label}
+                                {row.unit && row.unit !== '-' && (
+                                  <span className="ml-1.5 text-slate-500 font-normal text-[11px] font-mono">
+                                    ({row.unit})
+                                  </span>
+                                )}
                               </span>
-                              {delta && (
-                                <span
-                                  className={`text-[10px] font-bold font-mono px-1.5 py-0.5 rounded-md border ${
-                                    delta.startsWith('+')
-                                      ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30'
-                                      : 'bg-rose-500/20 text-rose-400 border-rose-500/30'
-                                  }`}
-                                >
-                                  {delta}
+                              {row.isCustomMetric && (
+                                <span className="ml-1.5 inline-flex items-center gap-0.5 px-1.5 py-0.2 rounded bg-emerald-50 border border-emerald-200 text-emerald-700 text-[9px] font-bold uppercase">
+                                  <Sliders className="w-2.5 h-2.5" />
+                                  Custom
                                 </span>
                               )}
                             </div>
-                          )}
+                          </div>
 
-                          {/* HOVER TOOLTIP INTERATTIVO */}
-                          {tooltipData && (
-                            <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 hidden group-hover:flex flex-col z-50 w-64 p-3.5 rounded-2xl bg-slate-900 border border-slate-600 shadow-2xl text-xs font-sans pointer-events-none text-left">
-                              <div className="font-bold text-slate-100 text-xs border-b border-slate-700 pb-1.5 mb-2 flex items-center justify-between">
-                                <span>{tooltipData.title}</span>
-                              </div>
-                              <div className="flex justify-between items-center text-slate-300 py-0.5">
-                                <span className="flex items-center gap-1.5">
-                                  <span className="w-2 h-2 rounded-full bg-emerald-400" />
-                                  Gamba SX:
-                                </span>
-                                <strong className="text-white font-mono">{tooltipData.sx}</strong>
-                              </div>
-                              <div className="flex justify-between items-center text-slate-300 py-0.5">
-                                <span className="flex items-center gap-1.5">
-                                  <span className="w-2 h-2 rounded-full bg-amber-400" />
-                                  Gamba DX:
-                                </span>
-                                <strong className="text-white font-mono">{tooltipData.dx}</strong>
-                              </div>
-                              <div className="flex justify-between items-center text-slate-100 border-t border-slate-700 pt-1.5 mt-1.5 font-semibold">
-                                <span>Simmetria:</span>
-                                <strong className="text-emerald-400 font-mono">{tooltipData.asym}</strong>
-                              </div>
-                            </div>
+                          {row.isCustomMetric && (
+                            <button
+                              type="button"
+                              onClick={() => handleHideCustomMetricFromTable(row.customTestType, row.customMetricName)}
+                              title="Nascondi / Elimina questa metrica personalizzata dalla tabella"
+                              className="p-1 rounded text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors shrink-0 cursor-pointer print:hidden"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
                           )}
-                        </td>
-                      );
-                    })}
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
+                        </div>
+                      </td>
+
+                      {/* Colonne Sessioni Registrate */}
+                      {displayedSessions.map((t, tIdx) => {
+                        const isSelected = t.id === selectedTestId;
+                        const displayVal = row.getValue
+                          ? row.getValue(t)
+                          : toStrictNullOrNumber(t[row.key]) !== null
+                          ? String(t[row.key])
+                          : 'Non testato';
+                        const isUntested =
+                          displayVal === 'Non testato' || displayVal === 'N/A' || displayVal === 'N/D' || displayVal === '-';
+                        const delta = !isUntested ? getDeltaText(row, t, tIdx) : null;
+                        const tooltipData = !isUntested && row.getTooltip ? row.getTooltip(t) : null;
+
+                        return (
+                          <td
+                            key={t.id}
+                            onClick={() => setSelectedTestId(t.id)}
+                            className={`relative group py-3 px-3 text-center font-mono cursor-pointer transition-all border-r border-slate-200/70 min-w-[135px] ${
+                              isSelected
+                                ? 'bg-emerald-50/40 font-bold ring-1 ring-inset ring-emerald-500/20'
+                                : 'hover:bg-emerald-50/30'
+                            }`}
+                          >
+                            {isUntested ? (
+                              <span className="inline-block px-2 py-0.5 rounded bg-slate-100 text-slate-400 text-[11px] font-sans font-medium">
+                                Non testato
+                              </span>
+                            ) : (
+                              <div className="flex items-center justify-center gap-1.5 flex-wrap">
+                                <span className="font-bold text-[13px] text-slate-900 tabular-nums">
+                                  {displayVal}
+                                </span>
+                                {delta && (
+                                  <span
+                                    className={`text-[10px] font-bold font-mono px-1.5 py-0.5 rounded-md border ${
+                                      delta.startsWith('+')
+                                        ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                                        : 'bg-rose-50 text-rose-700 border-rose-200'
+                                    }`}
+                                  >
+                                    {delta}
+                                  </span>
+                                )}
+                              </div>
+                            )}
+
+                            {/* HOVER TOOLTIP INTERATTIVO */}
+                            {tooltipData && (
+                              <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 hidden group-hover:flex flex-col z-50 w-64 p-3.5 rounded-xl bg-white border border-slate-200 shadow-xl text-xs font-sans pointer-events-none text-left">
+                                <div className="font-bold text-slate-900 text-xs border-b border-slate-200 pb-1.5 mb-2 flex items-center justify-between">
+                                  <span>{tooltipData.title}</span>
+                                </div>
+                                <div className="flex justify-between items-center text-slate-600 py-0.5">
+                                  <span className="flex items-center gap-1.5">
+                                    <span className="w-2 h-2 rounded-full bg-emerald-600" />
+                                    Gamba SX:
+                                  </span>
+                                  <strong className="text-slate-900 font-mono">{tooltipData.sx}</strong>
+                                </div>
+                                <div className="flex justify-between items-center text-slate-600 py-0.5">
+                                  <span className="flex items-center gap-1.5">
+                                    <span className="w-2 h-2 rounded-full bg-amber-500" />
+                                    Gamba DX:
+                                  </span>
+                                  <strong className="text-slate-900 font-mono">{tooltipData.dx}</strong>
+                                </div>
+                                <div className="flex justify-between items-center text-slate-900 border-t border-slate-200 pt-1.5 mt-1.5 font-semibold">
+                                  <span>Simmetria:</span>
+                                  <strong className="text-emerald-700 font-mono">{tooltipData.asym}</strong>
+                                </div>
+                              </div>
+                            )}
+                          </td>
+                        );
+                      })}
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
 
         </div>
 
         {/* GRAFICO MULTIMETRICA ALLINEATO ALLA TABELLA (2/3 LARGHEZZA, SOTTO LA TABELLA) */}
-        <div className="w-full">
+        <div className="w-full break-inside-avoid">
           <UIErrorBoundary title="Grafico Multimetrico Temporaneamente Non Disponibile">
             <GraficoMultimetrica tests={displayedSessions} />
           </UIErrorBoundary>
@@ -1246,19 +1372,19 @@ export default function TabBatteriaTest({ patient, activePhase, onSaveTest }) {
       {/* ========================================================================= */}
       {/* COLONNA DESTRA (1/3): BARRE TARGET PRESTATIVI & CHECKLIST QUALITATIVA     */}
       {/* ========================================================================= */}
-      <div className="lg:col-span-1 bg-slate-900/90 p-4 sm:p-5 rounded-xl border border-slate-800 space-y-4 shadow-xl w-full flex flex-col justify-between">
+      <div className="lg:col-span-1 bg-white p-4 sm:p-5 rounded-xl border border-slate-200/80 space-y-4 shadow-sm w-full flex flex-col justify-between break-inside-avoid">
 
         {/* Header Barre Target */}
-        <div className="flex items-center justify-between pb-3 border-b border-slate-700/60">
+        <div className="flex items-center justify-between pb-3 border-b border-slate-200">
           <div className="flex items-center gap-2.5">
-            <div className="p-2 bg-slate-900 border border-slate-700/70 rounded-xl text-amber-400 shadow-xs">
-              <Trophy className="w-4 h-4 text-amber-400" />
+            <div className="p-1 bg-slate-100 text-slate-600 rounded shrink-0">
+              <Trophy className="w-4 h-4 text-emerald-600" />
             </div>
             <div>
-              <h3 className="font-bold text-slate-100 text-sm tracking-wide uppercase">
+              <h3 className="font-bold text-slate-900 text-sm tracking-wide uppercase">
                 BARRE TARGET &amp; PROGRESSO
               </h3>
-              <p className="text-[11px] text-slate-400 font-medium">
+              <p className="text-[11px] text-slate-500 font-medium">
                 Ultimo dato valido rilevato (ignora test non eseguiti)
               </p>
             </div>
@@ -1266,10 +1392,10 @@ export default function TabBatteriaTest({ patient, activePhase, onSaveTest }) {
         </div>
 
         {/* Selezione Fase Target (Pillole F1, F2, F3, F4, F5) */}
-        <div className="space-y-2 bg-slate-900/90 p-3 rounded-2xl border border-slate-700/60">
+        <div className="space-y-2 bg-slate-50 p-3 rounded-xl border border-slate-200 print:hidden">
           <div className="flex items-center justify-between text-xs">
-            <span className="text-slate-400 uppercase tracking-wider text-[10px] font-semibold">TARGET FASE:</span>
-            <span className="text-slate-100 font-bold text-xs">{selectedPhase}</span>
+            <span className="text-slate-500 uppercase tracking-wider text-[10px] font-semibold">TARGET FASE:</span>
+            <span className="text-slate-900 font-bold text-xs">{selectedPhase}</span>
           </div>
 
           <div className="grid grid-cols-5 gap-1.5 text-xs font-bold">
@@ -1285,10 +1411,10 @@ export default function TabBatteriaTest({ patient, activePhase, onSaveTest }) {
                 <button
                   key={pObj.key}
                   onClick={() => setSelectedPhase(pObj.key)}
-                  className={`py-2 px-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer text-center ${
+                  className={`py-2 px-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer text-center ${
                     isActive
-                      ? 'bg-emerald-600 text-white shadow-sm border border-emerald-400/50'
-                      : 'bg-slate-800 text-slate-400 border border-slate-700/70 hover:text-slate-100 hover:bg-slate-700/60'
+                      ? 'bg-emerald-700 text-white shadow-xs'
+                      : 'bg-white text-slate-600 border border-slate-200 hover:text-slate-900 hover:bg-emerald-50/40'
                   }`}
                 >
                   {pObj.label}
@@ -1298,17 +1424,17 @@ export default function TabBatteriaTest({ patient, activePhase, onSaveTest }) {
           </div>
         </div>
 
-        {/* BARRE DI PROGRESSO AD ALTO CONTRASTO: TITOLO INTERO LEGGIBILE, NESSUNA DATA, TESTO SOPRA LA BARRA */}
+        {/* BARRE DI PROGRESSO: TITOLO INTERO LEGGIBILE, NESSUNA DATA, TESTO SOPRA LA BARRA */}
         <div className="space-y-3">
           {cupsData.map((cup) => {
             if (cup.earlyNote) {
               return (
-                <div key={cup.id} className="p-4 rounded-2xl bg-slate-900/90 border border-slate-700/70 text-slate-100 text-xs space-y-1.5">
-                  <div className="font-semibold text-sm text-emerald-400 flex items-center gap-1.5">
-                    <ShieldCheck className="w-4 h-4 text-emerald-400 shrink-0" />
+                <div key={cup.id} className="p-4 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 text-xs space-y-1.5 break-inside-avoid">
+                  <div className="font-bold text-sm text-emerald-700 flex items-center gap-1.5">
+                    <ShieldCheck className="w-4 h-4 text-emerald-600 shrink-0" />
                     <span className="whitespace-normal break-words">{cup.title} — {cup.subtitle}</span>
                   </div>
-                  <p className="text-xs text-slate-300 leading-relaxed">{cup.earlyNote}</p>
+                  <p className="text-xs text-slate-600 leading-relaxed">{cup.earlyNote}</p>
                 </div>
               );
             }
@@ -1321,27 +1447,26 @@ export default function TabBatteriaTest({ patient, activePhase, onSaveTest }) {
             return (
               <div
                 key={cup.id}
-                className="p-3.5 rounded-2xl bg-slate-900/90 border border-slate-700/70 space-y-2.5 hover:border-slate-500/80 transition-all shadow-sm"
+                className="p-3.5 rounded-xl bg-slate-50/80 border border-slate-200/90 space-y-2.5 hover:border-emerald-300 transition-all break-inside-avoid"
               >
-                {/* Riga 1: Titolo Metrica COMPLETO E LEGGIBILE (senza truncate e senza data) + Badge Stato */}
+                {/* Riga 1: Titolo Metrica COMPLETO E LEGGIBILE + Badge Stato */}
                 <div className="flex items-start justify-between gap-3">
-                  <span className="text-[13px] font-semibold text-slate-100 tracking-wide leading-snug whitespace-normal break-words flex-1">
+                  <span className="text-[13px] font-bold text-slate-900 tracking-wide leading-snug whitespace-normal break-words flex-1">
                     {cup.title}
                   </span>
 
-                  {/* Badge Stato ad alto contrasto */}
                   <div className="shrink-0 pt-0.5">
                     {!isEvaluated ? (
-                      <span className="px-2 py-0.5 rounded-md bg-slate-800 border border-slate-700 text-slate-400 text-[10px] font-bold uppercase">
+                      <span className="px-2 py-0.5 rounded-md bg-slate-100 border border-slate-200 text-slate-500 text-[10px] font-bold uppercase">
                         NON TESTATO
                       </span>
                     ) : isTargetOk ? (
-                      <span className="px-2 py-0.5 rounded-md bg-emerald-500/20 border border-emerald-500/40 text-emerald-400 text-[10px] font-bold uppercase flex items-center gap-1">
-                        <CheckCircle2 className="w-3 h-3 text-emerald-400 shrink-0" />
+                      <span className="px-2 py-0.5 rounded-md bg-emerald-50 border border-emerald-200 text-emerald-700 text-[10px] font-bold uppercase flex items-center gap-1">
+                        <CheckCircle2 className="w-3 h-3 text-emerald-600 shrink-0" />
                         TARGET OK
                       </span>
                     ) : (
-                      <span className="px-2 py-0.5 rounded-md bg-amber-500/20 border border-amber-500/40 text-amber-400 text-[10px] font-bold uppercase flex items-center gap-1">
+                      <span className="px-2 py-0.5 rounded-md bg-amber-50 border border-amber-200 text-amber-700 text-[10px] font-bold uppercase flex items-center gap-1">
                         IN CORSO
                       </span>
                     )}
@@ -1353,15 +1478,15 @@ export default function TabBatteriaTest({ patient, activePhase, onSaveTest }) {
                   <div className="font-mono tabular-nums">
                     {isEvaluated ? (
                       <>
-                        <span className="text-base font-extrabold text-white">
+                        <span className="text-base font-bold text-slate-900">
                           {cup.displayVal}
                         </span>
-                        <span className="text-xs font-semibold text-slate-400 ml-1.5">
+                        <span className="text-xs font-semibold text-slate-500 ml-1.5">
                           / {cleanTargetText}
                         </span>
                       </>
                     ) : (
-                      <span className="text-xs font-semibold text-slate-400">
+                      <span className="text-xs font-semibold text-slate-500">
                         Non testato (N/A) — {cleanTargetText}
                       </span>
                     )}
@@ -1370,7 +1495,7 @@ export default function TabBatteriaTest({ patient, activePhase, onSaveTest }) {
                   {isEvaluated && (
                     <span
                       className={`text-xs font-mono font-bold tabular-nums ${
-                        isTargetOk ? 'text-emerald-400' : 'text-amber-400'
+                        isTargetOk ? 'text-emerald-700' : 'text-amber-600'
                       }`}
                     >
                       {cup.percentageAchieved}%
@@ -1379,14 +1504,14 @@ export default function TabBatteriaTest({ patient, activePhase, onSaveTest }) {
                 </div>
 
                 {/* Riga 3: Barra di Progresso pura (h-3.5 = 14px, nessun testo sovrapposto) */}
-                <div className="w-full h-3.5 bg-slate-950 rounded-full border border-slate-700/80 overflow-hidden p-0.5 shadow-inner">
+                <div className="w-full h-3.5 bg-slate-200/80 rounded-full border border-slate-300/80 overflow-hidden p-0.5">
                   <div
                     className={`h-full rounded-full transition-all duration-700 ease-out ${
                       !isEvaluated
-                        ? 'bg-slate-800/40'
+                        ? 'bg-slate-300'
                         : isTargetOk
-                        ? 'bg-gradient-to-r from-emerald-500 to-emerald-400 shadow-[0_0_10px_rgba(16,185,129,0.4)]'
-                        : 'bg-gradient-to-r from-amber-500 to-yellow-400 shadow-[0_0_10px_rgba(245,158,11,0.35)]'
+                        ? 'bg-gradient-to-r from-emerald-600 to-emerald-500'
+                        : 'bg-gradient-to-r from-amber-500 to-amber-400'
                     }`}
                     style={{ width: `${isEvaluated ? fillPct : 0}%` }}
                   />
@@ -1397,15 +1522,17 @@ export default function TabBatteriaTest({ patient, activePhase, onSaveTest }) {
         </div>
 
         {/* CHECKLIST QUALITATIVA */}
-        <div className="p-3.5 rounded-2xl bg-slate-900/90 border border-slate-700/70 space-y-2.5 mt-1">
-          <div className="flex items-center justify-between border-b border-slate-700/60 pb-2">
+        <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200 space-y-2.5 mt-1 break-inside-avoid">
+          <div className="flex items-center justify-between border-b border-slate-200 pb-2">
             <div className="flex items-center gap-2">
-              <CheckSquare className="w-4 h-4 text-emerald-400" />
-              <span className="font-bold text-slate-100 text-xs uppercase tracking-wider">
+              <div className="p-1 bg-slate-100 text-slate-600 rounded">
+                <CheckSquare className="w-4 h-4 text-emerald-600" />
+              </div>
+              <span className="font-bold text-slate-900 text-xs uppercase tracking-wider">
                 Checklist Qualitativa ({selectedPhase})
               </span>
             </div>
-            <span className="text-[11px] font-mono text-emerald-400 font-bold bg-emerald-500/15 px-2.5 py-0.5 rounded-lg border border-emerald-500/30">
+            <span className="text-[11px] font-mono text-emerald-700 font-bold bg-emerald-50 px-2.5 py-0.5 rounded-lg border border-emerald-200">
               {Object.values(currentChecklistState).filter(Boolean).length}/{currentChecklistItems.length} OK
             </span>
           </div>
@@ -1417,18 +1544,18 @@ export default function TabBatteriaTest({ patient, activePhase, onSaveTest }) {
                 <div
                   key={item.id}
                   onClick={() => setCurrentChecklistState(prev => ({ ...prev, [item.id]: !prev[item.id] }))}
-                  className={`p-2.5 px-3 rounded-xl border flex items-center justify-between cursor-pointer transition-all ${
+                  className={`p-2.5 px-3 rounded-lg border flex items-center justify-between cursor-pointer transition-all ${
                     isChecked
-                      ? 'bg-slate-800 border-emerald-500/50 text-slate-100 font-semibold'
-                      : 'bg-slate-800/40 border-slate-700/60 text-slate-400 hover:text-slate-200'
+                      ? 'bg-white border-emerald-300 text-slate-900 font-semibold shadow-2xs'
+                      : 'bg-slate-100/60 border-slate-200 text-slate-500 hover:text-slate-900'
                   }`}
                 >
                   <span className="text-xs font-semibold whitespace-normal leading-snug">
                     {item.label}
                   </span>
                   <div
-                    className={`w-4 h-4 rounded-md border flex items-center justify-center shrink-0 ml-2 transition-colors ${
-                      isChecked ? 'bg-emerald-500 border-emerald-400 text-slate-950' : 'border-slate-600 bg-slate-900'
+                    className={`w-4 h-4 rounded border flex items-center justify-center shrink-0 ml-2 transition-colors ${
+                      isChecked ? 'bg-emerald-600 border-emerald-600 text-white' : 'border-slate-300 bg-white'
                     }`}
                   >
                     {isChecked && <Check className="w-3 h-3 stroke-[3]" />}

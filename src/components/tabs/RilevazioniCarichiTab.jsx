@@ -420,64 +420,59 @@ export default function RilevazioniCarichiTab({
   }, [selectedDay, groupedByDay]);
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 text-slate-900">
       {/* BARRA SUPERIORE TERAPISTA: AZIONI RAPIDE */}
-      <div className="glass-panel p-5 rounded-2xl border border-slate-700/80 flex flex-col lg:flex-row lg:items-center justify-between gap-4 shadow-xl">
+      <div className="bg-white p-5 rounded-xl border border-slate-200/80 flex flex-col lg:flex-row lg:items-center justify-between gap-4 shadow-sm break-inside-avoid">
         <div className="space-y-1">
           <div className="flex items-center gap-2">
-            <Dumbbell className="w-5 h-5 text-cyan-400" />
-            <h3 className="text-lg font-black text-white tracking-tight">
-              Rilevazioni Carichi & Pacchetti Giornalieri
+            <div className="p-1 bg-slate-100 text-slate-600 rounded">
+              <Dumbbell className="w-4 h-4 text-emerald-600" />
+            </div>
+            <h3 className="text-base sm:text-lg font-bold text-slate-900 tracking-tight">
+              Diario Carichi &amp; Pacchetti Giornalieri
             </h3>
-            <span className="px-2.5 py-0.5 rounded-full bg-emerald-950 text-emerald-400 border border-emerald-500/30 font-mono text-[10px] font-extrabold flex items-center gap-1">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping" />
-              <span>Live Sync Attivo</span>
+            <span className="px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 font-mono text-[10px] font-bold flex items-center gap-1">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-600" />
+              <span>Live Sync</span>
             </span>
           </div>
-          <p className="text-xs text-slate-400">
-            Seleziona una giornata per vedere il pacchetto di esercizi svolto da <strong>{patient?.nome} {patient?.cognome}</strong> (con carichi separati <strong>SX / DX</strong> per gli esercizi monopodalici), oppure clicca su un esercizio per vedere la progressione nel tempo.
+          <p className="text-xs text-slate-500">
+            Seleziona una giornata per vedere il pacchetto di esercizi svolto da <strong className="text-slate-900">{patient?.nome} {patient?.cognome}</strong> (con carichi separati <strong>SX / DX</strong> per gli esercizi monopodalici).
           </p>
         </div>
 
-        <div className="flex flex-wrap items-center gap-2.5">
+        <div className="flex flex-wrap items-center gap-2.5 print:hidden">
           <button
             type="button"
             onClick={() => handleOpenNewModal(selectedDay)}
-            className="px-3.5 py-2.5 rounded-xl bg-teal-600 hover:bg-teal-500 text-white font-extrabold text-xs flex items-center gap-1.5 shadow-md transition-all cursor-pointer"
+            className="px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs flex items-center gap-1.5 shadow-sm transition-all cursor-pointer"
           >
             <Plus className="w-4 h-4" />
-            <span>Aggiungi Esercizio Manuale</span>
+            <span>+ Aggiungi Esercizio</span>
           </button>
 
           <button
             type="button"
             onClick={() => setShowInviteModal(true)}
-            className="px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-cyan-300 border border-cyan-500/40 font-extrabold text-xs flex items-center gap-2 shadow-md transition-all cursor-pointer"
+            className="px-3.5 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 font-bold text-xs flex items-center gap-2 transition-all cursor-pointer"
           >
-            <QrCode className="w-4 h-4 text-cyan-400" />
-            <span>Genera Link Invito / Magic Link</span>
-          </button>
-
-          <button
-            type="button"
-            onClick={onOpenSimulation}
-            className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-teal-600 to-cyan-600 hover:from-teal-500 hover:to-cyan-500 text-white font-black text-xs flex items-center gap-2 shadow-lg transition-all cursor-pointer"
-          >
-            <Smartphone className="w-4 h-4" />
-            <span>Simula Vista Paziente / Test Rapido</span>
+            <QrCode className="w-4 h-4 text-emerald-600" />
+            <span>QR / Link Mobile Paziente</span>
           </button>
         </div>
       </div>
 
       {/* SELETTORE GIORNATE DI ALLENAMENTO (PACCHETTI GIORNALIERI) */}
-      <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4 space-y-3 shadow-lg">
+      <div className="bg-white border border-slate-200/80 rounded-xl p-4 space-y-3 shadow-sm print:hidden">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
           <div>
-            <h4 className="text-sm font-black text-white flex items-center gap-2">
-              <Calendar className="w-4 h-4 text-cyan-400" />
+            <h4 className="text-sm font-bold text-slate-900 flex items-center gap-2">
+              <div className="p-1 bg-slate-100 text-slate-600 rounded">
+                <Calendar className="w-4 h-4 text-emerald-600" />
+              </div>
               <span>Giornate di Allenamento Registrate ({groupedByDay.sortedDays.length} sedute)</span>
             </h4>
-            <p className="text-[11px] text-slate-400">
+            <p className="text-[11px] text-slate-500">
               Clicca su una giornata per filtrare velocemente il pacchetto di esercizi eseguito in quella data
             </p>
           </div>
@@ -490,16 +485,16 @@ export default function RilevazioniCarichiTab({
                 value={searchFilter}
                 onChange={(e) => setSearchFilter(e.target.value)}
                 placeholder="Cerca esercizio o nota..."
-                className="w-full bg-slate-950 border border-slate-700 rounded-xl py-1.5 pl-8 pr-3 text-xs text-white focus:border-cyan-500 focus:outline-none"
+                className="w-full bg-slate-50 border border-slate-200 rounded-xl py-1.5 pl-8 pr-3 text-xs text-slate-900 focus:border-emerald-600 focus:bg-white focus:outline-none"
               />
             </div>
             <button
               type="button"
               onClick={() => fetchPatientWorkoutLogs(false)}
-              className="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 cursor-pointer"
+              className="p-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-600 border border-slate-200 cursor-pointer"
               title="Sincronizza ora"
             >
-              <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin text-cyan-400' : ''}`} />
+              <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin text-emerald-600' : ''}`} />
             </button>
           </div>
         </div>
@@ -508,14 +503,14 @@ export default function RilevazioniCarichiTab({
           <button
             type="button"
             onClick={() => setSelectedDay('ALL')}
-            className={`px-4 py-2.5 rounded-2xl border text-left shrink-0 transition-all cursor-pointer ${
+            className={`px-4 py-2.5 rounded-xl border text-left shrink-0 transition-all cursor-pointer ${
               selectedDay === 'ALL'
-                ? 'bg-gradient-to-r from-cyan-950 to-teal-950 border-cyan-400 text-white shadow-lg'
-                : 'bg-slate-950 border-slate-800 text-slate-400 hover:text-white'
+                ? 'bg-emerald-700 border-emerald-700 text-white shadow-xs'
+                : 'bg-slate-50 border-slate-200 text-slate-600 hover:text-slate-900'
             }`}
           >
-            <div className="text-xs font-black">Tutte le Giornate</div>
-            <div className="text-[10px] font-mono text-cyan-300 mt-0.5">
+            <div className="text-xs font-bold">Tutte le Giornate</div>
+            <div className={`text-[10px] font-mono mt-0.5 ${selectedDay === 'ALL' ? 'text-emerald-100' : 'text-emerald-700'}`}>
               {groupedByDay.sortedDays.length} sedute • {logs.length} esercizi
             </div>
           </button>
@@ -530,16 +525,16 @@ export default function RilevazioniCarichiTab({
                 type="button"
                 key={dayKey}
                 onClick={() => setSelectedDay(dayKey)}
-                className={`px-4 py-2.5 rounded-2xl border text-left shrink-0 transition-all cursor-pointer ${
+                className={`px-4 py-2.5 rounded-xl border text-left shrink-0 transition-all cursor-pointer ${
                   isSelected
-                    ? 'bg-gradient-to-r from-cyan-950 to-teal-950 border-cyan-400 text-white shadow-lg'
-                    : 'bg-slate-950 border-slate-800 text-slate-300 hover:border-slate-700'
+                    ? 'bg-emerald-700 border-emerald-700 text-white shadow-xs'
+                    : 'bg-slate-50 border-slate-200 text-slate-700 hover:border-emerald-300'
                 }`}
               >
-                <div className="text-xs font-black flex items-center gap-1.5">
+                <div className="text-xs font-bold flex items-center gap-1.5">
                   <span>{formatDayLabel(dayKey)}</span>
                 </div>
-                <div className="text-[10px] font-mono text-teal-400 mt-0.5">
+                <div className={`text-[10px] font-mono mt-0.5 ${isSelected ? 'text-emerald-100' : 'text-emerald-700'}`}>
                   📦 {dayLogs.length} {dayLogs.length === 1 ? 'esercizio' : 'esercizi'} • Max {maxKgDay} kg
                 </div>
               </button>
@@ -549,8 +544,8 @@ export default function RilevazioniCarichiTab({
 
         {/* CHIP RAPIDI ESERCIZI PER VEDERE SUBITO LA PROGRESSIONE NEL TEMPO */}
         {uniqueExercises.length > 0 && (
-          <div className="pt-2 border-t border-slate-800/80 flex items-center gap-2 overflow-x-auto">
-            <span className="text-[11px] font-extrabold text-cyan-400 shrink-0 flex items-center gap-1">
+          <div className="pt-2 border-t border-slate-200 flex items-center gap-2 overflow-x-auto">
+            <span className="text-[11px] font-bold text-emerald-700 shrink-0 flex items-center gap-1">
               <BarChart3 className="w-3.5 h-3.5" />
               <span>Progressione Esercizio:</span>
             </span>
@@ -567,20 +562,20 @@ export default function RilevazioniCarichiTab({
                       selectedExerciseProgression === exName ? null : exName
                     )
                   }
-                  className={`px-3 py-1 rounded-xl text-[11px] font-bold flex items-center gap-1.5 shrink-0 border transition-all cursor-pointer ${
+                  className={`px-3 py-1 rounded-lg text-[11px] font-bold flex items-center gap-1.5 shrink-0 border transition-all cursor-pointer ${
                     selectedExerciseProgression === exName
-                      ? 'bg-cyan-600 text-white border-cyan-400 shadow-md'
-                      : 'bg-slate-950 text-slate-300 border-slate-800 hover:border-cyan-500/50 hover:text-cyan-300'
+                      ? 'bg-emerald-600 text-white border-emerald-600 shadow-xs'
+                      : 'bg-slate-50 text-slate-700 border-slate-200 hover:border-emerald-400 hover:text-emerald-800'
                   }`}
                 >
                   {getCategoryIcon(exName, 'w-3 h-3')}
                   <span>{exName}</span>
                   {isUni && (
-                    <span className="px-1.5 py-0.2 rounded bg-cyan-950 text-cyan-300 border border-cyan-500/40 text-[9px] font-mono">
+                    <span className="px-1.5 py-0.2 rounded bg-emerald-50 text-emerald-700 border border-emerald-200 text-[9px] font-mono">
                       SX/DX
                     </span>
                   )}
-                  <TrendingUp className="w-3 h-3 text-teal-400" />
+                  <TrendingUp className="w-3 h-3 text-emerald-600" />
                 </button>
               );
             })}
@@ -590,22 +585,22 @@ export default function RilevazioniCarichiTab({
 
       {/* PANNELLO PROGRESSIONE NEL TEMPO DELL'ESERCIZIO CLICCATO (INLINE ESPANDIBILE) */}
       {selectedExerciseProgression && (
-        <div className="bg-slate-900 border-2 border-cyan-500/50 rounded-3xl p-5 space-y-4 shadow-2xl">
-          <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+        <div className="bg-white border-2 border-emerald-500/60 rounded-xl p-5 space-y-4 shadow-md break-inside-avoid">
+          <div className="flex items-center justify-between border-b border-slate-200 pb-3">
             <div className="flex items-center gap-3">
-              <div className="p-2.5 rounded-2xl bg-slate-950 border border-cyan-500/30">
-                {getCategoryIcon(selectedExerciseProgression, 'w-6 h-6')}
+              <div className="p-2 rounded-xl bg-emerald-50 border border-emerald-200">
+                {getCategoryIcon(selectedExerciseProgression, 'w-5 h-5')}
               </div>
               <div>
-                <span className="text-[10px] font-extrabold uppercase tracking-wider text-cyan-400 block">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-700 block">
                   Analisi Progressione Carichi nel Tempo
                 </span>
                 <div className="flex items-center gap-2 flex-wrap">
-                  <h4 className="text-lg font-black text-white">
+                  <h4 className="text-base sm:text-lg font-bold text-slate-900">
                     {selectedExerciseProgression}
                   </h4>
                   {progressionSeries.some(x => x.is_unilateral) && (
-                    <span className="px-2.5 py-0.5 rounded-full bg-cyan-950 text-cyan-300 border border-cyan-500/40 font-mono text-[10px] font-extrabold">
+                    <span className="px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 font-mono text-[10px] font-bold">
                       Monopodalico (Confronto SX vs DX)
                     </span>
                   )}
@@ -615,7 +610,7 @@ export default function RilevazioniCarichiTab({
             <button
               type="button"
               onClick={() => setSelectedExerciseProgression(null)}
-              className="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white text-xs font-bold flex items-center gap-1 cursor-pointer"
+              className="px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold flex items-center gap-1 cursor-pointer print:hidden"
             >
               <X className="w-4 h-4" />
               <span>Chiudi Progressione</span>
@@ -623,7 +618,7 @@ export default function RilevazioniCarichiTab({
           </div>
 
           {progressionSeries.length === 0 ? (
-            <p className="text-xs text-slate-400">Nessun dato disponibile per questo esercizio.</p>
+            <p className="text-xs text-slate-500">Nessun dato disponibile per questo esercizio.</p>
           ) : (
             (() => {
               const hasUnilateralInSeries = progressionSeries.some(x => x.is_unilateral);
@@ -634,21 +629,21 @@ export default function RilevazioniCarichiTab({
 
               return (
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-                  {/* GRAFICO VISIVO DI PROGRESSIONE (SINGOLA BARRA O DOPPIA BARRA SX/DX) */}
-                  <div className="lg:col-span-2 bg-slate-950 border border-slate-800 rounded-2xl p-4 space-y-3">
+                  {/* GRAFICO VISIVO DI PROGRESSIONE */}
+                  <div className="lg:col-span-2 bg-slate-50 border border-slate-200 rounded-xl p-4 space-y-3">
                     <div className="flex flex-wrap items-center justify-between gap-2">
                       <div className="flex items-center gap-3">
-                        <span className="text-xs font-extrabold text-white">
+                        <span className="text-xs font-bold text-slate-900">
                           Curva di Progressione Carico (Kg) — {progressionSeries.length} Sedute
                         </span>
                         {hasUnilateralInSeries && (
                           <div className="flex items-center gap-2 text-[10px] font-bold">
-                            <span className="inline-flex items-center gap-1 text-cyan-300">
-                              <span className="w-2.5 h-2.5 rounded-sm bg-[#06B6D4] inline-block" />
+                            <span className="inline-flex items-center gap-1 text-emerald-700">
+                              <span className="w-2.5 h-2.5 rounded-sm bg-emerald-600 inline-block" />
                               Gamba SX
                             </span>
-                            <span className="inline-flex items-center gap-1 text-teal-300">
-                              <span className="w-2.5 h-2.5 rounded-sm bg-[#0D9488] inline-block" />
+                            <span className="inline-flex items-center gap-1 text-teal-700">
+                              <span className="w-2.5 h-2.5 rounded-sm bg-teal-500 inline-block" />
                               Gamba DX
                             </span>
                           </div>
@@ -658,10 +653,10 @@ export default function RilevazioniCarichiTab({
                       <div className="flex items-center gap-2">
                         {latestLsi !== null && (
                           <span
-                            className={`px-2.5 py-0.5 rounded-full font-mono text-xs font-black ${
+                            className={`px-2.5 py-0.5 rounded-full font-mono text-xs font-bold border ${
                               latestLsi >= 90
-                                ? 'bg-teal-950 text-teal-300 border border-teal-500/40'
-                                : 'bg-amber-950 text-amber-300 border border-amber-500/40'
+                                ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                                : 'bg-amber-50 text-amber-700 border-amber-200'
                             }`}
                           >
                             Ultimo LSI: {latestLsi}%
@@ -673,10 +668,10 @@ export default function RilevazioniCarichiTab({
                           const diff = +(last - first).toFixed(1);
                           return (
                             <span
-                              className={`px-2.5 py-0.5 rounded-full font-mono text-xs font-black ${
+                              className={`px-2.5 py-0.5 rounded-full font-mono text-xs font-bold border ${
                                 diff >= 0
-                                  ? 'bg-emerald-950 text-emerald-400 border border-emerald-500/30'
-                                  : 'bg-amber-950 text-amber-400 border border-amber-500/30'
+                                  ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                                  : 'bg-amber-50 text-amber-700 border-amber-200'
                               }`}
                             >
                               {diff > 0 ? `+${diff} kg vs 1ª seduta` : `${diff} kg`}
@@ -710,27 +705,27 @@ export default function RilevazioniCarichiTab({
                               key={item.id || idx}
                               className="flex-1 min-w-[82px] flex flex-col items-center gap-1.5"
                             >
-                              <div className="flex items-center gap-1 font-mono text-[10px] font-black">
-                                <span className="text-cyan-300">SX:{sxVal}</span>
-                                <span className="text-slate-600">|</span>
-                                <span className="text-teal-300">DX:{dxVal}</span>
+                              <div className="flex items-center gap-1 font-mono text-[10px] font-bold">
+                                <span className="text-emerald-700">SX:{sxVal}</span>
+                                <span className="text-slate-400">|</span>
+                                <span className="text-teal-700">DX:{dxVal}</span>
                               </div>
-                              <span className="text-[10px] font-mono text-slate-400">
+                              <span className="text-[10px] font-mono text-slate-500">
                                 {item.sets}×{item.reps}
                               </span>
-                              <div className="w-full bg-slate-900 rounded-t-xl h-24 flex items-end justify-center gap-1.5 overflow-hidden border border-slate-800 p-1">
+                              <div className="w-full bg-white rounded-t-xl h-24 flex items-end justify-center gap-1.5 overflow-hidden border border-slate-200 p-1">
                                 <div
                                   style={{ height: `${pctSx}%` }}
-                                  className="flex-1 bg-[#06B6D4] rounded-t-md transition-all"
+                                  className="flex-1 bg-emerald-600 rounded-t-md transition-all"
                                   title={`Gamba SX: ${sxVal} kg`}
                                 />
                                 <div
                                   style={{ height: `${pctDx}%` }}
-                                  className="flex-1 bg-[#0D9488] rounded-t-md transition-all"
+                                  className="flex-1 bg-teal-500 rounded-t-md transition-all"
                                   title={`Gamba DX: ${dxVal} kg`}
                                 />
                               </div>
-                              <span className="text-[10px] font-mono font-bold text-slate-300">
+                              <span className="text-[10px] font-mono font-bold text-slate-700">
                                 {new Date(item.created_at).toLocaleDateString('it-IT', {
                                   day: '2-digit',
                                   month: 'short'
@@ -749,19 +744,19 @@ export default function RilevazioniCarichiTab({
                             key={item.id || idx}
                             className="flex-1 min-w-[60px] flex flex-col items-center gap-1.5"
                           >
-                            <span className="text-xs font-mono font-black text-teal-300">
+                            <span className="text-xs font-mono font-bold text-emerald-700">
                               {item.weight_kg} kg
                             </span>
-                            <span className="text-[10px] font-mono text-slate-400">
+                            <span className="text-[10px] font-mono text-slate-500">
                               {item.sets}×{item.reps}
                             </span>
-                            <div className="w-full bg-slate-900 rounded-t-xl h-24 flex items-end overflow-hidden border border-slate-800 p-0.5">
+                            <div className="w-full bg-white rounded-t-xl h-24 flex items-end overflow-hidden border border-slate-200 p-0.5">
                               <div
                                 style={{ height: `${pct}%` }}
-                                className="w-full bg-gradient-to-t from-teal-600 to-cyan-400 rounded-t-lg transition-all"
+                                className="w-full bg-gradient-to-t from-emerald-600 to-emerald-400 rounded-t-lg transition-all"
                               />
                             </div>
-                            <span className="text-[10px] font-mono font-bold text-slate-300">
+                            <span className="text-[10px] font-mono font-bold text-slate-700">
                               {new Date(item.created_at).toLocaleDateString('it-IT', {
                                 day: '2-digit',
                                 month: 'short'
@@ -774,8 +769,8 @@ export default function RilevazioniCarichiTab({
                   </div>
 
                   {/* STORICO DETTAGLIATO SEDUTE DI QUESTO ESERCIZIO */}
-                  <div className="bg-slate-950 border border-slate-800 rounded-2xl p-4 space-y-2 max-h-64 overflow-y-auto">
-                    <div className="text-xs font-extrabold text-cyan-400 sticky top-0 bg-slate-950 pb-1">
+                  <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 space-y-2 max-h-64 overflow-y-auto">
+                    <div className="text-xs font-bold text-emerald-700 sticky top-0 bg-slate-50 pb-1">
                       Dettaglio Cronologico Sedute
                     </div>
                     {progressionSeries
@@ -788,39 +783,39 @@ export default function RilevazioniCarichiTab({
                         return (
                           <div
                             key={item.id || idx}
-                            className="p-2.5 rounded-xl bg-slate-900 border border-slate-800 flex items-center justify-between gap-2 text-xs"
+                            className="p-2.5 rounded-xl bg-white border border-slate-200 flex items-center justify-between gap-2 text-xs"
                           >
                             <div>
-                              <div className="font-bold text-white">
+                              <div className="font-bold text-slate-900">
                                 {formatDayLabel(toDateInputValue(item.created_at))}
                               </div>
-                              <div className="text-[10px] text-slate-400 font-mono">
+                              <div className="text-[10px] text-slate-500 font-mono">
                                 {item.sets} serie × {item.reps} rip • {item.tempo_speed}
                               </div>
                             </div>
                             <div className="flex items-center gap-2">
                               {item.is_unilateral ? (
                                 <div className="text-right font-mono">
-                                  <div className="flex items-center gap-1 text-[11px] font-black">
-                                    <span className="text-cyan-300">SX: {item.weight_sx_kg}kg</span>
-                                    <span className="text-slate-600">|</span>
-                                    <span className="text-teal-300">DX: {item.weight_dx_kg}kg</span>
+                                  <div className="flex items-center gap-1 text-[11px] font-bold">
+                                    <span className="text-emerald-700">SX: {item.weight_sx_kg}kg</span>
+                                    <span className="text-slate-400">|</span>
+                                    <span className="text-teal-700">DX: {item.weight_dx_kg}kg</span>
                                   </div>
                                   {rowLsi !== null && (
-                                    <div className="text-[9px] text-slate-400 font-bold">
-                                      LSI: <span className={rowLsi >= 90 ? 'text-teal-300' : 'text-amber-300'}>{rowLsi}%</span>
+                                    <div className="text-[9px] text-slate-500 font-bold">
+                                      LSI: <span className={rowLsi >= 90 ? 'text-emerald-700' : 'text-amber-600'}>{rowLsi}%</span>
                                     </div>
                                   )}
                                 </div>
                               ) : (
-                                <span className="font-mono font-black text-teal-300 text-sm">
+                                <span className="font-mono font-bold text-emerald-700 text-sm">
                                   {item.weight_kg} kg
                                 </span>
                               )}
                               <button
                                 type="button"
                                 onClick={() => handleOpenEditModal(item)}
-                                className="p-1 text-cyan-400 hover:text-cyan-300 cursor-pointer"
+                                className="p-1 text-emerald-700 hover:text-emerald-900 cursor-pointer print:hidden"
                                 title="Modifica questa rilevazione"
                               >
                                 <Edit3 className="w-3.5 h-3.5" />
@@ -839,13 +834,13 @@ export default function RilevazioniCarichiTab({
 
       {/* ELENCO PACCHETTI DI ESERCIZI RAGGRUPPATI PER GIORNATA */}
       {daysToRender.length === 0 ? (
-        <div className="bg-slate-900 border border-slate-800 rounded-2xl p-10 text-center space-y-3">
-          <Package className="w-10 h-10 text-slate-600 mx-auto" />
-          <div className="text-sm font-black text-white">
+        <div className="bg-white border border-slate-200/80 rounded-xl p-10 text-center space-y-3 shadow-sm">
+          <Package className="w-8 h-8 text-slate-400 mx-auto" />
+          <div className="text-sm font-bold text-slate-900">
             Nessun pacchetto di allenamento ancora registrato per {patient?.nome}
           </div>
-          <p className="text-xs text-slate-400 max-w-md mx-auto">
-            Usa <strong>"Simula Vista Paziente / Test Rapido"</strong> oppure <strong>"Aggiungi Esercizio Manuale"</strong> per inserire il primo pacchetto di esercizi del giorno.
+          <p className="text-xs text-slate-500 max-w-md mx-auto">
+            Usa <strong>&quot;+ Aggiungi Esercizio&quot;</strong> per inserire il primo pacchetto di esercizi del giorno.
           </p>
         </div>
       ) : (
@@ -864,24 +859,24 @@ export default function RilevazioniCarichiTab({
             return (
               <div
                 key={dayKey}
-                className="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden shadow-xl"
+                className="bg-white border border-slate-200/80 rounded-xl overflow-hidden shadow-sm break-inside-avoid"
               >
                 {/* HEADER DELLA GIORNATA (PACCHETTO DEL GIORNO) */}
-                <div className="p-4 bg-slate-950/70 border-b border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                <div className="p-4 bg-slate-50/80 border-b border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                   <div className="flex items-center gap-3">
-                    <div className="p-2 rounded-xl bg-cyan-500/10 border border-cyan-500/30 text-cyan-400">
-                      <Package className="w-5 h-5" />
+                    <div className="p-1.5 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-700">
+                      <Package className="w-4 h-4" />
                     </div>
                     <div>
                       <div className="flex items-center gap-2">
-                        <h4 className="text-sm font-black text-white">
+                        <h4 className="text-sm font-bold text-slate-900">
                           Pacchetto Seduta — {formatDayLabel(dayKey)}
                         </h4>
-                        <span className="px-2.5 py-0.5 rounded-full bg-cyan-950 text-cyan-300 border border-cyan-500/30 font-mono text-[10px] font-extrabold">
+                        <span className="px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 font-mono text-[10px] font-bold">
                           {dayLogs.length} {dayLogs.length === 1 ? 'esercizio' : 'esercizi'}
                         </span>
                       </div>
-                      <p className="text-[11px] text-slate-400">
+                      <p className="text-[11px] text-slate-500 print:hidden">
                         Clicca sul nome di un esercizio per vedere la sua progressione nel tempo
                       </p>
                     </div>
@@ -890,10 +885,10 @@ export default function RilevazioniCarichiTab({
                   <button
                     type="button"
                     onClick={() => handleOpenNewModal(dayKey)}
-                    className="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-teal-300 border border-teal-500/30 text-xs font-extrabold flex items-center gap-1.5 cursor-pointer self-start sm:self-auto"
+                    className="px-3 py-1.5 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 text-xs font-bold flex items-center gap-1.5 cursor-pointer self-start sm:self-auto print:hidden"
                   >
                     <Plus className="w-3.5 h-3.5" />
-                    <span>Aggiungi esercizio a questa giornata</span>
+                    <span>+ Esercizio in questa seduta</span>
                   </button>
                 </div>
 
@@ -901,23 +896,26 @@ export default function RilevazioniCarichiTab({
                 <div className="overflow-x-auto">
                   <table className="w-full text-left border-collapse text-xs">
                     <thead>
-                      <tr className="bg-slate-950/40 text-slate-400 border-b border-slate-800 uppercase text-[10px] font-extrabold tracking-wider">
-                        <th className="py-2.5 px-4">Esercizio (Clicca per Progressione)</th>
+                      <tr className="bg-slate-50/80 text-slate-500 border-b border-slate-200 uppercase text-[10px] font-bold tracking-wider">
+                        <th className="py-2.5 px-4">Esercizio</th>
                         <th className="py-2.5 px-4 text-center">Serie × Rip</th>
                         <th className="py-2.5 px-4 text-center">Carico (Bilaterale o SX / DX)</th>
                         <th className="py-2.5 px-4">Velocità / Tempo</th>
                         <th className="py-2.5 px-4">Note Dolore / RPE</th>
-                        <th className="py-2.5 px-4 text-right">Azioni Terapista</th>
+                        <th className="py-2.5 px-4 text-right print:hidden">Azioni</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-slate-800/70">
+                    <tbody className="divide-y divide-slate-200/80">
                       {dayLogs.map((log, index) => {
                         const rowLsi = log.is_unilateral
                           ? calcLoadLsiPct(log.weight_sx_kg, log.weight_dx_kg, injuredSide)
                           : null;
 
                         return (
-                          <tr key={log.id || index} className="hover:bg-slate-800/40 transition-colors">
+                          <tr
+                            key={log.id || index}
+                            className={`${index % 2 === 0 ? 'bg-white' : 'bg-slate-50/60'} hover:bg-emerald-50/30 transition-colors`}
+                          >
                             <td className="py-3 px-4">
                               <button
                                 type="button"
@@ -925,45 +923,40 @@ export default function RilevazioniCarichiTab({
                                 className="flex items-center gap-2.5 text-left group cursor-pointer"
                                 title="Clicca per vedere il grafico di progressione di questo esercizio"
                               >
-                                <div className="p-1.5 rounded-lg bg-slate-950 border border-slate-800 group-hover:border-cyan-500/50">
-                                  {getCategoryIcon(log.exercise_name)}
+                                <div className="p-1 rounded bg-slate-100 text-slate-600 group-hover:bg-emerald-50 group-hover:text-emerald-700">
+                                  {getCategoryIcon(log.exercise_name, 'w-4 h-4')}
                                 </div>
                                 <div>
-                                  <div className="font-extrabold text-white group-hover:text-cyan-300 flex items-center gap-1.5 flex-wrap">
-                                    <span className="underline decoration-cyan-500/50 decoration-dotted underline-offset-4">
-                                      {log.exercise_name}
-                                    </span>
+                                  <div className="font-bold text-slate-900 group-hover:text-emerald-700 flex items-center gap-1.5 flex-wrap">
+                                    <span>{log.exercise_name}</span>
                                     {log.is_unilateral && (
-                                      <span className="px-1.5 py-0.5 rounded bg-cyan-950 text-cyan-300 border border-cyan-500/40 font-mono text-[9px] font-black uppercase">
-                                        Monopodalico SX+DX
+                                      <span className="px-1.5 py-0.5 rounded bg-emerald-50 text-emerald-700 border border-emerald-200 font-mono text-[9px] font-bold uppercase">
+                                        SX+DX
                                       </span>
                                     )}
-                                    <ChevronRight className="w-3.5 h-3.5 text-cyan-400" />
+                                    <ChevronRight className="w-3.5 h-3.5 text-emerald-600 print:hidden" />
                                   </div>
-                                  <span className="text-[10px] text-cyan-400/80 font-semibold">
-                                    📈 Vedi progressione
-                                  </span>
                                 </div>
                               </button>
                             </td>
-                            <td className="py-3 px-4 text-center font-mono font-bold text-slate-200">
+                            <td className="py-3 px-4 text-center font-mono font-bold text-slate-900">
                               {log.sets} × {log.reps}
                             </td>
                             <td className="py-3 px-4 text-center">
                               {log.is_unilateral ? (
                                 <div className="inline-flex flex-wrap items-center justify-center gap-1.5">
-                                  <span className="px-2 py-1 rounded-lg bg-cyan-950 text-cyan-300 border border-cyan-500/40 font-mono font-black text-xs">
+                                  <span className="px-2 py-0.5 rounded-lg bg-slate-100 text-slate-800 border border-slate-200 font-mono font-bold text-xs">
                                     SX: {log.weight_sx_kg} kg
                                   </span>
-                                  <span className="px-2 py-1 rounded-lg bg-teal-950 text-teal-300 border border-teal-500/40 font-mono font-black text-xs">
+                                  <span className="px-2 py-0.5 rounded-lg bg-slate-100 text-slate-800 border border-slate-200 font-mono font-bold text-xs">
                                     DX: {log.weight_dx_kg} kg
                                   </span>
                                   {rowLsi !== null && (
                                     <span
-                                      className={`px-2 py-0.5 rounded-md font-mono font-black text-[10px] ${
+                                      className={`px-2 py-0.5 rounded-md font-mono font-bold text-[10px] border ${
                                         rowLsi >= 90
-                                          ? 'bg-emerald-950 text-emerald-300 border border-emerald-500/30'
-                                          : 'bg-amber-950 text-amber-300 border border-amber-500/30'
+                                          ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                                          : 'bg-amber-50 text-amber-700 border-amber-200'
                                       }`}
                                       title={`Limb Symmetry Index del carico (Lato operato: ${injuredSide})`}
                                     >
@@ -972,29 +965,29 @@ export default function RilevazioniCarichiTab({
                                   )}
                                 </div>
                               ) : (
-                                <span className="px-2.5 py-1 rounded-lg bg-teal-950 text-teal-300 border border-teal-500/40 font-mono font-black text-xs">
+                                <span className="px-2.5 py-0.5 rounded-lg bg-emerald-50 text-emerald-800 border border-emerald-200 font-mono font-bold text-xs">
                                   {log.weight_kg} kg
                                 </span>
                               )}
                             </td>
                             <td className="py-3 px-4">
-                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-slate-950 border border-slate-800 text-cyan-300 font-mono text-[11px]">
-                                <Clock className="w-3 h-3" />
+                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-slate-100 border border-slate-200 text-slate-700 font-mono text-[11px]">
+                                <Clock className="w-3 h-3 text-emerald-600" />
                                 {log.tempo_speed || log.tempo_execution || 'Standard'}
                               </span>
                             </td>
-                            <td className="py-3 px-4 text-slate-300">
+                            <td className="py-3 px-4 text-slate-600">
                               <div className="flex items-center gap-1.5">
-                                <MessageSquare className="w-3.5 h-3.5 text-slate-500 shrink-0" />
+                                <MessageSquare className="w-3.5 h-3.5 text-slate-400 shrink-0" />
                                 <span>{log.clean_notes || log.notes || log.notes_rpe || 'Nessun dolore'}</span>
                               </div>
                             </td>
-                            <td className="py-3 px-4 text-right whitespace-nowrap">
+                            <td className="py-3 px-4 text-right whitespace-nowrap print:hidden">
                               <div className="inline-flex items-center gap-1.5">
                                 <button
                                   type="button"
                                   onClick={() => handleOpenEditModal(log)}
-                                  className="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-cyan-950 text-cyan-300 border border-cyan-500/30 font-bold text-[11px] inline-flex items-center gap-1 cursor-pointer transition-colors"
+                                  className="px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-emerald-50 text-slate-700 hover:text-emerald-700 border border-slate-200 font-bold text-[11px] inline-flex items-center gap-1 cursor-pointer transition-colors"
                                 >
                                   <Edit3 className="w-3.5 h-3.5" />
                                   <span>Modifica</span>
@@ -1002,7 +995,7 @@ export default function RilevazioniCarichiTab({
                                 <button
                                   type="button"
                                   onClick={() => handleDeleteLogByTherapist(log.id)}
-                                  className="p-1.5 rounded-lg bg-slate-950 hover:bg-rose-950 text-slate-400 hover:text-rose-400 border border-slate-800 cursor-pointer transition-colors"
+                                  className="p-1.5 rounded-lg bg-slate-100 hover:bg-rose-50 text-slate-500 hover:text-rose-600 border border-slate-200 cursor-pointer transition-colors"
                                   title="Elimina esercizio"
                                 >
                                   <Trash2 className="w-3.5 h-3.5" />
@@ -1023,19 +1016,19 @@ export default function RilevazioniCarichiTab({
 
       {/* MODAL TERAPISTA: MODIFICA QUALSIASI CAMPO O AGGIUNGI NUOVA RILEVAZIONE */}
       {editingModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md">
-          <div className="w-full max-w-lg bg-slate-900 border border-slate-700 rounded-3xl p-6 space-y-4 shadow-2xl">
-            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm print:hidden">
+          <div className="w-full max-w-lg bg-white border border-slate-200 rounded-2xl p-6 space-y-4 shadow-2xl text-slate-900">
+            <div className="flex items-center justify-between border-b border-slate-200 pb-3">
               <div className="flex items-center gap-2">
-                <Edit3 className="w-5 h-5 text-cyan-400" />
-                <h3 className="text-base font-black text-white">
+                <Edit3 className="w-4 h-4 text-emerald-600" />
+                <h3 className="text-base font-bold text-slate-900">
                   {editingLog ? 'Modifica Esercizio (Terapista)' : 'Aggiungi Esercizio al Pacchetto Giornaliero'}
                 </h3>
               </div>
               <button
                 type="button"
                 onClick={() => setEditingModalOpen(false)}
-                className="text-slate-400 hover:text-white"
+                className="text-slate-500 hover:text-slate-900 cursor-pointer"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -1044,28 +1037,28 @@ export default function RilevazioniCarichiTab({
             <form onSubmit={handleSaveTherapistEdit} className="space-y-3.5 text-xs">
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-slate-300 font-bold mb-1">Data Giornata</label>
+                  <label className="block text-slate-500 font-bold mb-1">Data Giornata</label>
                   <input
                     type="date"
                     required
                     value={formDate}
                     onChange={(e) => setFormDate(e.target.value)}
-                    className="w-full bg-slate-950 border border-slate-700 rounded-xl p-2.5 text-white font-mono"
+                    className="w-full bg-slate-50 border border-slate-300 rounded-xl p-2.5 text-slate-900 font-mono font-bold"
                   />
                 </div>
                 <div>
-                  <label className="block text-slate-300 font-bold mb-1">Orario</label>
+                  <label className="block text-slate-500 font-bold mb-1">Orario</label>
                   <input
                     type="time"
                     value={formTime}
                     onChange={(e) => setFormTime(e.target.value)}
-                    className="w-full bg-slate-950 border border-slate-700 rounded-xl p-2.5 text-white font-mono"
+                    className="w-full bg-slate-50 border border-slate-300 rounded-xl p-2.5 text-slate-900 font-mono font-bold"
                   />
                 </div>
               </div>
 
               <div>
-                <label className="block text-slate-300 font-bold mb-1">Esercizio</label>
+                <label className="block text-slate-500 font-bold mb-1">Esercizio</label>
                 <input
                   type="text"
                   required
@@ -1073,7 +1066,7 @@ export default function RilevazioniCarichiTab({
                   value={formExercise}
                   onChange={(e) => handleFormExerciseChange(e.target.value)}
                   placeholder="Nome esercizio (es. Single Leg Press, Bulgarian Split Squat...)"
-                  className="w-full bg-slate-950 border border-slate-700 rounded-xl p-2.5 text-white font-bold"
+                  className="w-full bg-slate-50 border border-slate-300 rounded-xl p-2.5 text-slate-900 font-bold"
                 />
                 <datalist id="therapist-exercise-presets">
                   {EXERCISE_PRESETS.map((item, i) => (
@@ -1082,13 +1075,12 @@ export default function RilevazioniCarichiTab({
                 </datalist>
               </div>
 
-              {/* SELETTORE MODALITÀ CARICO: BILATERALE vs MONOPODALICO (GAMBA SX + DX) */}
-              <div className="bg-slate-950 border border-slate-800 rounded-2xl p-2.5 space-y-2">
+              <div className="bg-slate-50 border border-slate-200 rounded-xl p-2.5 space-y-2">
                 <div className="flex items-center justify-between">
-                  <span className="text-[11px] font-extrabold text-slate-300">
+                  <span className="text-[11px] font-bold text-slate-700">
                     Modalità Rilevazione Carico:
                   </span>
-                  <span className="text-[10px] font-mono text-cyan-400">
+                  <span className="text-[10px] font-mono text-emerald-700 font-bold">
                     {formIsUnilateral ? 'Gamba SX + Gamba DX separati' : 'Carico unico bilaterale'}
                   </span>
                 </div>
@@ -1096,10 +1088,10 @@ export default function RilevazioniCarichiTab({
                   <button
                     type="button"
                     onClick={() => setFormIsUnilateral(false)}
-                    className={`py-2 px-3 rounded-xl font-extrabold text-xs transition-all cursor-pointer border ${
+                    className={`py-2 px-3 rounded-lg font-bold text-xs transition-all cursor-pointer border ${
                       !formIsUnilateral
-                        ? 'bg-teal-600 text-white border-teal-400 shadow-md'
-                        : 'bg-slate-900 text-slate-400 border-slate-800 hover:text-white'
+                        ? 'bg-emerald-600 text-white border-emerald-600 shadow-xs'
+                        : 'bg-white text-slate-600 border-slate-200 hover:text-slate-900'
                     }`}
                   >
                     Bilaterale (1 Carico)
@@ -1107,10 +1099,10 @@ export default function RilevazioniCarichiTab({
                   <button
                     type="button"
                     onClick={() => setFormIsUnilateral(true)}
-                    className={`py-2 px-3 rounded-xl font-extrabold text-xs transition-all cursor-pointer border ${
+                    className={`py-2 px-3 rounded-lg font-bold text-xs transition-all cursor-pointer border ${
                       formIsUnilateral
-                        ? 'bg-cyan-600 text-white border-cyan-400 shadow-md'
-                        : 'bg-slate-900 text-slate-400 border-slate-800 hover:text-white'
+                        ? 'bg-emerald-700 text-white border-emerald-700 shadow-xs'
+                        : 'bg-white text-slate-600 border-slate-200 hover:text-slate-900'
                     }`}
                   >
                     Monopodalico (SX + DX)
@@ -1121,35 +1113,35 @@ export default function RilevazioniCarichiTab({
               {!formIsUnilateral ? (
                 <div className="grid grid-cols-3 gap-3">
                   <div>
-                    <label className="block text-slate-300 font-bold mb-1">Serie (Sets)</label>
+                    <label className="block text-slate-500 font-bold mb-1">Serie (Sets)</label>
                     <input
                       type="number"
                       min="1"
                       required
                       value={formSets}
                       onChange={(e) => setFormSets(e.target.value)}
-                      className="w-full bg-slate-950 border border-slate-700 rounded-xl p-2.5 text-white font-mono text-center font-bold"
+                      className="w-full bg-slate-50 border border-slate-300 rounded-xl p-2.5 text-slate-900 font-mono text-center font-bold"
                     />
                   </div>
                   <div>
-                    <label className="block text-slate-300 font-bold mb-1">Ripetizioni</label>
+                    <label className="block text-slate-500 font-bold mb-1">Ripetizioni</label>
                     <input
                       type="text"
                       required
                       value={formReps}
                       onChange={(e) => setFormReps(e.target.value)}
-                      className="w-full bg-slate-950 border border-slate-700 rounded-xl p-2.5 text-white font-mono text-center font-bold"
+                      className="w-full bg-slate-50 border border-slate-300 rounded-xl p-2.5 text-slate-900 font-mono text-center font-bold"
                     />
                   </div>
                   <div>
-                    <label className="block text-teal-400 font-extrabold mb-1">Carico (Kg)</label>
+                    <label className="block text-emerald-700 font-bold mb-1">Carico (Kg)</label>
                     <input
                       type="number"
                       step="0.5"
                       required={!formIsUnilateral}
                       value={formWeightKg}
                       onChange={(e) => setFormWeightKg(e.target.value)}
-                      className="w-full bg-teal-950/30 border border-teal-500/60 rounded-xl p-2.5 text-teal-300 font-mono text-center font-black"
+                      className="w-full bg-emerald-50/50 border border-emerald-300 rounded-xl p-2.5 text-emerald-900 font-mono text-center font-bold"
                     />
                   </div>
                 </div>
@@ -1157,37 +1149,32 @@ export default function RilevazioniCarichiTab({
                 <div className="space-y-3">
                   <div className="grid grid-cols-2 gap-3">
                     <div>
-                      <label className="block text-slate-300 font-bold mb-1">Serie (Sets)</label>
+                      <label className="block text-slate-500 font-bold mb-1">Serie (Sets)</label>
                       <input
                         type="number"
                         min="1"
                         required
                         value={formSets}
                         onChange={(e) => setFormSets(e.target.value)}
-                        className="w-full bg-slate-950 border border-slate-700 rounded-xl p-2.5 text-white font-mono text-center font-bold"
+                        className="w-full bg-slate-50 border border-slate-300 rounded-xl p-2.5 text-slate-900 font-mono text-center font-bold"
                       />
                     </div>
                     <div>
-                      <label className="block text-slate-300 font-bold mb-1">Ripetizioni (per gamba)</label>
+                      <label className="block text-slate-500 font-bold mb-1">Ripetizioni (per gamba)</label>
                       <input
                         type="text"
                         required
                         value={formReps}
                         onChange={(e) => setFormReps(e.target.value)}
-                        className="w-full bg-slate-950 border border-slate-700 rounded-xl p-2.5 text-white font-mono text-center font-bold"
+                        className="w-full bg-slate-50 border border-slate-300 rounded-xl p-2.5 text-slate-900 font-mono text-center font-bold"
                       />
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-2 gap-3 p-3 rounded-2xl bg-slate-950 border border-cyan-500/40">
+                  <div className="grid grid-cols-2 gap-3 p-3 rounded-xl bg-slate-50 border border-slate-200">
                     <div>
-                      <label className="flex items-center justify-between text-cyan-300 font-extrabold mb-1">
+                      <label className="flex items-center justify-between text-slate-800 font-bold mb-1">
                         <span>Gamba SX (Kg)</span>
-                        {injuredSide.includes('SX') || injuredSide.includes('SINISTR') ? (
-                          <span className="px-1.5 py-0.5 rounded bg-amber-950 text-amber-300 border border-amber-500/40 text-[9px] font-mono">
-                            Operato
-                          </span>
-                        ) : null}
                       </label>
                       <input
                         type="number"
@@ -1196,17 +1183,12 @@ export default function RilevazioniCarichiTab({
                         value={formWeightSxKg}
                         onChange={(e) => setFormWeightSxKg(e.target.value)}
                         placeholder="es. 35"
-                        className="w-full bg-cyan-950/30 border border-cyan-500/60 rounded-xl p-2.5 text-white font-mono text-center font-black text-sm"
+                        className="w-full bg-white border border-slate-300 rounded-xl p-2.5 text-slate-900 font-mono text-center font-bold text-sm"
                       />
                     </div>
                     <div>
-                      <label className="flex items-center justify-between text-teal-300 font-extrabold mb-1">
+                      <label className="flex items-center justify-between text-slate-800 font-bold mb-1">
                         <span>Gamba DX (Kg)</span>
-                        {injuredSide.includes('DX') || injuredSide.includes('DESTR') ? (
-                          <span className="px-1.5 py-0.5 rounded bg-amber-950 text-amber-300 border border-amber-500/40 text-[9px] font-mono">
-                            Operato
-                          </span>
-                        ) : null}
                       </label>
                       <input
                         type="number"
@@ -1215,66 +1197,47 @@ export default function RilevazioniCarichiTab({
                         value={formWeightDxKg}
                         onChange={(e) => setFormWeightDxKg(e.target.value)}
                         placeholder="es. 40"
-                        className="w-full bg-teal-950/30 border border-teal-500/60 rounded-xl p-2.5 text-white font-mono text-center font-black text-sm"
+                        className="w-full bg-white border border-slate-300 rounded-xl p-2.5 text-slate-900 font-mono text-center font-bold text-sm"
                       />
                     </div>
-
-                    {(() => {
-                      const lsiPreview = calcLoadLsiPct(formWeightSxKg, formWeightDxKg, injuredSide);
-                      if (lsiPreview === null) return null;
-                      return (
-                        <div className="col-span-2 flex items-center justify-between px-3 py-1.5 rounded-xl bg-slate-900 border border-slate-800 text-[11px]">
-                          <span className="text-slate-400 font-bold">
-                            Simmetria Carico Monopodalico (LSI):
-                          </span>
-                          <span
-                            className={`font-mono font-black ${
-                              lsiPreview >= 90 ? 'text-teal-300' : 'text-amber-300'
-                            }`}
-                          >
-                            {lsiPreview}% ({lsiPreview >= 90 ? 'Simmetrico ≥90%' : 'Asimmetria <90%'})
-                          </span>
-                        </div>
-                      );
-                    })()}
                   </div>
                 </div>
               )}
 
               <div>
-                <label className="block text-slate-300 font-bold mb-1">Velocità / Tempo Esecuzione</label>
+                <label className="block text-slate-500 font-bold mb-1">Velocità / Tempo Esecuzione</label>
                 <input
                   type="text"
                   value={formTempo}
                   onChange={(e) => setFormTempo(e.target.value)}
                   placeholder="es. 3-0-1-0, Esplosivo 0.65 m/s..."
-                  className="w-full bg-slate-950 border border-slate-700 rounded-xl p-2.5 text-white"
+                  className="w-full bg-slate-50 border border-slate-300 rounded-xl p-2.5 text-slate-900"
                 />
               </div>
 
               <div>
-                <label className="block text-slate-300 font-bold mb-1">Note Cliniche / RPE / Dolore</label>
+                <label className="block text-slate-500 font-bold mb-1">Note Cliniche / RPE / Dolore</label>
                 <input
                   type="text"
                   value={formNotes}
                   onChange={(e) => setFormNotes(e.target.value)}
                   placeholder="es. Nessun dolore (0/10), RPE 8/10..."
-                  className="w-full bg-slate-950 border border-slate-700 rounded-xl p-2.5 text-white"
+                  className="w-full bg-slate-50 border border-slate-300 rounded-xl p-2.5 text-slate-900"
                 />
               </div>
 
-              <div className="pt-3 border-t border-slate-800 flex justify-end gap-2">
+              <div className="pt-3 border-t border-slate-200 flex justify-end gap-2">
                 <button
                   type="button"
                   onClick={() => setEditingModalOpen(false)}
-                  className="px-4 py-2 bg-slate-800 text-slate-300 rounded-xl font-bold cursor-pointer"
+                  className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-300 rounded-xl font-bold cursor-pointer"
                 >
                   Annulla
                 </button>
                 <button
                   type="submit"
                   disabled={savingEdit}
-                  className="px-5 py-2 bg-gradient-to-r from-teal-600 to-cyan-600 hover:from-teal-500 hover:to-cyan-500 text-white rounded-xl font-black flex items-center gap-1.5 shadow-lg cursor-pointer"
+                  className="px-5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold flex items-center gap-1.5 shadow-sm cursor-pointer"
                 >
                   <Save className="w-4 h-4" />
                   <span>{savingEdit ? 'Salvataggio...' : 'Salva sul Cloud'}</span>
@@ -1287,25 +1250,25 @@ export default function RilevazioniCarichiTab({
 
       {/* MODAL GENERATORE DI LINK / QR CODE E INVIO MAGIC LINK */}
       {showInviteModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md">
-          <div className="w-full max-w-lg bg-slate-900 border border-slate-700 rounded-3xl p-6 space-y-5 shadow-2xl">
-            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm print:hidden">
+          <div className="w-full max-w-lg bg-white border border-slate-200 rounded-2xl p-6 space-y-5 shadow-2xl text-slate-900">
+            <div className="flex items-center justify-between border-b border-slate-200 pb-3">
               <div className="flex items-center gap-2">
-                <QrCode className="w-5 h-5 text-cyan-400" />
-                <h3 className="text-base font-black text-white">
+                <QrCode className="w-5 h-5 text-emerald-600" />
+                <h3 className="text-base font-bold text-slate-900">
                   Invito Portale Mobile — {patient?.nome} {patient?.cognome}
                 </h3>
               </div>
               <button
                 onClick={() => setShowInviteModal(false)}
-                className="text-slate-400 hover:text-white text-sm font-bold"
+                className="text-slate-500 hover:text-slate-900 text-sm font-bold cursor-pointer"
               >
                 Chiudi ✕
               </button>
             </div>
 
-            <div className="bg-slate-950 border border-slate-800 rounded-2xl p-4 flex flex-col sm:flex-row items-center gap-4">
-              <div className="bg-white p-2.5 rounded-2xl shrink-0 shadow-md">
+            <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 flex flex-col sm:flex-row items-center gap-4">
+              <div className="bg-white p-2.5 rounded-xl border border-slate-200 shrink-0 shadow-xs">
                 <img
                   src={`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(clientPortalUrl)}`}
                   alt="QR Code Portale Paziente"
@@ -1313,20 +1276,20 @@ export default function RilevazioniCarichiTab({
                 />
               </div>
               <div className="space-y-2 text-center sm:text-left">
-                <span className="px-2.5 py-0.5 rounded-full bg-cyan-950 text-cyan-400 border border-cyan-500/30 text-[10px] font-extrabold uppercase">
+                <span className="px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 text-[10px] font-bold uppercase">
                   Scansione Diretta in Studio
                 </span>
-                <h4 className="text-sm font-extrabold text-white">
+                <h4 className="text-sm font-bold text-slate-900">
                   Fai inquadrare il QR Code al Paziente
                 </h4>
-                <p className="text-xs text-slate-400 leading-relaxed">
+                <p className="text-xs text-slate-500 leading-relaxed">
                   Il paziente apre direttamente la sua vista mobile su smartphone e può salvarla sulla schermata Home.
                 </p>
               </div>
             </div>
 
             <div className="space-y-2">
-              <label className="block text-xs font-bold text-slate-300">
+              <label className="block text-xs font-bold text-slate-600">
                 Link Diretto Permanente Portale Paziente:
               </label>
               <div className="flex gap-2">
@@ -1334,14 +1297,14 @@ export default function RilevazioniCarichiTab({
                   type="text"
                   readOnly
                   value={clientPortalUrl}
-                  className="flex-1 bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs font-mono text-cyan-300"
+                  className="flex-1 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-mono text-slate-800"
                 />
                 <button
                   type="button"
                   onClick={handleCopyInviteLink}
-                  className="px-3.5 py-2 bg-slate-800 hover:bg-slate-700 text-white font-bold text-xs rounded-xl flex items-center gap-1.5 cursor-pointer"
+                  className="px-3.5 py-2 bg-slate-100 hover:bg-slate-200 text-slate-800 border border-slate-300 font-bold text-xs rounded-xl flex items-center gap-1.5 cursor-pointer"
                 >
-                  {copiedLink ? <CheckCircle2 className="w-4 h-4 text-emerald-400" /> : <Copy className="w-4 h-4" />}
+                  {copiedLink ? <CheckCircle2 className="w-4 h-4 text-emerald-600" /> : <Copy className="w-4 h-4" />}
                   <span>{copiedLink ? 'Copiato!' : 'Copia'}</span>
                 </button>
               </div>
@@ -1350,7 +1313,7 @@ export default function RilevazioniCarichiTab({
                 <button
                   type="button"
                   onClick={handleShareWhatsApp}
-                  className="flex-1 py-2.5 bg-teal-600 hover:bg-teal-500 text-white font-extrabold text-xs rounded-xl flex items-center justify-center gap-1.5 shadow-md cursor-pointer"
+                  className="flex-1 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl flex items-center justify-center gap-1.5 shadow-sm cursor-pointer"
                 >
                   <ExternalLink className="w-3.5 h-3.5" />
                   <span>Invia su WhatsApp</span>
@@ -1358,9 +1321,9 @@ export default function RilevazioniCarichiTab({
               </div>
             </div>
 
-            <form onSubmit={handleSendMagicLinkToPatient} className="pt-3 border-t border-slate-800 space-y-2.5">
-              <label className="block text-xs font-bold text-slate-300 flex items-center gap-1.5">
-                <Mail className="w-3.5 h-3.5 text-cyan-400" />
+            <form onSubmit={handleSendMagicLinkToPatient} className="pt-3 border-t border-slate-200 space-y-2.5">
+              <label className="block text-xs font-bold text-slate-600 flex items-center gap-1.5">
+                <Mail className="w-3.5 h-3.5 text-emerald-600" />
                 <span>Oppure invia Magic Link ufficiale (OTP via Email):</span>
               </label>
               <div className="flex gap-2">
@@ -1370,19 +1333,19 @@ export default function RilevazioniCarichiTab({
                   value={patientEmail}
                   onChange={(e) => setPatientEmail(e.target.value)}
                   placeholder="email.paziente@esempio.it"
-                  className="flex-1 bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white"
+                  className="flex-1 bg-slate-50 border border-slate-300 rounded-xl px-3 py-2 text-xs text-slate-900"
                 />
                 <button
                   type="submit"
                   disabled={sendingMagicLink}
-                  className="px-4 py-2 bg-cyan-600 hover:bg-cyan-500 text-white font-extrabold text-xs rounded-xl flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+                  className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
                 >
                   <Send className="w-3.5 h-3.5" />
                   <span>{sendingMagicLink ? 'Invio...' : 'Invia Email'}</span>
                 </button>
               </div>
               {magicLinkStatus && (
-                <p className="text-[11px] font-semibold text-emerald-400 pt-1">
+                <p className="text-[11px] font-semibold text-emerald-700 pt-1">
                   {magicLinkStatus}
                 </p>
               )}

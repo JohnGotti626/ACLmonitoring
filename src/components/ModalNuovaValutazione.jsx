@@ -13,45 +13,57 @@ import {
   FolderPlus,
   Link2,
   ClipboardCheck,
-  Sparkles
+  Sparkles,
+  Sliders,
+  Trash2,
+  ChevronDown
 } from 'lucide-react';
-import { sortTestsByDate, getTestTimestamp, toStrictNullOrNumber } from '../utils/testUtils';
+import {
+  sortTestsByDate,
+  getTestTimestamp,
+  toStrictNullOrNumber,
+  normalizeTestTypeCode,
+  fetchCustomMetricDefinitions,
+  fetchPatientPreviousCustomMetrics,
+  saveCustomMetricsToSupabase,
+  hideCustomMetricInSupabase
+} from '../utils/testUtils';
 
 const TEST_MODULES = [
   {
     id: 'ISO_EXT',
+    testType: 'ISO_PUSH_LEG_EXT',
     title: 'Iso Push Leg Ext',
     subtitle: 'Quadricipite SX/DX & LSI',
     category: 'Forza Isometrica',
     icon: Flame,
-    accent: 'emerald',
     fields: ['legExtSX', 'legExtDX']
   },
   {
     id: 'ISO_CURL',
+    testType: 'ISO_PUSH_LEG_CURL',
     title: 'Iso Push Leg Curl',
     subtitle: 'Ischiocrurali SX/DX & H/Q',
     category: 'Forza Isometrica',
     icon: Flame,
-    accent: 'sky',
     fields: ['legCurlSX', 'legCurlDX']
   },
   {
     id: 'FORZA_DINAMICA',
+    testType: 'FORZA_ACCESSORIA',
     title: 'Forza Accessoria & IMTP',
     subtitle: 'Bulgarian, Calf, Soleo, IMTP',
     category: 'Forza Dinamica',
     icon: Dumbbell,
-    accent: 'amber',
     fields: ['bulgarianSX', 'bulgarianDX', 'calfRaiseSX', 'calfRaiseDX', 'soleoSX', 'soleoDX', 'imtpPeakForce']
   },
   {
     id: 'CMJ_BILATERAL',
+    testType: 'CMJ_BILATERALE',
     title: 'CMJ Bilaterale',
     subtitle: 'Altezza, RSImod, Impulse L/R',
     category: 'Pliometria & Balistica',
     icon: Zap,
-    accent: 'cyan',
     fields: [
       'jumpHeight',
       'contractionTime',
@@ -66,11 +78,11 @@ const TEST_MODULES = [
   },
   {
     id: 'CMJ_SL',
+    testType: 'CMJ_MONOPODALICO',
     title: 'CMJ Monopodalico',
     subtitle: 'Single Leg Jump SX vs DX',
     category: 'Simmetria Balistica',
     icon: Activity,
-    accent: 'emerald',
     fields: [
       'slCmjHeightSX',
       'slCmjHeightDX',
@@ -84,11 +96,11 @@ const TEST_MODULES = [
   },
   {
     id: 'DJ_BILATERAL',
+    testType: 'RSI_DROP_JUMP',
     title: 'RSI Drop Jump',
     subtitle: 'GCT <250ms, RSI & Force Plates',
     category: 'Reattività Bipodalica',
     icon: Box,
-    accent: 'amber',
     fields: [
       'djJumpHeight',
       'djContactTime',
@@ -103,11 +115,11 @@ const TEST_MODULES = [
   },
   {
     id: 'DJ_SL',
+    testType: 'SL_DROP_JUMP',
     title: 'SL Drop Jump',
     subtitle: 'Reattività Monopodalica SX/DX',
     category: 'Reattività Monopodalica',
     icon: Zap,
-    accent: 'purple',
     fields: [
       'slDjCtSX',
       'slDjCtDX',
@@ -121,17 +133,16 @@ const TEST_MODULES = [
   },
   {
     id: 'CLINICAL_SCORES',
+    testType: 'SCORE_CLINICI',
     title: 'Hop Test & Score Clinici',
     subtitle: 'IKDC, ACL-RSI, Single/Triple Hop',
     category: 'Clinica & Return to Sport',
     icon: ClipboardCheck,
-    accent: 'teal',
     fields: ['ikdcScore', 'aclrsiScore', 'lsiSingleHop', 'lsiTripleHop']
   }
 ];
 
 const EMPTY_FORM = {
-  // 1. Iso Push Leg Ext & Leg Curl + Forza Accessoria
   legExtSX: '',
   legExtDX: '',
   legCurlSX: '',
@@ -144,7 +155,6 @@ const EMPTY_FORM = {
   bulgarianDX: '',
   imtpPeakForce: '',
 
-  // 2. CMJ Bilaterale
   jumpHeight: '',
   contractionTime: '',
   peakPower: '',
@@ -155,7 +165,6 @@ const EMPTY_FORM = {
   concImpulseSX: '',
   concImpulseDX: '',
 
-  // 3. CMJ Monopodalico
   slCmjHeightSX: '',
   slCmjHeightDX: '',
   slCmjCtSX: '',
@@ -169,7 +178,6 @@ const EMPTY_FORM = {
   slCmjEccImpulseSX: '',
   slCmjEccImpulseDX: '',
 
-  // 4. Drop Jump Bilaterale
   djBoxHeight: '30 cm',
   djJumpHeight: '',
   djContactTime: '',
@@ -183,7 +191,6 @@ const EMPTY_FORM = {
   djBrakingForce: '',
   djBrakingImpulse: '',
 
-  // 5. SL Drop Jump Monopodalico
   slDjBoxHeight: '30 cm',
   slDjCtSX: '',
   slDjCtDX: '',
@@ -194,7 +201,6 @@ const EMPTY_FORM = {
   slDjBrakingSX: '',
   slDjBrakingDX: '',
 
-  // 6. Score Clinici & Hop Test
   ikdcScore: '',
   aclrsiScore: '',
   lsiSingleHop: '',
@@ -215,7 +221,6 @@ export default function ModalNuovaValutazione({
     return sortTestsByDate(patient?.tests || []);
   }, [patient?.tests]);
 
-  // Cerca se esiste una sessione recente (ultimi 14 giorni) a cui agganciare di default i nuovi test
   const recentSession = useMemo(() => {
     if (existingSessions.length === 0) return null;
     const last = existingSessions[existingSessions.length - 1];
@@ -229,7 +234,7 @@ export default function ModalNuovaValutazione({
   }, [existingSessions]);
 
   const [selectedModule, setSelectedModule] = useState(initialModule || 'ISO_EXT');
-  const [sessionMode, setSessionMode] = useState('NEW'); // 'EXISTING' | 'NEW'
+  const [sessionMode, setSessionMode] = useState('NEW');
   const [targetSessionId, setTargetSessionId] = useState('');
   const [sessionName, setSessionName] = useState('');
 
@@ -242,7 +247,19 @@ export default function ModalNuovaValutazione({
   const [form, setForm] = useState(EMPTY_FORM);
   const [savedToast, setSavedToast] = useState('');
 
-  // Helper per estrarre una stringa pulita solo se il dato esiste ed è != null / 0 fittizio
+  // =========================================================================
+  // STATO SISTEMA DI METRICHE DINAMICHE E PERSONALIZZATE
+  // =========================================================================
+  // Mappa: { [test_type]: [{ metric_name, unit, metric_value, is_hidden }] }
+  const [customMetricsByType, setCustomMetricsByType] = useState({});
+  // Suggerimenti globali da `custom_metric_definitions` per il `test_type` attivo
+  const [globalMetricSuggestions, setGlobalMetricSuggestions] = useState([]);
+  // Indice della riga metrica che ha il menu suggerimenti aperto (-1 = nessuno)
+  const [openSuggestionRowIdx, setOpenSuggestionRowIdx] = useState(-1);
+
+  const activeModuleDef = TEST_MODULES.find(m => m.id === selectedModule) || TEST_MODULES[0];
+  const activeTestType = normalizeTestTypeCode(activeModuleDef.testType || selectedModule);
+
   const getValStr = (...vals) => {
     for (const v of vals) {
       const clean = toStrictNullOrNumber(v, false);
@@ -254,6 +271,7 @@ export default function ModalNuovaValutazione({
   const populateFormFromSession = (sessionObj) => {
     if (!sessionObj) {
       setForm(EMPTY_FORM);
+      setCustomMetricsByType({});
       return;
     }
     setForm({
@@ -320,11 +338,29 @@ export default function ModalNuovaValutazione({
       lsiSingleHop: getValStr(sessionObj.lsiSingleHop, sessionObj.lsi_single_hop),
       lsiTripleHop: getValStr(sessionObj.lsiTripleHop, sessionObj.lsi_triple_hop)
     });
+
+    if (sessionObj.custom_metrics && typeof sessionObj.custom_metrics === 'object') {
+      const cloned = {};
+      Object.entries(sessionObj.custom_metrics).forEach(([k, arr]) => {
+        if (Array.isArray(arr)) {
+          cloned[normalizeTestTypeCode(k)] = arr.map(m => ({
+            metric_name: m.metric_name || '',
+            unit: m.unit || '',
+            metric_value: m.metric_value !== null && m.metric_value !== undefined ? String(m.metric_value) : '',
+            is_hidden: Boolean(m.is_hidden)
+          }));
+        }
+      });
+      setCustomMetricsByType(cloned);
+    } else {
+      setCustomMetricsByType({});
+    }
   };
 
   useEffect(() => {
     setSelectedModule(initialModule || 'ISO_EXT');
     setSavedToast('');
+    setOpenSuggestionRowIdx(-1);
 
     if (initialData) {
       setSessionMode('EXISTING');
@@ -336,7 +372,6 @@ export default function ModalNuovaValutazione({
       if (initialData.ginocchio_operato) setOpKnee(initialData.ginocchio_operato);
       populateFormFromSession(initialData);
     } else if (recentSession) {
-      // Se c'è una sessione negli ultimi 14 giorni, propone automaticamente di agregarvi il nuovo test!
       setSessionMode('EXISTING');
       setTargetSessionId(recentSession.id);
       setSessionName(recentSession.session_name || recentSession.label || `Sessione #${recentSession.num}`);
@@ -353,10 +388,55 @@ export default function ModalNuovaValutazione({
       setPhase(patient?.fase_riabilitativa || 'Fase 3 (3-6 mesi)');
       setEvaluator('N Rehab Team');
       setForm(EMPTY_FORM);
+      setCustomMetricsByType({});
     }
   }, [initialData, patient, isOpen]);
 
-  // Cambio tra Sessione Esistente e Nuova Sessione
+  // Carica suggerimenti da `custom_metric_definitions` e pre-popola le metriche già usate dal paziente per questo `test_type`
+  useEffect(() => {
+    let isMounted = true;
+
+    async function loadSuggestionsAndPatientHistory() {
+      const [defs, prevPatientMetrics] = await Promise.all([
+        fetchCustomMetricDefinitions(activeTestType),
+        fetchPatientPreviousCustomMetrics(patient, activeTestType)
+      ]);
+
+      if (!isMounted) return;
+      setGlobalMetricSuggestions(defs || []);
+
+      if (Array.isArray(prevPatientMetrics) && prevPatientMetrics.length > 0) {
+        setCustomMetricsByType(prev => {
+          const currentList = Array.isArray(prev[activeTestType]) ? [...prev[activeTestType]] : [];
+          const existingNames = new Set(currentList.map(m => (m.metric_name || '').trim().toLowerCase()));
+          let changed = false;
+
+          prevPatientMetrics.forEach(pm => {
+            const key = (pm.metric_name || '').trim().toLowerCase();
+            if (key && !existingNames.has(key)) {
+              currentList.push({
+                metric_name: pm.metric_name,
+                unit: pm.unit || '',
+                metric_value: '',
+                is_hidden: false,
+                isPreloadedFromHistory: true
+              });
+              existingNames.add(key);
+              changed = true;
+            }
+          });
+
+          return changed ? { ...prev, [activeTestType]: currentList } : prev;
+        });
+      }
+    }
+
+    loadSuggestionsAndPatientHistory();
+    return () => {
+      isMounted = false;
+    };
+  }, [activeTestType, patient]);
+
   const handleSelectSessionMode = (mode, sessId = '') => {
     setSessionMode(mode);
     if (mode === 'EXISTING') {
@@ -372,6 +452,7 @@ export default function ModalNuovaValutazione({
       const nextNum = existingSessions.length + 1;
       setSessionName(`Valutazione #${nextNum}`);
       setForm(EMPTY_FORM);
+      setCustomMetricsByType({});
     }
   };
 
@@ -379,7 +460,97 @@ export default function ModalNuovaValutazione({
     setForm(prev => ({ ...prev, [field]: value }));
   };
 
-  // Helper rigoroso: campi vuoti o 0 non validi -> SEMPRE null
+  // Gestione Metriche Personalizzate per il `test_type` attivo
+  const activeCustomMetrics = (customMetricsByType[activeTestType] || []).filter(m => !m.is_hidden);
+
+  const handleAddCustomMetricRow = () => {
+    setCustomMetricsByType(prev => {
+      const list = Array.isArray(prev[activeTestType]) ? [...prev[activeTestType]] : [];
+      const newIndex = list.length;
+      list.push({
+        metric_name: '',
+        unit: '',
+        metric_value: '',
+        is_hidden: false
+      });
+      setOpenSuggestionRowIdx(newIndex);
+      return { ...prev, [activeTestType]: list };
+    });
+  };
+
+  const handleUpdateCustomMetricRow = (visibleIdx, field, val) => {
+    setCustomMetricsByType(prev => {
+      const fullList = Array.isArray(prev[activeTestType]) ? [...prev[activeTestType]] : [];
+      let vCount = -1;
+      const updated = fullList.map(item => {
+        if (item.is_hidden) return item;
+        vCount++;
+        if (vCount === visibleIdx) {
+          const nextItem = { ...item, [field]: val };
+          // Se digita o seleziona un nome che corrisponde a un suggerimento, auto-compila l'unità se vuota
+          if (field === 'metric_name' && !nextItem.unit) {
+            const matchedSug = globalMetricSuggestions.find(
+              s => s.metric_name.toLowerCase() === String(val).trim().toLowerCase()
+            );
+            if (matchedSug?.unit) {
+              nextItem.unit = matchedSug.unit;
+            }
+          }
+          return nextItem;
+        }
+        return item;
+      });
+      return { ...prev, [activeTestType]: updated };
+    });
+  };
+
+  const handleSelectSuggestion = (visibleIdx, suggestion) => {
+    setCustomMetricsByType(prev => {
+      const fullList = Array.isArray(prev[activeTestType]) ? [...prev[activeTestType]] : [];
+      let vCount = -1;
+      const updated = fullList.map(item => {
+        if (item.is_hidden) return item;
+        vCount++;
+        if (vCount === visibleIdx) {
+          return {
+            ...item,
+            metric_name: suggestion.metric_name,
+            unit: suggestion.unit || item.unit || ''
+          };
+        }
+        return item;
+      });
+      return { ...prev, [activeTestType]: updated };
+    });
+    setOpenSuggestionRowIdx(-1);
+  };
+
+  const handleHideOrRemoveCustomMetric = async (visibleIdx, metricObj) => {
+    setCustomMetricsByType(prev => {
+      const fullList = Array.isArray(prev[activeTestType]) ? [...prev[activeTestType]] : [];
+      let vCount = -1;
+      const updated = [];
+      for (const item of fullList) {
+        if (!item.is_hidden) {
+          vCount++;
+          if (vCount === visibleIdx) {
+            // Se aveva un nome già registrato, lo marca is_hidden = true per nasconderlo anche dallo storico
+            if (item.metric_name && item.metric_name.trim() !== '') {
+              updated.push({ ...item, is_hidden: true, metric_value: null });
+            }
+            continue;
+          }
+        }
+        updated.push(item);
+      }
+      return { ...prev, [activeTestType]: updated };
+    });
+
+    if (metricObj?.metric_name && patient?.id) {
+      await hideCustomMetricInSupabase(patient.id, activeTestType, metricObj.metric_name);
+    }
+  };
+
   const parseVal = (val, allowZero = false) => toStrictNullOrNumber(val, allowZero);
 
   const computeLSI = (valSX, valDX) => {
@@ -410,7 +581,12 @@ export default function ModalNuovaValutazione({
   };
 
   const getModuleFilledCount = (moduleObj) => {
-    return moduleObj.fields.filter(f => parseVal(form[f]) !== null).length;
+    const stdCount = moduleObj.fields.filter(f => parseVal(form[f]) !== null).length;
+    const tType = normalizeTestTypeCode(moduleObj.testType || moduleObj.id);
+    const custCount = (customMetricsByType[tType] || []).filter(
+      m => !m.is_hidden && m.metric_name?.trim() && parseVal(m.metric_value, true) !== null
+    ).length;
+    return stdCount + custCount;
   };
 
   const buildSanitizedPayload = () => {
@@ -438,6 +614,23 @@ export default function ModalNuovaValutazione({
       parseVal(form.slDjBrakingSX) !== null ||
       parseVal(form.slDjBrakingDX) !== null;
 
+    // Sanitizza le metriche personalizzate (valori vuoti -> null)
+    const sanitizedCustomMap = {};
+    Object.entries(customMetricsByType).forEach(([tType, list]) => {
+      if (!Array.isArray(list)) return;
+      const cleanItems = list
+        .filter(m => m && typeof m.metric_name === 'string' && m.metric_name.trim() !== '')
+        .map(m => ({
+          metric_name: m.metric_name.trim(),
+          unit: m.unit ? m.unit.trim() : '',
+          metric_value: parseVal(m.metric_value, true),
+          is_hidden: Boolean(m.is_hidden)
+        }));
+      if (cleanItems.length > 0) {
+        sanitizedCustomMap[normalizeTestTypeCode(tType)] = cleanItems;
+      }
+    });
+
     return {
       patient_id: patient?.id,
       patientId: patient?.id,
@@ -448,12 +641,12 @@ export default function ModalNuovaValutazione({
       num: existingTarget?.num || existingSessions.length + 1,
       test_module: selectedModule,
       module_dates: existingTarget?.module_dates || {},
+      custom_metrics: sanitizedCustomMap,
       data_valutazione: evalDate,
       ginocchio_operato: opKnee,
       fase_riabilitativa: phase,
       valutatore: evaluator,
 
-      // Dominio 1: Forza (SOLO valori validi o NULL, MAI 0)
       iso_leg_ext_sx: parseVal(form.legExtSX),
       iso_leg_ext_dx: parseVal(form.legExtDX),
       iso_leg_curl_sx: parseVal(form.legCurlSX),
@@ -466,7 +659,6 @@ export default function ModalNuovaValutazione({
       bulgarian_dx: parseVal(form.bulgarianDX),
       imtp_peak_force: parseVal(form.imtpPeakForce),
 
-      // Dominio 2: CMJ Bipodalico
       jump_height_cm: parseVal(form.jumpHeight),
       contraction_time_ms: parseVal(form.contractionTime),
       peak_power_w: parseVal(form.peakPower),
@@ -478,7 +670,6 @@ export default function ModalNuovaValutazione({
       conc_impulse_sx: parseVal(form.concImpulseSX),
       conc_impulse_dx: parseVal(form.concImpulseDX),
 
-      // Dominio 3: CMJ Monopodalico
       sl_cmj_height_sx: parseVal(form.slCmjHeightSX),
       sl_cmj_height_dx: parseVal(form.slCmjHeightDX),
       sl_cmj_ct_sx: parseVal(form.slCmjCtSX),
@@ -492,7 +683,6 @@ export default function ModalNuovaValutazione({
       sl_cmj_ecc_impulse_sx: parseVal(form.slCmjEccImpulseSX),
       sl_cmj_ecc_impulse_dx: parseVal(form.slCmjEccImpulseDX),
 
-      // Dominio 4: Drop Jump Bipodalico
       dj_box_height: hasDjFields ? form.djBoxHeight : null,
       dj_jump_height: parseVal(form.djJumpHeight),
       dj_contact_time: parseVal(form.djContactTime),
@@ -506,7 +696,6 @@ export default function ModalNuovaValutazione({
       dj_braking_force: parseVal(form.djBrakingForce),
       dj_braking_impulse: parseVal(form.djBrakingImpulse),
 
-      // Dominio 5: SL Drop Jump Monopodalico
       sl_dj_box_height: hasSlDjFields ? form.slDjBoxHeight : null,
       sl_dj_ct_sx: parseVal(form.slDjCtSX),
       sl_dj_ct_dx: parseVal(form.slDjCtDX),
@@ -517,13 +706,11 @@ export default function ModalNuovaValutazione({
       sl_dj_braking_sx: parseVal(form.slDjBrakingSX),
       sl_dj_braking_dx: parseVal(form.slDjBrakingDX),
 
-      // Dominio 6: Score Clinici & Hop Test
       ikdc_score: parseVal(form.ikdcScore),
       aclrsi: parseVal(form.aclrsiScore),
       lsi_single_hop: parseVal(form.lsiSingleHop),
       lsi_triple_hop: parseVal(form.lsiTripleHop),
 
-      // LSI & Asimmetrie Calcolate (null se non calcolabili)
       lsi_quad_calculated: computeLSI(form.legExtSX, form.legExtDX),
       lsi_curl_calculated: computeLSI(form.legCurlSX, form.legCurlDX),
       ecc_braking_asym_calculated: computeLimbAsym(form.eccBrakingSX, form.eccBrakingDX),
@@ -535,7 +722,7 @@ export default function ModalNuovaValutazione({
         parseVal(form.slCmjRsiSX) ?? computeRSImod(form.slCmjHeightSX, form.slCmjCtSX),
         parseVal(form.slCmjRsiDX) ?? computeRSImod(form.slCmjHeightDX, form.slCmjCtDX)
       ),
-      lsi_sl_cmj_ecc_impulse_calculated: computeLSI(form.slCmjEccImpulseSX, form.slCmjEccImpulseDX),
+      lsi_sl_cmj_ecc_impulse_calculated: computeLSI(form.slCmjEccImpulseSX, form.slCmjEccImpulseSX),
       lsi_sl_dj_ct_calculated: computeLSI(form.slDjCtSX, form.slDjCtDX),
       lsi_sl_dj_rsi_calculated: computeLSI(form.slDjRsiSX, form.slDjRsiDX),
       lsi_sl_dj_height_calculated: computeLSI(form.slDjHeightSX, form.slDjHeightDX),
@@ -543,42 +730,58 @@ export default function ModalNuovaValutazione({
     };
   };
 
-  const handleSaveAndKeepOpen = () => {
+  const persistCustomMetricsToDb = async (payload) => {
+    const customMap = payload.custom_metrics || {};
+    for (const [tType, list] of Object.entries(customMap)) {
+      if (Array.isArray(list) && list.length > 0) {
+        await saveCustomMetricsToSupabase({
+          patientId: patient?.id,
+          evaluationId: payload.id,
+          sessionKey: payload.session_id || payload.session_name,
+          testTypeInput: tType,
+          customMetricsList: list
+        });
+      }
+    }
+  };
+
+  const handleSaveAndKeepOpen = async () => {
     const payload = buildSanitizedPayload();
+    await persistCustomMetricsToDb(payload);
     const activeModObj = TEST_MODULES.find(m => m.id === selectedModule);
     onSaveEvaluation(payload);
-    setSavedToast(`✓ Modulo "${activeModObj?.title || 'Test'}" salvato nella sessione "${payload.session_name}"!`);
+    setSavedToast(`✓ Modulo "${activeModObj?.title || 'Test'}" e metriche personalizzate salvati in "${payload.session_name}"!`);
     setTimeout(() => setSavedToast(''), 3500);
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     const payload = buildSanitizedPayload();
+    await persistCustomMetricsToDb(payload);
     onSaveEvaluation(payload);
     onClose();
   };
 
-  const activeModuleDef = TEST_MODULES.find(m => m.id === selectedModule) || TEST_MODULES[0];
   const isOpDX = opKnee === 'DX';
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-5 bg-slate-950/85 backdrop-blur-md overflow-y-auto">
-      <div className="w-full max-w-5xl bg-slate-900 border border-slate-700/80 rounded-3xl p-5 sm:p-6 space-y-5 shadow-2xl my-auto max-h-[92vh] overflow-y-auto">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-5 bg-slate-900/50 backdrop-blur-sm overflow-y-auto print:hidden">
+      <div className="w-full max-w-5xl bg-white border border-slate-200 rounded-2xl p-5 sm:p-6 space-y-5 shadow-2xl my-auto max-h-[92vh] overflow-y-auto text-slate-900">
         
         {/* HEADER MODALE */}
-        <div className="flex items-start justify-between pb-4 border-b border-slate-800">
+        <div className="flex items-start justify-between pb-4 border-b border-slate-200">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-2xl bg-emerald-500/15 border border-emerald-500/40 flex items-center justify-center shrink-0">
-              <Layers className="w-5 h-5 text-emerald-400" />
+            <div className="p-2 rounded-xl bg-emerald-50 border border-emerald-200 flex items-center justify-center shrink-0">
+              <Layers className="w-4 h-4 text-emerald-700" />
             </div>
             <div>
-              <h3 className="text-lg sm:text-xl font-bold text-slate-100 tracking-tight">
+              <h3 className="text-lg sm:text-xl font-bold text-slate-900 tracking-tight">
                 Rilevazione Modulare Test Clinici LCA
               </h3>
-              <p className="text-xs text-slate-400 mt-0.5">
-                Paziente: <strong className="text-slate-100">{patient.nome} {patient.cognome}</strong> • Lato Operato:{' '}
-                <strong className="text-emerald-400">{opKnee === 'DX' ? 'Destro (DX)' : 'Sinistro (SX)'}</strong> •{' '}
-                <span className="text-slate-400">I test non compilati restano <code className="text-amber-300">Non testato (null)</code></span>
+              <p className="text-xs text-slate-500 mt-0.5">
+                Paziente: <strong className="text-slate-900">{patient.nome} {patient.cognome}</strong> • Lato Operato:{' '}
+                <strong className="text-emerald-700">{opKnee === 'DX' ? 'Destro (DX)' : 'Sinistro (SX)'}</strong> •{' '}
+                <span>I campi vuoti restano <code className="text-emerald-700 font-semibold">Non testato (null)</code></span>
               </p>
             </div>
           </div>
@@ -586,9 +789,9 @@ export default function ModalNuovaValutazione({
           <button
             type="button"
             onClick={onClose}
-            className="p-2 rounded-xl bg-slate-800 text-slate-400 hover:text-white border border-slate-700 transition-colors cursor-pointer"
+            className="p-2 rounded-xl bg-slate-100 text-slate-500 hover:text-slate-900 hover:bg-slate-200 border border-slate-200 transition-colors cursor-pointer"
           >
-            <X className="w-5 h-5" />
+            <X className="w-4 h-4" />
           </button>
         </div>
 
@@ -597,24 +800,26 @@ export default function ModalNuovaValutazione({
           {/* ===================================================================== */}
           {/* STEP 1: RAGGRUPPAMENTO IN SESSIONE / REPORT CLINICO                   */}
           {/* ===================================================================== */}
-          <div className="p-4 bg-slate-950/80 rounded-2xl border border-slate-800 space-y-3.5">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-800/80 pb-3">
+          <div className="p-4 bg-slate-50 rounded-xl border border-slate-200 space-y-3.5">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-200 pb-3">
               <div className="flex items-center gap-2">
-                <Calendar className="w-4 h-4 text-sky-400" />
-                <span className="text-xs font-bold uppercase tracking-wider text-slate-200">
+                <div className="p-1 bg-slate-100 text-slate-600 rounded">
+                  <Calendar className="w-4 h-4" />
+                </div>
+                <span className="text-xs font-bold uppercase tracking-wider text-slate-800">
                   1. Sessione / Report di Riferimento (Aggregazione Multi-Giorno)
                 </span>
               </div>
 
               {existingSessions.length > 0 && (
-                <div className="flex items-center gap-1.5 bg-slate-900 p-1 rounded-xl border border-slate-800">
+                <div className="flex items-center gap-1.5 bg-white p-1 rounded-xl border border-slate-200">
                   <button
                     type="button"
                     onClick={() => handleSelectSessionMode('EXISTING')}
                     className={`px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer ${
                       sessionMode === 'EXISTING'
                         ? 'bg-emerald-600 text-white shadow-xs'
-                        : 'text-slate-400 hover:text-slate-200'
+                        : 'text-slate-600 hover:text-slate-900'
                     }`}
                   >
                     <Link2 className="w-3.5 h-3.5" />
@@ -625,8 +830,8 @@ export default function ModalNuovaValutazione({
                     onClick={() => handleSelectSessionMode('NEW')}
                     className={`px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer ${
                       sessionMode === 'NEW'
-                        ? 'bg-sky-600 text-white shadow-xs'
-                        : 'text-slate-400 hover:text-slate-200'
+                        ? 'bg-emerald-600 text-white shadow-xs'
+                        : 'text-slate-600 hover:text-slate-900'
                     }`}
                   >
                     <FolderPlus className="w-3.5 h-3.5" />
@@ -637,16 +842,15 @@ export default function ModalNuovaValutazione({
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-              {/* Selezione o Nome della Sessione */}
               {sessionMode === 'EXISTING' && existingSessions.length > 0 ? (
                 <div className="sm:col-span-2">
-                  <label className="block text-[11px] font-semibold text-slate-300 uppercase tracking-wider mb-1">
+                  <label className="block text-[11px] font-semibold text-slate-500 uppercase tracking-wider mb-1">
                     Sessione / Report Clinico Attivo (Unisce test di giorni diversi)
                   </label>
                   <select
                     value={targetSessionId}
                     onChange={(e) => handleSelectSessionMode('EXISTING', e.target.value)}
-                    className="w-full bg-slate-900 border border-emerald-500/50 rounded-xl p-2.5 text-xs text-emerald-300 font-bold focus:border-emerald-400 focus:outline-none"
+                    className="w-full bg-white border border-emerald-500 rounded-xl p-2.5 text-xs text-emerald-800 font-bold focus:border-emerald-600 focus:outline-none"
                   >
                     {existingSessions.map((s) => (
                       <option key={s.id} value={s.id}>
@@ -657,7 +861,7 @@ export default function ModalNuovaValutazione({
                 </div>
               ) : (
                 <div className="sm:col-span-2">
-                  <label className="block text-[11px] font-semibold text-slate-300 uppercase tracking-wider mb-1">
+                  <label className="block text-[11px] font-semibold text-slate-500 uppercase tracking-wider mb-1">
                     Nome Nuova Sessione / Report (es. &quot;Valutazione 3° Mese&quot;)
                   </label>
                   <input
@@ -665,13 +869,13 @@ export default function ModalNuovaValutazione({
                     value={sessionName}
                     onChange={(e) => setSessionName(e.target.value)}
                     placeholder="es. Valutazione 3° Mese / Check Pre-Run"
-                    className="w-full bg-slate-900 border border-slate-700 rounded-xl p-2.5 text-xs text-white font-semibold focus:border-sky-400 focus:outline-none"
+                    className="w-full bg-white border border-slate-300 rounded-xl p-2.5 text-xs text-slate-900 font-semibold focus:border-emerald-600 focus:outline-none"
                   />
                 </div>
               )}
 
               <div>
-                <label className="block text-[11px] font-semibold text-slate-300 uppercase tracking-wider mb-1">
+                <label className="block text-[11px] font-semibold text-slate-500 uppercase tracking-wider mb-1">
                   Data Esecuzione Test
                 </label>
                 <input
@@ -679,18 +883,18 @@ export default function ModalNuovaValutazione({
                   required
                   value={evalDate}
                   onChange={(e) => setEvalDate(e.target.value)}
-                  className="w-full bg-slate-900 border border-slate-700 rounded-xl p-2.5 text-xs text-white font-mono font-bold focus:border-emerald-400 focus:outline-none"
+                  className="w-full bg-white border border-slate-300 rounded-xl p-2.5 text-xs text-slate-900 font-mono font-bold focus:border-emerald-600 focus:outline-none"
                 />
               </div>
 
               <div>
-                <label className="block text-[11px] font-semibold text-slate-300 uppercase tracking-wider mb-1">
+                <label className="block text-[11px] font-semibold text-slate-500 uppercase tracking-wider mb-1">
                   Ginocchio Operato
                 </label>
                 <select
                   value={opKnee}
                   onChange={(e) => setOpKnee(e.target.value)}
-                  className="w-full bg-slate-900 border border-slate-700 rounded-xl p-2.5 text-xs text-emerald-300 font-bold focus:border-emerald-400 focus:outline-none"
+                  className="w-full bg-white border border-slate-300 rounded-xl p-2.5 text-xs text-slate-900 font-bold focus:border-emerald-600 focus:outline-none"
                 >
                   <option value="DX">🔴 Destro (DX Operato)</option>
                   <option value="SX">🔴 Sinistro (SX Operato)</option>
@@ -704,11 +908,13 @@ export default function ModalNuovaValutazione({
           {/* ===================================================================== */}
           <div className="space-y-2.5">
             <div className="flex items-center justify-between">
-              <span className="text-xs font-bold uppercase tracking-wider text-slate-200 flex items-center gap-2">
-                <Sparkles className="w-4 h-4 text-amber-400" />
+              <span className="text-xs font-bold uppercase tracking-wider text-slate-800 flex items-center gap-2">
+                <span className="p-1 bg-slate-100 text-slate-600 rounded">
+                  <Sparkles className="w-4 h-4" />
+                </span>
                 2. Seleziona il Test Specifico da Rilevare
               </span>
-              <span className="text-[11px] text-slate-400">
+              <span className="text-[11px] text-slate-500">
                 Mostra solo i campi pertinenti al test selezionato
               </span>
             </div>
@@ -725,38 +931,38 @@ export default function ModalNuovaValutazione({
                     key={mod.id}
                     type="button"
                     onClick={() => setSelectedModule(mod.id)}
-                    className={`p-3 rounded-2xl border text-left transition-all cursor-pointer flex flex-col justify-between gap-2 ${
+                    className={`p-3 rounded-xl border text-left transition-all cursor-pointer flex flex-col justify-between gap-2 ${
                       isSelected
-                        ? 'bg-slate-800 border-emerald-400 shadow-lg ring-1 ring-emerald-400/40'
+                        ? 'bg-emerald-50/70 border-emerald-600 shadow-sm ring-1 ring-emerald-600/30'
                         : hasData
-                        ? 'bg-slate-900/90 border-emerald-500/30 hover:border-slate-600'
-                        : 'bg-slate-950/70 border-slate-800 hover:border-slate-700 opacity-85 hover:opacity-100'
+                        ? 'bg-white border-emerald-300 hover:border-emerald-500'
+                        : 'bg-slate-50/80 border-slate-200 hover:border-slate-300'
                     }`}
                   >
                     <div className="flex items-start justify-between gap-1.5">
-                      <div className={`p-1.5 rounded-lg border ${
+                      <div className={`p-1 rounded ${
                         isSelected
-                          ? 'bg-emerald-500/20 border-emerald-500/40 text-emerald-300'
-                          : 'bg-slate-900 border-slate-700/80 text-slate-300'
+                          ? 'bg-emerald-600 text-white'
+                          : 'bg-slate-100 text-slate-600'
                       }`}>
                         <Icon className="w-4 h-4" />
                       </div>
                       {hasData ? (
-                        <span className="px-2 py-0.5 rounded-full bg-emerald-500/20 border border-emerald-500/40 text-emerald-300 text-[10px] font-bold">
+                        <span className="px-2 py-0.5 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-700 text-[10px] font-bold">
                           ✓ {filledCount} dati
                         </span>
                       ) : (
-                        <span className="px-2 py-0.5 rounded-full bg-slate-900 border border-slate-800 text-slate-500 text-[10px] font-semibold">
+                        <span className="px-2 py-0.5 rounded-full bg-slate-100 border border-slate-200 text-slate-500 text-[10px] font-semibold">
                           Vuoto
                         </span>
                       )}
                     </div>
 
                     <div>
-                      <div className="text-xs font-bold text-slate-100 leading-snug">
+                      <div className="text-xs font-bold text-slate-900 leading-snug">
                         {mod.title}
                       </div>
-                      <div className="text-[10px] text-slate-400 leading-tight mt-0.5">
+                      <div className="text-[10px] text-slate-500 leading-tight mt-0.5">
                         {mod.subtitle}
                       </div>
                     </div>
@@ -769,14 +975,14 @@ export default function ModalNuovaValutazione({
           {/* ===================================================================== */}
           {/* STEP 3: PANNELLO CAMPI DEL SINGOLO TEST SELEZIONATO                   */}
           {/* ===================================================================== */}
-          <div className="p-5 rounded-2xl bg-slate-950/90 border border-slate-700/80 space-y-4 shadow-inner">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-3 border-b border-slate-800">
+          <div className="p-5 rounded-xl bg-slate-50/80 border border-slate-200 space-y-5">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-3 border-b border-slate-200">
               <div>
-                <span className="text-[10px] font-bold uppercase tracking-widest text-emerald-400">
-                  {activeModuleDef.category}
+                <span className="text-[10px] font-bold uppercase tracking-widest text-emerald-700">
+                  {activeModuleDef.category} • Codice Test: {activeTestType}
                 </span>
-                <h4 className="text-base font-bold text-white mt-0.5">
-                  {activeModuleDef.title} — <span className="text-slate-400 font-normal text-sm">{activeModuleDef.subtitle}</span>
+                <h4 className="text-base font-bold text-slate-900 mt-0.5">
+                  {activeModuleDef.title} — <span className="text-slate-500 font-normal text-sm">{activeModuleDef.subtitle}</span>
                 </h4>
               </div>
 
@@ -787,9 +993,9 @@ export default function ModalNuovaValutazione({
                   activeModuleDef.fields.forEach(f => { resetPatch[f] = ''; });
                   setForm(prev => ({ ...prev, ...resetPatch }));
                 }}
-                className="text-[11px] font-semibold text-slate-400 hover:text-rose-400 transition-colors self-start sm:self-auto cursor-pointer"
+                className="text-[11px] font-semibold text-slate-500 hover:text-rose-600 transition-colors self-start sm:self-auto cursor-pointer"
               >
-                Svuota campi di questo test (imposta a Non testato)
+                Svuota campi standard (imposta a Non testato)
               </button>
             </div>
 
@@ -802,10 +1008,10 @@ export default function ModalNuovaValutazione({
               return (
                 <div className="space-y-4">
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div className="p-4 rounded-xl bg-slate-900 border border-slate-800 space-y-2">
+                    <div className="p-4 rounded-xl bg-white border border-slate-200 shadow-xs space-y-2">
                       <div className="flex items-center justify-between text-xs">
-                        <span className="font-bold text-slate-200">Arto Sinistro (SX) — Newton (N)</span>
-                        <span className={!isOpDX ? 'px-2 py-0.5 rounded bg-rose-500/20 text-rose-300 font-bold text-[10px]' : 'px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 font-bold text-[10px]'}>
+                        <span className="font-bold text-slate-800">Arto Sinistro (SX) — Newton (N)</span>
+                        <span className={!isOpDX ? 'px-2 py-0.5 rounded bg-rose-50 border border-rose-200 text-rose-700 font-bold text-[10px]' : 'px-2 py-0.5 rounded bg-emerald-50 border border-emerald-200 text-emerald-700 font-bold text-[10px]'}>
                           {!isOpDX ? '🔴 ARTO OPERATO' : '🟢 ARTO SANO'}
                         </span>
                       </div>
@@ -815,14 +1021,14 @@ export default function ModalNuovaValutazione({
                         placeholder="Non testato (es. 480)"
                         value={form.legExtSX}
                         onChange={(e) => handleChange('legExtSX', e.target.value)}
-                        className="w-full bg-slate-950 border border-slate-700 rounded-xl p-3 text-white font-mono text-sm font-bold focus:border-emerald-400 focus:outline-none"
+                        className="w-full bg-slate-50 border border-slate-300 rounded-xl p-3 text-slate-900 font-mono text-sm font-bold focus:border-emerald-600 focus:outline-none"
                       />
                     </div>
 
-                    <div className="p-4 rounded-xl bg-slate-900 border border-slate-800 space-y-2">
+                    <div className="p-4 rounded-xl bg-white border border-slate-200 shadow-xs space-y-2">
                       <div className="flex items-center justify-between text-xs">
-                        <span className="font-bold text-slate-200">Arto Destro (DX) — Newton (N)</span>
-                        <span className={isOpDX ? 'px-2 py-0.5 rounded bg-rose-500/20 text-rose-300 font-bold text-[10px]' : 'px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 font-bold text-[10px]'}>
+                        <span className="font-bold text-slate-800">Arto Destro (DX) — Newton (N)</span>
+                        <span className={isOpDX ? 'px-2 py-0.5 rounded bg-rose-50 border border-rose-200 text-rose-700 font-bold text-[10px]' : 'px-2 py-0.5 rounded bg-emerald-50 border border-emerald-200 text-emerald-700 font-bold text-[10px]'}>
                           {isOpDX ? '🔴 ARTO OPERATO' : '🟢 ARTO SANO'}
                         </span>
                       </div>
@@ -832,21 +1038,21 @@ export default function ModalNuovaValutazione({
                         placeholder="Non testato (es. 445)"
                         value={form.legExtDX}
                         onChange={(e) => handleChange('legExtDX', e.target.value)}
-                        className="w-full bg-slate-950 border border-slate-700 rounded-xl p-3 text-white font-mono text-sm font-bold focus:border-emerald-400 focus:outline-none"
+                        className="w-full bg-slate-50 border border-slate-300 rounded-xl p-3 text-slate-900 font-mono text-sm font-bold focus:border-emerald-600 focus:outline-none"
                       />
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 p-3.5 rounded-xl bg-slate-900/70 border border-slate-800 text-xs">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 p-3.5 rounded-xl bg-white border border-slate-200 text-xs">
                     <div className="flex items-center justify-between">
-                      <span className="text-slate-400 font-medium">LSI Quadricipite Calcolato:</span>
-                      <strong className={`text-sm font-mono ${lsi !== null ? 'text-emerald-400' : 'text-slate-500'}`}>
+                      <span className="text-slate-500 font-medium">LSI Quadricipite Calcolato:</span>
+                      <strong className={`text-sm font-mono ${lsi !== null ? 'text-emerald-700' : 'text-slate-400'}`}>
                         {lsi !== null ? `${lsi}%` : 'Non testato (N/A)'}
                       </strong>
                     </div>
                     <div className="flex items-center justify-between">
-                      <span className="text-slate-400 font-medium">Forza Relativa Quad Operato:</span>
-                      <strong className={`text-sm font-mono ${relNmKg !== null ? 'text-sky-400' : 'text-slate-500'}`}>
+                      <span className="text-slate-500 font-medium">Forza Relativa Quad Operato:</span>
+                      <strong className={`text-sm font-mono ${relNmKg !== null ? 'text-emerald-700' : 'text-slate-400'}`}>
                         {relNmKg !== null ? `${relNmKg} Nm/kg` : 'Non testato (N/A)'}
                       </strong>
                     </div>
@@ -865,10 +1071,10 @@ export default function ModalNuovaValutazione({
               return (
                 <div className="space-y-4">
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div className="p-4 rounded-xl bg-slate-900 border border-slate-800 space-y-2">
+                    <div className="p-4 rounded-xl bg-white border border-slate-200 shadow-xs space-y-2">
                       <div className="flex items-center justify-between text-xs">
-                        <span className="font-bold text-slate-200">Leg Curl Sinistro (SX) — Newton (N)</span>
-                        <span className={!isOpDX ? 'px-2 py-0.5 rounded bg-rose-500/20 text-rose-300 font-bold text-[10px]' : 'px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 font-bold text-[10px]'}>
+                        <span className="font-bold text-slate-800">Leg Curl Sinistro (SX) — Newton (N)</span>
+                        <span className={!isOpDX ? 'px-2 py-0.5 rounded bg-rose-50 border border-rose-200 text-rose-700 font-bold text-[10px]' : 'px-2 py-0.5 rounded bg-emerald-50 border border-emerald-200 text-emerald-700 font-bold text-[10px]'}>
                           {!isOpDX ? '🔴 ARTO OPERATO' : '🟢 ARTO SANO'}
                         </span>
                       </div>
@@ -878,14 +1084,14 @@ export default function ModalNuovaValutazione({
                         placeholder="Non testato (es. 230)"
                         value={form.legCurlSX}
                         onChange={(e) => handleChange('legCurlSX', e.target.value)}
-                        className="w-full bg-slate-950 border border-slate-700 rounded-xl p-3 text-white font-mono text-sm font-bold focus:border-emerald-400 focus:outline-none"
+                        className="w-full bg-slate-50 border border-slate-300 rounded-xl p-3 text-slate-900 font-mono text-sm font-bold focus:border-emerald-600 focus:outline-none"
                       />
                     </div>
 
-                    <div className="p-4 rounded-xl bg-slate-900 border border-slate-800 space-y-2">
+                    <div className="p-4 rounded-xl bg-white border border-slate-200 shadow-xs space-y-2">
                       <div className="flex items-center justify-between text-xs">
-                        <span className="font-bold text-slate-200">Leg Curl Destro (DX) — Newton (N)</span>
-                        <span className={isOpDX ? 'px-2 py-0.5 rounded bg-rose-500/20 text-rose-300 font-bold text-[10px]' : 'px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 font-bold text-[10px]'}>
+                        <span className="font-bold text-slate-800">Leg Curl Destro (DX) — Newton (N)</span>
+                        <span className={isOpDX ? 'px-2 py-0.5 rounded bg-rose-50 border border-rose-200 text-rose-700 font-bold text-[10px]' : 'px-2 py-0.5 rounded bg-emerald-50 border border-emerald-200 text-emerald-700 font-bold text-[10px]'}>
                           {isOpDX ? '🔴 ARTO OPERATO' : '🟢 ARTO SANO'}
                         </span>
                       </div>
@@ -895,21 +1101,21 @@ export default function ModalNuovaValutazione({
                         placeholder="Non testato (es. 210)"
                         value={form.legCurlDX}
                         onChange={(e) => handleChange('legCurlDX', e.target.value)}
-                        className="w-full bg-slate-950 border border-slate-700 rounded-xl p-3 text-white font-mono text-sm font-bold focus:border-emerald-400 focus:outline-none"
+                        className="w-full bg-slate-50 border border-slate-300 rounded-xl p-3 text-slate-900 font-mono text-sm font-bold focus:border-emerald-600 focus:outline-none"
                       />
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 p-3.5 rounded-xl bg-slate-900/70 border border-slate-800 text-xs">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 p-3.5 rounded-xl bg-white border border-slate-200 text-xs">
                     <div className="flex items-center justify-between">
-                      <span className="text-slate-400 font-medium">LSI Hamstring (Ischiocrurali):</span>
-                      <strong className={`text-sm font-mono ${lsi !== null ? 'text-emerald-400' : 'text-slate-500'}`}>
+                      <span className="text-slate-500 font-medium">LSI Hamstring (Ischiocrurali):</span>
+                      <strong className={`text-sm font-mono ${lsi !== null ? 'text-emerald-700' : 'text-slate-400'}`}>
                         {lsi !== null ? `${lsi}%` : 'Non testato (N/A)'}
                       </strong>
                     </div>
                     <div className="flex items-center justify-between">
-                      <span className="text-slate-400 font-medium">H/Q Ratio Isometrico (con Leg Ext):</span>
-                      <strong className={`text-sm font-mono ${hqRatio !== null ? 'text-sky-400' : 'text-slate-500'}`}>
+                      <span className="text-slate-500 font-medium">H/Q Ratio Isometrico (con Leg Ext):</span>
+                      <strong className={`text-sm font-mono ${hqRatio !== null ? 'text-emerald-700' : 'text-slate-400'}`}>
                         {hqRatio !== null ? hqRatio : 'Richiede Iso Leg Ext'}
                       </strong>
                     </div>
@@ -921,53 +1127,53 @@ export default function ModalNuovaValutazione({
             {/* MODULO 3: FORZA ACCESSORIA & IMTP */}
             {selectedModule === 'FORZA_DINAMICA' && (
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                <div className="p-3.5 rounded-xl bg-slate-900 border border-slate-800 space-y-2">
-                  <span className="text-xs font-bold text-slate-100 block">Bulgarian Squat 6RM (kg)</span>
+                <div className="p-3.5 rounded-xl bg-white border border-slate-200 space-y-2">
+                  <span className="text-xs font-bold text-slate-900 block">Bulgarian Squat 6RM (kg)</span>
                   <div className="grid grid-cols-2 gap-2 text-xs">
                     <div>
-                      <label className="block text-slate-400 text-[10px] mb-1">SX (kg)</label>
-                      <input type="number" step="0.5" placeholder="N/A" value={form.bulgarianSX} onChange={(e) => handleChange('bulgarianSX', e.target.value)} className="w-full bg-slate-950 border border-slate-700 rounded-lg p-2 text-white font-mono text-xs" />
+                      <label className="block text-slate-500 text-[10px] mb-1">SX (kg)</label>
+                      <input type="number" step="0.5" placeholder="N/A" value={form.bulgarianSX} onChange={(e) => handleChange('bulgarianSX', e.target.value)} className="w-full bg-slate-50 border border-slate-300 rounded-lg p-2 text-slate-900 font-mono text-xs font-bold" />
                     </div>
                     <div>
-                      <label className="block text-slate-400 text-[10px] mb-1">DX (kg)</label>
-                      <input type="number" step="0.5" placeholder="N/A" value={form.bulgarianDX} onChange={(e) => handleChange('bulgarianDX', e.target.value)} className="w-full bg-slate-950 border border-slate-700 rounded-lg p-2 text-white font-mono text-xs" />
+                      <label className="block text-slate-500 text-[10px] mb-1">DX (kg)</label>
+                      <input type="number" step="0.5" placeholder="N/A" value={form.bulgarianDX} onChange={(e) => handleChange('bulgarianDX', e.target.value)} className="w-full bg-slate-50 border border-slate-300 rounded-lg p-2 text-slate-900 font-mono text-xs font-bold" />
                     </div>
                   </div>
                 </div>
 
-                <div className="p-3.5 rounded-xl bg-slate-900 border border-slate-800 space-y-2">
-                  <span className="text-xs font-bold text-slate-100 block">Calf Raise (kg / N)</span>
+                <div className="p-3.5 rounded-xl bg-white border border-slate-200 space-y-2">
+                  <span className="text-xs font-bold text-slate-900 block">Calf Raise (kg / N)</span>
                   <div className="grid grid-cols-2 gap-2 text-xs">
                     <div>
-                      <label className="block text-slate-400 text-[10px] mb-1">SX</label>
-                      <input type="number" step="0.5" placeholder="N/A" value={form.calfRaiseSX} onChange={(e) => handleChange('calfRaiseSX', e.target.value)} className="w-full bg-slate-950 border border-slate-700 rounded-lg p-2 text-white font-mono text-xs" />
+                      <label className="block text-slate-500 text-[10px] mb-1">SX</label>
+                      <input type="number" step="0.5" placeholder="N/A" value={form.calfRaiseSX} onChange={(e) => handleChange('calfRaiseSX', e.target.value)} className="w-full bg-slate-50 border border-slate-300 rounded-lg p-2 text-slate-900 font-mono text-xs font-bold" />
                     </div>
                     <div>
-                      <label className="block text-slate-400 text-[10px] mb-1">DX</label>
-                      <input type="number" step="0.5" placeholder="N/A" value={form.calfRaiseDX} onChange={(e) => handleChange('calfRaiseDX', e.target.value)} className="w-full bg-slate-950 border border-slate-700 rounded-lg p-2 text-white font-mono text-xs" />
+                      <label className="block text-slate-500 text-[10px] mb-1">DX</label>
+                      <input type="number" step="0.5" placeholder="N/A" value={form.calfRaiseDX} onChange={(e) => handleChange('calfRaiseDX', e.target.value)} className="w-full bg-slate-50 border border-slate-300 rounded-lg p-2 text-slate-900 font-mono text-xs font-bold" />
                     </div>
                   </div>
                 </div>
 
-                <div className="p-3.5 rounded-xl bg-slate-900 border border-slate-800 space-y-2">
-                  <span className="text-xs font-bold text-slate-100 block">Soleo Seduto (kg / N)</span>
+                <div className="p-3.5 rounded-xl bg-white border border-slate-200 space-y-2">
+                  <span className="text-xs font-bold text-slate-900 block">Soleo Seduto (kg / N)</span>
                   <div className="grid grid-cols-2 gap-2 text-xs">
                     <div>
-                      <label className="block text-slate-400 text-[10px] mb-1">SX</label>
-                      <input type="number" step="0.5" placeholder="N/A" value={form.soleoSX} onChange={(e) => handleChange('soleoSX', e.target.value)} className="w-full bg-slate-950 border border-slate-700 rounded-lg p-2 text-white font-mono text-xs" />
+                      <label className="block text-slate-500 text-[10px] mb-1">SX</label>
+                      <input type="number" step="0.5" placeholder="N/A" value={form.soleoSX} onChange={(e) => handleChange('soleoSX', e.target.value)} className="w-full bg-slate-50 border border-slate-300 rounded-lg p-2 text-slate-900 font-mono text-xs font-bold" />
                     </div>
                     <div>
-                      <label className="block text-slate-400 text-[10px] mb-1">DX</label>
-                      <input type="number" step="0.5" placeholder="N/A" value={form.soleoDX} onChange={(e) => handleChange('soleoDX', e.target.value)} className="w-full bg-slate-950 border border-slate-700 rounded-lg p-2 text-white font-mono text-xs" />
+                      <label className="block text-slate-500 text-[10px] mb-1">DX</label>
+                      <input type="number" step="0.5" placeholder="N/A" value={form.soleoDX} onChange={(e) => handleChange('soleoDX', e.target.value)} className="w-full bg-slate-50 border border-slate-300 rounded-lg p-2 text-slate-900 font-mono text-xs font-bold" />
                     </div>
                   </div>
                 </div>
 
-                <div className="p-3.5 rounded-xl bg-slate-900 border border-slate-800 space-y-2">
-                  <span className="text-xs font-bold text-slate-100 block">IMTP Peak Force (N)</span>
+                <div className="p-3.5 rounded-xl bg-white border border-slate-200 space-y-2">
+                  <span className="text-xs font-bold text-slate-900 block">IMTP Peak Force (N)</span>
                   <div>
-                    <label className="block text-slate-400 text-[10px] mb-1">Picco Isometrico Bipodalico</label>
-                    <input type="number" step="1" placeholder="Non testato (es. 2400)" value={form.imtpPeakForce} onChange={(e) => handleChange('imtpPeakForce', e.target.value)} className="w-full bg-slate-950 border border-slate-700 rounded-lg p-2 text-amber-300 font-mono text-xs font-bold" />
+                    <label className="block text-slate-500 text-[10px] mb-1">Picco Isometrico Bipodalico</label>
+                    <input type="number" step="1" placeholder="Non testato (es. 2400)" value={form.imtpPeakForce} onChange={(e) => handleChange('imtpPeakForce', e.target.value)} className="w-full bg-slate-50 border border-slate-300 rounded-lg p-2 text-slate-900 font-mono text-xs font-bold" />
                   </div>
                 </div>
               </div>
@@ -978,41 +1184,41 @@ export default function ModalNuovaValutazione({
               <div className="space-y-4">
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
                   <div>
-                    <label className="block text-slate-300 text-xs font-semibold mb-1">Altezza Salto (cm)</label>
-                    <input type="number" step="0.1" placeholder="Non testato (es. 33.5)" value={form.jumpHeight} onChange={(e) => handleChange('jumpHeight', e.target.value)} className="w-full bg-slate-900 border border-slate-700 rounded-xl p-2.5 text-emerald-300 font-mono text-xs font-bold" />
+                    <label className="block text-slate-600 text-xs font-semibold mb-1">Altezza Salto (cm)</label>
+                    <input type="number" step="0.1" placeholder="Non testato (es. 33.5)" value={form.jumpHeight} onChange={(e) => handleChange('jumpHeight', e.target.value)} className="w-full bg-white border border-slate-300 rounded-xl p-2.5 text-slate-900 font-mono text-xs font-bold" />
                   </div>
                   <div>
-                    <label className="block text-slate-300 text-xs font-semibold mb-1">Contraction Time (ms)</label>
-                    <input type="number" placeholder="Non testato (es. 610)" value={form.contractionTime} onChange={(e) => handleChange('contractionTime', e.target.value)} className="w-full bg-slate-900 border border-slate-700 rounded-xl p-2.5 text-amber-300 font-mono text-xs font-bold" />
+                    <label className="block text-slate-600 text-xs font-semibold mb-1">Contraction Time (ms)</label>
+                    <input type="number" placeholder="Non testato (es. 610)" value={form.contractionTime} onChange={(e) => handleChange('contractionTime', e.target.value)} className="w-full bg-white border border-slate-300 rounded-xl p-2.5 text-slate-900 font-mono text-xs font-bold" />
                   </div>
                   <div>
                     <div className="flex justify-between items-center mb-1">
-                      <label className="text-slate-300 text-xs font-semibold">RSImod Calcolato (m/s)</label>
-                      <span className="text-[10px] text-sky-400 font-mono">Auto</span>
+                      <label className="text-slate-600 text-xs font-semibold">RSImod Calcolato (m/s)</label>
+                      <span className="text-[10px] text-emerald-700 font-mono font-bold">Auto</span>
                     </div>
-                    <div className="w-full bg-slate-900 border border-slate-800 rounded-xl p-2.5 text-emerald-400 font-mono text-xs font-bold">
+                    <div className="w-full bg-emerald-50/60 border border-emerald-200 rounded-xl p-2.5 text-emerald-800 font-mono text-xs font-bold">
                       {computeRSImod(form.jumpHeight, form.contractionTime) ?? 'N/A'}
                     </div>
                   </div>
                   <div>
-                    <label className="block text-slate-300 text-xs font-semibold mb-1">Peak Power / BM (W/kg)</label>
-                    <input type="number" step="0.1" placeholder="Non testato (es. 48.5)" value={form.peakPower} onChange={(e) => handleChange('peakPower', e.target.value)} className="w-full bg-slate-900 border border-slate-700 rounded-xl p-2.5 text-white font-mono text-xs font-bold" />
+                    <label className="block text-slate-600 text-xs font-semibold mb-1">Peak Power / BM (W/kg)</label>
+                    <input type="number" step="0.1" placeholder="Non testato (es. 48.5)" value={form.peakPower} onChange={(e) => handleChange('peakPower', e.target.value)} className="w-full bg-white border border-slate-300 rounded-xl p-2.5 text-slate-900 font-mono text-xs font-bold" />
                   </div>
                   <div>
-                    <label className="block text-slate-300 text-xs font-semibold mb-1">Countermovement Depth (cm)</label>
-                    <input type="number" step="0.1" placeholder="Non testato (es. 31.2)" value={form.cmjDepth} onChange={(e) => handleChange('cmjDepth', e.target.value)} className="w-full bg-slate-900 border border-slate-700 rounded-xl p-2.5 text-sky-300 font-mono text-xs font-bold" />
+                    <label className="block text-slate-600 text-xs font-semibold mb-1">Countermovement Depth (cm)</label>
+                    <input type="number" step="0.1" placeholder="Non testato (es. 31.2)" value={form.cmjDepth} onChange={(e) => handleChange('cmjDepth', e.target.value)} className="w-full bg-white border border-slate-300 rounded-xl p-2.5 text-slate-900 font-mono text-xs font-bold" />
                   </div>
                   <div>
-                    <label className="block text-slate-300 text-xs font-semibold mb-1">Eccentric Braking RFD (N/s)</label>
-                    <input type="number" step="1" placeholder="Non testato (es. 3450)" value={form.eccBrakingRfd} onChange={(e) => handleChange('eccBrakingRfd', e.target.value)} className="w-full bg-slate-900 border border-slate-700 rounded-xl p-2.5 text-purple-300 font-mono text-xs font-bold" />
+                    <label className="block text-slate-600 text-xs font-semibold mb-1">Eccentric Braking RFD (N/s)</label>
+                    <input type="number" step="1" placeholder="Non testato (es. 3450)" value={form.eccBrakingRfd} onChange={(e) => handleChange('eccBrakingRfd', e.target.value)} className="w-full bg-white border border-slate-300 rounded-xl p-2.5 text-slate-900 font-mono text-xs font-bold" />
                   </div>
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-1">
-                  <div className="p-3.5 rounded-xl bg-slate-900 border border-slate-800 space-y-2">
+                  <div className="p-3.5 rounded-xl bg-white border border-slate-200 space-y-2">
                     <div className="flex items-center justify-between">
-                      <span className="text-xs font-bold text-slate-100">Concentric Impulse (N·s)</span>
-                      <span className="text-[10px] font-mono text-emerald-400">
+                      <span className="text-xs font-bold text-slate-900">Concentric Impulse (N·s)</span>
+                      <span className="text-[10px] font-mono font-bold text-emerald-700">
                         {computeLSI(form.concImpulseSX, form.concImpulseDX) !== null
                           ? `LSI: ${computeLSI(form.concImpulseSX, form.concImpulseDX)}%`
                           : 'LSI: N/A'}
@@ -1020,20 +1226,20 @@ export default function ModalNuovaValutazione({
                     </div>
                     <div className="grid grid-cols-2 gap-2 text-xs">
                       <div>
-                        <label className="block text-slate-400 text-[10px] mb-1">Sinistro (SX)</label>
-                        <input type="number" step="0.1" placeholder="N/A" value={form.concImpulseSX} onChange={(e) => handleChange('concImpulseSX', e.target.value)} className="w-full bg-slate-950 border border-slate-700 rounded-lg p-2 text-white font-mono text-xs" />
+                        <label className="block text-slate-500 text-[10px] mb-1">Sinistro (SX)</label>
+                        <input type="number" step="0.1" placeholder="N/A" value={form.concImpulseSX} onChange={(e) => handleChange('concImpulseSX', e.target.value)} className="w-full bg-slate-50 border border-slate-300 rounded-lg p-2 text-slate-900 font-mono text-xs font-bold" />
                       </div>
                       <div>
-                        <label className="block text-slate-400 text-[10px] mb-1">Destro (DX)</label>
-                        <input type="number" step="0.1" placeholder="N/A" value={form.concImpulseDX} onChange={(e) => handleChange('concImpulseDX', e.target.value)} className="w-full bg-slate-950 border border-slate-700 rounded-lg p-2 text-white font-mono text-xs" />
+                        <label className="block text-slate-500 text-[10px] mb-1">Destro (DX)</label>
+                        <input type="number" step="0.1" placeholder="N/A" value={form.concImpulseDX} onChange={(e) => handleChange('concImpulseDX', e.target.value)} className="w-full bg-slate-50 border border-slate-300 rounded-lg p-2 text-slate-900 font-mono text-xs font-bold" />
                       </div>
                     </div>
                   </div>
 
-                  <div className="p-3.5 rounded-xl bg-slate-900 border border-slate-800 space-y-2">
+                  <div className="p-3.5 rounded-xl bg-white border border-slate-200 space-y-2">
                     <div className="flex items-center justify-between">
-                      <span className="text-xs font-bold text-slate-100">Eccentric Braking Impulse (N·s)</span>
-                      <span className="text-[10px] font-mono text-emerald-400">
+                      <span className="text-xs font-bold text-slate-900">Eccentric Braking Impulse (N·s)</span>
+                      <span className="text-[10px] font-mono font-bold text-emerald-700">
                         {computeLSI(form.eccBrakingSX, form.eccBrakingDX) !== null
                           ? `LSI: ${computeLSI(form.eccBrakingSX, form.eccBrakingDX)}%`
                           : 'LSI: N/A'}
@@ -1041,12 +1247,12 @@ export default function ModalNuovaValutazione({
                     </div>
                     <div className="grid grid-cols-2 gap-2 text-xs">
                       <div>
-                        <label className="block text-slate-400 text-[10px] mb-1">Sinistro (SX)</label>
-                        <input type="number" step="0.1" placeholder="N/A" value={form.eccBrakingSX} onChange={(e) => handleChange('eccBrakingSX', e.target.value)} className="w-full bg-slate-950 border border-slate-700 rounded-lg p-2 text-white font-mono text-xs" />
+                        <label className="block text-slate-500 text-[10px] mb-1">Sinistro (SX)</label>
+                        <input type="number" step="0.1" placeholder="N/A" value={form.eccBrakingSX} onChange={(e) => handleChange('eccBrakingSX', e.target.value)} className="w-full bg-slate-50 border border-slate-300 rounded-lg p-2 text-slate-900 font-mono text-xs font-bold" />
                       </div>
                       <div>
-                        <label className="block text-slate-400 text-[10px] mb-1">Destro (DX)</label>
-                        <input type="number" step="0.1" placeholder="N/A" value={form.eccBrakingDX} onChange={(e) => handleChange('eccBrakingDX', e.target.value)} className="w-full bg-slate-950 border border-slate-700 rounded-lg p-2 text-white font-mono text-xs" />
+                        <label className="block text-slate-500 text-[10px] mb-1">Destro (DX)</label>
+                        <input type="number" step="0.1" placeholder="N/A" value={form.eccBrakingDX} onChange={(e) => handleChange('eccBrakingDX', e.target.value)} className="w-full bg-slate-50 border border-slate-300 rounded-lg p-2 text-slate-900 font-mono text-xs font-bold" />
                       </div>
                     </div>
                   </div>
@@ -1057,10 +1263,10 @@ export default function ModalNuovaValutazione({
             {/* MODULO 5: CMJ MONOPODALICO (SL CMJ) */}
             {selectedModule === 'CMJ_SL' && (
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div className="p-3.5 rounded-xl bg-slate-900 border border-slate-800 space-y-2">
+                <div className="p-3.5 rounded-xl bg-white border border-slate-200 space-y-2">
                   <div className="flex items-center justify-between">
-                    <span className="text-xs font-bold text-slate-100">Altezza Salto SL (cm)</span>
-                    <span className="text-[10px] font-mono text-emerald-400">
+                    <span className="text-xs font-bold text-slate-900">Altezza Salto SL (cm)</span>
+                    <span className="text-[10px] font-mono font-bold text-emerald-700">
                       {computeLSI(form.slCmjHeightSX, form.slCmjHeightDX) !== null
                         ? `LSI: ${computeLSI(form.slCmjHeightSX, form.slCmjHeightDX)}%`
                         : 'LSI: N/A'}
@@ -1068,20 +1274,20 @@ export default function ModalNuovaValutazione({
                   </div>
                   <div className="grid grid-cols-2 gap-2 text-xs">
                     <div>
-                      <label className="block text-slate-400 text-[10px] mb-1">Sinistra (SX)</label>
-                      <input type="number" step="0.1" placeholder="es. 15.5" value={form.slCmjHeightSX} onChange={(e) => handleChange('slCmjHeightSX', e.target.value)} className="w-full bg-slate-950 border border-slate-700 rounded-lg p-2 text-white font-mono" />
+                      <label className="block text-slate-500 text-[10px] mb-1">Sinistra (SX)</label>
+                      <input type="number" step="0.1" placeholder="es. 15.5" value={form.slCmjHeightSX} onChange={(e) => handleChange('slCmjHeightSX', e.target.value)} className="w-full bg-slate-50 border border-slate-300 rounded-lg p-2 text-slate-900 font-mono font-bold" />
                     </div>
                     <div>
-                      <label className="block text-slate-400 text-[10px] mb-1">Destra (DX)</label>
-                      <input type="number" step="0.1" placeholder="es. 14.2" value={form.slCmjHeightDX} onChange={(e) => handleChange('slCmjHeightDX', e.target.value)} className="w-full bg-slate-950 border border-slate-700 rounded-lg p-2 text-white font-mono" />
+                      <label className="block text-slate-500 text-[10px] mb-1">Destra (DX)</label>
+                      <input type="number" step="0.1" placeholder="es. 14.2" value={form.slCmjHeightDX} onChange={(e) => handleChange('slCmjHeightDX', e.target.value)} className="w-full bg-slate-50 border border-slate-300 rounded-lg p-2 text-slate-900 font-mono font-bold" />
                     </div>
                   </div>
                 </div>
 
-                <div className="p-3.5 rounded-xl bg-slate-900 border border-slate-800 space-y-2">
+                <div className="p-3.5 rounded-xl bg-white border border-slate-200 space-y-2">
                   <div className="flex items-center justify-between">
-                    <span className="text-xs font-bold text-slate-100">Peak Power / BM SL (W/kg)</span>
-                    <span className="text-[10px] font-mono text-sky-400">
+                    <span className="text-xs font-bold text-slate-900">Peak Power / BM SL (W/kg)</span>
+                    <span className="text-[10px] font-mono font-bold text-emerald-700">
                       {computeLSI(form.slCmjPeakPowerSX, form.slCmjPeakPowerDX) !== null
                         ? `LSI: ${computeLSI(form.slCmjPeakPowerSX, form.slCmjPeakPowerDX)}%`
                         : 'LSI: N/A'}
@@ -1089,20 +1295,20 @@ export default function ModalNuovaValutazione({
                   </div>
                   <div className="grid grid-cols-2 gap-2 text-xs">
                     <div>
-                      <label className="block text-slate-400 text-[10px] mb-1">Sinistra (SX)</label>
-                      <input type="number" step="0.1" placeholder="es. 28.5" value={form.slCmjPeakPowerSX} onChange={(e) => handleChange('slCmjPeakPowerSX', e.target.value)} className="w-full bg-slate-950 border border-slate-700 rounded-lg p-2 text-white font-mono" />
+                      <label className="block text-slate-500 text-[10px] mb-1">Sinistra (SX)</label>
+                      <input type="number" step="0.1" placeholder="es. 28.5" value={form.slCmjPeakPowerSX} onChange={(e) => handleChange('slCmjPeakPowerSX', e.target.value)} className="w-full bg-slate-50 border border-slate-300 rounded-lg p-2 text-slate-900 font-mono font-bold" />
                     </div>
                     <div>
-                      <label className="block text-slate-400 text-[10px] mb-1">Destra (DX)</label>
-                      <input type="number" step="0.1" placeholder="es. 26.0" value={form.slCmjPeakPowerDX} onChange={(e) => handleChange('slCmjPeakPowerDX', e.target.value)} className="w-full bg-slate-950 border border-slate-700 rounded-lg p-2 text-white font-mono" />
+                      <label className="block text-slate-500 text-[10px] mb-1">Destra (DX)</label>
+                      <input type="number" step="0.1" placeholder="es. 26.0" value={form.slCmjPeakPowerDX} onChange={(e) => handleChange('slCmjPeakPowerDX', e.target.value)} className="w-full bg-slate-50 border border-slate-300 rounded-lg p-2 text-slate-900 font-mono font-bold" />
                     </div>
                   </div>
                 </div>
 
-                <div className="p-3.5 rounded-xl bg-slate-900 border border-slate-800 space-y-2">
+                <div className="p-3.5 rounded-xl bg-white border border-slate-200 space-y-2">
                   <div className="flex items-center justify-between">
-                    <span className="text-xs font-bold text-slate-100">RSImod Monopodalico (m/s)</span>
-                    <span className="text-[10px] font-mono text-emerald-400">
+                    <span className="text-xs font-bold text-slate-900">RSImod Monopodalico (m/s)</span>
+                    <span className="text-[10px] font-mono font-bold text-emerald-700">
                       {computeLSI(form.slCmjRsiSX, form.slCmjRsiDX) !== null
                         ? `LSI: ${computeLSI(form.slCmjRsiSX, form.slCmjRsiDX)}%`
                         : 'LSI: N/A'}
@@ -1110,20 +1316,20 @@ export default function ModalNuovaValutazione({
                   </div>
                   <div className="grid grid-cols-2 gap-2 text-xs">
                     <div>
-                      <label className="block text-slate-400 text-[10px] mb-1">Sinistro (SX)</label>
-                      <input type="number" step="0.01" placeholder="es. 0.28" value={form.slCmjRsiSX} onChange={(e) => handleChange('slCmjRsiSX', e.target.value)} className="w-full bg-slate-950 border border-slate-700 rounded-lg p-2 text-white font-mono" />
+                      <label className="block text-slate-500 text-[10px] mb-1">Sinistro (SX)</label>
+                      <input type="number" step="0.01" placeholder="es. 0.28" value={form.slCmjRsiSX} onChange={(e) => handleChange('slCmjRsiSX', e.target.value)} className="w-full bg-slate-50 border border-slate-300 rounded-lg p-2 text-slate-900 font-mono font-bold" />
                     </div>
                     <div>
-                      <label className="block text-slate-400 text-[10px] mb-1">Destro (DX)</label>
-                      <input type="number" step="0.01" placeholder="es. 0.25" value={form.slCmjRsiDX} onChange={(e) => handleChange('slCmjRsiDX', e.target.value)} className="w-full bg-slate-950 border border-slate-700 rounded-lg p-2 text-white font-mono" />
+                      <label className="block text-slate-500 text-[10px] mb-1">Destro (DX)</label>
+                      <input type="number" step="0.01" placeholder="es. 0.25" value={form.slCmjRsiDX} onChange={(e) => handleChange('slCmjRsiDX', e.target.value)} className="w-full bg-slate-50 border border-slate-300 rounded-lg p-2 text-slate-900 font-mono font-bold" />
                     </div>
                   </div>
                 </div>
 
-                <div className="p-3.5 rounded-xl bg-slate-900 border border-slate-800 space-y-2">
+                <div className="p-3.5 rounded-xl bg-white border border-slate-200 space-y-2">
                   <div className="flex items-center justify-between">
-                    <span className="text-xs font-bold text-slate-100">Countermovement Depth SL (cm)</span>
-                    <span className="text-[10px] font-mono text-sky-400">
+                    <span className="text-xs font-bold text-slate-900">Countermovement Depth SL (cm)</span>
+                    <span className="text-[10px] font-mono font-bold text-emerald-700">
                       {computeLSI(form.slCmjDepthSX, form.slCmjDepthDX) !== null
                         ? `LSI: ${computeLSI(form.slCmjDepthSX, form.slCmjDepthDX)}%`
                         : 'LSI: N/A'}
@@ -1131,12 +1337,12 @@ export default function ModalNuovaValutazione({
                   </div>
                   <div className="grid grid-cols-2 gap-2 text-xs">
                     <div>
-                      <label className="block text-slate-400 text-[10px] mb-1">Sinistro (SX)</label>
-                      <input type="number" step="0.1" placeholder="es. 24.5" value={form.slCmjDepthSX} onChange={(e) => handleChange('slCmjDepthSX', e.target.value)} className="w-full bg-slate-950 border border-slate-700 rounded-lg p-2 text-white font-mono" />
+                      <label className="block text-slate-500 text-[10px] mb-1">Sinistro (SX)</label>
+                      <input type="number" step="0.1" placeholder="es. 24.5" value={form.slCmjDepthSX} onChange={(e) => handleChange('slCmjDepthSX', e.target.value)} className="w-full bg-slate-50 border border-slate-300 rounded-lg p-2 text-slate-900 font-mono font-bold" />
                     </div>
                     <div>
-                      <label className="block text-slate-400 text-[10px] mb-1">Destro (DX)</label>
-                      <input type="number" step="0.1" placeholder="es. 22.0" value={form.slCmjDepthDX} onChange={(e) => handleChange('slCmjDepthDX', e.target.value)} className="w-full bg-slate-950 border border-slate-700 rounded-lg p-2 text-white font-mono" />
+                      <label className="block text-slate-500 text-[10px] mb-1">Destro (DX)</label>
+                      <input type="number" step="0.1" placeholder="es. 22.0" value={form.slCmjDepthDX} onChange={(e) => handleChange('slCmjDepthDX', e.target.value)} className="w-full bg-slate-50 border border-slate-300 rounded-lg p-2 text-slate-900 font-mono font-bold" />
                     </div>
                   </div>
                 </div>
@@ -1148,11 +1354,11 @@ export default function ModalNuovaValutazione({
               <div className="space-y-4">
                 <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
                   <div>
-                    <label className="block text-slate-300 text-xs font-semibold mb-1">Altezza Caduta Box</label>
+                    <label className="block text-slate-600 text-xs font-semibold mb-1">Altezza Caduta Box</label>
                     <select
                       value={form.djBoxHeight}
                       onChange={(e) => handleChange('djBoxHeight', e.target.value)}
-                      className="w-full bg-slate-900 border border-slate-700 rounded-xl p-2.5 text-amber-300 font-mono text-xs font-bold"
+                      className="w-full bg-white border border-slate-300 rounded-xl p-2.5 text-slate-900 font-mono text-xs font-bold"
                     >
                       <option value="30 cm">📦 Box 30 cm</option>
                       <option value="45 cm">📦 Box 45 cm</option>
@@ -1160,42 +1366,42 @@ export default function ModalNuovaValutazione({
                     </select>
                   </div>
                   <div>
-                    <label className="block text-slate-300 text-xs font-semibold mb-1">Altezza Salto (cm)</label>
-                    <input type="number" step="0.1" placeholder="es. 28.5" value={form.djJumpHeight} onChange={(e) => handleChange('djJumpHeight', e.target.value)} className="w-full bg-slate-900 border border-slate-700 rounded-xl p-2.5 text-white font-mono text-xs font-bold" />
+                    <label className="block text-slate-600 text-xs font-semibold mb-1">Altezza Salto (cm)</label>
+                    <input type="number" step="0.1" placeholder="es. 28.5" value={form.djJumpHeight} onChange={(e) => handleChange('djJumpHeight', e.target.value)} className="w-full bg-white border border-slate-300 rounded-xl p-2.5 text-slate-900 font-mono text-xs font-bold" />
                   </div>
                   <div>
-                    <label className="block text-slate-300 text-xs font-semibold mb-1">Contact Time GCT (&lt;250ms)</label>
-                    <input type="number" placeholder="es. 215" value={form.djContactTime} onChange={(e) => handleChange('djContactTime', e.target.value)} className="w-full bg-slate-900 border border-slate-700 rounded-xl p-2.5 text-amber-300 font-mono text-xs font-bold" />
+                    <label className="block text-slate-600 text-xs font-semibold mb-1">Contact Time GCT (&lt;250ms)</label>
+                    <input type="number" placeholder="es. 215" value={form.djContactTime} onChange={(e) => handleChange('djContactTime', e.target.value)} className="w-full bg-white border border-slate-300 rounded-xl p-2.5 text-slate-900 font-mono text-xs font-bold" />
                   </div>
                   <div>
-                    <label className="block text-slate-300 text-xs font-semibold mb-1">RSI (Reactive Index)</label>
+                    <label className="block text-slate-600 text-xs font-semibold mb-1">RSI (Reactive Index)</label>
                     <input
                       type="number"
                       step="0.01"
                       placeholder={computeRSImod(form.djJumpHeight, form.djContactTime) ? `Auto: ${computeRSImod(form.djJumpHeight, form.djContactTime)}` : 'es. 1.65'}
                       value={form.djRSI}
                       onChange={(e) => handleChange('djRSI', e.target.value)}
-                      className="w-full bg-slate-900 border border-slate-700 rounded-xl p-2.5 text-emerald-300 font-mono text-xs font-bold"
+                      className="w-full bg-white border border-slate-300 rounded-xl p-2.5 text-emerald-700 font-mono text-xs font-bold"
                     />
                   </div>
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
-                    <label className="block text-slate-300 text-xs font-semibold mb-1">Time to Peak Force TTPF (Target 80-120 ms)</label>
-                    <input type="number" placeholder="Non testato (es. 95)" value={form.djTtpfMs} onChange={(e) => handleChange('djTtpfMs', e.target.value)} className="w-full bg-slate-900 border border-slate-700 rounded-xl p-2.5 text-sky-300 font-mono text-xs font-bold" />
+                    <label className="block text-slate-600 text-xs font-semibold mb-1">Time to Peak Force TTPF (Target 80-120 ms)</label>
+                    <input type="number" placeholder="Non testato (es. 95)" value={form.djTtpfMs} onChange={(e) => handleChange('djTtpfMs', e.target.value)} className="w-full bg-white border border-slate-300 rounded-xl p-2.5 text-slate-900 font-mono text-xs font-bold" />
                   </div>
                   <div>
-                    <label className="block text-slate-300 text-xs font-semibold mb-1">Asimmetria Temporale Stacco L vs R (&lt;10 ms)</label>
-                    <input type="number" step="0.1" placeholder="Non testato (es. 4.5)" value={form.djTakeoffAsymMs} onChange={(e) => handleChange('djTakeoffAsymMs', e.target.value)} className="w-full bg-slate-900 border border-slate-700 rounded-xl p-2.5 text-emerald-300 font-mono text-xs font-bold" />
+                    <label className="block text-slate-600 text-xs font-semibold mb-1">Asimmetria Temporale Stacco L vs R (&lt;10 ms)</label>
+                    <input type="number" step="0.1" placeholder="Non testato (es. 4.5)" value={form.djTakeoffAsymMs} onChange={(e) => handleChange('djTakeoffAsymMs', e.target.value)} className="w-full bg-white border border-slate-300 rounded-xl p-2.5 text-slate-900 font-mono text-xs font-bold" />
                   </div>
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div className="p-3.5 rounded-xl bg-slate-900 border border-slate-800 space-y-2">
+                  <div className="p-3.5 rounded-xl bg-white border border-slate-200 space-y-2">
                     <div className="flex items-center justify-between">
-                      <span className="text-xs font-bold text-slate-100">Landing Peak Force (N)</span>
-                      <span className="text-[10px] font-mono text-emerald-400">
+                      <span className="text-xs font-bold text-slate-900">Landing Peak Force (N)</span>
+                      <span className="text-[10px] font-mono font-bold text-emerald-700">
                         {computeLSI(form.djLandingPeakSX, form.djLandingPeakDX) !== null
                           ? `LSI: ${computeLSI(form.djLandingPeakSX, form.djLandingPeakDX)}%`
                           : 'LSI: N/A'}
@@ -1203,20 +1409,20 @@ export default function ModalNuovaValutazione({
                     </div>
                     <div className="grid grid-cols-2 gap-2 text-xs">
                       <div>
-                        <label className="block text-slate-400 text-[10px] mb-1">SX (N)</label>
-                        <input type="number" placeholder="N/A" value={form.djLandingPeakSX} onChange={(e) => handleChange('djLandingPeakSX', e.target.value)} className="w-full bg-slate-950 border border-slate-700 rounded-lg p-2 text-white font-mono" />
+                        <label className="block text-slate-500 text-[10px] mb-1">SX (N)</label>
+                        <input type="number" placeholder="N/A" value={form.djLandingPeakSX} onChange={(e) => handleChange('djLandingPeakSX', e.target.value)} className="w-full bg-slate-50 border border-slate-300 rounded-lg p-2 text-slate-900 font-mono font-bold" />
                       </div>
                       <div>
-                        <label className="block text-slate-400 text-[10px] mb-1">DX (N)</label>
-                        <input type="number" placeholder="N/A" value={form.djLandingPeakDX} onChange={(e) => handleChange('djLandingPeakDX', e.target.value)} className="w-full bg-slate-950 border border-slate-700 rounded-lg p-2 text-white font-mono" />
+                        <label className="block text-slate-500 text-[10px] mb-1">DX (N)</label>
+                        <input type="number" placeholder="N/A" value={form.djLandingPeakDX} onChange={(e) => handleChange('djLandingPeakDX', e.target.value)} className="w-full bg-slate-50 border border-slate-300 rounded-lg p-2 text-slate-900 font-mono font-bold" />
                       </div>
                     </div>
                   </div>
 
-                  <div className="p-3.5 rounded-xl bg-slate-900 border border-slate-800 space-y-2">
+                  <div className="p-3.5 rounded-xl bg-white border border-slate-200 space-y-2">
                     <div className="flex items-center justify-between">
-                      <span className="text-xs font-bold text-slate-100">Concentric Impulse (N·s)</span>
-                      <span className="text-[10px] font-mono text-emerald-400">
+                      <span className="text-xs font-bold text-slate-900">Concentric Impulse (N·s)</span>
+                      <span className="text-[10px] font-mono font-bold text-emerald-700">
                         {computeLSI(form.djConcImpulseSX, form.djConcImpulseDX) !== null
                           ? `LSI: ${computeLSI(form.djConcImpulseSX, form.djConcImpulseDX)}%`
                           : 'LSI: N/A'}
@@ -1224,12 +1430,12 @@ export default function ModalNuovaValutazione({
                     </div>
                     <div className="grid grid-cols-2 gap-2 text-xs">
                       <div>
-                        <label className="block text-slate-400 text-[10px] mb-1">SX (N·s)</label>
-                        <input type="number" placeholder="N/A" value={form.djConcImpulseSX} onChange={(e) => handleChange('djConcImpulseSX', e.target.value)} className="w-full bg-slate-950 border border-slate-700 rounded-lg p-2 text-white font-mono" />
+                        <label className="block text-slate-500 text-[10px] mb-1">SX (N·s)</label>
+                        <input type="number" placeholder="N/A" value={form.djConcImpulseSX} onChange={(e) => handleChange('djConcImpulseSX', e.target.value)} className="w-full bg-slate-50 border border-slate-300 rounded-lg p-2 text-slate-900 font-mono font-bold" />
                       </div>
                       <div>
-                        <label className="block text-slate-400 text-[10px] mb-1">DX (N·s)</label>
-                        <input type="number" placeholder="N/A" value={form.djConcImpulseDX} onChange={(e) => handleChange('djConcImpulseDX', e.target.value)} className="w-full bg-slate-950 border border-slate-700 rounded-lg p-2 text-white font-mono" />
+                        <label className="block text-slate-500 text-[10px] mb-1">DX (N·s)</label>
+                        <input type="number" placeholder="N/A" value={form.djConcImpulseDX} onChange={(e) => handleChange('djConcImpulseDX', e.target.value)} className="w-full bg-slate-50 border border-slate-300 rounded-lg p-2 text-slate-900 font-mono font-bold" />
                       </div>
                     </div>
                   </div>
@@ -1241,11 +1447,11 @@ export default function ModalNuovaValutazione({
             {selectedModule === 'DJ_SL' && (
               <div className="space-y-4">
                 <div className="w-48">
-                  <label className="block text-slate-300 text-xs font-semibold mb-1">Altezza Caduta Box</label>
+                  <label className="block text-slate-600 text-xs font-semibold mb-1">Altezza Caduta Box</label>
                   <select
                     value={form.slDjBoxHeight}
                     onChange={(e) => handleChange('slDjBoxHeight', e.target.value)}
-                    className="w-full bg-slate-900 border border-slate-700 rounded-xl p-2 text-amber-300 font-mono text-xs font-bold"
+                    className="w-full bg-white border border-slate-300 rounded-xl p-2 text-slate-900 font-mono text-xs font-bold"
                   >
                     <option value="20 cm">📦 Box 20 cm</option>
                     <option value="30 cm">📦 Box 30 cm</option>
@@ -1254,58 +1460,58 @@ export default function ModalNuovaValutazione({
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div className="p-3.5 rounded-xl bg-slate-900 border border-slate-800 space-y-2">
-                    <span className="text-xs font-bold text-slate-100 block">Ground Contact Time SL (ms)</span>
+                  <div className="p-3.5 rounded-xl bg-white border border-slate-200 space-y-2">
+                    <span className="text-xs font-bold text-slate-900 block">Ground Contact Time SL (ms)</span>
                     <div className="grid grid-cols-2 gap-2 text-xs">
                       <div>
-                        <label className="block text-slate-400 text-[10px] mb-1">SX (ms)</label>
-                        <input type="number" placeholder="N/A" value={form.slDjCtSX} onChange={(e) => handleChange('slDjCtSX', e.target.value)} className="w-full bg-slate-950 border border-slate-700 rounded-lg p-2 text-white font-mono" />
+                        <label className="block text-slate-500 text-[10px] mb-1">SX (ms)</label>
+                        <input type="number" placeholder="N/A" value={form.slDjCtSX} onChange={(e) => handleChange('slDjCtSX', e.target.value)} className="w-full bg-slate-50 border border-slate-300 rounded-lg p-2 text-slate-900 font-mono font-bold" />
                       </div>
                       <div>
-                        <label className="block text-slate-400 text-[10px] mb-1">DX (ms)</label>
-                        <input type="number" placeholder="N/A" value={form.slDjCtDX} onChange={(e) => handleChange('slDjCtDX', e.target.value)} className="w-full bg-slate-950 border border-slate-700 rounded-lg p-2 text-white font-mono" />
+                        <label className="block text-slate-500 text-[10px] mb-1">DX (ms)</label>
+                        <input type="number" placeholder="N/A" value={form.slDjCtDX} onChange={(e) => handleChange('slDjCtDX', e.target.value)} className="w-full bg-slate-50 border border-slate-300 rounded-lg p-2 text-slate-900 font-mono font-bold" />
                       </div>
                     </div>
                   </div>
 
-                  <div className="p-3.5 rounded-xl bg-slate-900 border border-slate-800 space-y-2">
-                    <span className="text-xs font-bold text-slate-100 block">RSI SL Drop Jump (m/s)</span>
+                  <div className="p-3.5 rounded-xl bg-white border border-slate-200 space-y-2">
+                    <span className="text-xs font-bold text-slate-900 block">RSI SL Drop Jump (m/s)</span>
                     <div className="grid grid-cols-2 gap-2 text-xs">
                       <div>
-                        <label className="block text-slate-400 text-[10px] mb-1">SX (m/s)</label>
-                        <input type="number" step="0.01" placeholder="N/A" value={form.slDjRsiSX} onChange={(e) => handleChange('slDjRsiSX', e.target.value)} className="w-full bg-slate-950 border border-slate-700 rounded-lg p-2 text-white font-mono" />
+                        <label className="block text-slate-500 text-[10px] mb-1">SX (m/s)</label>
+                        <input type="number" step="0.01" placeholder="N/A" value={form.slDjRsiSX} onChange={(e) => handleChange('slDjRsiSX', e.target.value)} className="w-full bg-slate-50 border border-slate-300 rounded-lg p-2 text-slate-900 font-mono font-bold" />
                       </div>
                       <div>
-                        <label className="block text-slate-400 text-[10px] mb-1">DX (m/s)</label>
-                        <input type="number" step="0.01" placeholder="N/A" value={form.slDjRsiDX} onChange={(e) => handleChange('slDjRsiDX', e.target.value)} className="w-full bg-slate-950 border border-slate-700 rounded-lg p-2 text-white font-mono" />
+                        <label className="block text-slate-500 text-[10px] mb-1">DX (m/s)</label>
+                        <input type="number" step="0.01" placeholder="N/A" value={form.slDjRsiDX} onChange={(e) => handleChange('slDjRsiDX', e.target.value)} className="w-full bg-slate-50 border border-slate-300 rounded-lg p-2 text-slate-900 font-mono font-bold" />
                       </div>
                     </div>
                   </div>
 
-                  <div className="p-3.5 rounded-xl bg-slate-900 border border-slate-800 space-y-2">
-                    <span className="text-xs font-bold text-slate-100 block">Altezza Salto SL DJ (cm)</span>
+                  <div className="p-3.5 rounded-xl bg-white border border-slate-200 space-y-2">
+                    <span className="text-xs font-bold text-slate-900 block">Altezza Salto SL DJ (cm)</span>
                     <div className="grid grid-cols-2 gap-2 text-xs">
                       <div>
-                        <label className="block text-slate-400 text-[10px] mb-1">SX (cm)</label>
-                        <input type="number" step="0.1" placeholder="N/A" value={form.slDjHeightSX} onChange={(e) => handleChange('slDjHeightSX', e.target.value)} className="w-full bg-slate-950 border border-slate-700 rounded-lg p-2 text-white font-mono" />
+                        <label className="block text-slate-500 text-[10px] mb-1">SX (cm)</label>
+                        <input type="number" step="0.1" placeholder="N/A" value={form.slDjHeightSX} onChange={(e) => handleChange('slDjHeightSX', e.target.value)} className="w-full bg-slate-50 border border-slate-300 rounded-lg p-2 text-slate-900 font-mono font-bold" />
                       </div>
                       <div>
-                        <label className="block text-slate-400 text-[10px] mb-1">DX (cm)</label>
-                        <input type="number" step="0.1" placeholder="N/A" value={form.slDjHeightDX} onChange={(e) => handleChange('slDjHeightDX', e.target.value)} className="w-full bg-slate-950 border border-slate-700 rounded-lg p-2 text-white font-mono" />
+                        <label className="block text-slate-500 text-[10px] mb-1">DX (cm)</label>
+                        <input type="number" step="0.1" placeholder="N/A" value={form.slDjHeightDX} onChange={(e) => handleChange('slDjHeightDX', e.target.value)} className="w-full bg-slate-50 border border-slate-300 rounded-lg p-2 text-slate-900 font-mono font-bold" />
                       </div>
                     </div>
                   </div>
 
-                  <div className="p-3.5 rounded-xl bg-slate-900 border border-slate-800 space-y-2">
-                    <span className="text-xs font-bold text-slate-100 block">Braking Impulse SL DJ (N·s)</span>
+                  <div className="p-3.5 rounded-xl bg-white border border-slate-200 space-y-2">
+                    <span className="text-xs font-bold text-slate-900 block">Braking Impulse SL DJ (N·s)</span>
                     <div className="grid grid-cols-2 gap-2 text-xs">
                       <div>
-                        <label className="block text-slate-400 text-[10px] mb-1">SX (N·s)</label>
-                        <input type="number" step="0.1" placeholder="N/A" value={form.slDjBrakingSX} onChange={(e) => handleChange('slDjBrakingSX', e.target.value)} className="w-full bg-slate-950 border border-slate-700 rounded-lg p-2 text-white font-mono" />
+                        <label className="block text-slate-500 text-[10px] mb-1">SX (N·s)</label>
+                        <input type="number" step="0.1" placeholder="N/A" value={form.slDjBrakingSX} onChange={(e) => handleChange('slDjBrakingSX', e.target.value)} className="w-full bg-slate-50 border border-slate-300 rounded-lg p-2 text-slate-900 font-mono font-bold" />
                       </div>
                       <div>
-                        <label className="block text-slate-400 text-[10px] mb-1">DX (N·s)</label>
-                        <input type="number" step="0.1" placeholder="N/A" value={form.slDjBrakingDX} onChange={(e) => handleChange('slDjBrakingDX', e.target.value)} className="w-full bg-slate-950 border border-slate-700 rounded-lg p-2 text-white font-mono" />
+                        <label className="block text-slate-500 text-[10px] mb-1">DX (N·s)</label>
+                        <input type="number" step="0.1" placeholder="N/A" value={form.slDjBrakingDX} onChange={(e) => handleChange('slDjBrakingDX', e.target.value)} className="w-full bg-slate-50 border border-slate-300 rounded-lg p-2 text-slate-900 font-mono font-bold" />
                       </div>
                     </div>
                   </div>
@@ -1316,52 +1522,218 @@ export default function ModalNuovaValutazione({
             {/* MODULO 8: SCORE CLINICI & HOP TEST */}
             {selectedModule === 'CLINICAL_SCORES' && (
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                <div className="p-3.5 rounded-xl bg-slate-900 border border-slate-800 space-y-1.5">
-                  <label className="block text-xs font-bold text-slate-100">Score IKDC Soggettivo (/100)</label>
-                  <span className="block text-[10px] text-slate-400">Prontitudine clinica ginocchio</span>
-                  <input type="number" step="0.1" placeholder="Non testato (es. 78.5)" value={form.ikdcScore} onChange={(e) => handleChange('ikdcScore', e.target.value)} className="w-full bg-slate-950 border border-slate-700 rounded-lg p-2.5 text-emerald-300 font-mono text-xs font-bold" />
+                <div className="p-3.5 rounded-xl bg-white border border-slate-200 space-y-1.5">
+                  <label className="block text-xs font-bold text-slate-900">Score IKDC Soggettivo (/100)</label>
+                  <span className="block text-[10px] text-slate-500">Prontitudine clinica ginocchio</span>
+                  <input type="number" step="0.1" placeholder="Non testato (es. 78.5)" value={form.ikdcScore} onChange={(e) => handleChange('ikdcScore', e.target.value)} className="w-full bg-slate-50 border border-slate-300 rounded-lg p-2.5 text-slate-900 font-mono text-xs font-bold" />
                 </div>
 
-                <div className="p-3.5 rounded-xl bg-slate-900 border border-slate-800 space-y-1.5">
-                  <label className="block text-xs font-bold text-slate-100">Score ACL-RSI Psicometrico (/100)</label>
-                  <span className="block text-[10px] text-slate-400">Prontitudine psicologica RTS</span>
-                  <input type="number" step="0.1" placeholder="Non testato (es. 72.0)" value={form.aclrsiScore} onChange={(e) => handleChange('aclrsiScore', e.target.value)} className="w-full bg-slate-950 border border-slate-700 rounded-lg p-2.5 text-sky-300 font-mono text-xs font-bold" />
+                <div className="p-3.5 rounded-xl bg-white border border-slate-200 space-y-1.5">
+                  <label className="block text-xs font-bold text-slate-900">Score ACL-RSI Psicometrico (/100)</label>
+                  <span className="block text-[10px] text-slate-500">Prontitudine psicologica RTS</span>
+                  <input type="number" step="0.1" placeholder="Non testato (es. 72.0)" value={form.aclrsiScore} onChange={(e) => handleChange('aclrsiScore', e.target.value)} className="w-full bg-slate-50 border border-slate-300 rounded-lg p-2.5 text-slate-900 font-mono text-xs font-bold" />
                 </div>
 
-                <div className="p-3.5 rounded-xl bg-slate-900 border border-slate-800 space-y-1.5">
-                  <label className="block text-xs font-bold text-slate-100">Single Hop Test LSI (%)</label>
-                  <span className="block text-[10px] text-slate-400">Simmetria salto orizzontale</span>
-                  <input type="number" step="0.1" placeholder="Non testato (es. 92.5)" value={form.lsiSingleHop} onChange={(e) => handleChange('lsiSingleHop', e.target.value)} className="w-full bg-slate-950 border border-slate-700 rounded-lg p-2.5 text-white font-mono text-xs font-bold" />
+                <div className="p-3.5 rounded-xl bg-white border border-slate-200 space-y-1.5">
+                  <label className="block text-xs font-bold text-slate-900">Single Hop Test LSI (%)</label>
+                  <span className="block text-[10px] text-slate-500">Simmetria salto orizzontale</span>
+                  <input type="number" step="0.1" placeholder="Non testato (es. 92.5)" value={form.lsiSingleHop} onChange={(e) => handleChange('lsiSingleHop', e.target.value)} className="w-full bg-slate-50 border border-slate-300 rounded-lg p-2.5 text-slate-900 font-mono text-xs font-bold" />
                 </div>
 
-                <div className="p-3.5 rounded-xl bg-slate-900 border border-slate-800 space-y-1.5">
-                  <label className="block text-xs font-bold text-slate-100">Triple Hop Test LSI (%)</label>
-                  <span className="block text-[10px] text-slate-400">Simmetria triplo salto</span>
-                  <input type="number" step="0.1" placeholder="Non testato (es. 94.0)" value={form.lsiTripleHop} onChange={(e) => handleChange('lsiTripleHop', e.target.value)} className="w-full bg-slate-950 border border-slate-700 rounded-lg p-2.5 text-white font-mono text-xs font-bold" />
+                <div className="p-3.5 rounded-xl bg-white border border-slate-200 space-y-1.5">
+                  <label className="block text-xs font-bold text-slate-900">Triple Hop Test LSI (%)</label>
+                  <span className="block text-[10px] text-slate-500">Simmetria triplo salto</span>
+                  <input type="number" step="0.1" placeholder="Non testato (es. 94.0)" value={form.lsiTripleHop} onChange={(e) => handleChange('lsiTripleHop', e.target.value)} className="w-full bg-slate-50 border border-slate-300 rounded-lg p-2.5 text-slate-900 font-mono text-xs font-bold" />
                 </div>
               </div>
             )}
+
+            {/* ===================================================================== */}
+            {/* SEZIONE METRICHE DINAMICHE E PERSONALIZZATE PER IL TEST CORRENTE       */}
+            {/* ===================================================================== */}
+            <div className="pt-4 border-t border-slate-200 space-y-3">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                <div className="flex items-center gap-2">
+                  <div className="p-1 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded">
+                    <Sliders className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <h5 className="text-xs font-bold text-slate-900 uppercase tracking-wider">
+                      Metriche Dinamiche e Personalizzate ({activeModuleDef.title})
+                    </h5>
+                    <p className="text-[11px] text-slate-500">
+                      Pre-carica automaticamente le metriche già usate sul paziente e suggerisce quelle del team per <code className="text-emerald-700 font-mono">{activeTestType}</code>
+                    </p>
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={handleAddCustomMetricRow}
+                  className="px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs flex items-center gap-1.5 shadow-sm transition-all cursor-pointer self-start sm:self-auto"
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                  <span>+ Aggiungi Metrica Personalizzata</span>
+                </button>
+              </div>
+
+              {activeCustomMetrics.length === 0 ? (
+                <div className="p-3.5 rounded-xl bg-white border border-dashed border-slate-300 text-xs text-slate-500 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                  <span>
+                    Nessuna metrica personalizzata attiva per <strong>{activeModuleDef.title}</strong>. Clicca su <strong>&quot;+ Aggiungi Metrica Personalizzata&quot;</strong> per scegliere dai suggerimenti o crearne una nuova.
+                  </span>
+                  {globalMetricSuggestions.length > 0 && (
+                    <span className="text-[11px] text-emerald-700 font-semibold shrink-0">
+                      {globalMetricSuggestions.length} suggerimenti disponibili
+                    </span>
+                  )}
+                </div>
+              ) : (
+                <div className="space-y-2.5">
+                  {activeCustomMetrics.map((mRow, idx) => {
+                    const filteredSuggestions = globalMetricSuggestions.filter(s => {
+                      if (!mRow.metric_name) return true;
+                      return s.metric_name.toLowerCase().includes(mRow.metric_name.toLowerCase());
+                    });
+
+                    return (
+                      <div
+                        key={`${activeTestType}-cm-${idx}`}
+                        className="p-3 rounded-xl bg-white border border-slate-200 shadow-xs grid grid-cols-1 sm:grid-cols-12 gap-2.5 items-end relative"
+                      >
+                        {/* Nome Metrica + Menu a tendina/autocompletamento */}
+                        <div className="sm:col-span-6 relative">
+                          <div className="flex items-center justify-between mb-1">
+                            <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">
+                              Nome Metrica (Scegli o Digita Nuova)
+                            </label>
+                            {mRow.isPreloadedFromHistory && (
+                              <span className="text-[9.5px] font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 px-1.5 py-0.2 rounded">
+                                Storico Paziente
+                              </span>
+                            )}
+                          </div>
+                          <div className="relative flex items-center">
+                            <input
+                              type="text"
+                              value={mRow.metric_name}
+                              onFocus={() => setOpenSuggestionRowIdx(idx)}
+                              onChange={(e) => {
+                                handleUpdateCustomMetricRow(idx, 'metric_name', e.target.value);
+                                setOpenSuggestionRowIdx(idx);
+                              }}
+                              placeholder="es. Angolo Flessione Ginocchio"
+                              className="w-full bg-slate-50 border border-slate-300 rounded-xl py-2 pl-3 pr-8 text-xs text-slate-900 font-semibold focus:border-emerald-600 focus:bg-white focus:outline-none"
+                            />
+                            <button
+                              type="button"
+                              onClick={() => setOpenSuggestionRowIdx(openSuggestionRowIdx === idx ? -1 : idx)}
+                              className="absolute right-2 p-1 text-slate-400 hover:text-slate-700 cursor-pointer"
+                              title="Mostra suggerimenti per questo test"
+                            >
+                              <ChevronDown className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+
+                          {/* Dropdown Suggerimenti da `custom_metric_definitions` */}
+                          {openSuggestionRowIdx === idx && filteredSuggestions.length > 0 && (
+                            <div className="absolute left-0 right-0 top-full mt-1 z-40 bg-white border border-slate-200 rounded-xl shadow-lg max-h-44 overflow-y-auto divide-y divide-slate-100">
+                              <div className="px-3 py-1.5 bg-slate-50 text-[10px] font-bold text-slate-500 uppercase tracking-wider flex items-center justify-between">
+                                <span>Suggerimenti Team ({activeTestType})</span>
+                                <button
+                                  type="button"
+                                  onClick={() => setOpenSuggestionRowIdx(-1)}
+                                  className="text-slate-400 hover:text-slate-700"
+                                >
+                                  Chiudi
+                                </button>
+                              </div>
+                              {filteredSuggestions.map((sug, sIdx) => (
+                                <button
+                                  key={`${sug.metric_name}-${sIdx}`}
+                                  type="button"
+                                  onClick={() => handleSelectSuggestion(idx, sug)}
+                                  className="w-full px-3 py-2 text-left text-xs hover:bg-emerald-50/60 flex items-center justify-between transition-colors cursor-pointer"
+                                >
+                                  <span className="font-semibold text-slate-800">{sug.metric_name}</span>
+                                  {sug.unit && (
+                                    <span className="text-[10px] font-mono text-emerald-700 bg-emerald-50 border border-emerald-200 px-1.5 py-0.5 rounded">
+                                      {sug.unit}
+                                    </span>
+                                  )}
+                                </button>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Unità di Misura */}
+                        <div className="sm:col-span-2">
+                          <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">
+                            Unità
+                          </label>
+                          <input
+                            type="text"
+                            value={mRow.unit}
+                            onChange={(e) => handleUpdateCustomMetricRow(idx, 'unit', e.target.value)}
+                            placeholder="es. gradi, N/m"
+                            className="w-full bg-slate-50 border border-slate-300 rounded-xl p-2 text-xs text-slate-800 font-mono focus:border-emerald-600 focus:bg-white focus:outline-none"
+                          />
+                        </div>
+
+                        {/* Valore Misurato */}
+                        <div className="sm:col-span-3">
+                          <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">
+                            Valore Misurato
+                          </label>
+                          <input
+                            type="number"
+                            step="any"
+                            value={mRow.metric_value}
+                            onChange={(e) => handleUpdateCustomMetricRow(idx, 'metric_value', e.target.value)}
+                            placeholder="Non testato (null)"
+                            className="w-full bg-slate-50 border border-slate-300 rounded-xl p-2 text-xs text-slate-900 font-mono font-bold focus:border-emerald-600 focus:bg-white focus:outline-none"
+                          />
+                        </div>
+
+                        {/* Pulsante Elimina / Nascondi Metrica */}
+                        <div className="sm:col-span-1 flex justify-end">
+                          <button
+                            type="button"
+                            onClick={() => handleHideOrRemoveCustomMetric(idx, mRow)}
+                            title="Elimina o nascondi questa metrica personalizzata dalla tabella del paziente"
+                            className="p-2 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-200 transition-colors cursor-pointer"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
           </div>
 
           {/* FEEDBACK TOAST SALVATAGGIO INTERMEDIO */}
           {savedToast && (
-            <div className="p-3 rounded-xl bg-emerald-500/20 border border-emerald-500/40 text-emerald-300 text-xs font-bold flex items-center justify-between">
+            <div className="p-3 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-bold flex items-center justify-between">
               <span>{savedToast}</span>
-              <span className="text-[11px] text-emerald-200">Puoi selezionare un altro test qui sopra o chiudere</span>
+              <span className="text-[11px] text-emerald-600">Puoi selezionare un altro test qui sopra o chiudere</span>
             </div>
           )}
 
           {/* AZIONI FINALI */}
-          <div className="pt-3 border-t border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-            <div className="text-[11px] text-slate-400">
-              Sessione attiva: <strong className="text-slate-200">{sessionName}</strong> • I campi lasciati vuoti vengono salvati come <code className="text-emerald-400">null</code> (Non testato).
+          <div className="pt-3 border-t border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div className="text-[11px] text-slate-500">
+              Sessione attiva: <strong className="text-slate-900">{sessionName}</strong> • I campi lasciati vuoti vengono salvati come <code className="text-emerald-700 font-semibold">null</code> (Non testato).
             </div>
 
             <div className="flex flex-wrap items-center justify-end gap-2.5">
               <button
                 type="button"
                 onClick={onClose}
-                className="px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold border border-slate-700 transition-all cursor-pointer"
+                className="px-4 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold border border-slate-300 transition-all cursor-pointer"
               >
                 Annulla
               </button>
@@ -1369,7 +1741,7 @@ export default function ModalNuovaValutazione({
               <button
                 type="button"
                 onClick={handleSaveAndKeepOpen}
-                className="px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-emerald-400 text-xs font-bold border border-emerald-500/40 transition-all flex items-center gap-1.5 cursor-pointer"
+                className="px-4 py-2.5 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-800 text-xs font-bold border border-emerald-300 transition-all flex items-center gap-1.5 cursor-pointer"
               >
                 <Plus className="w-4 h-4" />
                 <span>Salva Test e Aggiungi Altro</span>
@@ -1377,7 +1749,7 @@ export default function ModalNuovaValutazione({
 
               <button
                 type="submit"
-                className="px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs flex items-center gap-2 shadow-lg border border-emerald-400/40 transition-all cursor-pointer"
+                className="px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs flex items-center gap-2 shadow-sm transition-all cursor-pointer"
               >
                 <CheckCircle2 className="w-4 h-4" />
                 <span>Salva nel Report e Chiudi</span>
