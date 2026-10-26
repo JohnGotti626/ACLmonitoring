@@ -1067,19 +1067,19 @@ export default function TabBatteriaTest({ patient, activePhase, onSaveTest }) {
       {/* COLONNA SINISTRA (2/3): TABELLA LONGITUDINALE + GRAFICO MULTIMETRICA      */}
       {/* ========================================================================= */}
       <div className="lg:col-span-2 flex flex-col gap-6 w-full min-w-0">
-        <div className="bg-stone-50 p-4 sm:p-5 rounded-xl border border-stone-300/70 space-y-4 shadow-none w-full flex flex-col justify-between break-inside-avoid">
+        <div className="bg-slate-50 p-4 sm:p-5 rounded-xl border border-slate-300/60 space-y-4 shadow-none w-full flex flex-col justify-between break-inside-avoid">
 
           {/* Header Tabella + Pulsanti Inserimento Modulare e Raggruppamento Report */}
-          <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-3 pb-3.5 border-b border-stone-300/70">
+          <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-3 pb-3.5 border-b border-slate-300/60">
             <div className="flex items-center gap-2.5">
-              <div className="p-1 bg-stone-200/60 text-stone-700 rounded shrink-0">
-                <Flame className="w-4 h-4 text-stone-700" />
+              <div className="p-1 bg-rose-100/80 text-rose-900 border border-rose-300/50 rounded shrink-0">
+                <Flame className="w-4 h-4 text-rose-900" />
               </div>
               <div>
-                <h3 className="font-semibold text-stone-800 text-sm sm:text-base tracking-wide uppercase">
+                <h3 className="font-bold text-slate-800 text-sm sm:text-base tracking-wide uppercase">
                   REPORT &amp; SESSIONI DI VALUTAZIONE CLINICA
                 </h3>
-                <p className="text-xs text-stone-500 font-medium mt-0.5">
+                <p className="text-xs text-slate-600 font-semibold mt-0.5">
                   I test effettuati in giorni diversi (7-14 gg) confluiscono nel Report; include metriche standard e personalizzate
                 </p>
               </div>
@@ -1090,10 +1090,10 @@ export default function TabBatteriaTest({ patient, activePhase, onSaveTest }) {
                 type="button"
                 onClick={() => setGroupByReportSession(prev => !prev)}
                 title="Unisce automaticamente i singoli test eseguiti nell'arco di 7-14 giorni in un unico Report di Valutazione"
-                className={`px-3 py-2 rounded-xl text-xs font-semibold flex items-center gap-1.5 border transition-all cursor-pointer ${
+                className={`px-3 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 border transition-all cursor-pointer ${
                   groupByReportSession
-                    ? 'bg-emerald-900/10 text-emerald-800 border-emerald-300/40'
-                    : 'bg-stone-100 text-stone-600 border-stone-300/70 hover:text-stone-800 hover:bg-stone-200/50'
+                    ? 'bg-emerald-100/80 text-emerald-900 border-emerald-300/50'
+                    : 'bg-slate-100 text-slate-700 border-slate-300/60 hover:text-slate-900 hover:bg-slate-200/60'
                 }`}
               >
                 <CalendarRange className="w-3.5 h-3.5" />
@@ -1108,9 +1108,9 @@ export default function TabBatteriaTest({ patient, activePhase, onSaveTest }) {
                     setInitialModalModule(getDefaultModuleForSubTab(activeSubTab));
                     setIsModalOpen(true);
                   }}
-                  className="px-3.5 py-2 bg-stone-100 hover:bg-stone-200/60 text-stone-800 font-semibold rounded-xl text-xs flex items-center gap-1.5 border border-stone-300/70 transition-all cursor-pointer shrink-0 shadow-none"
+                  className="px-3.5 py-2 bg-purple-100/80 hover:bg-purple-200/70 text-purple-900 font-bold rounded-xl text-xs flex items-center gap-1.5 border border-purple-300/50 transition-all cursor-pointer shrink-0 shadow-none"
                 >
-                  <Edit3 className="w-3.5 h-3.5 text-stone-700" />
+                  <Edit3 className="w-3.5 h-3.5 text-purple-900" />
                   <span>Modifica / + Metrica in {activeTest.session_name || activeTest.label}</span>
                 </button>
               )}
@@ -1122,16 +1122,16 @@ export default function TabBatteriaTest({ patient, activePhase, onSaveTest }) {
                   setInitialModalModule(getDefaultModuleForSubTab(activeSubTab));
                   setIsModalOpen(true);
                 }}
-                className="px-4 py-2 bg-stone-800 hover:bg-stone-900 text-stone-100 font-semibold rounded-xl text-xs flex items-center gap-1.5 shadow-none transition-all cursor-pointer shrink-0"
+                className="px-4 py-2 bg-sky-100/80 hover:bg-sky-200/70 text-sky-900 border border-sky-300/50 font-bold rounded-xl text-xs flex items-center gap-1.5 shadow-none transition-all cursor-pointer shrink-0"
               >
-                <Plus className="w-4 h-4 text-stone-100" />
+                <Plus className="w-4 h-4 text-sky-900" />
                 <span>+ Rileva Singolo Test</span>
               </button>
             </div>
           </div>
 
           {/* 6 Pills Sotto-Tab per Dominio */}
-          <div className="flex items-center gap-1.5 flex-nowrap overflow-x-auto scrollbar-none p-1.5 bg-stone-100 rounded-xl border border-stone-300/70 print:hidden">
+          <div className="flex items-center gap-1.5 flex-nowrap overflow-x-auto scrollbar-none p-1.5 bg-slate-200/50 rounded-xl border border-slate-300/60 print:hidden">
             {[
               { id: 'LSI', label: '⚡ Simmetrie & LSI (%)' },
               { id: 'FORZA', label: '🔥 Dominio della Forza' },
@@ -1145,10 +1145,10 @@ export default function TabBatteriaTest({ patient, activePhase, onSaveTest }) {
                 <button
                   key={tab.id}
                   onClick={() => setActiveSubTab(tab.id)}
-                  className={`px-3.5 py-2 rounded-lg text-xs transition-all whitespace-nowrap cursor-pointer shrink-0 ${
+                  className={`px-3.5 py-2 rounded-lg text-xs transition-all whitespace-nowrap cursor-pointer shrink-0 border ${
                     isActive
-                      ? 'bg-stone-800 text-stone-100 font-semibold shadow-none'
-                      : 'text-stone-600 hover:text-stone-800 hover:bg-stone-200/50 font-medium'
+                      ? 'bg-emerald-100/80 text-emerald-900 border-emerald-300/50 font-bold shadow-none'
+                      : 'border-transparent text-slate-700 hover:text-slate-900 hover:bg-slate-200/60 font-semibold'
                   }`}
                 >
                   {tab.label}
@@ -1158,11 +1158,11 @@ export default function TabBatteriaTest({ patient, activePhase, onSaveTest }) {
           </div>
 
           {/* TABELLA STORICO LONGITUDINALE MULTI-SESSIONE */}
-          <div className="overflow-x-auto overflow-y-auto max-h-[520px] rounded-xl border border-stone-300/70 bg-stone-50 w-full scrollbar-thin">
+          <div className="overflow-x-auto overflow-y-auto max-h-[520px] rounded-xl border border-slate-300/60 bg-slate-50 w-full scrollbar-thin">
             <table className="w-full min-w-max text-left border-collapse">
               <thead>
-                <tr className="border-b border-stone-300/70 text-[11px] font-mono font-semibold text-stone-500 uppercase tracking-wider bg-stone-100">
-                  <th className="sticky top-0 left-0 z-40 bg-stone-100 border-b border-r border-stone-300/70 py-3.5 px-4 text-stone-800 font-semibold min-w-[240px] w-[250px]">
+                <tr className="border-b border-slate-300/60 text-[11px] font-mono font-bold text-slate-600 uppercase tracking-wider bg-slate-100">
+                  <th className="sticky top-0 left-0 z-40 bg-slate-100 border-b border-r border-slate-300/60 py-3.5 px-4 text-slate-800 font-bold min-w-[240px] w-[250px]">
                     Parametro Metrica
                   </th>
 
@@ -1172,14 +1172,14 @@ export default function TabBatteriaTest({ patient, activePhase, onSaveTest }) {
                       <th
                         key={t.id}
                         onClick={() => setSelectedTestId(t.id)}
-                        className={`sticky top-0 z-30 py-3 px-3.5 text-center cursor-pointer transition-all border-b border-r border-stone-300/70 min-w-[135px] ${
+                        className={`sticky top-0 z-30 py-3 px-3.5 text-center cursor-pointer transition-all border-b border-r border-slate-300/60 min-w-[135px] ${
                           isSelected
-                            ? 'bg-emerald-900/10 text-stone-800 font-semibold border-t-2 border-t-stone-800'
-                            : 'bg-stone-100 hover:bg-stone-200/50 text-stone-700'
+                            ? 'bg-emerald-100/80 text-emerald-900 font-bold border-t-2 border-t-emerald-600'
+                            : 'bg-slate-100 hover:bg-slate-200/50 text-slate-700'
                         }`}
                       >
                         <div className="flex items-center justify-center gap-1.5">
-                          <span className="font-semibold text-xs tracking-tight text-stone-800">
+                          <span className="font-bold text-xs tracking-tight text-slate-800">
                             {t.session_name || t.label}
                           </span>
                           <button
@@ -1192,16 +1192,16 @@ export default function TabBatteriaTest({ patient, activePhase, onSaveTest }) {
                               setIsModalOpen(true);
                             }}
                             title={`Aggiungi o modifica test in ${t.session_name || t.label}`}
-                            className="p-1 hover:bg-stone-200/70 rounded transition-colors text-stone-500 hover:text-stone-800 print:hidden"
+                            className="p-1 hover:bg-slate-200/70 rounded transition-colors text-slate-600 hover:text-slate-900 print:hidden"
                           >
                             <Edit3 className="w-3 h-3" />
                           </button>
                         </div>
-                        <div className="text-[10px] text-stone-500 font-mono font-medium mt-0.5">
+                        <div className="text-[10px] text-slate-600 font-mono font-semibold mt-0.5">
                           {t.dateRange || t.date}
                         </div>
                         {t.aggregatedCount > 1 && (
-                          <div className="mt-1 inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-emerald-900/10 border border-emerald-300/40 text-[9px] text-emerald-800 font-sans font-semibold">
+                          <div className="mt-1 inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-sky-100/80 border border-sky-300/50 text-[9px] text-sky-900 font-sans font-bold">
                             <Layers className="w-2.5 h-2.5" />
                             <span>{t.aggregatedCount} rilevazioni</span>
                           </div>
@@ -1212,19 +1212,19 @@ export default function TabBatteriaTest({ patient, activePhase, onSaveTest }) {
                 </tr>
               </thead>
 
-              <tbody className="divide-y divide-stone-300/60 text-xs">
+              <tbody className="divide-y divide-slate-300/60 text-xs">
                 {displayedSessions.length === 0 ? (
                   <tr>
-                    <td colSpan={10} className="py-14 text-center text-stone-500 font-medium bg-stone-50">
+                    <td colSpan={10} className="py-14 text-center text-slate-600 font-semibold bg-slate-50">
                       <div className="space-y-2.5 max-w-sm mx-auto">
-                        <div className="w-8 h-8 rounded-lg bg-stone-200/60 text-stone-700 flex items-center justify-center mx-auto">
-                          <Activity className="w-4 h-4 text-stone-700" />
+                        <div className="w-8 h-8 rounded-lg bg-sky-100/80 text-sky-900 border border-sky-300/50 flex items-center justify-center mx-auto">
+                          <Activity className="w-4 h-4 text-sky-900" />
                         </div>
-                        <p className="text-sm font-semibold text-stone-800">
+                        <p className="text-sm font-bold text-slate-800">
                           Nessun test registrato per {patient?.nome} {patient?.cognome}
                         </p>
-                        <p className="text-xs text-stone-500">
-                          Clicca su <strong className="text-stone-800 font-semibold">&quot;+ Rileva Singolo Test&quot;</strong> per scegliere quale test clinico inserire.
+                        <p className="text-xs text-slate-600">
+                          Clicca su <strong className="text-slate-800 font-bold">&quot;+ Rileva Singolo Test&quot;</strong> per scegliere quale test clinico inserire.
                         </p>
                       </div>
                     </td>
@@ -1233,30 +1233,30 @@ export default function TabBatteriaTest({ patient, activePhase, onSaveTest }) {
                   rows.map((row, rowIdx) => (
                     <tr
                       key={row.key}
-                      className={`transition-colors border-b border-stone-300/60 ${
-                        rowIdx % 2 === 0 ? 'bg-stone-50' : 'bg-stone-100'
-                      } hover:bg-stone-200/50`}
+                      className={`transition-colors border-b border-slate-300/60 ${
+                        rowIdx % 2 === 0 ? 'bg-slate-50' : 'bg-slate-100/80'
+                      } hover:bg-slate-200/50`}
                     >
                       {/* Colonna 1: Parametro Metrica */}
                       <td
-                        className={`sticky left-0 z-20 border-r border-stone-300/70 py-3.5 px-4 min-w-[240px] w-[250px] ${
-                          rowIdx % 2 === 0 ? 'bg-stone-50' : 'bg-stone-100'
+                        className={`sticky left-0 z-20 border-r border-slate-300/60 py-3.5 px-4 min-w-[240px] w-[250px] ${
+                          rowIdx % 2 === 0 ? 'bg-slate-50' : 'bg-slate-100'
                         }`}
                       >
                         <div className="flex items-center justify-between gap-2">
                           <div className="flex items-center gap-2 min-w-0">
                             <span className={`w-2 h-2 rounded-full ${row.dotColor || 'bg-emerald-600'} shrink-0`} />
                             <div className="min-w-0">
-                              <span className="text-[13px] font-semibold text-stone-800 leading-snug">
+                              <span className="text-[13px] font-bold text-slate-800 leading-snug">
                                 {row.label}
                                 {row.unit && row.unit !== '-' && (
-                                  <span className="ml-1.5 text-stone-500 font-normal text-[11px] font-mono">
+                                  <span className="ml-1.5 text-slate-500 font-normal text-[11px] font-mono">
                                     ({row.unit})
                                   </span>
                                 )}
                               </span>
                               {row.isCustomMetric && (
-                                <span className="ml-1.5 inline-flex items-center gap-0.5 px-1.5 py-0.2 rounded bg-emerald-900/10 border border-emerald-300/40 text-emerald-800 text-[9px] font-semibold uppercase">
+                                <span className="ml-1.5 inline-flex items-center gap-0.5 px-1.5 py-0.2 rounded bg-purple-100/80 border border-purple-300/50 text-purple-900 text-[9px] font-bold uppercase">
                                   <Sliders className="w-2.5 h-2.5" />
                                   Custom
                                 </span>
@@ -1269,7 +1269,7 @@ export default function TabBatteriaTest({ patient, activePhase, onSaveTest }) {
                               type="button"
                               onClick={() => handleHideCustomMetricFromTable(row.customTestType, row.customMetricName)}
                               title="Nascondi / Elimina questa metrica personalizzata dalla tabella"
-                              className="p-1 rounded text-stone-400 hover:text-rose-700 hover:bg-rose-900/10 transition-colors shrink-0 cursor-pointer print:hidden"
+                              className="p-1 rounded text-slate-400 hover:text-rose-900 hover:bg-rose-100/80 transition-colors shrink-0 cursor-pointer print:hidden"
                             >
                               <Trash2 className="w-3.5 h-3.5" />
                             </button>
@@ -1294,27 +1294,27 @@ export default function TabBatteriaTest({ patient, activePhase, onSaveTest }) {
                           <td
                             key={t.id}
                             onClick={() => setSelectedTestId(t.id)}
-                            className={`relative group py-3 px-3 text-center font-mono cursor-pointer transition-all border-r border-stone-300/60 min-w-[135px] ${
+                            className={`relative group py-3 px-3 text-center font-mono cursor-pointer transition-all border-r border-slate-300/60 min-w-[135px] ${
                               isSelected
-                                ? 'bg-emerald-900/5 font-semibold'
-                                : 'hover:bg-stone-200/50'
+                                ? 'bg-emerald-100/30 font-bold'
+                                : 'hover:bg-slate-200/50'
                             }`}
                           >
                             {isUntested ? (
-                              <span className="inline-block px-2 py-0.5 rounded bg-stone-200/60 text-stone-500 text-[11px] font-sans font-medium">
+                              <span className="inline-block px-2 py-0.5 rounded bg-slate-200/70 text-slate-600 text-[11px] font-sans font-semibold">
                                 Non testato
                               </span>
                             ) : (
                               <div className="flex items-center justify-center gap-1.5 flex-wrap">
-                                <span className="font-semibold text-[13px] text-stone-800 tabular-nums">
+                                <span className="font-bold text-[13px] text-slate-800 tabular-nums">
                                   {displayVal}
                                 </span>
                                 {delta && (
                                   <span
-                                    className={`text-[10px] font-semibold font-mono px-1.5 py-0.5 rounded-md border ${
+                                    className={`text-[10px] font-bold font-mono px-1.5 py-0.5 rounded-md border ${
                                       delta.startsWith('+')
-                                        ? 'bg-emerald-900/10 text-emerald-800 border-emerald-300/40'
-                                        : 'bg-rose-900/10 text-rose-800 border-rose-300/50'
+                                        ? 'bg-emerald-100/80 text-emerald-900 border-emerald-300/50'
+                                        : 'bg-rose-100/80 text-rose-900 border-rose-300/50'
                                     }`}
                                   >
                                     {delta}
@@ -1325,27 +1325,27 @@ export default function TabBatteriaTest({ patient, activePhase, onSaveTest }) {
 
                             {/* HOVER TOOLTIP INTERATTIVO */}
                             {tooltipData && (
-                              <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 hidden group-hover:flex flex-col z-50 w-64 p-3.5 rounded-xl bg-stone-50 border border-stone-300/70 shadow-none text-xs font-sans pointer-events-none text-left">
-                                <div className="font-semibold text-stone-800 text-xs border-b border-stone-300/70 pb-1.5 mb-2 flex items-center justify-between">
+                              <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 hidden group-hover:flex flex-col z-50 w-64 p-3.5 rounded-xl bg-slate-50 border border-slate-300/60 shadow-none text-xs font-sans pointer-events-none text-left">
+                                <div className="font-bold text-slate-800 text-xs border-b border-slate-300/60 pb-1.5 mb-2 flex items-center justify-between">
                                   <span>{tooltipData.title}</span>
                                 </div>
-                                <div className="flex justify-between items-center text-stone-600 py-0.5">
+                                <div className="flex justify-between items-center text-slate-600 py-0.5">
                                   <span className="flex items-center gap-1.5">
                                     <span className="w-2 h-2 rounded-full bg-emerald-700" />
                                     Gamba SX:
                                   </span>
-                                  <strong className="text-stone-800 font-mono">{tooltipData.sx}</strong>
+                                  <strong className="text-slate-800 font-mono">{tooltipData.sx}</strong>
                                 </div>
-                                <div className="flex justify-between items-center text-stone-600 py-0.5">
+                                <div className="flex justify-between items-center text-slate-600 py-0.5">
                                   <span className="flex items-center gap-1.5">
-                                    <span className="w-2 h-2 rounded-full bg-amber-600" />
+                                    <span className="w-2 h-2 rounded-full bg-sky-700" />
                                     Gamba DX:
                                   </span>
-                                  <strong className="text-stone-800 font-mono">{tooltipData.dx}</strong>
+                                  <strong className="text-slate-800 font-mono">{tooltipData.dx}</strong>
                                 </div>
-                                <div className="flex justify-between items-center text-stone-800 border-t border-stone-300/70 pt-1.5 mt-1.5 font-semibold">
+                                <div className="flex justify-between items-center text-slate-800 border-t border-slate-300/60 pt-1.5 mt-1.5 font-bold">
                                   <span>Simmetria:</span>
-                                  <strong className="text-emerald-800 font-mono">{tooltipData.asym}</strong>
+                                  <strong className="text-emerald-900 font-mono">{tooltipData.asym}</strong>
                                 </div>
                               </div>
                             )}
@@ -1372,19 +1372,19 @@ export default function TabBatteriaTest({ patient, activePhase, onSaveTest }) {
       {/* ========================================================================= */}
       {/* COLONNA DESTRA (1/3): BARRE TARGET PRESTATIVI & CHECKLIST QUALITATIVA     */}
       {/* ========================================================================= */}
-      <div className="lg:col-span-1 bg-stone-50 p-4 sm:p-5 rounded-xl border border-stone-300/70 space-y-4 shadow-none w-full flex flex-col justify-between break-inside-avoid">
+      <div className="lg:col-span-1 bg-slate-50 p-4 sm:p-5 rounded-xl border border-slate-300/60 space-y-4 shadow-none w-full flex flex-col justify-between break-inside-avoid">
 
         {/* Header Barre Target */}
-        <div className="flex items-center justify-between pb-3 border-b border-stone-300/70">
+        <div className="flex items-center justify-between pb-3 border-b border-slate-300/60">
           <div className="flex items-center gap-2.5">
-            <div className="p-1 bg-stone-200/60 text-stone-700 rounded shrink-0">
-              <Trophy className="w-4 h-4 text-stone-700" />
+            <div className="p-1 bg-emerald-100/80 text-emerald-900 border border-emerald-300/50 rounded shrink-0">
+              <Trophy className="w-4 h-4 text-emerald-900" />
             </div>
             <div>
-              <h3 className="font-semibold text-stone-800 text-sm tracking-wide uppercase">
+              <h3 className="font-bold text-slate-800 text-sm tracking-wide uppercase">
                 BARRE TARGET &amp; PROGRESSO
               </h3>
-              <p className="text-[11px] text-stone-500 font-medium">
+              <p className="text-[11px] text-slate-600 font-semibold">
                 Ultimo dato valido rilevato (ignora test non eseguiti)
               </p>
             </div>
@@ -1392,13 +1392,13 @@ export default function TabBatteriaTest({ patient, activePhase, onSaveTest }) {
         </div>
 
         {/* Selezione Fase Target (Pillole F1, F2, F3, F4, F5) */}
-        <div className="space-y-2 bg-stone-100 p-3 rounded-xl border border-stone-300/70 print:hidden">
+        <div className="space-y-2 bg-slate-100/80 p-3 rounded-xl border border-slate-300/60 print:hidden">
           <div className="flex items-center justify-between text-xs">
-            <span className="text-stone-500 uppercase tracking-wider text-[10px] font-semibold">TARGET FASE:</span>
-            <span className="text-stone-800 font-semibold text-xs">{selectedPhase}</span>
+            <span className="text-slate-600 uppercase tracking-wider text-[10px] font-bold">TARGET FASE:</span>
+            <span className="px-2 py-0.5 rounded bg-emerald-100/80 text-emerald-900 border border-emerald-300/50 font-bold text-xs">{selectedPhase}</span>
           </div>
 
-          <div className="grid grid-cols-5 gap-1.5 text-xs font-semibold">
+          <div className="grid grid-cols-5 gap-1.5 text-xs font-bold">
             {[
               { key: 'Fase 1', label: 'F1' },
               { key: 'Fase 2 (>70%)', label: 'F2' },
@@ -1411,10 +1411,10 @@ export default function TabBatteriaTest({ patient, activePhase, onSaveTest }) {
                 <button
                   key={pObj.key}
                   onClick={() => setSelectedPhase(pObj.key)}
-                  className={`py-2 px-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer text-center ${
+                  className={`py-2 px-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer text-center border ${
                     isActive
-                      ? 'bg-stone-800 text-stone-100 shadow-none'
-                      : 'bg-stone-50 text-stone-600 border border-stone-300/70 hover:text-stone-800 hover:bg-stone-200/50'
+                      ? 'bg-emerald-100/80 text-emerald-900 border-emerald-300/50 shadow-none'
+                      : 'bg-slate-50 text-slate-700 border-slate-300/60 hover:text-slate-900 hover:bg-slate-200/60'
                   }`}
                 >
                   {pObj.label}
@@ -1429,12 +1429,12 @@ export default function TabBatteriaTest({ patient, activePhase, onSaveTest }) {
           {cupsData.map((cup) => {
             if (cup.earlyNote) {
               return (
-                <div key={cup.id} className="p-4 rounded-xl bg-stone-100 border border-stone-300/70 text-stone-800 text-xs space-y-1.5 break-inside-avoid">
-                  <div className="font-semibold text-sm text-emerald-800 flex items-center gap-1.5">
-                    <ShieldCheck className="w-4 h-4 text-emerald-700 shrink-0" />
+                <div key={cup.id} className="p-4 rounded-xl bg-emerald-100/80 border border-emerald-300/50 text-slate-800 text-xs space-y-1.5 break-inside-avoid">
+                  <div className="font-bold text-sm text-emerald-900 flex items-center gap-1.5">
+                    <ShieldCheck className="w-4 h-4 text-emerald-900 shrink-0" />
                     <span className="whitespace-normal break-words">{cup.title} — {cup.subtitle}</span>
                   </div>
-                  <p className="text-xs text-stone-600 leading-relaxed">{cup.earlyNote}</p>
+                  <p className="text-xs text-emerald-900 font-semibold leading-relaxed">{cup.earlyNote}</p>
                 </div>
               );
             }
@@ -1447,26 +1447,26 @@ export default function TabBatteriaTest({ patient, activePhase, onSaveTest }) {
             return (
               <div
                 key={cup.id}
-                className="p-3.5 rounded-xl bg-stone-100 border border-stone-300/70 space-y-2.5 hover:bg-stone-200/50 transition-all break-inside-avoid"
+                className="p-3.5 rounded-xl bg-slate-100/80 border border-slate-300/60 space-y-2.5 hover:bg-slate-200/50 transition-all break-inside-avoid"
               >
                 {/* Riga 1: Titolo Metrica COMPLETO E LEGGIBILE + Badge Stato */}
                 <div className="flex items-start justify-between gap-3">
-                  <span className="text-[13px] font-semibold text-stone-800 tracking-wide leading-snug whitespace-normal break-words flex-1">
+                  <span className="text-[13px] font-bold text-slate-800 tracking-wide leading-snug whitespace-normal break-words flex-1">
                     {cup.title}
                   </span>
 
                   <div className="shrink-0 pt-0.5">
                     {!isEvaluated ? (
-                      <span className="px-2 py-0.5 rounded-md bg-stone-200/70 border border-stone-300 text-stone-500 text-[10px] font-semibold uppercase">
+                      <span className="px-2 py-0.5 rounded-md bg-slate-200/70 border border-slate-300 text-slate-600 text-[10px] font-bold uppercase">
                         NON TESTATO
                       </span>
                     ) : isTargetOk ? (
-                      <span className="px-2 py-0.5 rounded-md bg-emerald-900/10 border border-emerald-300/40 text-emerald-800 text-[10px] font-semibold uppercase flex items-center gap-1">
-                        <CheckCircle2 className="w-3 h-3 text-emerald-700 shrink-0" />
+                      <span className="px-2 py-0.5 rounded-md bg-emerald-100/80 border border-emerald-300/50 text-emerald-900 text-[10px] font-bold uppercase flex items-center gap-1">
+                        <CheckCircle2 className="w-3 h-3 text-emerald-900 shrink-0" />
                         TARGET OK
                       </span>
                     ) : (
-                      <span className="px-2 py-0.5 rounded-md bg-amber-900/10 border border-amber-300/50 text-amber-800 text-[10px] font-semibold uppercase flex items-center gap-1">
+                      <span className="px-2 py-0.5 rounded-md bg-rose-100/80 border border-rose-300/50 text-rose-900 text-[10px] font-bold uppercase flex items-center gap-1">
                         IN CORSO
                       </span>
                     )}
@@ -1478,15 +1478,15 @@ export default function TabBatteriaTest({ patient, activePhase, onSaveTest }) {
                   <div className="font-mono tabular-nums">
                     {isEvaluated ? (
                       <>
-                        <span className="text-base font-semibold text-stone-800">
+                        <span className="text-base font-bold text-slate-800">
                           {cup.displayVal}
                         </span>
-                        <span className="text-xs font-medium text-stone-500 ml-1.5">
+                        <span className="text-xs font-semibold text-slate-600 ml-1.5">
                           / {cleanTargetText}
                         </span>
                       </>
                     ) : (
-                      <span className="text-xs font-medium text-stone-500">
+                      <span className="text-xs font-semibold text-slate-500">
                         Non testato (N/A) — {cleanTargetText}
                       </span>
                     )}
@@ -1494,8 +1494,10 @@ export default function TabBatteriaTest({ patient, activePhase, onSaveTest }) {
 
                   {isEvaluated && (
                     <span
-                      className={`text-xs font-mono font-semibold tabular-nums ${
-                        isTargetOk ? 'text-emerald-800' : 'text-amber-700'
+                      className={`text-xs font-mono font-bold tabular-nums px-1.5 py-0.5 rounded ${
+                        isTargetOk
+                          ? 'bg-emerald-100/80 text-emerald-900'
+                          : 'bg-sky-100/80 text-sky-900'
                       }`}
                     >
                       {cup.percentageAchieved}%
@@ -1504,14 +1506,14 @@ export default function TabBatteriaTest({ patient, activePhase, onSaveTest }) {
                 </div>
 
                 {/* Riga 3: Barra di Progresso pura */}
-                <div className="w-full h-3.5 bg-stone-200/80 rounded-full border border-stone-300/80 overflow-hidden p-0.5">
+                <div className="w-full h-3.5 bg-slate-200/80 rounded-full border border-slate-300/80 overflow-hidden p-0.5">
                   <div
                     className={`h-full rounded-full transition-all duration-700 ease-out ${
                       !isEvaluated
-                        ? 'bg-stone-300'
+                        ? 'bg-slate-300'
                         : isTargetOk
-                        ? 'bg-emerald-700'
-                        : 'bg-amber-600'
+                        ? 'bg-emerald-600'
+                        : 'bg-sky-600'
                     }`}
                     style={{ width: `${isEvaluated ? fillPct : 0}%` }}
                   />
@@ -1522,17 +1524,17 @@ export default function TabBatteriaTest({ patient, activePhase, onSaveTest }) {
         </div>
 
         {/* CHECKLIST QUALITATIVA */}
-        <div className="p-3.5 rounded-xl bg-stone-100 border border-stone-300/70 space-y-2.5 mt-1 break-inside-avoid">
-          <div className="flex items-center justify-between border-b border-stone-300/70 pb-2">
+        <div className="p-3.5 rounded-xl bg-slate-100/80 border border-slate-300/60 space-y-2.5 mt-1 break-inside-avoid">
+          <div className="flex items-center justify-between border-b border-slate-300/60 pb-2">
             <div className="flex items-center gap-2">
-              <div className="p-1 bg-stone-200/60 text-stone-700 rounded">
-                <CheckSquare className="w-4 h-4 text-stone-700" />
+              <div className="p-1 bg-purple-100/80 text-purple-900 border border-purple-300/50 rounded">
+                <CheckSquare className="w-4 h-4 text-purple-900" />
               </div>
-              <span className="font-semibold text-stone-800 text-xs uppercase tracking-wider">
+              <span className="font-bold text-slate-800 text-xs uppercase tracking-wider">
                 Checklist Qualitativa ({selectedPhase})
               </span>
             </div>
-            <span className="text-[11px] font-mono text-emerald-800 font-semibold bg-emerald-900/10 px-2.5 py-0.5 rounded-lg border border-emerald-300/40">
+            <span className="text-[11px] font-mono text-emerald-900 font-bold bg-emerald-100/80 px-2.5 py-0.5 rounded-lg border border-emerald-300/50">
               {Object.values(currentChecklistState).filter(Boolean).length}/{currentChecklistItems.length} OK
             </span>
           </div>
@@ -1546,16 +1548,16 @@ export default function TabBatteriaTest({ patient, activePhase, onSaveTest }) {
                   onClick={() => setCurrentChecklistState(prev => ({ ...prev, [item.id]: !prev[item.id] }))}
                   className={`p-2.5 px-3 rounded-lg border flex items-center justify-between cursor-pointer transition-all ${
                     isChecked
-                      ? 'bg-stone-50 border-emerald-400/60 text-stone-800 font-semibold shadow-none'
-                      : 'bg-stone-200/40 border-stone-300/70 text-stone-500 hover:text-stone-800'
+                      ? 'bg-emerald-100/80 border-emerald-300/60 text-emerald-900 font-bold shadow-none'
+                      : 'bg-slate-50 border-slate-300/60 text-slate-600 hover:text-slate-900'
                   }`}
                 >
-                  <span className="text-xs font-semibold whitespace-normal leading-snug">
+                  <span className="text-xs font-bold whitespace-normal leading-snug">
                     {item.label}
                   </span>
                   <div
-                    className={`w-4 h-4 rounded border flex items-center justify-center shrink-0 ml-2 transition-colors ${
-                      isChecked ? 'bg-stone-800 border-stone-800 text-stone-100' : 'border-stone-400 bg-stone-50'
+                    className={`w-4 h-4 rounded border flex items-center justify-between justify-center shrink-0 ml-2 transition-colors ${
+                      isChecked ? 'bg-emerald-700 border-emerald-700 text-slate-50' : 'border-slate-400 bg-slate-50'
                     }`}
                   >
                     {isChecked && <Check className="w-3 h-3 stroke-[3]" />}

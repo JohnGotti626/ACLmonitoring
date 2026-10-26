@@ -765,23 +765,23 @@ export default function ModalNuovaValutazione({
   const isOpDX = opKnee === 'DX';
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-5 bg-stone-900/50 backdrop-blur-sm overflow-y-auto print:hidden">
-      <div className="w-full max-w-5xl bg-stone-50 border border-stone-300/70 rounded-xl p-5 sm:p-6 space-y-5 shadow-none my-auto max-h-[92vh] overflow-y-auto text-stone-800">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-5 bg-slate-900/50 backdrop-blur-sm overflow-y-auto print:hidden">
+      <div className="w-full max-w-5xl bg-slate-50 border border-slate-300/60 rounded-xl p-5 sm:p-6 space-y-5 shadow-none my-auto max-h-[92vh] overflow-y-auto text-slate-800">
         
         {/* HEADER MODALE */}
-        <div className="flex items-start justify-between pb-4 border-b border-stone-300/70">
+        <div className="flex items-start justify-between pb-4 border-b border-slate-300/60">
           <div className="flex items-center gap-3">
-            <div className="p-2 rounded-xl bg-stone-200/60 border border-stone-300/70 flex items-center justify-center shrink-0">
-              <Layers className="w-4 h-4 text-stone-700" />
+            <div className="p-2 rounded-xl bg-sky-100/80 text-sky-900 border border-sky-300/50 flex items-center justify-center shrink-0">
+              <Layers className="w-4 h-4 text-sky-900" />
             </div>
             <div>
-              <h3 className="text-lg sm:text-xl font-semibold text-stone-800 tracking-tight">
+              <h3 className="text-lg sm:text-xl font-bold text-slate-800 tracking-tight">
                 Rilevazione Modulare Test Clinici LCA
               </h3>
-              <p className="text-xs text-stone-500 font-medium mt-0.5">
-                Paziente: <strong className="text-stone-800">{patient.nome} {patient.cognome}</strong> • Lato Operato:{' '}
-                <strong className="text-emerald-800">{opKnee === 'DX' ? 'Destro (DX)' : 'Sinistro (SX)'}</strong> •{' '}
-                <span>I campi vuoti restano <code className="text-emerald-800 font-semibold">Non testato (null)</code></span>
+              <p className="text-xs text-slate-600 font-semibold mt-0.5">
+                Paziente: <strong className="text-slate-800">{patient.nome} {patient.cognome}</strong> • Lato Operato:{' '}
+                <strong className="text-emerald-900">{opKnee === 'DX' ? 'Destro (DX)' : 'Sinistro (SX)'}</strong> •{' '}
+                <span>I campi vuoti restano <code className="text-emerald-900 font-bold">Non testato (null)</code></span>
               </p>
             </div>
           </div>
@@ -789,7 +789,7 @@ export default function ModalNuovaValutazione({
           <button
             type="button"
             onClick={onClose}
-            className="p-2 rounded-xl bg-stone-100 text-stone-500 hover:text-stone-800 hover:bg-stone-200/60 border border-stone-300/70 transition-colors cursor-pointer"
+            className="p-2 rounded-xl bg-slate-100 text-slate-500 hover:text-slate-800 hover:bg-slate-200/60 border border-slate-300/60 transition-colors cursor-pointer"
           >
             <X className="w-4 h-4" />
           </button>
@@ -800,26 +800,26 @@ export default function ModalNuovaValutazione({
           {/* ===================================================================== */}
           {/* STEP 1: RAGGRUPPAMENTO IN SESSIONE / REPORT CLINICO                   */}
           {/* ===================================================================== */}
-          <div className="p-4 bg-stone-100 rounded-xl border border-stone-300/70 space-y-3.5">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-stone-300/70 pb-3">
+          <div className="p-4 bg-slate-100/80 rounded-xl border border-slate-300/60 space-y-3.5">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-300/60 pb-3">
               <div className="flex items-center gap-2">
-                <div className="p-1 bg-stone-200/60 text-stone-700 rounded">
+                <div className="p-1 bg-emerald-100/80 text-emerald-900 border border-emerald-300/50 rounded">
                   <Calendar className="w-4 h-4" />
                 </div>
-                <span className="text-xs font-semibold uppercase tracking-wider text-stone-800">
+                <span className="text-xs font-bold uppercase tracking-wider text-slate-800">
                   1. Sessione / Report di Riferimento (Aggregazione Multi-Giorno)
                 </span>
               </div>
 
               {existingSessions.length > 0 && (
-                <div className="flex items-center gap-1.5 bg-stone-50 p-1 rounded-xl border border-stone-300/70">
+                <div className="flex items-center gap-1.5 bg-slate-50 p-1 rounded-xl border border-slate-300/60">
                   <button
                     type="button"
                     onClick={() => handleSelectSessionMode('EXISTING')}
-                    className={`px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer ${
+                    className={`px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer border ${
                       sessionMode === 'EXISTING'
-                        ? 'bg-stone-800 text-stone-100 shadow-none'
-                        : 'text-stone-600 hover:text-stone-800'
+                        ? 'bg-emerald-100/80 text-emerald-900 border-emerald-300/50 shadow-none'
+                        : 'border-transparent text-slate-600 hover:text-slate-800'
                     }`}
                   >
                     <Link2 className="w-3.5 h-3.5" />
@@ -828,10 +828,10 @@ export default function ModalNuovaValutazione({
                   <button
                     type="button"
                     onClick={() => handleSelectSessionMode('NEW')}
-                    className={`px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer ${
+                    className={`px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer border ${
                       sessionMode === 'NEW'
-                        ? 'bg-stone-800 text-stone-100 shadow-none'
-                        : 'text-stone-600 hover:text-stone-800'
+                        ? 'bg-sky-100/80 text-sky-900 border-sky-300/50 shadow-none'
+                        : 'border-transparent text-slate-600 hover:text-slate-800'
                     }`}
                   >
                     <FolderPlus className="w-3.5 h-3.5" />
@@ -844,13 +844,13 @@ export default function ModalNuovaValutazione({
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
               {sessionMode === 'EXISTING' && existingSessions.length > 0 ? (
                 <div className="sm:col-span-2">
-                  <label className="block text-[11px] font-semibold text-stone-500 uppercase tracking-wider mb-1">
+                  <label className="block text-[11px] font-bold text-slate-600 uppercase tracking-wider mb-1">
                     Sessione / Report Clinico Attivo (Unisce test di giorni diversi)
                   </label>
                   <select
                     value={targetSessionId}
                     onChange={(e) => handleSelectSessionMode('EXISTING', e.target.value)}
-                    className="w-full bg-stone-50 border border-emerald-500 rounded-xl p-2.5 text-xs text-emerald-800 font-semibold focus:border-stone-600 focus:outline-none"
+                    className="w-full bg-emerald-100/80 border border-emerald-300/50 rounded-xl p-2.5 text-xs text-emerald-900 font-bold focus:border-emerald-600 focus:outline-none"
                   >
                     {existingSessions.map((s) => (
                       <option key={s.id} value={s.id}>
@@ -861,7 +861,7 @@ export default function ModalNuovaValutazione({
                 </div>
               ) : (
                 <div className="sm:col-span-2">
-                  <label className="block text-[11px] font-semibold text-stone-500 uppercase tracking-wider mb-1">
+                  <label className="block text-[11px] font-bold text-slate-600 uppercase tracking-wider mb-1">
                     Nome Nuova Sessione / Report (es. &quot;Valutazione 3° Mese&quot;)
                   </label>
                   <input
@@ -869,13 +869,13 @@ export default function ModalNuovaValutazione({
                     value={sessionName}
                     onChange={(e) => setSessionName(e.target.value)}
                     placeholder="es. Valutazione 3° Mese / Check Pre-Run"
-                    className="w-full bg-stone-50 border border-stone-300/70 rounded-xl p-2.5 text-xs text-stone-800 font-semibold focus:border-stone-500 focus:outline-none"
+                    className="w-full bg-slate-50 border border-slate-300/60 rounded-xl p-2.5 text-xs text-slate-800 font-bold focus:border-slate-500 focus:outline-none"
                   />
                 </div>
               )}
 
               <div>
-                <label className="block text-[11px] font-semibold text-stone-500 uppercase tracking-wider mb-1">
+                <label className="block text-[11px] font-bold text-slate-600 uppercase tracking-wider mb-1">
                   Data Esecuzione Test
                 </label>
                 <input
@@ -883,18 +883,18 @@ export default function ModalNuovaValutazione({
                   required
                   value={evalDate}
                   onChange={(e) => setEvalDate(e.target.value)}
-                  className="w-full bg-stone-50 border border-stone-300/70 rounded-xl p-2.5 text-xs text-stone-800 font-mono font-semibold focus:border-stone-500 focus:outline-none"
+                  className="w-full bg-slate-50 border border-slate-300/60 rounded-xl p-2.5 text-xs text-slate-800 font-mono font-bold focus:border-slate-500 focus:outline-none"
                 />
               </div>
 
               <div>
-                <label className="block text-[11px] font-semibold text-stone-500 uppercase tracking-wider mb-1">
+                <label className="block text-[11px] font-bold text-slate-600 uppercase tracking-wider mb-1">
                   Ginocchio Operato
                 </label>
                 <select
                   value={opKnee}
                   onChange={(e) => setOpKnee(e.target.value)}
-                  className="w-full bg-stone-50 border border-stone-300/70 rounded-xl p-2.5 text-xs text-stone-800 font-semibold focus:border-stone-500 focus:outline-none"
+                  className="w-full bg-slate-50 border border-slate-300/60 rounded-xl p-2.5 text-xs text-slate-800 font-bold focus:border-slate-500 focus:outline-none"
                 >
                   <option value="DX">🔴 Destro (DX Operato)</option>
                   <option value="SX">🔴 Sinistro (SX Operato)</option>
@@ -908,13 +908,13 @@ export default function ModalNuovaValutazione({
           {/* ===================================================================== */}
           <div className="space-y-2.5">
             <div className="flex items-center justify-between">
-              <span className="text-xs font-semibold uppercase tracking-wider text-stone-800 flex items-center gap-2">
-                <span className="p-1 bg-stone-200/60 text-stone-700 rounded">
+              <span className="text-xs font-bold uppercase tracking-wider text-slate-800 flex items-center gap-2">
+                <span className="p-1 bg-purple-100/80 text-purple-900 border border-purple-300/50 rounded">
                   <Sparkles className="w-4 h-4" />
                 </span>
                 2. Seleziona il Test Specifico da Rilevare
               </span>
-              <span className="text-[11px] text-stone-500 font-medium">
+              <span className="text-[11px] text-slate-600 font-semibold">
                 Mostra solo i campi pertinenti al test selezionato
               </span>
             </div>
@@ -933,36 +933,36 @@ export default function ModalNuovaValutazione({
                     onClick={() => setSelectedModule(mod.id)}
                     className={`p-3 rounded-xl border text-left transition-all cursor-pointer flex flex-col justify-between gap-2 ${
                       isSelected
-                        ? 'bg-emerald-900/10 border-emerald-600 shadow-none'
+                        ? 'bg-emerald-100/80 border-emerald-400/70 shadow-none'
                         : hasData
-                        ? 'bg-stone-50 border-emerald-300/60 hover:bg-stone-100'
-                        : 'bg-stone-100 border-stone-300/70 hover:bg-stone-200/50'
+                        ? 'bg-slate-50 border-emerald-300/60 hover:bg-slate-100'
+                        : 'bg-slate-100/80 border-slate-300/60 hover:bg-slate-200/50'
                     }`}
                   >
                     <div className="flex items-start justify-between gap-1.5">
-                      <div className={`p-1 rounded ${
+                      <div className={`p-1 rounded border ${
                         isSelected
-                          ? 'bg-stone-800 text-stone-100'
-                          : 'bg-stone-200/60 text-stone-700'
+                          ? 'bg-slate-50 text-emerald-900 border-emerald-300/60'
+                          : 'bg-sky-100/80 text-sky-900 border-sky-300/50'
                       }`}>
                         <Icon className="w-4 h-4" />
                       </div>
                       {hasData ? (
-                        <span className="px-2 py-0.5 rounded-full bg-emerald-900/10 border border-emerald-300/40 text-emerald-800 text-[10px] font-semibold">
+                        <span className="px-2 py-0.5 rounded-full bg-emerald-100/80 border border-emerald-300/50 text-emerald-900 text-[10px] font-bold">
                           ✓ {filledCount} dati
                         </span>
                       ) : (
-                        <span className="px-2 py-0.5 rounded-full bg-stone-200/60 border border-stone-300/70 text-stone-500 text-[10px] font-medium">
+                        <span className="px-2 py-0.5 rounded-full bg-slate-200/60 border border-slate-300/60 text-slate-600 text-[10px] font-semibold">
                           Vuoto
                         </span>
                       )}
                     </div>
 
                     <div>
-                      <div className="text-xs font-semibold text-stone-800 leading-snug">
+                      <div className="text-xs font-bold text-slate-800 leading-snug">
                         {mod.title}
                       </div>
-                      <div className="text-[10px] text-stone-500 leading-tight mt-0.5">
+                      <div className="text-[10px] text-slate-600 font-semibold leading-tight mt-0.5">
                         {mod.subtitle}
                       </div>
                     </div>
@@ -975,14 +975,14 @@ export default function ModalNuovaValutazione({
           {/* ===================================================================== */}
           {/* STEP 3: PANNELLO CAMPI DEL SINGOLO TEST SELEZIONATO                   */}
           {/* ===================================================================== */}
-          <div className="p-5 rounded-xl bg-stone-100 border border-stone-300/70 space-y-5">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-3 border-b border-stone-300/70">
+          <div className="p-5 rounded-xl bg-slate-100/80 border border-slate-300/60 space-y-5">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-3 border-b border-slate-300/60">
               <div>
-                <span className="text-[10px] font-semibold uppercase tracking-widest text-emerald-800">
+                <span className="text-[10px] font-bold uppercase tracking-widest text-emerald-900">
                   {activeModuleDef.category} • Codice Test: {activeTestType}
                 </span>
-                <h4 className="text-base font-semibold text-stone-800 mt-0.5">
-                  {activeModuleDef.title} — <span className="text-stone-500 font-normal text-sm">{activeModuleDef.subtitle}</span>
+                <h4 className="text-base font-bold text-slate-800 mt-0.5">
+                  {activeModuleDef.title} — <span className="text-slate-600 font-semibold text-sm">{activeModuleDef.subtitle}</span>
                 </h4>
               </div>
 
@@ -993,7 +993,7 @@ export default function ModalNuovaValutazione({
                   activeModuleDef.fields.forEach(f => { resetPatch[f] = ''; });
                   setForm(prev => ({ ...prev, ...resetPatch }));
                 }}
-                className="text-[11px] font-semibold text-stone-500 hover:text-rose-700 transition-colors self-start sm:self-auto cursor-pointer"
+                className="text-[11px] font-bold text-rose-900 bg-rose-100/80 hover:bg-rose-200/70 border border-rose-300/50 px-2.5 py-1 rounded-lg transition-colors self-start sm:self-auto cursor-pointer"
               >
                 Svuota campi standard (imposta a Non testato)
               </button>
@@ -1551,18 +1551,18 @@ export default function ModalNuovaValutazione({
             {/* ===================================================================== */}
             {/* SEZIONE METRICHE DINAMICHE E PERSONALIZZATE PER IL TEST CORRENTE       */}
             {/* ===================================================================== */}
-            <div className="pt-4 border-t border-stone-300/70 space-y-3">
+            <div className="pt-4 border-t border-slate-300/60 space-y-3">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                 <div className="flex items-center gap-2">
-                  <div className="p-1 bg-stone-200/60 text-stone-700 rounded">
+                  <div className="p-1 bg-purple-100/80 text-purple-900 border border-purple-300/50 rounded">
                     <Sliders className="w-4 h-4" />
                   </div>
                   <div>
-                    <h5 className="text-xs font-semibold text-stone-800 uppercase tracking-wider">
+                    <h5 className="text-xs font-bold text-slate-800 uppercase tracking-wider">
                       Metriche Dinamiche e Personalizzate ({activeModuleDef.title})
                     </h5>
-                    <p className="text-[11px] text-stone-500 font-medium">
-                      Pre-carica automaticamente le metriche già usate sul paziente e suggerisce quelle del team per <code className="text-emerald-800 font-mono">{activeTestType}</code>
+                    <p className="text-[11px] text-slate-600 font-semibold">
+                      Pre-carica automaticamente le metriche già usate sul paziente e suggerisce quelle del team per <code className="text-emerald-900 font-mono">{activeTestType}</code>
                     </p>
                   </div>
                 </div>
@@ -1570,7 +1570,7 @@ export default function ModalNuovaValutazione({
                 <button
                   type="button"
                   onClick={handleAddCustomMetricRow}
-                  className="px-3.5 py-2 rounded-xl bg-stone-800 hover:bg-stone-900 text-stone-100 font-semibold text-xs flex items-center gap-1.5 shadow-none transition-all cursor-pointer self-start sm:self-auto"
+                  className="px-3.5 py-2 rounded-xl bg-purple-100/80 hover:bg-purple-200/70 text-purple-900 border border-purple-300/50 font-bold text-xs flex items-center gap-1.5 shadow-none transition-all cursor-pointer self-start sm:self-auto"
                 >
                   <Plus className="w-3.5 h-3.5" />
                   <span>+ Aggiungi Metrica Personalizzata</span>
@@ -1578,12 +1578,12 @@ export default function ModalNuovaValutazione({
               </div>
 
               {activeCustomMetrics.length === 0 ? (
-                <div className="p-3.5 rounded-xl bg-stone-50 border border-dashed border-stone-300/80 text-xs text-stone-500 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                <div className="p-3.5 rounded-xl bg-slate-50 border border-dashed border-slate-300/80 text-xs text-slate-600 font-semibold flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                   <span>
                     Nessuna metrica personalizzata attiva per <strong>{activeModuleDef.title}</strong>. Clicca su <strong>&quot;+ Aggiungi Metrica Personalizzata&quot;</strong> per scegliere dai suggerimenti o crearne una nuova.
                   </span>
                   {globalMetricSuggestions.length > 0 && (
-                    <span className="text-[11px] text-emerald-800 font-semibold shrink-0">
+                    <span className="text-[11px] text-emerald-900 font-bold shrink-0">
                       {globalMetricSuggestions.length} suggerimenti disponibili
                     </span>
                   )}
@@ -1599,16 +1599,16 @@ export default function ModalNuovaValutazione({
                     return (
                       <div
                         key={`${activeTestType}-cm-${idx}`}
-                        className="p-3 rounded-xl bg-stone-50 border border-stone-300/70 shadow-none grid grid-cols-1 sm:grid-cols-12 gap-2.5 items-end relative"
+                        className="p-3 rounded-xl bg-slate-50 border border-slate-300/60 shadow-none grid grid-cols-1 sm:grid-cols-12 gap-2.5 items-end relative"
                       >
                         {/* Nome Metrica + Menu a tendina/autocompletamento */}
                         <div className="sm:col-span-6 relative">
                           <div className="flex items-center justify-between mb-1">
-                            <label className="text-[10px] font-semibold text-stone-500 uppercase tracking-wider">
+                            <label className="text-[10px] font-bold text-slate-600 uppercase tracking-wider">
                               Nome Metrica (Scegli o Digita Nuova)
                             </label>
                             {mRow.isPreloadedFromHistory && (
-                              <span className="text-[9.5px] font-semibold text-emerald-800 bg-emerald-900/10 border border-emerald-300/40 px-1.5 py-0.2 rounded">
+                              <span className="text-[9.5px] font-bold text-emerald-900 bg-emerald-100/80 border border-emerald-300/50 px-1.5 py-0.2 rounded">
                                 Storico Paziente
                               </span>
                             )}
@@ -1623,12 +1623,12 @@ export default function ModalNuovaValutazione({
                                 setOpenSuggestionRowIdx(idx);
                               }}
                               placeholder="es. Angolo Flessione Ginocchio"
-                              className="w-full bg-stone-100 border border-stone-300/70 rounded-xl py-2 pl-3 pr-8 text-xs text-stone-800 font-semibold focus:border-stone-500 focus:bg-stone-50 focus:outline-none"
+                              className="w-full bg-slate-100 border border-slate-300/60 rounded-xl py-2 pl-3 pr-8 text-xs text-slate-800 font-bold focus:border-slate-500 focus:bg-slate-50 focus:outline-none"
                             />
                             <button
                               type="button"
                               onClick={() => setOpenSuggestionRowIdx(openSuggestionRowIdx === idx ? -1 : idx)}
-                              className="absolute right-2 p-1 text-stone-400 hover:text-stone-700 cursor-pointer"
+                              className="absolute right-2 p-1 text-slate-400 hover:text-slate-700 cursor-pointer"
                               title="Mostra suggerimenti per questo test"
                             >
                               <ChevronDown className="w-3.5 h-3.5" />
@@ -1637,13 +1637,13 @@ export default function ModalNuovaValutazione({
 
                           {/* Dropdown Suggerimenti da `custom_metric_definitions` */}
                           {openSuggestionRowIdx === idx && filteredSuggestions.length > 0 && (
-                            <div className="absolute left-0 right-0 top-full mt-1 z-40 bg-stone-50 border border-stone-300/70 rounded-xl shadow-none max-h-44 overflow-y-auto divide-y divide-stone-200">
-                              <div className="px-3 py-1.5 bg-stone-100 text-[10px] font-semibold text-stone-500 uppercase tracking-wider flex items-center justify-between">
+                            <div className="absolute left-0 right-0 top-full mt-1 z-40 bg-slate-50 border border-slate-300/60 rounded-xl shadow-none max-h-44 overflow-y-auto divide-y divide-slate-200">
+                              <div className="px-3 py-1.5 bg-slate-100 text-[10px] font-bold text-slate-600 uppercase tracking-wider flex items-center justify-between">
                                 <span>Suggerimenti Team ({activeTestType})</span>
                                 <button
                                   type="button"
                                   onClick={() => setOpenSuggestionRowIdx(-1)}
-                                  className="text-stone-400 hover:text-stone-700"
+                                  className="text-slate-500 hover:text-slate-800"
                                 >
                                   Chiudi
                                 </button>
@@ -1653,11 +1653,11 @@ export default function ModalNuovaValutazione({
                                   key={`${sug.metric_name}-${sIdx}`}
                                   type="button"
                                   onClick={() => handleSelectSuggestion(idx, sug)}
-                                  className="w-full px-3 py-2 text-left text-xs hover:bg-stone-200/50 flex items-center justify-between transition-colors cursor-pointer"
+                                  className="w-full px-3 py-2 text-left text-xs hover:bg-slate-200/50 flex items-center justify-between transition-colors cursor-pointer"
                                 >
-                                  <span className="font-semibold text-stone-800">{sug.metric_name}</span>
+                                  <span className="font-bold text-slate-800">{sug.metric_name}</span>
                                   {sug.unit && (
-                                    <span className="text-[10px] font-mono text-emerald-800 bg-emerald-900/10 border border-emerald-300/40 px-1.5 py-0.5 rounded">
+                                    <span className="text-[10px] font-mono text-emerald-900 bg-emerald-100/80 border border-emerald-300/50 px-1.5 py-0.5 rounded">
                                       {sug.unit}
                                     </span>
                                   )}
@@ -1669,7 +1669,7 @@ export default function ModalNuovaValutazione({
 
                         {/* Unità di Misura */}
                         <div className="sm:col-span-2">
-                          <label className="block text-[10px] font-semibold text-stone-500 uppercase tracking-wider mb-1">
+                          <label className="block text-[10px] font-bold text-slate-600 uppercase tracking-wider mb-1">
                             Unità
                           </label>
                           <input
@@ -1677,13 +1677,13 @@ export default function ModalNuovaValutazione({
                             value={mRow.unit}
                             onChange={(e) => handleUpdateCustomMetricRow(idx, 'unit', e.target.value)}
                             placeholder="es. gradi, N/m"
-                            className="w-full bg-stone-100 border border-stone-300/70 rounded-xl p-2 text-xs text-stone-800 font-mono focus:border-stone-500 focus:bg-stone-50 focus:outline-none"
+                            className="w-full bg-slate-100 border border-slate-300/60 rounded-xl p-2 text-xs text-slate-800 font-mono font-bold focus:border-slate-500 focus:bg-slate-50 focus:outline-none"
                           />
                         </div>
 
                         {/* Valore Misurato */}
                         <div className="sm:col-span-3">
-                          <label className="block text-[10px] font-semibold text-stone-500 uppercase tracking-wider mb-1">
+                          <label className="block text-[10px] font-bold text-slate-600 uppercase tracking-wider mb-1">
                             Valore Misurato
                           </label>
                           <input
@@ -1692,7 +1692,7 @@ export default function ModalNuovaValutazione({
                             value={mRow.metric_value}
                             onChange={(e) => handleUpdateCustomMetricRow(idx, 'metric_value', e.target.value)}
                             placeholder="Non testato (null)"
-                            className="w-full bg-stone-100 border border-stone-300/70 rounded-xl p-2 text-xs text-stone-800 font-mono font-semibold focus:border-stone-500 focus:bg-stone-50 focus:outline-none"
+                            className="w-full bg-slate-100 border border-slate-300/60 rounded-xl p-2 text-xs text-slate-800 font-mono font-bold focus:border-slate-500 focus:bg-slate-50 focus:outline-none"
                           />
                         </div>
 
@@ -1702,7 +1702,7 @@ export default function ModalNuovaValutazione({
                             type="button"
                             onClick={() => handleHideOrRemoveCustomMetric(idx, mRow)}
                             title="Elimina o nascondi questa metrica personalizzata dalla tabella del paziente"
-                            className="p-2 rounded-xl bg-rose-900/10 hover:bg-rose-900/20 text-rose-700 border border-rose-300/50 transition-colors cursor-pointer"
+                            className="p-2 rounded-xl bg-rose-100/80 hover:bg-rose-200/70 text-rose-900 border border-rose-300/50 transition-colors cursor-pointer"
                           >
                             <Trash2 className="w-4 h-4" />
                           </button>
@@ -1717,23 +1717,23 @@ export default function ModalNuovaValutazione({
 
           {/* FEEDBACK TOAST SALVATAGGIO INTERMEDIO */}
           {savedToast && (
-            <div className="p-3 rounded-xl bg-emerald-900/10 border border-emerald-300/40 text-emerald-800 text-xs font-semibold flex items-center justify-between">
+            <div className="p-3 rounded-xl bg-emerald-100/80 border border-emerald-300/50 text-emerald-900 text-xs font-bold flex items-center justify-between">
               <span>{savedToast}</span>
-              <span className="text-[11px] text-emerald-700">Puoi selezionare un altro test qui sopra o chiudere</span>
+              <span className="text-[11px] text-emerald-800">Puoi selezionare un altro test qui sopra o chiudere</span>
             </div>
           )}
 
           {/* AZIONI FINALI */}
-          <div className="pt-3 border-t border-stone-300/70 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-            <div className="text-[11px] text-stone-500 font-medium">
-              Sessione attiva: <strong className="text-stone-800">{sessionName}</strong> • I campi lasciati vuoti vengono salvati come <code className="text-emerald-800 font-semibold">null</code> (Non testato).
+          <div className="pt-3 border-t border-slate-300/60 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div className="text-[11px] text-slate-600 font-semibold">
+              Sessione attiva: <strong className="text-slate-800">{sessionName}</strong> • I campi lasciati vuoti vengono salvati come <code className="text-emerald-900 font-bold">null</code> (Non testato).
             </div>
 
             <div className="flex flex-wrap items-center justify-end gap-2.5">
               <button
                 type="button"
                 onClick={onClose}
-                className="px-4 py-2.5 rounded-xl bg-stone-100 hover:bg-stone-200/60 text-stone-700 text-xs font-semibold border border-stone-300/70 transition-all cursor-pointer"
+                className="px-4 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200/60 text-slate-700 text-xs font-bold border border-slate-300/60 transition-all cursor-pointer"
               >
                 Annulla
               </button>
@@ -1741,7 +1741,7 @@ export default function ModalNuovaValutazione({
               <button
                 type="button"
                 onClick={handleSaveAndKeepOpen}
-                className="px-4 py-2.5 rounded-xl bg-emerald-900/10 hover:bg-emerald-900/20 text-emerald-800 text-xs font-semibold border border-emerald-300/40 transition-all flex items-center gap-1.5 cursor-pointer"
+                className="px-4 py-2.5 rounded-xl bg-sky-100/80 hover:bg-sky-200/70 text-sky-900 text-xs font-bold border border-sky-300/50 transition-all flex items-center gap-1.5 cursor-pointer"
               >
                 <Plus className="w-4 h-4" />
                 <span>Salva Test e Aggiungi Altro</span>
@@ -1749,7 +1749,7 @@ export default function ModalNuovaValutazione({
 
               <button
                 type="submit"
-                className="px-5 py-2.5 rounded-xl bg-stone-800 hover:bg-stone-900 text-stone-100 font-semibold text-xs flex items-center gap-2 shadow-none transition-all cursor-pointer"
+                className="px-5 py-2.5 rounded-xl bg-emerald-100/80 hover:bg-emerald-200/70 text-emerald-900 border border-emerald-300/50 font-bold text-xs flex items-center gap-2 shadow-none transition-all cursor-pointer"
               >
                 <CheckCircle2 className="w-4 h-4" />
                 <span>Salva nel Report e Chiudi</span>
