@@ -253,11 +253,11 @@ export default function PatientDetail({ patient, onBack, onUpdatePatient }) {
   ];
 
   return (
-    <div className="space-y-5 text-stone-800">
+    <div className="space-y-5 text-slate-800">
       {/* Toast conferma copia Link Mobile Paziente */}
       {toastMobileLink && (
-        <div className="fixed bottom-5 right-5 z-50 bg-stone-800 border border-stone-700 text-stone-100 px-4 py-3 rounded-xl flex items-center gap-2.5 text-xs font-semibold print:hidden">
-          <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+        <div className="fixed bottom-5 right-5 z-50 bg-emerald-100 border border-emerald-300/60 text-emerald-900 px-4 py-3 rounded-xl flex items-center gap-2.5 text-xs font-bold print:hidden">
+          <CheckCircle2 className="w-4 h-4 text-emerald-700 shrink-0" />
           <span>Link Mobile Paziente copiato negli appunti!</span>
         </div>
       )}
@@ -266,9 +266,9 @@ export default function PatientDetail({ patient, onBack, onUpdatePatient }) {
       <div className="flex flex-wrap items-center justify-between gap-4 print:hidden">
         <button
           onClick={onBack}
-          className="flex items-center gap-2 text-xs font-semibold text-stone-700 hover:text-stone-900 bg-stone-50 hover:bg-stone-100 px-3.5 py-2 rounded-xl border border-stone-300/70 shadow-none transition-all cursor-pointer"
+          className="flex items-center gap-2 text-xs font-bold text-slate-700 hover:text-slate-900 bg-slate-50 hover:bg-slate-100 px-3.5 py-2 rounded-xl border border-slate-300/60 shadow-none transition-all cursor-pointer"
         >
-          <ArrowLeft className="w-4 h-4 text-stone-700" />
+          <ArrowLeft className="w-4 h-4 text-slate-700" />
           <span>Torna all&apos;Elenco Pazienti</span>
         </button>
 
@@ -276,25 +276,25 @@ export default function PatientDetail({ patient, onBack, onUpdatePatient }) {
         <div className="flex flex-wrap items-center gap-2.5 print:hidden">
           <button
             onClick={handleCopyClientPortalLink}
-            className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-stone-50 hover:bg-stone-100 text-stone-700 hover:text-stone-900 border border-stone-300/70 text-xs font-semibold shadow-none transition-all cursor-pointer"
+            className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-sky-100/80 hover:bg-sky-200/70 text-sky-900 border border-sky-300/50 text-xs font-bold shadow-none transition-all cursor-pointer"
             title="Copia il link diretto al Diario Carichi Mobile del Paziente"
           >
-            <Smartphone className="w-3.5 h-3.5 text-stone-700" />
+            <Smartphone className="w-3.5 h-3.5 text-sky-900" />
             <span>Condividi Link Mobile</span>
           </button>
 
           <button
             onClick={() => setShowEditAnagrafica(true)}
-            className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-stone-50 hover:bg-stone-100 text-stone-700 hover:text-stone-900 border border-stone-300/70 text-xs font-semibold shadow-none transition-all cursor-pointer"
+            className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-slate-50 hover:bg-slate-100 text-slate-700 hover:text-slate-900 border border-slate-300/60 text-xs font-bold shadow-none transition-all cursor-pointer"
           >
-            <Edit2 className="w-3.5 h-3.5 text-stone-700" />
+            <Edit2 className="w-3.5 h-3.5 text-slate-700" />
             <span>Modifica Anagrafica</span>
           </button>
 
           <button
             type="button"
             onClick={() => setIsPrintModalOpen(true)}
-            className="flex items-center gap-2 px-4 py-2 rounded-xl bg-stone-800 hover:bg-stone-900 text-stone-100 font-semibold text-xs shadow-none transition-all cursor-pointer"
+            className="flex items-center gap-2 px-4 py-2 rounded-xl bg-purple-100/80 hover:bg-purple-200/70 text-purple-900 border border-purple-300/50 font-bold text-xs shadow-none transition-all cursor-pointer"
           >
             <FileDown className="w-4 h-4" />
             <span>Stampa / Esporta PDF A4</span>
@@ -302,60 +302,64 @@ export default function PatientDetail({ patient, onBack, onUpdatePatient }) {
         </div>
       </div>
 
-      {/* Patient Clinical Header Card (Warm Concrete Pearl) */}
-      <div className="bg-stone-50 p-5 rounded-xl border border-stone-300/70 shadow-none relative overflow-hidden break-inside-avoid">
+      {/* Patient Clinical Header Card (Soft Pastel Medical) */}
+      <div className="bg-slate-50 p-5 rounded-xl border border-slate-300/60 shadow-none relative overflow-hidden break-inside-avoid">
         <div className="relative z-10 flex flex-col lg:flex-row lg:items-center justify-between gap-5">
           <div className="flex items-start sm:items-center gap-4">
-            <div className="w-14 h-14 rounded-xl bg-stone-200/70 border border-stone-300/70 flex items-center justify-center font-semibold text-xl text-stone-800 shrink-0">
+            <div className="w-14 h-14 rounded-xl bg-emerald-100/80 border border-emerald-300/50 flex items-center justify-center font-bold text-xl text-emerald-900 shrink-0">
               {patient.nome?.[0]}{patient.cognome?.[0]}
             </div>
             <div>
               <div className="flex flex-wrap items-center gap-2">
-                <h1 className="text-xl sm:text-2xl font-semibold text-stone-800 tracking-tight">
+                <h1 className="text-xl sm:text-2xl font-bold text-slate-800 tracking-tight">
                   {patient.nome} {patient.cognome}
                 </h1>
-                <span className="text-xs px-2.5 py-0.5 rounded-full bg-emerald-900/10 text-emerald-800 border border-emerald-300/40 font-semibold">
+                <span className="text-xs px-2.5 py-0.5 rounded-full bg-slate-200/70 text-slate-700 border border-slate-300/60 font-bold">
                   Ginocchio {patient.lato_lesione} • {patient.tipo_innesto}
                 </span>
-                <span className="text-xs px-2.5 py-0.5 rounded-full bg-stone-200/60 text-stone-700 border border-stone-300/70 font-medium">
+                <span className="text-xs px-2.5 py-0.5 rounded-full bg-sky-100/80 text-sky-900 border border-sky-300/50 font-bold">
                   {patient.sport} ({patient.ruolo_sportivo || patient.livello})
                 </span>
               </div>
 
-              <div className="flex flex-wrap items-center gap-4 text-xs text-stone-500 font-medium mt-1.5">
+              <div className="flex flex-wrap items-center gap-4 text-xs text-slate-500 font-medium mt-1.5">
                 <span className="flex items-center gap-1.5">
-                  <Calendar className="w-3.5 h-3.5 text-stone-700" />
-                  Intervento: <strong className="text-stone-800 font-mono font-semibold">{patient.data_intervento}</strong>
+                  <Calendar className="w-3.5 h-3.5 text-slate-700" />
+                  Intervento: <strong className="text-slate-800 font-mono font-bold">{patient.data_intervento}</strong>
                 </span>
                 <span>•</span>
                 <span>
-                  Chirurgo: <strong className="text-stone-800 font-semibold">{patient.chirurgo || 'N/D'}</strong>
+                  Chirurgo: <strong className="text-slate-800 font-bold">{patient.chirurgo || 'N/D'}</strong>
                 </span>
                 <span>•</span>
-                <span>
-                  Fase Attuale: <strong className="text-emerald-800 font-semibold">{currentPhaseDisplay}</strong>
+                <span className="px-2 py-0.5 rounded-md bg-emerald-100/80 text-emerald-900 border border-emerald-300/50 font-bold">
+                  {currentPhaseDisplay}
                 </span>
               </div>
             </div>
           </div>
 
-          {/* KPI Strip */}
-          <div className="grid grid-cols-3 gap-3 sm:gap-4 pt-3 lg:pt-0 border-t lg:border-t-0 border-stone-300/70">
-            <div className="bg-stone-100 px-3.5 py-2.5 rounded-xl border border-stone-300/70 text-center">
-              <div className="text-[10px] text-stone-500 uppercase tracking-wider font-semibold">Time Post-Op</div>
-              <div className="text-sm sm:text-base font-semibold font-mono text-stone-800 mt-0.5">
+          {/* KPI Strip Pastello Opaco */}
+          <div className="grid grid-cols-3 gap-3 sm:gap-4 pt-3 lg:pt-0 border-t lg:border-t-0 border-slate-300/60">
+            <div className="bg-sky-100/80 px-3.5 py-2.5 rounded-xl border border-sky-300/50 text-center">
+              <div className="text-[10px] text-sky-900/70 uppercase tracking-wider font-bold">Time Post-Op</div>
+              <div className="text-sm sm:text-base font-bold font-mono text-sky-900 mt-0.5">
                 {months}m {days}g
               </div>
             </div>
-            <div className="bg-stone-100 px-3.5 py-2.5 rounded-xl border border-stone-300/70 text-center">
-              <div className="text-[10px] text-stone-500 uppercase tracking-wider font-semibold">LSI Quad</div>
-              <div className={`text-sm sm:text-base font-semibold font-mono mt-0.5 ${lastQuadLsi !== null && lastQuadLsi >= 85 ? 'text-emerald-800' : 'text-amber-800'}`}>
+            <div className={`px-3.5 py-2.5 rounded-xl border text-center ${
+              lastQuadLsi !== null && lastQuadLsi >= 85
+                ? 'bg-emerald-100/80 border-emerald-300/50 text-emerald-900'
+                : 'bg-rose-100/80 border-rose-300/50 text-rose-900'
+            }`}>
+              <div className="text-[10px] opacity-75 uppercase tracking-wider font-bold">LSI Quad</div>
+              <div className="text-sm sm:text-base font-bold font-mono mt-0.5">
                 {lastQuadLsi !== null ? `${lastQuadLsi}%` : 'Non testato'}
               </div>
             </div>
-            <div className="bg-stone-100 px-3.5 py-2.5 rounded-xl border border-stone-300/70 text-center">
-              <div className="text-[10px] text-stone-500 uppercase tracking-wider font-semibold">RSImod</div>
-              <div className="text-sm sm:text-base font-semibold font-mono text-emerald-800 mt-0.5">
+            <div className="bg-purple-100/80 px-3.5 py-2.5 rounded-xl border border-purple-300/50 text-center">
+              <div className="text-[10px] text-purple-900/70 uppercase tracking-wider font-bold">RSImod</div>
+              <div className="text-sm sm:text-base font-bold font-mono text-purple-900 mt-0.5">
                 {lastRsiMod !== null ? lastRsiMod : 'Non testato'}
               </div>
             </div>
@@ -364,7 +368,7 @@ export default function PatientDetail({ patient, onBack, onUpdatePatient }) {
       </div>
 
       {/* BARRA DI NAVIGAZIONE A 3 SCHEDE (Monitoraggio & Diario | Test & Valutazioni | Copilot) */}
-      <div className="bg-stone-50 p-1.5 rounded-xl border border-stone-300/70 shadow-none flex overflow-x-auto gap-2 print:hidden">
+      <div className="bg-slate-50 p-1.5 rounded-xl border border-slate-300/60 shadow-none flex overflow-x-auto gap-2 print:hidden">
         {tabs.map((tab) => {
           const Icon = tab.icon;
           const isActive = activeTab === tab.id;
@@ -372,13 +376,13 @@ export default function PatientDetail({ patient, onBack, onUpdatePatient }) {
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
-              className={`flex-1 min-w-[180px] flex items-center justify-center gap-2 py-2.5 px-4 rounded-lg text-xs font-semibold transition-all cursor-pointer whitespace-nowrap ${
+              className={`flex-1 min-w-[180px] flex items-center justify-center gap-2 py-2.5 px-4 rounded-lg text-xs font-bold transition-all cursor-pointer whitespace-nowrap ${
                 isActive
-                  ? 'bg-stone-800 text-stone-100'
-                  : 'bg-stone-100 text-stone-600 hover:text-stone-800 hover:bg-stone-200/50 border border-stone-300/60'
+                  ? 'bg-emerald-100/80 text-emerald-900 border border-emerald-300/50'
+                  : 'bg-slate-100 text-slate-600 hover:text-slate-800 hover:bg-slate-200/50 border border-slate-300/60'
               }`}
             >
-              <Icon className={`w-4 h-4 ${isActive ? 'text-stone-100' : 'text-stone-700'}`} />
+              <Icon className={`w-4 h-4 ${isActive ? 'text-emerald-900' : 'text-slate-600'}`} />
               <span>{tab.label}</span>
             </button>
           );
@@ -392,25 +396,25 @@ export default function PatientDetail({ patient, onBack, onUpdatePatient }) {
         {/* ===================================================================== */}
         {activeTab === 'tab1' && (
           <div className="space-y-5">
-            {/* 1. LE 5 FASI RIABILITATIVE IN ALTO FISSE E ORIZZONTALI A BLOCCHI (NO TENDINE A SCOMPARSA) */}
-            <div className="bg-stone-50 p-4 sm:p-5 rounded-xl border border-stone-300/70 shadow-none space-y-3.5 break-inside-avoid">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-2.5 border-b border-stone-300/70">
+            {/* 1. LE 5 FASI RIABILITATIVE IN ALTO FISSE E ORIZZONTALI A BLOCCHI */}
+            <div className="bg-slate-50 p-4 sm:p-5 rounded-xl border border-slate-300/60 shadow-none space-y-3.5 break-inside-avoid">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-2.5 border-b border-slate-300/60">
                 <div className="flex items-center gap-2.5">
-                  <div className="p-1 bg-stone-200/60 text-stone-700 rounded shrink-0">
-                    <Layers className="w-4 h-4 text-stone-700" />
+                  <div className="p-1.5 bg-emerald-100/80 text-emerald-900 border border-emerald-300/50 rounded shrink-0">
+                    <Layers className="w-4 h-4 text-emerald-900" />
                   </div>
                   <div>
-                    <h2 className="text-sm sm:text-base font-semibold text-stone-800 uppercase tracking-wide">
+                    <h2 className="text-sm sm:text-base font-bold text-slate-800 uppercase tracking-wide">
                       Fasi Riabilitative LCA (Seleziona la Fase Attuale)
                     </h2>
-                    <p className="text-xs text-stone-500 font-medium">
+                    <p className="text-xs text-slate-500 font-medium">
                       Clicca sul blocco corrispondente per impostare o aggiornare la fase clinica attiva del paziente
                     </p>
                   </div>
                 </div>
 
                 {savedDirectivesToast && (
-                  <span className="px-2.5 py-1 rounded-lg bg-emerald-900/10 border border-emerald-300/40 text-emerald-800 text-xs font-semibold flex items-center gap-1 self-start sm:self-auto print:hidden">
+                  <span className="px-2.5 py-1 rounded-lg bg-emerald-100/80 border border-emerald-300/50 text-emerald-900 text-xs font-bold flex items-center gap-1 self-start sm:self-auto print:hidden">
                     <CheckCircle2 className="w-3.5 h-3.5" />
                     Salvato nel Cloud
                   </span>
@@ -428,41 +432,41 @@ export default function PatientDetail({ patient, onBack, onUpdatePatient }) {
                       onClick={() => handleSelectPhaseBlock(ph)}
                       className={`p-3.5 rounded-xl text-left transition-all flex flex-col justify-between space-y-2.5 cursor-pointer ${
                         isSelected
-                          ? 'bg-emerald-900/10 border-2 border-emerald-700/60 text-stone-800'
-                          : 'bg-stone-100 border border-stone-300/70 hover:bg-stone-200/50 text-stone-700'
+                          ? 'bg-emerald-100/80 border-2 border-emerald-400 text-emerald-950'
+                          : 'bg-slate-100 border border-slate-300/60 hover:bg-slate-200/50 text-slate-700'
                       }`}
                     >
                       <div className="space-y-1.5">
                         <div className="flex items-center justify-between gap-1">
                           <span
-                            className={`text-[10px] font-semibold uppercase px-2 py-0.5 rounded ${
+                            className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded ${
                               isSelected
-                                ? 'bg-stone-800 text-stone-100'
-                                : 'bg-stone-200/70 text-stone-600'
+                                ? 'bg-emerald-800 text-emerald-50'
+                                : 'bg-slate-200/80 text-slate-700'
                             }`}
                           >
                             {ph.num} • {ph.tag}
                           </span>
                         </div>
 
-                        <h3 className="text-stone-800 font-semibold text-xs sm:text-sm leading-snug pt-0.5">
+                        <h3 className="text-slate-800 font-bold text-xs sm:text-sm leading-snug pt-0.5">
                           {ph.title}
                         </h3>
 
-                        <p className="text-stone-500 font-medium text-[11px] leading-relaxed">
+                        <p className="text-slate-600 font-medium text-[11px] leading-relaxed">
                           {ph.subtitle}
                         </p>
                       </div>
 
                       <div
-                        className={`pt-2 border-t flex items-center justify-between text-[11px] font-semibold ${
+                        className={`pt-2 border-t flex items-center justify-between text-[11px] font-bold ${
                           isSelected
-                            ? 'border-emerald-700/30 text-emerald-800'
-                            : 'border-stone-300/60 text-stone-500'
+                            ? 'border-emerald-300/70 text-emerald-900'
+                            : 'border-slate-300/60 text-slate-500'
                         }`}
                       >
                         <span>{isSelected ? 'Fase Attiva' : 'Imposta Fase'}</span>
-                        {isSelected && <Check className="w-3.5 h-3.5 text-emerald-800" />}
+                        {isSelected && <Check className="w-3.5 h-3.5 text-emerald-900" />}
                       </div>
                     </button>
                   );
@@ -471,17 +475,17 @@ export default function PatientDetail({ patient, onBack, onUpdatePatient }) {
             </div>
 
             {/* 2. SUBITO SOTTO LE 5 FASI: CARD CON LE DIRETTIVE DEL TERAPISTA */}
-            <div className="bg-stone-50 p-4 sm:p-5 rounded-xl border border-stone-300/70 shadow-none space-y-4 break-inside-avoid">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-stone-300/70">
+            <div className="bg-slate-50 p-4 sm:p-5 rounded-xl border border-slate-300/60 shadow-none space-y-4 break-inside-avoid">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-300/60">
                 <div className="flex items-center gap-2.5">
-                  <div className="p-1 bg-stone-200/60 text-stone-700 rounded shrink-0">
-                    <Compass className="w-4 h-4 text-stone-700" />
+                  <div className="p-1.5 bg-sky-100/80 text-sky-900 border border-sky-300/50 rounded shrink-0">
+                    <Compass className="w-4 h-4 text-sky-900" />
                   </div>
                   <div>
-                    <h2 className="text-sm sm:text-base font-semibold text-stone-800 uppercase tracking-wide">
+                    <h2 className="text-sm sm:text-base font-bold text-slate-800 uppercase tracking-wide">
                       Direttive del Terapista &amp; Priorità Cliniche
                     </h2>
-                    <p className="text-xs text-stone-500 font-medium">
+                    <p className="text-xs text-slate-500 font-medium">
                       Consegne operative per lo staff e il paziente sincronizzate automaticamente con il Copilot
                     </p>
                   </div>
@@ -491,7 +495,7 @@ export default function PatientDetail({ patient, onBack, onUpdatePatient }) {
                   <button
                     type="button"
                     onClick={() => setShowAdvancedDirectives((prev) => !prev)}
-                    className="px-3 py-1.5 rounded-xl bg-stone-100 hover:bg-stone-200/50 text-stone-700 border border-stone-300/70 text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer"
+                    className="px-3 py-1.5 rounded-xl bg-purple-100/80 hover:bg-purple-200/70 text-purple-900 border border-purple-300/50 text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer"
                   >
                     {showAdvancedDirectives ? (
                       <>
@@ -509,7 +513,7 @@ export default function PatientDetail({ patient, onBack, onUpdatePatient }) {
                   <button
                     type="button"
                     onClick={handleSaveSyntheticDirectives}
-                    className="px-4 py-1.5 rounded-xl bg-stone-800 hover:bg-stone-900 text-stone-100 font-semibold text-xs flex items-center gap-1.5 shadow-none transition-all cursor-pointer"
+                    className="px-4 py-1.5 rounded-xl bg-emerald-100/80 hover:bg-emerald-200/70 text-emerald-900 border border-emerald-300/50 font-bold text-xs flex items-center gap-1.5 shadow-none transition-all cursor-pointer"
                   >
                     <Save className="w-3.5 h-3.5" />
                     <span>Salva Direttive</span>
@@ -520,7 +524,7 @@ export default function PatientDetail({ patient, onBack, onUpdatePatient }) {
               <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 items-start">
                 {/* Colonna Sinistra (8/12): Note / Direttive del Terapista */}
                 <div className="lg:col-span-8 space-y-1.5">
-                  <label className="block text-xs font-semibold text-stone-700 uppercase tracking-wider">
+                  <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider">
                     Direttive Operative del Terapista
                   </label>
                   <textarea
@@ -528,13 +532,13 @@ export default function PatientDetail({ patient, onBack, onUpdatePatient }) {
                     value={direttiveTerapistaInput}
                     onChange={(e) => setDirettiveTerapistaInput(e.target.value)}
                     placeholder="Inserisci qui le direttive operative per il team e per il paziente (es. Focus recupero estensione attiva 0°, carichi isometrici a 60° di flessione, controllo valgismo dinamico in decelerazione...)"
-                    className="w-full bg-stone-100 border border-stone-300/70 rounded-xl p-3 text-xs text-stone-800 font-medium leading-relaxed focus:border-stone-600 focus:outline-none"
+                    className="w-full bg-slate-100 border border-slate-300/60 rounded-xl p-3 text-xs text-slate-800 font-medium leading-relaxed focus:border-slate-500 focus:outline-none"
                   />
                 </div>
 
                 {/* Colonna Destra (4/12): Riepilogo Deficit Attivi */}
-                <div className="lg:col-span-4 space-y-2 bg-stone-100 p-3.5 rounded-xl border border-stone-300/70">
-                  <span className="block text-[11px] font-semibold text-stone-700 uppercase tracking-wider">
+                <div className="lg:col-span-4 space-y-2 bg-slate-100 p-3.5 rounded-xl border border-slate-300/60">
+                  <span className="block text-[11px] font-bold text-slate-700 uppercase tracking-wider">
                     Deficit Biomeccanici Segnalati ({(patient.deficits_list || []).length})
                   </span>
                   {Array.isArray(patient.deficits_list) && patient.deficits_list.length > 0 ? (
@@ -546,12 +550,12 @@ export default function PatientDetail({ patient, onBack, onUpdatePatient }) {
                         return (
                           <span
                             key={def.id}
-                            className={`px-2.5 py-1 rounded-lg text-[11px] font-semibold border ${
+                            className={`px-2.5 py-1 rounded-lg text-[11px] font-bold border ${
                               isHigh
-                                ? 'bg-rose-900/10 text-rose-800 border-rose-300/50'
+                                ? 'bg-rose-100/80 text-rose-900 border-rose-300/50'
                                 : isMed
-                                ? 'bg-amber-900/10 text-amber-800 border-amber-300/50'
-                                : 'bg-emerald-900/10 text-emerald-800 border-emerald-300/40'
+                                ? 'bg-sky-100/80 text-sky-900 border-sky-300/50'
+                                : 'bg-emerald-100/80 text-emerald-900 border-emerald-300/50'
                             }`}
                           >
                             {def.title}
@@ -560,7 +564,7 @@ export default function PatientDetail({ patient, onBack, onUpdatePatient }) {
                       })}
                     </div>
                   ) : (
-                    <span className="text-xs text-stone-500 font-medium block">
+                    <span className="text-xs text-slate-500 font-medium block">
                       Nessun deficit specifico registrato. Usa &quot;Gestisci Deficit&quot; per aggiungerne.
                     </span>
                   )}

@@ -221,7 +221,7 @@ function MainApp() {
   }
 
   return (
-    <div className="min-h-screen bg-stone-200/70 text-stone-800 flex flex-col">
+    <div className="min-h-screen bg-slate-200/60 text-slate-800 flex flex-col">
       <Header
         onToggleMobileSidebar={() => setMobileOpen(!mobileOpen)}
         onOpenSqlModal={() => setSqlModalOpen(true)}
@@ -229,14 +229,14 @@ function MainApp() {
       />
 
       {dbErrorBanner && (
-        <div className="bg-rose-900/10 border border-rose-300/60 px-4 py-3 text-xs text-rose-900 flex items-center justify-between max-w-7xl w-full mx-auto mt-2 rounded-xl shadow-none print:hidden">
-          <div className="flex items-center gap-2 font-semibold">
+        <div className="bg-rose-100/80 border border-rose-300/60 px-4 py-3 text-xs text-rose-900 flex items-center justify-between max-w-7xl w-full mx-auto mt-2 rounded-xl shadow-none print:hidden">
+          <div className="flex items-center gap-2 font-bold">
             <AlertTriangle className="w-4 h-4 text-rose-700 shrink-0" />
             <span>{dbErrorBanner}</span>
           </div>
           <button
             onClick={() => setDbErrorBanner('')}
-            className="text-rose-700 hover:text-rose-950 font-bold ml-4 cursor-pointer"
+            className="text-rose-800 hover:text-rose-950 font-bold ml-4 cursor-pointer"
           >
             ✕
           </button>
