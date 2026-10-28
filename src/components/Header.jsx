@@ -7,7 +7,7 @@ export default function Header({ onToggleMobileSidebar, onOpenSqlModal, currentV
   const isPortal = currentView === 'client-portal' || role === 'patient';
 
   return (
-    <header className="sticky top-0 z-30 bg-[#F7F6F2] border-b border-slate-300/80 px-4 sm:px-6 py-3 flex items-center justify-between print:hidden shadow-none">
+    <header className="sticky top-0 z-30 bg-white border-b border-slate-300/80 px-4 sm:px-6 py-3 flex items-center justify-between print:hidden shadow-xs">
       <div className="flex items-center gap-3">
         {!isPortal && (
           <button
@@ -53,7 +53,7 @@ export default function Header({ onToggleMobileSidebar, onOpenSqlModal, currentV
 
             <button
               onClick={onOpenSqlModal}
-              className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-200/80 hover:bg-slate-300/70 border border-slate-300 text-xs font-bold text-slate-800 transition-all cursor-pointer"
+              className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-stone-50 hover:bg-slate-100 border border-slate-300/80 text-xs font-bold text-slate-800 transition-all cursor-pointer"
               title="Visualizza Schema SQL completo"
             >
               <Database className="w-3.5 h-3.5 text-[#F59E0B]" />

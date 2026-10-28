@@ -22,7 +22,7 @@ import {
   ArrowUpRight,
   ArrowDownRight
 } from 'lucide-react';
-import ModalLibreriaScientifica from '../ModalLibreriaScientifica';
+import ModalLibreriaScientifica, { getActiveBiblioSources } from '../ModalLibreriaScientifica';
 import {
   sortTestsByDate,
   getLastValidMetricValue,
@@ -143,6 +143,7 @@ function mapPatientPhaseToKey(phaseString = '') {
 
 function CopilotEngineInner({ patient }) {
   const [isBiblioModalOpen, setIsBiblioModalOpen] = useState(false);
+  const [biblioSources, setBiblioSources] = useState(() => getActiveBiblioSources());
 
   const safePatient = patient && typeof patient === 'object' ? patient : {};
   const patientName = `${safePatient.nome || 'Paziente'} ${safePatient.cognome || ''}`.trim();
@@ -159,6 +160,21 @@ function CopilotEngineInner({ patient }) {
       setSelectedPhaseKey(mapPatientPhaseToKey(safePatient.fase_attuale || safePatient.fase_riabilitativa));
     }
   }, [safePatient.id, safePatient.fase_attuale, safePatient.fase_riabilitativa]);
+
+  // Helper in background per pescare la fonte bibliografica attiva per ciascun dominio
+  const getBiblioRefForKey = (citationKey, fallbackAuthor) => {
+    const found = biblioSources.find((s) => s.citationKey === citationKey);
+    if (!found) {
+      return {
+        citationLabel: fallbackAuthor,
+        rationale: ''
+      };
+    }
+    return {
+      citationLabel: `${found.autori} (${found.anno})${found.journal ? ` — ${found.journal}` : ''}`,
+      rationale: found.rationale || ''
+    };
+  };
 
   const activeTargetConfig = PHASE_TARGET_MATRIX[selectedPhaseKey] || PHASE_TARGET_MATRIX.FASE_3;
 
@@ -264,11 +280,17 @@ function CopilotEngineInner({ patient }) {
   }, [hasRealTests, lsiQuad, lsiHam, rsiVal, brakingAsym, hqRatio, activeTargetConfig]);
 
   // ==========================================================================
-  // GENERATORE DINAMICO DI RACCOMANDAZIONI DEL COPILOT
+  // GENERATORE DINAMICO DI RACCOMANDAZIONI DEL COPILOT (SINCRONIZZATO CON BIBLIOGRAFIA)
   // ==========================================================================
   const copilotRecommendations = useMemo(() => {
     const recs = [];
     const dirLower = therapistDirectives.toLowerCase();
+    const quadBib = getBiblioRefForKey('lsiQuad', 'Buckthorpe et al. (2019)');
+    const hamBib = getBiblioRefForKey('lsiFlex', 'Kyritsis et al. (2016)');
+    const decelBib = getBiblioRefForKey('lsiBrakingImpulse', 'Read et al. (2020)');
+    const plyoBib = getBiblioRefForKey('djRsi', 'Ebbs et al. (2023)');
+    const powerBib = getBiblioRefForKey('peakPower', 'Cormie et al. (2011)');
+
     const hasQuadDeficit =
       (lsiQuad !== null && lsiQuad < activeTargetConfig.targetLsiQuad) ||
       recordedDeficits.some((d) => d.title?.toLowerCase().includes('quad') || d.title?.toLowerCase().includes('ami')) ||
@@ -309,7 +331,9 @@ function CopilotEngineInner({ patient }) {
           ? 'Intensità: 80-90% MVC Isometrica • Volume: 5 serie x 6 sec • Rec: 90-120s'
           : 'Intensità: 80-85% 1RM (VBT 0.45-0.55 m/s) • Volume: 4 serie x 6 reps • Rec: 2-3 min',
         progression: 'Passare da isometria a 60° a RFESS con carico assiale 85% 1RM (4x5 reps, Velocity Loss <10%) riducendo l’asimmetria inter-arto <10%.',
-        regression: 'Ridurre ROM a 45°-60° in catena cinetica chiusa o utilizzare BFR (Blood Flow Restriction 80% LOP, 30-15-15-15 reps al 30% 1RM).'
+        regression: 'Ridurre ROM a 45°-60° in catena cinetica chiusa o utilizzare BFR (Blood Flow Restriction 80% LOP, 30-15-15-15 reps al 30% 1RM).',
+        biblioRef: quadBib.citationLabel,
+        biblioRationale: quadBib.rationale
       });
     } else {
       recs.push({
@@ -319,7 +343,9 @@ function CopilotEngineInner({ patient }) {
         exercise: 'Trap Bar Deadlift / Safety Bar Squat con Encoder VBT + Unilateral Jump Transfer',
         loadParams: 'Intensità: 75-85% 1RM (Target Velocity 0.55-0.65 m/s) • Volume: 4 serie x 4-5 reps • Rec: 2.5-3 min',
         progression: 'Contrast Training (French Contrast): Heavy Squat 85% 1RM + Hurdle Jump + Drop Jump.',
-        regression: 'Mantenere carico costante 80% 1RM a 3x5 reps senza componente balistica se compare affaticamento.'
+        regression: 'Mantenere carico costante 80% 1RM a 3x5 reps senza componente balistica se compare affaticamento.',
+        biblioRef: powerBib.citationLabel,
+        biblioRationale: powerBib.rationale
       });
     }
 
@@ -335,7 +361,9 @@ function CopilotEngineInner({ patient }) {
         exercise: 'Nordic Hamstring Eccentric Assistito + Single-Leg RDL (Romanian Deadlift)',
         loadParams: 'Intensità: 75-82% 1RM (Tempo Eccentrico 4-1-1) • Volume: 4 serie x 6-8 reps • Rec: 2 min',
         progression: 'Razor Curl / Hip-Extension Slider ad alta velocità eccentrica (Catch phase) 4x5 reps.',
-        regression: 'Isometric Hamstring Bridge a lungo braccio di leva (30° flessione ginocchio) 4 serie x 20-30 sec.'
+        regression: 'Isometric Hamstring Bridge a lungo braccio di leva (30° flessione ginocchio) 4 serie x 20-30 sec.',
+        biblioRef: hamBib.citationLabel,
+        biblioRationale: hamBib.rationale
       });
     }
 
@@ -351,7 +379,9 @@ function CopilotEngineInner({ patient }) {
         exercise: 'Altitude Drop-to-Stick Monopodalico (Box 20-30cm) + Eccentric Overload Split Squat',
         loadParams: 'Intensità: Peso Corporeo / Sovraccarico 15-20% BM • Volume: 4 serie x 5 atterraggi/lato (Hold 3s) • Rec: 90-120s',
         progression: 'Decelerazione lineare su 5-10m con arresto monopodalico in 2 passi e cambio di direzione a 45°.',
-        regression: 'Drop Squat bipodalico rapido (Snap-Down) con feedback visivo per simmetria di carico 50/50.'
+        regression: 'Drop Squat bipodalico rapido (Snap-Down) con feedback visivo per simmetria di carico 50/50.',
+        biblioRef: decelBib.citationLabel,
+        biblioRationale: decelBib.rationale
       });
     }
 
@@ -372,7 +402,9 @@ function CopilotEngineInner({ patient }) {
           ? 'Intensità: Fast SSC (Contatto <220ms) • Volume: 4 serie x 6 contatti (24 tocchi/sessione) • Rec: 2-3 min (Work-to-Rest 1:5-1:10)'
           : 'Intensità: Low-Moderate SSC • Volume: 3 serie x 8 contatti • Rec: 90s',
         progression: 'Single-Leg Hurdle Hops continui + Depth Jump da 30-40cm con massimizzazione altezza volo e asimmetria SL <10%.',
-        regression: 'Sled Push / Pogo Jump bipodalico assistito con bande elastiche per ridurre vGRF di impatto.'
+        regression: 'Sled Push / Pogo Jump bipodalico assistito con bande elastiche per ridurre vGRF di impatto.',
+        biblioRef: plyoBib.citationLabel,
+        biblioRationale: plyoBib.rationale
       });
     }
 
@@ -386,7 +418,8 @@ function CopilotEngineInner({ patient }) {
     activeTargetConfig,
     therapistDirectives,
     recordedDeficits,
-    safePatient.tipo_innesto
+    safePatient.tipo_innesto,
+    biblioSources
   ]);
 
   // Alert diagnostici sintetici
@@ -459,7 +492,7 @@ function CopilotEngineInner({ patient }) {
       {/* ========================================================================= */}
       {/* 1. HEADER COPILOT + READINESS SCORE + CONTESTO DINAMICO                   */}
       {/* ========================================================================= */}
-      <div className="bg-slate-50 p-5 rounded-xl border border-slate-300/60 shadow-none space-y-5 break-inside-avoid">
+      <div className="bg-white p-5 rounded-xl border border-slate-300/80 shadow-sm space-y-5 break-inside-avoid">
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-5">
           <div className="space-y-2">
             <div className="flex flex-wrap items-center gap-2">
@@ -470,7 +503,7 @@ function CopilotEngineInner({ patient }) {
                 Copilot Clinico
               </span>
               <span className="text-xs text-slate-600 font-semibold font-mono">
-                • Sincronizzato in tempo reale con Test, LSI, Deficit e Direttive
+                • Sincronizzato con Bibliografia ({biblioSources.length} studi), Test, LSI e Direttive
               </span>
             </div>
 
@@ -491,7 +524,7 @@ function CopilotEngineInner({ patient }) {
           </div>
 
           {/* READINESS SCORE (0-100%) GAUGE IN SOFT PASTEL MEDICAL */}
-          <div className="p-4 rounded-xl bg-slate-100/90 border border-slate-300/60 flex items-center gap-4 min-w-[270px] shrink-0">
+          <div className="p-4 rounded-xl bg-stone-50 border border-slate-300/80 flex items-center gap-4 min-w-[270px] shrink-0">
             <div className="relative w-16 h-16 flex items-center justify-center shrink-0">
               <svg className="w-full h-full -rotate-90" viewBox="0 0 36 36">
                 <path
@@ -549,8 +582,8 @@ function CopilotEngineInner({ patient }) {
         </div>
 
         {/* CONTESTO DINAMICO LETTO DAL COPILOT (Direttive Terapista + Deficit + Metriche Custom) */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-3 pt-3 border-t border-slate-300/60 text-xs">
-          <div className="p-3 rounded-xl bg-slate-100/80 border border-slate-300/60 space-y-1">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3 pt-3 border-t border-slate-200 text-xs">
+          <div className="p-3 rounded-xl bg-stone-50 border border-slate-300/80 space-y-1">
             <div className="flex items-center gap-1.5 text-slate-700 font-bold text-[10px] uppercase tracking-wider">
               <div className="p-1 bg-sky-100/80 text-sky-900 rounded">
                 <Compass className="w-3.5 h-3.5 text-sky-900" />
@@ -562,7 +595,7 @@ function CopilotEngineInner({ patient }) {
             </p>
           </div>
 
-          <div className="p-3 rounded-xl bg-slate-100/80 border border-slate-300/60 space-y-1">
+          <div className="p-3 rounded-xl bg-stone-50 border border-slate-300/80 space-y-1">
             <div className="flex items-center gap-1.5 text-slate-700 font-bold text-[10px] uppercase tracking-wider">
               <div className="p-1 bg-rose-100/80 text-rose-900 rounded">
                 <ShieldAlert className="w-3.5 h-3.5 text-rose-900" />
@@ -585,7 +618,7 @@ function CopilotEngineInner({ patient }) {
             )}
           </div>
 
-          <div className="p-3 rounded-xl bg-slate-100/80 border border-slate-300/60 space-y-1">
+          <div className="p-3 rounded-xl bg-stone-50 border border-slate-300/80 space-y-1">
             <div className="flex items-center gap-1.5 text-slate-700 font-bold text-[10px] uppercase tracking-wider">
               <div className="p-1 bg-purple-100/80 text-purple-900 rounded">
                 <Sliders className="w-3.5 h-3.5 text-purple-900" />
@@ -610,7 +643,7 @@ function CopilotEngineInner({ patient }) {
         </div>
 
         {/* Selettore Fase Valutazione Copilot (nascosto in stampa con print:hidden) */}
-        <div className="pt-3 border-t border-slate-300/60 space-y-2 print:hidden">
+        <div className="pt-3 border-t border-slate-200 space-y-2 print:hidden">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1 text-xs">
             <span className="font-bold text-slate-600 uppercase tracking-wider text-[11px]">
               Seleziona Fase Target per Simulazione Copilot:
@@ -631,7 +664,7 @@ function CopilotEngineInner({ patient }) {
                   className={`p-2 rounded-xl text-xs font-bold transition-all cursor-pointer flex flex-col items-center justify-center text-center border ${
                     isSelected
                       ? 'bg-emerald-100/80 text-emerald-900 border-emerald-300/50'
-                      : 'bg-slate-100 text-slate-700 hover:text-slate-900 hover:bg-slate-200/60 border-slate-300/60'
+                      : 'bg-stone-50 text-slate-700 hover:text-slate-900 hover:bg-slate-100 border-slate-300/80'
                   }`}
                 >
                   <span>{ph.shortName}</span>
@@ -652,8 +685,8 @@ function CopilotEngineInner({ patient }) {
       {/* ========================================================================= */}
       {/* 2. PRESCRIZIONI DINAMICHE DEL COPILOT                                     */}
       {/* ========================================================================= */}
-      <div className="bg-slate-50 p-5 rounded-xl border border-slate-300/60 shadow-none space-y-4 break-inside-avoid">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-3 border-b border-slate-300/60">
+      <div className="bg-white p-5 rounded-xl border border-slate-300/80 shadow-sm space-y-4 break-inside-avoid">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-3 border-b border-slate-200">
           <div className="flex items-center gap-2.5">
             <div className="p-1 bg-sky-100/80 text-sky-900 rounded">
               <Dumbbell className="w-4 h-4 text-sky-900" />
@@ -663,7 +696,7 @@ function CopilotEngineInner({ patient }) {
                 PRESCRIZIONE DINAMICA ESERCIZI &amp; PARAMETRI DI CARICO
               </h3>
               <p className="text-xs text-slate-600 font-semibold">
-                Generato automaticamente dal Copilot incrociando ultimi test, LSI, deficit attivi e direttive del terapista
+                Generato automaticamente dal Copilot incrociando test, LSI, direttive del terapista e Bibliografia di Riferimento
               </p>
             </div>
           </div>
@@ -677,59 +710,73 @@ function CopilotEngineInner({ patient }) {
           {copilotRecommendations.map((rec) => (
             <div
               key={rec.id}
-              className="p-4 rounded-xl bg-slate-100/80 border border-slate-300/60 space-y-2.5 break-inside-avoid"
+              className="p-4 rounded-xl bg-stone-50 border border-slate-300/80 shadow-xs space-y-2.5 break-inside-avoid flex flex-col justify-between"
             >
-              <div className="flex items-start justify-between gap-2 border-b border-slate-300/60 pb-2">
-                <div>
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-900 block">
-                    {rec.domain}
+              <div className="space-y-2.5">
+                <div className="flex items-start justify-between gap-2 border-b border-slate-200 pb-2">
+                  <div>
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-900 block">
+                      {rec.domain}
+                    </span>
+                    <h4 className="text-sm font-bold text-slate-800 mt-0.5">
+                      {rec.exercise}
+                    </h4>
+                  </div>
+                  <span className="px-2 py-0.5 rounded bg-purple-100/80 border border-purple-300/50 text-purple-900 text-[10px] font-mono font-bold shrink-0">
+                    Rx
                   </span>
-                  <h4 className="text-sm font-bold text-slate-800 mt-0.5">
-                    {rec.exercise}
-                  </h4>
-                </div>
-                <span className="px-2 py-0.5 rounded bg-purple-100/80 border border-purple-300/50 text-purple-900 text-[10px] font-mono font-bold shrink-0">
-                  Rx
-                </span>
-              </div>
-
-              <div className="text-[11px] text-slate-700 bg-slate-50 px-2.5 py-1.5 rounded-lg border border-slate-300/60 font-semibold">
-                <strong className="text-slate-800 font-bold">Dato Clinico Rilevato:</strong> {rec.triggerContext}
-              </div>
-
-              <div className="p-2.5 rounded-lg bg-sky-100/80 border border-sky-300/50 text-xs font-mono font-bold text-sky-900">
-                {rec.loadParams}
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1 text-[11px]">
-                <div className="p-2 rounded-lg bg-slate-50 border border-slate-300/60 space-y-0.5">
-                  <span className="font-bold text-emerald-900 flex items-center gap-1">
-                    <ArrowUpRight className="w-3.5 h-3.5" />
-                    Progressione:
-                  </span>
-                  <p className="text-slate-600 font-semibold leading-snug">{rec.progression}</p>
                 </div>
 
-                <div className="p-2 rounded-lg bg-slate-50 border border-slate-300/60 space-y-0.5">
-                  <span className="font-bold text-rose-900 flex items-center gap-1">
-                    <ArrowDownRight className="w-3.5 h-3.5" />
-                    Regressione / Adattamento:
-                  </span>
-                  <p className="text-slate-600 font-semibold leading-snug">{rec.regression}</p>
+                <div className="text-[11px] text-slate-700 bg-white px-2.5 py-1.5 rounded-lg border border-slate-300/60 font-semibold">
+                  <strong className="text-slate-800 font-bold">Dato Clinico Rilevato:</strong> {rec.triggerContext}
+                </div>
+
+                <div className="p-2.5 rounded-lg bg-sky-100/80 border border-sky-300/50 text-xs font-mono font-bold text-sky-900">
+                  {rec.loadParams}
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1 text-[11px]">
+                  <div className="p-2 rounded-lg bg-white border border-slate-300/60 space-y-0.5">
+                    <span className="font-bold text-emerald-900 flex items-center gap-1">
+                      <ArrowUpRight className="w-3.5 h-3.5" />
+                      Progressione:
+                    </span>
+                    <p className="text-slate-600 font-semibold leading-snug">{rec.progression}</p>
+                  </div>
+
+                  <div className="p-2 rounded-lg bg-white border border-slate-300/60 space-y-0.5">
+                    <span className="font-bold text-rose-900 flex items-center gap-1">
+                      <ArrowDownRight className="w-3.5 h-3.5" />
+                      Regressione / Adattamento:
+                    </span>
+                    <p className="text-slate-600 font-semibold leading-snug">{rec.regression}</p>
+                  </div>
                 </div>
               </div>
+
+              {rec.biblioRef && (
+                <div className="pt-2 border-t border-slate-200/80 text-[10.5px] text-slate-600 space-y-0.5">
+                  <div className="font-mono font-bold text-[#1D63FE] flex items-center gap-1">
+                    <BookOpen className="w-3 h-3 shrink-0" />
+                    <span>Fonte Bibliografica: {rec.biblioRef}</span>
+                  </div>
+                  {rec.biblioRationale && (
+                    <p className="italic text-slate-500 line-clamp-2">{rec.biblioRationale}</p>
+                  )}
+                </div>
+              )}
             </div>
           ))}
         </div>
       </div>
 
       {/* ========================================================================= */}
-      {/* 3. ALERT DIAGNOSTICI & BENCHMARK SCIENTIFICI (ICONE w-4 h-4 IN BADGE)     */}
+      {/* 3. ALERT DIAGNOSTICI & BENCHMARK SCIENTIFICI                              */}
       {/* ========================================================================= */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
         {/* Alert Diagnostici (7/12) */}
-        <div className="lg:col-span-7 bg-slate-50 p-5 rounded-xl border border-slate-300/60 shadow-none space-y-3.5 break-inside-avoid">
-          <div className="flex items-center justify-between pb-2.5 border-b border-slate-300/60">
+        <div className="lg:col-span-7 bg-white p-5 rounded-xl border border-slate-300/80 shadow-sm space-y-3.5 break-inside-avoid">
+          <div className="flex items-center justify-between pb-2.5 border-b border-slate-200">
             <div className="flex items-center gap-2">
               <div className="p-1 bg-emerald-100/80 text-emerald-900 rounded">
                 <ShieldCheck className="w-4 h-4 text-emerald-900" />
@@ -760,7 +807,7 @@ function CopilotEngineInner({ patient }) {
                 >
                   <div className="flex items-center justify-between gap-2">
                     <div className="flex items-center gap-2">
-                      <div className="p-1 bg-slate-50 text-slate-800 rounded border border-slate-300/60">
+                      <div className="p-1 bg-white text-slate-800 rounded border border-slate-300/60">
                         {isRed ? (
                           <ShieldAlert className="w-4 h-4 text-rose-900" />
                         ) : isYellow ? (
@@ -796,8 +843,8 @@ function CopilotEngineInner({ patient }) {
         </div>
 
         {/* Criteri GO / NO-GO e Benchmark (5/12) */}
-        <div className="lg:col-span-5 bg-slate-50 p-5 rounded-xl border border-slate-300/60 shadow-none space-y-4 break-inside-avoid">
-          <div className="flex items-center justify-between pb-2.5 border-b border-slate-300/60">
+        <div className="lg:col-span-5 bg-white p-5 rounded-xl border border-slate-300/80 shadow-sm space-y-4 break-inside-avoid">
+          <div className="flex items-center justify-between pb-2.5 border-b border-slate-200">
             <div className="flex items-center gap-2">
               <div className="p-1 bg-purple-100/80 text-purple-900 rounded">
                 <BookOpen className="w-4 h-4 text-purple-900" />
@@ -822,7 +869,7 @@ function CopilotEngineInner({ patient }) {
             <div className="p-3 rounded-xl bg-emerald-100/80 border border-emerald-300/50 space-y-1 break-inside-avoid">
               <div className="flex items-center justify-between">
                 <span className="text-emerald-900 text-[10px] font-bold uppercase">LSI Quadricipite</span>
-                <div className="p-1 bg-slate-50 text-emerald-900 rounded">
+                <div className="p-1 bg-white text-emerald-900 rounded">
                   <Activity className="w-4 h-4" />
                 </div>
               </div>
@@ -835,7 +882,7 @@ function CopilotEngineInner({ patient }) {
             <div className="p-3 rounded-xl bg-sky-100/80 border border-sky-300/50 space-y-1 break-inside-avoid">
               <div className="flex items-center justify-between">
                 <span className="text-sky-900 text-[10px] font-bold uppercase">RSI Reattivo</span>
-                <div className="p-1 bg-slate-50 text-sky-900 rounded">
+                <div className="p-1 bg-white text-sky-900 rounded">
                   <Zap className="w-4 h-4" />
                 </div>
               </div>
@@ -848,7 +895,7 @@ function CopilotEngineInner({ patient }) {
             <div className="p-3 rounded-xl bg-rose-100/80 border border-rose-300/50 space-y-1 break-inside-avoid">
               <div className="flex items-center justify-between">
                 <span className="text-rose-900 text-[10px] font-bold uppercase">Asym Frenata</span>
-                <div className="p-1 bg-slate-50 text-rose-900 rounded">
+                <div className="p-1 bg-white text-rose-900 rounded">
                   <TrendingDown className="w-4 h-4" />
                 </div>
               </div>
@@ -861,7 +908,7 @@ function CopilotEngineInner({ patient }) {
             <div className="p-3 rounded-xl bg-purple-100/80 border border-purple-300/50 space-y-1 break-inside-avoid">
               <div className="flex items-center justify-between">
                 <span className="text-purple-900 text-[10px] font-bold uppercase">Rapporto H:Q</span>
-                <div className="p-1 bg-slate-50 text-purple-900 rounded">
+                <div className="p-1 bg-white text-purple-900 rounded">
                   <Footprints className="w-4 h-4" />
                 </div>
               </div>
@@ -936,6 +983,8 @@ function CopilotEngineInner({ patient }) {
       <ModalLibreriaScientifica
         isOpen={isBiblioModalOpen}
         onClose={() => setIsBiblioModalOpen(false)}
+        sources={biblioSources}
+        onSaveLibrary={(updated) => setBiblioSources(updated)}
       />
     </div>
   );

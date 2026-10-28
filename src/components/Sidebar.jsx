@@ -2,52 +2,90 @@ import React from 'react';
 import {
   LayoutDashboard,
   Users,
-  UserCheck,
-  Database,
+  FileText,
+  BookOpen,
   X,
-  CheckCircle2,
-  Printer
+  CheckCircle2
 } from 'lucide-react';
+import LogoN from './LogoN';
 
 export default function Sidebar({
   currentView,
   setCurrentView,
-  selectedPatient,
   mobileOpen,
   setMobileOpen,
-  onOpenSqlModal,
   onOpenPrintConfigurator
 }) {
   const navItems = [
-    { id: 'dashboard', label: 'Dashboard Clinica', icon: LayoutDashboard },
-    { id: 'patients', label: 'Elenco Pazienti', icon: Users },
     {
-      id: 'patient-detail',
-      label: selectedPatient ? `Scheda: ${selectedPatient.cognome}` : 'Scheda Paziente',
-      icon: UserCheck,
-      disabled: !selectedPatient
+      id: 'dashboard',
+      label: 'Dashboard Clinica',
+      icon: LayoutDashboard,
+      action: () => {
+        setCurrentView('dashboard');
+        setMobileOpen(false);
+      }
+    },
+    {
+      id: 'patients',
+      label: 'Elenco Pazienti',
+      icon: Users,
+      action: () => {
+        setCurrentView('patients');
+        setMobileOpen(false);
+      }
+    },
+    {
+      id: 'create-report',
+      label: 'Crea Report',
+      icon: FileText,
+      action: () => {
+        if (onOpenPrintConfigurator) onOpenPrintConfigurator();
+        setMobileOpen(false);
+      }
+    },
+    {
+      id: 'bibliografia',
+      label: 'Bibliografia di Riferimento',
+      icon: BookOpen,
+      action: () => {
+        setCurrentView('bibliografia');
+        setMobileOpen(false);
+      }
     }
   ];
-
-  const handleNav = (id) => {
-    setCurrentView(id);
-    setMobileOpen(false);
-  };
 
   const sidebarContent = (
     <div className="flex flex-col h-full justify-between p-4 bg-[#0B1736] border-r border-[#16295A] w-64 select-none text-white shadow-none">
       <div className="space-y-6">
-        <div className="flex items-center justify-between lg:hidden pb-2 border-b border-[#1E336A]">
-          <span className="font-bold text-sm text-white">Menu Navigazione</span>
-          <button onClick={() => setMobileOpen(false)} className="p-1 text-[#9FB2D8] hover:text-white">
+        {/* HEADER SIDEBAR CON LOGO AZIENDALE CUSTOM (N Personal Fit / Clinica LCA) */}
+        <div className="flex items-center justify-between gap-3 p-2.5 rounded-2xl bg-[#11224D] border border-[#1E3A7A]">
+          <div className="flex items-center gap-3 min-w-0">
+            <LogoN className="h-10 w-10 shrink-0" />
+            <div className="min-w-0">
+              <div className="font-extrabold text-xs sm:text-sm text-white tracking-tight leading-tight truncate">
+                N Personal Fit
+              </div>
+              <div className="text-[10px] font-mono uppercase tracking-widest text-[#34D399] font-bold flex items-center gap-1.5 mt-0.5">
+                <span className="w-1.5 h-1.5 rounded-full bg-[#34D399] shrink-0"></span>
+                <span className="truncate">Clinica LCA • RTP</span>
+              </div>
+            </div>
+          </div>
+
+          <button
+            onClick={() => setMobileOpen(false)}
+            className="lg:hidden p-1 text-[#9FB2D8] hover:text-white cursor-pointer"
+            aria-label="Chiudi menu"
+          >
             <X className="w-5 h-5" />
           </button>
         </div>
 
-        {/* Navigation Links */}
+        {/* Menu Navigazione Principale (Esclusivamente le 4 voci richieste) */}
         <div className="space-y-1.5">
           <div className="px-3 py-1 text-[10px] font-mono uppercase tracking-wider text-[#8DA2CE] font-bold">
-            Area Clinica &amp; Riabilitativa
+            Menu Navigazione
           </div>
           {navItems.map((item) => {
             const Icon = item.icon;
@@ -55,52 +93,19 @@ export default function Sidebar({
             return (
               <button
                 key={item.id}
-                disabled={item.disabled}
-                onClick={() => handleNav(item.id)}
+                type="button"
+                onClick={item.action}
                 className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
                   active
                     ? 'bg-[#1D63FE] text-white shadow-sm'
-                    : item.disabled
-                    ? 'opacity-40 cursor-not-allowed text-[#6C82B0]'
                     : 'text-[#C6D4F0] hover:text-white hover:bg-[#132452]'
                 }`}
               >
-                <Icon className={`w-4 h-4 ${active ? 'text-white' : 'text-[#8DA2CE]'}`} />
+                <Icon className={`w-4 h-4 shrink-0 ${active ? 'text-white' : 'text-[#8DA2CE]'}`} />
                 <span className="truncate">{item.label}</span>
               </button>
             );
           })}
-        </div>
-
-        {/* Quick Tools */}
-        <div className="space-y-1.5 pt-4 border-t border-[#1A2E63]">
-          <div className="px-3 py-1 text-[10px] font-mono uppercase tracking-wider text-[#8DA2CE] font-bold">
-            Strumenti &amp; Report
-          </div>
-
-          <button
-            type="button"
-            onClick={() => {
-              if (onOpenSqlModal) onOpenSqlModal();
-              setMobileOpen(false);
-            }}
-            className="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-bold text-[#C6D4F0] hover:text-white hover:bg-[#132452] transition-all cursor-pointer"
-          >
-            <Database className="w-4 h-4 text-[#F59E0B] shrink-0" />
-            <span>Script SQL Supabase</span>
-          </button>
-
-          <button
-            type="button"
-            onClick={() => {
-              if (onOpenPrintConfigurator) onOpenPrintConfigurator();
-              setMobileOpen(false);
-            }}
-            className="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-bold text-[#C6D4F0] hover:text-white hover:bg-[#132452] transition-all cursor-pointer"
-          >
-            <Printer className="w-4 h-4 text-[#F59E0B] shrink-0" />
-            <span>Stampa Report A4</span>
-          </button>
         </div>
       </div>
 
@@ -111,7 +116,7 @@ export default function Sidebar({
           <span>Clinical Engine Attivo</span>
         </div>
         <p className="text-[11px] text-[#B8C7E6] font-medium leading-relaxed">
-          Calcoli automatici: LSI, Sessioni 14gg, Trend e Red Flags attivi.
+          Copilot sincronizzato con Bibliografia RTS, LSI, Sessioni 14gg e Trend biomeccanici.
         </p>
       </div>
     </div>

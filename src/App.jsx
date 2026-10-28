@@ -8,6 +8,7 @@ import PatientDetail from './components/PatientDetail';
 import ClientPortal from './components/ClientPortal';
 import SqlViewerModal from './components/SqlViewerModal';
 import PrintConfiguratorModal from './components/PrintConfiguratorModal';
+import { BibliografiaView } from './components/ModalLibreriaScientifica';
 import { X, Save, AlertTriangle } from 'lucide-react';
 import { supabase } from './lib/supabase';
 import {
@@ -247,10 +248,8 @@ function MainApp() {
         <Sidebar
           currentView={currentView}
           setCurrentView={setCurrentView}
-          selectedPatient={selectedPatient}
           mobileOpen={mobileOpen}
           setMobileOpen={setMobileOpen}
-          onOpenSqlModal={() => setSqlModalOpen(true)}
           onOpenPrintConfigurator={() => setIsPrintModalOpen(true)}
         />
 
@@ -282,6 +281,8 @@ function MainApp() {
                 onUpdatePatient={handleUpdatePatient}
               />
             )}
+
+            {currentView === 'bibliografia' && <BibliografiaView />}
           </div>
         </main>
       </div>
@@ -300,12 +301,12 @@ function MainApp() {
 
       {showNewPatientModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-stone-900/50 backdrop-blur-xs print:hidden">
-          <div className="w-full max-w-lg bg-stone-50 border border-stone-300/70 rounded-xl p-6 space-y-4 shadow-none text-stone-800">
-            <div className="flex items-center justify-between pb-3 border-b border-stone-300/70">
-              <h3 className="font-semibold text-stone-800 text-base">Inserimento Nuovo Paziente LCA</h3>
+          <div className="w-full max-w-lg bg-white border border-slate-300/80 rounded-xl p-6 space-y-4 shadow-sm text-slate-900">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-200">
+              <h3 className="font-semibold text-slate-900 text-base">Inserimento Nuovo Paziente LCA</h3>
               <button
                 onClick={() => setShowNewPatientModal(false)}
-                className="text-stone-500 hover:text-stone-800 cursor-pointer"
+                className="text-slate-500 hover:text-slate-900 cursor-pointer"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -314,44 +315,44 @@ function MainApp() {
             <form onSubmit={handleAddPatientSubmit} className="space-y-3 text-xs">
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-stone-500 font-medium mb-1">Nome</label>
+                  <label className="block text-slate-600 font-medium mb-1">Nome</label>
                   <input
                     type="text"
                     required
                     value={newPatientForm.nome}
                     onChange={(e) => setNewPatientForm({ ...newPatientForm, nome: e.target.value })}
-                    className="w-full bg-stone-100 border border-stone-300/70 rounded-lg p-2 text-stone-800 font-semibold focus:border-stone-600 focus:outline-none"
+                    className="w-full bg-stone-50 border border-slate-300/80 rounded-lg p-2 text-slate-900 font-semibold focus:border-slate-600 focus:outline-none"
                   />
                 </div>
                 <div>
-                  <label className="block text-stone-500 font-medium mb-1">Cognome</label>
+                  <label className="block text-slate-600 font-medium mb-1">Cognome</label>
                   <input
                     type="text"
                     required
                     value={newPatientForm.cognome}
                     onChange={(e) => setNewPatientForm({ ...newPatientForm, cognome: e.target.value })}
-                    className="w-full bg-stone-100 border border-stone-300/70 rounded-lg p-2 text-stone-800 font-semibold focus:border-stone-600 focus:outline-none"
+                    className="w-full bg-stone-50 border border-slate-300/80 rounded-lg p-2 text-slate-900 font-semibold focus:border-slate-600 focus:outline-none"
                   />
                 </div>
               </div>
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-stone-500 font-medium mb-1">Sport</label>
+                  <label className="block text-slate-600 font-medium mb-1">Sport</label>
                   <input
                     type="text"
                     required
                     value={newPatientForm.sport}
                     onChange={(e) => setNewPatientForm({ ...newPatientForm, sport: e.target.value })}
-                    className="w-full bg-stone-100 border border-stone-300/70 rounded-lg p-2 text-stone-800 font-semibold focus:border-stone-600 focus:outline-none"
+                    className="w-full bg-stone-50 border border-slate-300/80 rounded-lg p-2 text-slate-900 font-semibold focus:border-slate-600 focus:outline-none"
                   />
                 </div>
                 <div>
-                  <label className="block text-stone-500 font-medium mb-1">Tipo Innesto</label>
+                  <label className="block text-slate-600 font-medium mb-1">Tipo Innesto</label>
                   <select
                     value={newPatientForm.tipo_innesto}
                     onChange={(e) => setNewPatientForm({ ...newPatientForm, tipo_innesto: e.target.value })}
-                    className="w-full bg-stone-100 border border-stone-300/70 rounded-lg p-2 text-stone-800 font-semibold focus:border-stone-600 focus:outline-none"
+                    className="w-full bg-stone-50 border border-slate-300/80 rounded-lg p-2 text-slate-900 font-semibold focus:border-slate-600 focus:outline-none"
                   >
                     <option value="STG">STG (Semitendinoso/Gracile)</option>
                     <option value="Rotuleo">Tendine Rotuleo</option>
@@ -363,37 +364,37 @@ function MainApp() {
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-stone-500 font-medium mb-1">Data Intervento</label>
+                  <label className="block text-slate-600 font-medium mb-1">Data Intervento</label>
                   <input
                     type="date"
                     required
                     value={newPatientForm.data_intervento}
                     onChange={(e) => setNewPatientForm({ ...newPatientForm, data_intervento: e.target.value })}
-                    className="w-full bg-stone-100 border border-stone-300/70 rounded-lg p-2 text-stone-800 font-mono font-semibold focus:border-stone-600 focus:outline-none"
+                    className="w-full bg-stone-50 border border-slate-300/80 rounded-lg p-2 text-slate-900 font-mono font-semibold focus:border-slate-600 focus:outline-none"
                   />
                 </div>
                 <div>
-                  <label className="block text-stone-500 font-medium mb-1">Chirurgo Ortopedico</label>
+                  <label className="block text-slate-600 font-medium mb-1">Chirurgo Ortopedico</label>
                   <input
                     type="text"
                     value={newPatientForm.chirurgo}
                     onChange={(e) => setNewPatientForm({ ...newPatientForm, chirurgo: e.target.value })}
-                    className="w-full bg-stone-100 border border-stone-300/70 rounded-lg p-2 text-stone-800 font-semibold focus:border-stone-600 focus:outline-none"
+                    className="w-full bg-stone-50 border border-slate-300/80 rounded-lg p-2 text-slate-900 font-semibold focus:border-slate-600 focus:outline-none"
                   />
                 </div>
               </div>
 
-              <div className="pt-3 border-t border-stone-300/70 flex justify-end gap-2">
+              <div className="pt-3 border-t border-slate-200 flex justify-end gap-2">
                 <button
                   type="button"
                   onClick={() => setShowNewPatientModal(false)}
-                  className="px-4 py-2 bg-stone-100 hover:bg-stone-200/50 text-stone-800 border border-stone-300/70 rounded-xl font-semibold cursor-pointer"
+                  className="px-4 py-2 bg-stone-50 hover:bg-slate-100 text-slate-800 border border-slate-300/80 rounded-xl font-semibold cursor-pointer"
                 >
                   Annulla
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-2 bg-stone-800 hover:bg-stone-900 text-stone-100 rounded-xl font-semibold flex items-center gap-1.5 cursor-pointer"
+                  className="px-4 py-2 bg-[#0B1736] hover:bg-[#142554] text-white rounded-xl font-semibold flex items-center gap-1.5 cursor-pointer"
                 >
                   <Save className="w-4 h-4" />
                   <span>Salva in Database</span>

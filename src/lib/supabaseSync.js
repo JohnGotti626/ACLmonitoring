@@ -23,7 +23,7 @@ export async function fetchPatientsFromCloud() {
 
     if (Array.isArray(data)) {
       return data.map(row => {
-        const normPhase = normalizePhaseForDb(row.fase_riabilitativa || row.fase_attuale);
+        const normPhase = normalizePhaseForDb(row.fase_attuale || row.fase_riabilitativa);
         const rawTests = Array.isArray(row.tests)
           ? row.tests
           : typeof row.tests === 'string'
@@ -50,7 +50,7 @@ export async function fetchPatientsFromCloud() {
           complicanze: row.complicanze || '',
           aclrsi_score_iniziale: row.aclrsi_score_iniziale ?? 50.0,
           fase_riabilitativa: normPhase,
-          fase_attuale: normPhase,
+          fase_attuale: row.fase_attuale || normPhase,
           prossimo_controllo: row.prossimo_controllo || null,
           note_operative: row.note_operative || row.direttive_terapista || '',
           direttive_terapista: row.direttive_terapista || row.note_operative || '',
@@ -79,7 +79,7 @@ export async function updatePatientInCloud(patient) {
   }
 
   try {
-    const normPhase = normalizePhaseForDb(patient.fase_riabilitativa || patient.fase_attuale);
+    const normPhase = normalizePhaseForDb(patient.fase_attuale || patient.fase_riabilitativa);
     const sortedTests = sortTestsByDate(patient.tests || []);
 
     const updatePayload = {
@@ -154,7 +154,7 @@ export async function savePatientToCloud(patient, isNew = false) {
   }
 
   try {
-    const normPhase = normalizePhaseForDb(patient.fase_riabilitativa || patient.fase_attuale);
+    const normPhase = normalizePhaseForDb(patient.fase_attuale || patient.fase_riabilitativa);
     const sortedTests = sortTestsByDate(patient.tests || []);
     const payload = {
       id: patient.id,

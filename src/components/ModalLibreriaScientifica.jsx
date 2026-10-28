@@ -13,8 +13,12 @@ import {
   Sliders,
   RotateCcw,
   Save,
-  FileText
+  FileText,
+  ShieldCheck,
+  Sparkles,
+  Layers
 } from 'lucide-react';
+import { FIVE_LCA_PHASES } from '../utils/phaseUtils';
 
 export const DEFAULT_BIBLIO_SOURCES = [
   {
@@ -139,6 +143,571 @@ export const DEFAULT_BIBLIO_SOURCES = [
   }
 ];
 
+export const RTS_CLINICAL_GUIDELINES = [
+  {
+    phaseNum: 1,
+    phaseTitle: 'Fase 1 • Early Stage (0-6 Settimane)',
+    lsiQuadTarget: '≥ 60%',
+    lsiHamTarget: '≥ 65%',
+    asymBrakingTarget: '≤ 25%',
+    rsiTarget: '≥ 0.80 idx',
+    clinicalCriteria: 'Estensione completa 0°, assenza di versamento (Sweep test 0/1+), riattivazione VMO contro inibizione artrogenica (AMI) e carico bipodalico simmetrico.',
+    referenceAuthors: 'Buckthorpe et al. (2019)'
+  },
+  {
+    phaseNum: 2,
+    phaseTitle: 'Fase 2 • Mid Stage (6-12 Settimane)',
+    lsiQuadTarget: '≥ 70%',
+    lsiHamTarget: '≥ 75%',
+    asymBrakingTarget: '≤ 20%',
+    rsiTarget: '≥ 1.00 idx',
+    clinicalCriteria: 'Forza base in catena cinetica chiusa e aperta, controllo del valgismo dinamico in Single-Leg Squat e atterraggio bipodalico/monopodalico controllato.',
+    referenceAuthors: 'Read et al. (2020) • Comfort et al. (2019)'
+  },
+  {
+    phaseNum: 3,
+    phaseTitle: 'Fase 3 • Return to Run (3-5 Mesi)',
+    lsiQuadTarget: '≥ 80%',
+    lsiHamTarget: '≥ 80%',
+    asymBrakingTarget: '≤ 15%',
+    rsiTarget: '≥ 1.25 idx',
+    clinicalCriteria: 'Idoneità alla corsa lineare: LSI Quad ≥ 80%, assenza di dolore/gonfiore post-carico a 24h, capacità di assorbimento eccentrico e introduzione SSC lento.',
+    referenceAuthors: 'Kotsifaki et al. (2021) • Gathercole et al. (2015)'
+  },
+  {
+    phaseNum: 4,
+    phaseTitle: 'Fase 4 • Late Stage & CODs (5-7 Mesi)',
+    lsiQuadTarget: '≥ 85%',
+    lsiHamTarget: '≥ 85%',
+    asymBrakingTarget: '≤ 12%',
+    rsiTarget: '≥ 1.40 idx',
+    clinicalCriteria: 'Cambi di direzione (COD) pianificati e reattivi, pliometria rapida (GCT < 250ms), H:Q Ratio ≥ 0.60 e simmetria di frenata eccentrica in decelerazione.',
+    referenceAuthors: 'Kyritsis et al. (2016) • Ebbs et al. (2023)'
+  },
+  {
+    phaseNum: 5,
+    phaseTitle: 'Fase 5 • Return to Sport & Performance (>7-9 Mesi)',
+    lsiQuadTarget: '≥ 90%',
+    lsiHamTarget: '≥ 90%',
+    asymBrakingTarget: '< 10%',
+    rsiTarget: '≥ 1.50 idx',
+    clinicalCriteria: 'Tutti i test isometrici e di salto con LSI ≥ 90%, ACL-RSI & IKDC ≥ 90/100, picco di potenza ≥ 50 W/kg e riatletizzazione sport-specifica completata.',
+    referenceAuthors: 'Grindem et al. (2016) • Irrgang et al. (2001)'
+  }
+];
+
+export function getActiveBiblioSources() {
+  try {
+    const saved = localStorage.getItem('acl_biblio_sources_v2');
+    if (saved) {
+      const parsed = JSON.parse(saved);
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        return parsed;
+      }
+    }
+  } catch (e) {
+    console.warn(e);
+  }
+  return DEFAULT_BIBLIO_SOURCES;
+}
+
+/**
+ * VISTA DEDICATA "BIBLIOGRAFIA DI RIFERIMENTO" (Accessibile dal menu laterale)
+ */
+export function BibliografiaView() {
+  const [sources, setSources] = useState(() => getActiveBiblioSources());
+  const [searchQuery, setSearchQuery] = useState('');
+  const [doiInput, setDoiInput] = useState('');
+  const [isFetchingDoi, setIsFetchingDoi] = useState(false);
+  const [doiFetchError, setDoiFetchError] = useState('');
+  const [doiFetchSuccess, setDoiFetchSuccess] = useState(false);
+  const [showAddForm, setShowAddForm] = useState(false);
+
+  const [formSource, setFormSource] = useState({
+    id: null,
+    citationKey: 'lsiQuad',
+    doi: '',
+    autori: '',
+    anno: '',
+    titolo: '',
+    journal: '',
+    metricaAssociata: 'Knee Extension Seated / LSI Quadricipite',
+    sogliaCutoff: '≥ 90%',
+    rationale: ''
+  });
+
+  const persistSources = (updatedList) => {
+    setSources(updatedList);
+    try {
+      localStorage.setItem('acl_biblio_sources_v2', JSON.stringify(updatedList));
+    } catch (err) {
+      console.warn(err);
+    }
+  };
+
+  const handleFetchDoi = async () => {
+    setDoiFetchError('');
+    setDoiFetchSuccess(false);
+
+    const rawDoi = doiInput.trim();
+    if (!rawDoi) {
+      setDoiFetchError('Inserisci un DOI valido (es. 10.1136/bjsports-2016-096274)');
+      return;
+    }
+
+    const cleanDoi = rawDoi.replace(/^https?:\/\/(dx\.)?doi\.org\//i, '').replace(/^doi:/i, '');
+    setIsFetchingDoi(true);
+
+    try {
+      const response = await fetch(`https://api.crossref.org/works/${encodeURIComponent(cleanDoi)}`);
+      if (!response.ok) {
+        throw new Error(`Articolo non trovato su CrossRef (${response.status})`);
+      }
+
+      const json = await response.json();
+      const work = json?.message;
+      if (!work) {
+        throw new Error('Metadati non disponibili per questo DOI.');
+      }
+
+      const title = work.title && work.title.length > 0 ? work.title[0] : '';
+      const journal = work['container-title'] && work['container-title'].length > 0 ? work['container-title'][0] : '';
+
+      let year = '';
+      const dateParts = work['published-print']?.['date-parts'] || work.issued?.['date-parts'] || work.created?.['date-parts'];
+      if (dateParts && dateParts[0] && dateParts[0][0]) {
+        year = String(dateParts[0][0]);
+      }
+
+      let authorShort = '';
+      if (work.author && Array.isArray(work.author) && work.author.length > 0) {
+        const firstAuthor = work.author[0].family || work.author[0].name || 'Autore';
+        if (work.author.length === 1) {
+          authorShort = `${firstAuthor}`;
+        } else if (work.author.length === 2) {
+          const secondAuthor = work.author[1].family || work.author[1].name || '';
+          authorShort = `${firstAuthor} & ${secondAuthor}`;
+        } else {
+          authorShort = `${firstAuthor} et al.`;
+        }
+      }
+
+      setFormSource((prev) => ({
+        ...prev,
+        doi: cleanDoi,
+        autori: authorShort || prev.autori,
+        anno: year || prev.anno,
+        titolo: title || prev.titolo,
+        journal: journal || prev.journal,
+        rationale:
+          prev.rationale ||
+          `Evidenza scientifica (${authorShort || 'Studio'}, ${year || 'RTS'}) utilizzata dal Copilot per il monitoraggio biomeccanico LCA.`
+      }));
+      setDoiFetchSuccess(true);
+    } catch (err) {
+      setDoiFetchError(err.message || 'Errore durante il recupero metadati dal DOI.');
+    } finally {
+      setIsFetchingDoi(false);
+    }
+  };
+
+  const handleSaveSource = (e) => {
+    e.preventDefault();
+    if (!formSource.autori || !formSource.titolo) return;
+
+    let updatedList;
+    if (formSource.id) {
+      updatedList = sources.map((item) => (item.id === formSource.id ? { ...formSource } : item));
+    } else {
+      const newEntry = {
+        ...formSource,
+        id: `ref-${Date.now()}`
+      };
+      updatedList = [newEntry, ...sources];
+    }
+
+    persistSources(updatedList);
+    setFormSource({
+      id: null,
+      citationKey: 'lsiQuad',
+      doi: '',
+      autori: '',
+      anno: '',
+      titolo: '',
+      journal: '',
+      metricaAssociata: 'Knee Extension Seated / LSI Quadricipite',
+      sogliaCutoff: '≥ 90%',
+      rationale: ''
+    });
+    setDoiInput('');
+    setDoiFetchSuccess(false);
+    setShowAddForm(false);
+  };
+
+  const handleInlineRationaleChange = (id, newRationale) => {
+    const updated = sources.map((item) =>
+      item.id === id ? { ...item, rationale: newRationale } : item
+    );
+    persistSources(updated);
+  };
+
+  const handleResetDefaults = () => {
+    persistSources(DEFAULT_BIBLIO_SOURCES);
+  };
+
+  const filteredSources = sources.filter((src) => {
+    if (!searchQuery.trim()) return true;
+    const q = searchQuery.toLowerCase();
+    return (
+      src.autori?.toLowerCase().includes(q) ||
+      src.titolo?.toLowerCase().includes(q) ||
+      src.metricaAssociata?.toLowerCase().includes(q) ||
+      src.journal?.toLowerCase().includes(q) ||
+      src.rationale?.toLowerCase().includes(q)
+    );
+  });
+
+  return (
+    <div className="space-y-6 text-slate-900">
+      {/* Header Finestra Bibliografia di Riferimento */}
+      <div className="bg-white p-5 rounded-xl border border-slate-300/80 shadow-sm flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+        <div className="space-y-1">
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="px-2.5 py-0.5 rounded-full bg-[#DCEBFE] text-[#1D63FE] border border-[#C5DCFA] text-[10px] font-mono uppercase font-bold">
+              Knowledge Base &amp; Linee Guida RTS
+            </span>
+            <span className="px-2.5 py-0.5 rounded-full bg-emerald-100/80 text-emerald-900 border border-emerald-300/60 text-[10px] font-mono uppercase font-bold flex items-center gap-1">
+              <Sparkles className="w-3 h-3" />
+              <span>Sincronizzata in Background con Copilot</span>
+            </span>
+          </div>
+          <h1 className="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight">
+            Bibliografia di Riferimento &amp; Criteri Clinici Return to Sport
+          </h1>
+          <p className="text-xs sm:text-sm text-slate-600 font-medium">
+            Linee guida internazionali, soglie di cut-off biomeccaniche e letteratura scientifica utilizzata dal motore Copilot per le prescrizioni nella scheda paziente.
+          </p>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-2 self-start lg:self-auto">
+          <button
+            type="button"
+            onClick={() => setShowAddForm((prev) => !prev)}
+            className="px-4 py-2 rounded-xl bg-[#0B1736] hover:bg-[#142554] text-white text-xs font-bold flex items-center gap-1.5 shadow-sm transition-all cursor-pointer"
+          >
+            <Plus className="w-4 h-4" />
+            <span>{showAddForm ? 'Chiudi Inserimento Fonte' : 'Aggiungi Studio / DOI'}</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={handleResetDefaults}
+            className="px-3.5 py-2 rounded-xl bg-stone-50 hover:bg-slate-100 text-slate-700 border border-slate-300/80 text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer"
+            title="Ripristina la bibliografia predefinita"
+          >
+            <RotateCcw className="w-3.5 h-3.5" />
+            <span>Ripristina Default</span>
+          </button>
+        </div>
+      </div>
+
+      {/* Form opzionale per aggiunta nuova fonte via DOI CrossRef */}
+      {showAddForm && (
+        <div className="bg-white p-5 rounded-xl border border-slate-300/80 shadow-sm space-y-4">
+          <div className="flex items-center justify-between pb-2.5 border-b border-slate-200">
+            <h2 className="text-xs font-bold uppercase tracking-wider text-slate-900 flex items-center gap-2">
+              <Search className="w-4 h-4 text-[#1D63FE]" />
+              <span>Importazione Rapida Studio Scientifico tramite DOI (CrossRef)</span>
+            </h2>
+          </div>
+
+          <div className="flex flex-col sm:flex-row gap-2.5">
+            <input
+              type="text"
+              value={doiInput}
+              onChange={(e) => setDoiInput(e.target.value)}
+              placeholder="Incolla DOI (es. 10.1136/bjsports-2016-096274)"
+              className="flex-1 bg-stone-50 border border-slate-300/80 rounded-xl px-3.5 py-2 text-xs font-mono text-slate-900 focus:outline-none focus:border-[#1D63FE]"
+            />
+            <button
+              type="button"
+              onClick={handleFetchDoi}
+              disabled={isFetchingDoi}
+              className="px-4 py-2 bg-[#1D63FE] hover:bg-[#1652D8] text-white font-bold text-xs rounded-xl flex items-center justify-center gap-1.5 cursor-pointer shrink-0"
+            >
+              {isFetchingDoi ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Search className="w-3.5 h-3.5" />}
+              <span>Estrai Metadati DOI</span>
+            </button>
+          </div>
+
+          {doiFetchError && (
+            <div className="p-2.5 rounded-lg bg-rose-100/80 border border-rose-300/60 text-rose-900 text-xs font-semibold flex items-center gap-2">
+              <AlertTriangle className="w-4 h-4 shrink-0" />
+              <span>{doiFetchError}</span>
+            </div>
+          )}
+
+          {doiFetchSuccess && (
+            <div className="p-2.5 rounded-lg bg-emerald-100/80 border border-emerald-300/60 text-emerald-900 text-xs font-semibold flex items-center gap-2">
+              <CheckCircle2 className="w-4 h-4 shrink-0" />
+              <span>Metadati estratti da CrossRef. Verifica i campi e salva per aggiornare il Copilot.</span>
+            </div>
+          )}
+
+          <form onSubmit={handleSaveSource} className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 text-xs">
+            <div>
+              <label className="block text-slate-600 font-bold mb-1">Autori</label>
+              <input
+                type="text"
+                required
+                value={formSource.autori}
+                onChange={(e) => setFormSource({ ...formSource, autori: e.target.value })}
+                placeholder="es. Grindem et al."
+                className="w-full bg-stone-50 border border-slate-300/80 rounded-lg p-2 text-slate-900 font-semibold"
+              />
+            </div>
+            <div>
+              <label className="block text-slate-600 font-bold mb-1">Anno</label>
+              <input
+                type="text"
+                required
+                value={formSource.anno}
+                onChange={(e) => setFormSource({ ...formSource, anno: e.target.value })}
+                placeholder="2016"
+                className="w-full bg-stone-50 border border-slate-300/80 rounded-lg p-2 text-slate-900 font-mono font-semibold"
+              />
+            </div>
+            <div>
+              <label className="block text-slate-600 font-bold mb-1">Rivista (Journal)</label>
+              <input
+                type="text"
+                value={formSource.journal}
+                onChange={(e) => setFormSource({ ...formSource, journal: e.target.value })}
+                placeholder="British Journal of Sports Medicine"
+                className="w-full bg-stone-50 border border-slate-300/80 rounded-lg p-2 text-slate-900 font-semibold"
+              />
+            </div>
+            <div>
+              <label className="block text-slate-600 font-bold mb-1">Dominio Copilot Associato</label>
+              <select
+                value={formSource.citationKey}
+                onChange={(e) => setFormSource({ ...formSource, citationKey: e.target.value })}
+                className="w-full bg-stone-50 border border-slate-300/80 rounded-lg p-2 text-slate-900 font-bold"
+              >
+                <option value="lsiQuad">Forza Estensoria Quadricipite (lsiQuad)</option>
+                <option value="lsiFlex">Flessori &amp; H:Q Ratio (lsiFlex)</option>
+                <option value="lsiBrakingImpulse">Frenata Eccentrica &amp; Landing (lsiBrakingImpulse)</option>
+                <option value="djRsi">Drop Jump RSI &amp; Stiffness (djRsi)</option>
+                <option value="slCmjHeight">Single-Leg CMJ (slCmjHeight)</option>
+                <option value="cmjRsiMod">CMJ RSI-modified (cmjRsiMod)</option>
+                <option value="peakPower">CMJ Peak Power (peakPower)</option>
+                <option value="imtpForce">IMTP Forza Isometrica (imtpForce)</option>
+                <option value="lsiSingleHop">Single Hop for Distance (lsiSingleHop)</option>
+                <option value="ikdcScore">IKDC &amp; PROMs (ikdcScore)</option>
+              </select>
+            </div>
+            <div className="sm:col-span-2">
+              <label className="block text-slate-600 font-bold mb-1">Titolo Studio</label>
+              <input
+                type="text"
+                required
+                value={formSource.titolo}
+                onChange={(e) => setFormSource({ ...formSource, titolo: e.target.value })}
+                placeholder="Titolo completo della pubblicazione"
+                className="w-full bg-stone-50 border border-slate-300/80 rounded-lg p-2 text-slate-900 font-semibold"
+              />
+            </div>
+            <div>
+              <label className="block text-slate-600 font-bold mb-1">Metrica Associata</label>
+              <input
+                type="text"
+                value={formSource.metricaAssociata}
+                onChange={(e) => setFormSource({ ...formSource, metricaAssociata: e.target.value })}
+                className="w-full bg-stone-50 border border-slate-300/80 rounded-lg p-2 text-slate-900 font-semibold"
+              />
+            </div>
+            <div>
+              <label className="block text-slate-600 font-bold mb-1">Soglia Cut-Off RTS</label>
+              <input
+                type="text"
+                value={formSource.sogliaCutoff}
+                onChange={(e) => setFormSource({ ...formSource, sogliaCutoff: e.target.value })}
+                className="w-full bg-stone-50 border border-slate-300/80 rounded-lg p-2 text-slate-900 font-mono font-bold"
+              />
+            </div>
+            <div className="sm:col-span-4">
+              <label className="block text-slate-600 font-bold mb-1">
+                Rationale Clinico &amp; Indicazione per il Copilot
+              </label>
+              <textarea
+                rows={2}
+                value={formSource.rationale}
+                onChange={(e) => setFormSource({ ...formSource, rationale: e.target.value })}
+                className="w-full bg-stone-50 border border-slate-300/80 rounded-lg p-2 text-slate-900 font-medium"
+              />
+            </div>
+            <div className="sm:col-span-4 flex justify-end gap-2">
+              <button
+                type="submit"
+                className="px-4 py-2 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white font-bold flex items-center gap-1.5 cursor-pointer"
+              >
+                <Save className="w-4 h-4" />
+                <span>Salva nella Bibliografia Clinica</span>
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
+
+      {/* SEZIONE 1: MATRICE DEI CRITERI CLINICI & LINEE GUIDA RTS SULLE 5 FASI */}
+      <div className="bg-white p-5 rounded-xl border border-slate-300/80 shadow-sm space-y-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-2.5 border-b border-slate-200">
+          <div className="flex items-center gap-2">
+            <Layers className="w-4 h-4 text-[#1D63FE]" />
+            <h2 className="text-xs font-bold uppercase tracking-wider text-slate-900">
+              Criteri Clinici &amp; Soglie di Progressione per le 5 Fasi Riabilitative LCA
+            </h2>
+          </div>
+          <span className="text-xs text-slate-500 font-medium">
+            Parametri utilizzati dal motore Copilot per il calcolo del Readiness Score
+          </span>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-3.5">
+          {RTS_CLINICAL_GUIDELINES.map((guide) => {
+            const phaseStyle =
+              FIVE_LCA_PHASES.find((p) => p.number === guide.phaseNum) || FIVE_LCA_PHASES[2];
+            return (
+              <div
+                key={guide.phaseNum}
+                className="bg-stone-50 rounded-xl border border-slate-300/80 shadow-sm p-4 flex flex-col justify-between space-y-3"
+              >
+                <div className="space-y-2.5">
+                  <span
+                    className={`inline-block text-[11px] font-extrabold uppercase px-2.5 py-1 rounded-lg ${phaseStyle.badgeCls}`}
+                  >
+                    {guide.phaseTitle}
+                  </span>
+
+                  <div className="grid grid-cols-2 gap-1.5 text-[11px] font-mono">
+                    <div className="bg-white p-1.5 rounded-lg border border-slate-200">
+                      <span className="text-slate-500 block text-[10px]">LSI Quad</span>
+                      <strong className="text-slate-900">{guide.lsiQuadTarget}</strong>
+                    </div>
+                    <div className="bg-white p-1.5 rounded-lg border border-slate-200">
+                      <span className="text-slate-500 block text-[10px]">LSI Flex</span>
+                      <strong className="text-slate-900">{guide.lsiHamTarget}</strong>
+                    </div>
+                    <div className="bg-white p-1.5 rounded-lg border border-slate-200">
+                      <span className="text-slate-500 block text-[10px]">Asym Frenata</span>
+                      <strong className="text-slate-900">{guide.asymBrakingTarget}</strong>
+                    </div>
+                    <div className="bg-white p-1.5 rounded-lg border border-slate-200">
+                      <span className="text-slate-500 block text-[10px]">Target RSI</span>
+                      <strong className="text-slate-900">{guide.rsiTarget}</strong>
+                    </div>
+                  </div>
+
+                  <p className="text-xs text-slate-700 font-medium leading-relaxed">
+                    {guide.clinicalCriteria}
+                  </p>
+                </div>
+
+                <div className="pt-2 border-t border-slate-200 text-[10px] font-mono font-bold text-slate-500">
+                  Ref: {guide.referenceAuthors}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* SEZIONE 2: LETTERATURA SCIENTIFICA PEER-REVIEWED & RATIONALE CLINICO */}
+      <div className="bg-white p-5 rounded-xl border border-slate-300/80 shadow-sm space-y-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-200">
+          <div className="flex items-center gap-2">
+            <BookOpen className="w-4 h-4 text-[#1D63FE]" />
+            <h2 className="text-xs font-bold uppercase tracking-wider text-slate-900">
+              Evidenze Scientifiche Peer-Reviewed &amp; Rationale Clinici ({filteredSources.length})
+            </h2>
+          </div>
+
+          <div className="relative w-full sm:w-72">
+            <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Cerca autore, metrica o rivista..."
+              className="w-full pl-8 pr-3 py-1.5 rounded-xl bg-stone-50 border border-slate-300/80 text-xs text-slate-900 focus:outline-none focus:border-[#1D63FE]"
+            />
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {filteredSources.map((src, idx) => (
+            <div
+              key={src.id}
+              className="bg-stone-50 rounded-xl border border-slate-300/80 shadow-sm p-4 space-y-3 flex flex-col justify-between"
+            >
+              <div className="space-y-2">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded bg-slate-200 text-slate-800">
+                      #{idx + 1}
+                    </span>
+                    <span className="text-sm font-bold text-slate-900">
+                      {src.autori} ({src.anno})
+                    </span>
+                    <span className="text-[10px] font-bold px-2.5 py-0.5 rounded-full bg-[#DCEBFE] text-[#1D63FE] border border-[#C5DCFA]">
+                      {src.metricaAssociata}
+                    </span>
+                  </div>
+
+                  <span className="text-[11px] font-mono font-bold px-2.5 py-0.5 rounded-lg bg-emerald-100/80 text-emerald-900 border border-emerald-300/60 shrink-0">
+                    Cut-off: {src.sogliaCutoff}
+                  </span>
+                </div>
+
+                <h3 className="text-xs sm:text-sm font-bold text-slate-800 leading-snug">
+                  {src.titolo}
+                </h3>
+
+                <div className="flex items-center justify-between text-[11px] text-slate-500 font-medium">
+                  <span className="italic">{src.journal}</span>
+                  {src.doi && (
+                    <a
+                      href={`https://doi.org/${src.doi}`}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="text-[#1D63FE] hover:underline font-mono font-bold inline-flex items-center gap-1"
+                    >
+                      <span>DOI: {src.doi}</span>
+                      <ExternalLink className="w-3 h-3" />
+                    </a>
+                  )}
+                </div>
+              </div>
+
+              <div className="pt-2.5 border-t border-slate-200/90 space-y-1">
+                <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-600">
+                  Rationale Clinico (Sincronizzato con Copilot &amp; Report):
+                </label>
+                <textarea
+                  rows={2}
+                  value={src.rationale || ''}
+                  onChange={(e) => handleInlineRationaleChange(src.id, e.target.value)}
+                  className="w-full bg-white border border-slate-300/80 rounded-lg p-2 text-xs text-slate-800 font-medium leading-relaxed focus:outline-none focus:border-[#1D63FE]"
+                />
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function ModalLibreriaScientifica({
   isOpen,
   onClose,
@@ -151,13 +720,7 @@ export default function ModalLibreriaScientifica({
   const [activeTab, setActiveTab] = useState('rationale_cards'); // 'rationale_cards' | 'archivio_doi'
   const [sources, setSources] = useState(() => {
     if (externalSources && externalSources.length > 0) return externalSources;
-    try {
-      const saved = localStorage.getItem('acl_biblio_sources_v2');
-      if (saved) return JSON.parse(saved);
-    } catch (e) {
-      console.warn(e);
-    }
-    return DEFAULT_BIBLIO_SOURCES;
+    return getActiveBiblioSources();
   });
 
   // Form State Fonte
@@ -364,7 +927,7 @@ export default function ModalLibreriaScientifica({
             </div>
             <div>
               <h3 className="text-base font-extrabold text-white flex items-center gap-2">
-                <span>Libreria Fonti Scientifiche & Rationale Clinico Modificabile</span>
+                <span>Libreria Fonti Scientifiche &amp; Rationale Clinico Modificabile</span>
                 <span className="text-[10px] px-2 py-0.5 rounded-full bg-cyan-950 text-cyan-400 border border-cyan-500/40 font-mono">
                   Live Sync con Report A4
                 </span>
@@ -421,7 +984,7 @@ export default function ModalLibreriaScientifica({
             }`}
           >
             <Search className="w-4 h-4" />
-            <span>2. Ricerca Automatica DOI CrossRef & Archivio Bibliografico ({sources.length})</span>
+            <span>2. Ricerca Automatica DOI CrossRef &amp; Archivio Bibliografico ({sources.length})</span>
           </button>
         </div>
 
@@ -433,7 +996,7 @@ export default function ModalLibreriaScientifica({
                 <strong className="text-cyan-400 font-extrabold uppercase tracking-wider block mb-0.5">
                   Personalizzazione Libera del Rationale Clinico per il Paziente / Medico
                 </strong>
-                Ogni modifica effettuata nei campi sottostanti aggiorna in tempo reale il riquadro <em>Scientific Reference & Rationale</em> posto in calce alle rispettive schede nel Report A4.
+                Ogni modifica effettuata nei campi sottostanti aggiorna in tempo reale il riquadro <em>Scientific Reference &amp; Rationale</em> posto in calce alle rispettive schede nel Report A4.
               </div>
               <span className="text-[11px] font-mono font-bold text-emerald-400 bg-emerald-950/80 px-2.5 py-1 rounded-lg border border-emerald-500/30 shrink-0">
                 Salvataggio Automatico Attivo
@@ -459,7 +1022,7 @@ export default function ModalLibreriaScientifica({
                     <div className="grid grid-cols-2 gap-2">
                       <div>
                         <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">
-                          Autori & Anno
+                          Autori &amp; Anno
                         </label>
                         <input
                           type="text"
@@ -694,7 +1257,7 @@ export default function ModalLibreriaScientifica({
             <div className="lg:col-span-7 p-6 bg-slate-950 overflow-y-auto space-y-4">
               <div className="flex items-center justify-between">
                 <h4 className="text-xs font-extrabold text-slate-300 uppercase tracking-wider flex items-center gap-2">
-                  <span>Voci Bibliografiche & Rationale Attivi</span>
+                  <span>Voci Bibliografiche &amp; Rationale Attivi</span>
                   <span className="px-2 py-0.5 rounded-full bg-slate-800 text-cyan-400 font-mono text-[11px]">
                     {sources.length} Studi
                   </span>
