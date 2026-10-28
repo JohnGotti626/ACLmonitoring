@@ -1,5 +1,8 @@
 import { supabase, isSupabaseConfigured } from './supabase';
-import { normalizePhaseForDb } from '../utils/phaseUtils';
+import {
+  normalizePhaseForDb,
+  formatPhaseForDisplay
+} from '../utils/phaseUtils';
 import { sortTestsByDate } from '../utils/testUtils';
 
 /**
@@ -23,7 +26,8 @@ export async function fetchPatientsFromCloud() {
 
     if (Array.isArray(data)) {
       return data.map(row => {
-        const normPhase = normalizePhaseForDb(row.fase_attuale || row.fase_riabilitativa);
+        const normPhase = normalizePhaseForDb(row);
+        const displayPhase = formatPhaseForDisplay(row);
         const rawTests = Array.isArray(row.tests)
           ? row.tests
           : typeof row.tests === 'string'
@@ -50,7 +54,7 @@ export async function fetchPatientsFromCloud() {
           complicanze: row.complicanze || '',
           aclrsi_score_iniziale: row.aclrsi_score_iniziale ?? 50.0,
           fase_riabilitativa: normPhase,
-          fase_attuale: row.fase_attuale || normPhase,
+          fase_attuale: displayPhase,
           prossimo_controllo: row.prossimo_controllo || null,
           note_operative: row.note_operative || row.direttive_terapista || '',
           direttive_terapista: row.direttive_terapista || row.note_operative || '',
@@ -79,7 +83,8 @@ export async function updatePatientInCloud(patient) {
   }
 
   try {
-    const normPhase = normalizePhaseForDb(patient.fase_attuale || patient.fase_riabilitativa);
+    const normPhase = normalizePhaseForDb(patient);
+    const displayPhase = formatPhaseForDisplay(patient);
     const sortedTests = sortTestsByDate(patient.tests || []);
 
     const updatePayload = {
@@ -99,8 +104,10 @@ export async function updatePatientInCloud(patient) {
       complicanze: patient.complicanze || '',
       aclrsi_score_iniziale: Number(patient.aclrsi_score_iniziale) || 50.0,
       fase_riabilitativa: normPhase,
+      fase_attuale: displayPhase,
       prossimo_controllo: patient.prossimo_controllo || null,
       note_operative: patient.note_operative || '',
+      direttive_terapista: patient.direttive_terapista || patient.note_operative || '',
       esercizi_prescritti: patient.esercizi_prescritti || '',
       alert_compenso: patient.alert_compenso || '',
       tests: sortedTests,
@@ -154,7 +161,8 @@ export async function savePatientToCloud(patient, isNew = false) {
   }
 
   try {
-    const normPhase = normalizePhaseForDb(patient.fase_attuale || patient.fase_riabilitativa);
+    const normPhase = normalizePhaseForDb(patient);
+    const displayPhase = formatPhaseForDisplay(patient);
     const sortedTests = sortTestsByDate(patient.tests || []);
     const payload = {
       id: patient.id,
@@ -174,8 +182,10 @@ export async function savePatientToCloud(patient, isNew = false) {
       complicanze: patient.complicanze || '',
       aclrsi_score_iniziale: Number(patient.aclrsi_score_iniziale) || 50.0,
       fase_riabilitativa: normPhase,
+      fase_attuale: displayPhase,
       prossimo_controllo: patient.prossimo_controllo || null,
       note_operative: patient.note_operative || '',
+      direttive_terapista: patient.direttive_terapista || patient.note_operative || '',
       esercizi_prescritti: patient.esercizi_prescritti || '',
       alert_compenso: patient.alert_compenso || '',
       tests: sortedTests,

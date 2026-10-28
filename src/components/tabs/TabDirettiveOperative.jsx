@@ -10,6 +10,7 @@ import {
   Layers
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
+import { getPhaseMeta } from '../../utils/phaseUtils';
 
 export default function TabDirettiveOperative({ patient, onSaveDirectives, onChangePhase }) {
   const { role } = useAuth();
@@ -23,74 +24,74 @@ export default function TabDirettiveOperative({ patient, onSaveDirectives, onCha
       num: '1',
       tag: 'EARLY STAGE',
       title: 'Restore ROM and Quality',
-      subtitle: 'Recupero estensione 0°, controllo del gonfiore, riattivazione isolata VMO e propriocezione iniziale.'
+      subtitle: 'Recupero estensione 0°, controllo del gonfiore, riattivazione isolata VMO e propriocezione iniziale.',
+      fullLabel: 'Fase 1 (Early Stage)',
+      dbPhase: 'Early Phase'
     },
     {
       id: 'MID_STAGE',
       num: '2',
       tag: 'MID STAGE',
       title: 'Strength, Jump and Landing',
-      subtitle: 'Rinforzo muscolare progressivo in catena chiusa/aperta, landing mechanics e primi salti controllati.'
+      subtitle: 'Rinforzo muscolare progressivo in catena chiusa/aperta, landing mechanics e primi salti controllati.',
+      fullLabel: 'Fase 2 (Mid Stage)',
+      dbPhase: 'Return to Run'
     },
     {
       id: 'RETURN_TO_RUN',
       num: '3',
       tag: 'RETURN TO RUN',
       title: 'Drills, RSI and Power',
-      subtitle: 'Introduzione alla corsa sul dritto, drills meccanici, lavoro su RSI (Reactive Strength Index) e potenza.'
+      subtitle: 'Introduzione alla corsa sul dritto, drills meccanici, lavoro su RSI (Reactive Strength Index) e potenza.',
+      fullLabel: 'Fase 3 (Return to Run)',
+      dbPhase: 'Return to Run'
     },
     {
       id: 'LATE_STAGE',
       num: '4',
       tag: 'LATE STAGE',
       title: 'CODs, Chaos and Plyo',
-      subtitle: 'Cambi di direzione (CODs) ad alta velocità, ambienti caotici/reattivi e pliometria ad alto impatto.'
+      subtitle: 'Cambi di direzione (CODs) ad alta velocità, ambienti caotici/reattivi e pliometria ad alto impatto.',
+      fullLabel: 'Fase 4 (Late Stage)',
+      dbPhase: 'Return to Sport'
     },
     {
       id: 'PERFORMANCE',
       num: '5',
       tag: 'PERFORMANCE',
       title: 'Med, Sprint and PeakPower',
-      subtitle: 'Ritorno alla performance massimale: test di sprint 10-30m, potenza di picco e idoneità Return to Sport.'
+      subtitle: 'Ritorno alla performance massimale: test di sprint 10-30m, potenza di picco e idoneità Return to Sport.',
+      fullLabel: 'Fase 5 (Return to Play)',
+      dbPhase: 'Return to Play'
     }
   ];
 
-  const getPhaseIdFromPatient = (fase) => {
-    if (!fase) return 'RETURN_TO_RUN';
-    const str = String(fase).toLowerCase();
-    if (str.includes('early') || str.includes('rom') || str === 'fase 1') return 'EARLY_STAGE';
-    if (str.includes('mid') || str.includes('strength') || str === 'fase 2') return 'MID_STAGE';
-    if (str.includes('run') || str.includes('drills') || str === 'fase 3') return 'RETURN_TO_RUN';
-    if (str.includes('late') || str.includes('cod') || str.includes('agility') || str === 'fase 4') return 'LATE_STAGE';
-    if (str.includes('perf') || str.includes('play') || str.includes('sport') || str.includes('rts') || str === 'fase 5') return 'PERFORMANCE';
-    return 'RETURN_TO_RUN';
+  const getPhaseIdFromPatient = (p) => {
+    const meta = getPhaseMeta(p);
+    return meta.stageId || 'RETURN_TO_RUN';
   };
 
-  const [selectedPhaseId, setSelectedPhaseId] = useState(() => getPhaseIdFromPatient(patient?.fase_riabilitativa));
+  const [selectedPhaseId, setSelectedPhaseId] = useState(() => getPhaseIdFromPatient(patient));
 
   useEffect(() => {
-    if (patient?.fase_riabilitativa) {
-      setSelectedPhaseId(getPhaseIdFromPatient(patient.fase_riabilitativa));
+    if (patient) {
+      setSelectedPhaseId(getPhaseIdFromPatient(patient));
     }
-  }, [patient?.fase_riabilitativa]);
+  }, [patient?.id, patient?.fase_attuale, patient?.fase_riabilitativa]);
 
   const handleSelectPhase = (ph) => {
     setSelectedPhaseId(ph.id);
-    let dbPhase = 'Return to Run';
-    if (ph.id === 'EARLY_STAGE') dbPhase = 'Early Phase';
-    if (ph.id === 'MID_STAGE') dbPhase = 'Return to Run';
-    if (ph.id === 'RETURN_TO_RUN') dbPhase = 'Return to Run';
-    if (ph.id === 'LATE_STAGE') dbPhase = 'Return to Sport';
-    if (ph.id === 'PERFORMANCE') dbPhase = 'Return to Play';
-    
+    const dbPhase = ph.dbPhase || 'Return to Run';
+    const fullLabel = ph.fullLabel || dbPhase;
+
     if (onChangePhase) {
-      onChangePhase(dbPhase);
+      onChangePhase(fullLabel);
     }
     if (onSaveDirectives) {
-      onSaveDirectives({ fase_riabilitativa: dbPhase, fase_attuale: dbPhase });
+      onSaveDirectives({ fase_riabilitativa: dbPhase, fase_attuale: fullLabel });
     }
 
-    showSuccessFeedback(`Fase salvata su Supabase Cloud: ${dbPhase}`);
+    showSuccessFeedback(`Fase salvata su Supabase Cloud: ${fullLabel}`);
   };
 
   const [deficitsList, setDeficitsList] = useState(
@@ -531,7 +532,7 @@ export default function TabDirettiveOperative({ patient, onSaveDirectives, onCha
         {deficitsList.length > 0 && (
           <div className="space-y-2 pt-2 border-t border-slate-200">
             <h4 className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">
-              Deficit Registrati & Criticità ({deficitsList.length})
+              Deficit Registrati &amp; Criticità ({deficitsList.length})
             </h4>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">

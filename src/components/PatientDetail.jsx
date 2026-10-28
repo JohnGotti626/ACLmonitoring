@@ -23,7 +23,12 @@ import RilevazioniCarichiTab from './tabs/RilevazioniCarichiTab';
 import TabCopilotPdf from './tabs/TabCopilotPdf';
 import PrintConfiguratorModal from './PrintConfiguratorModal';
 import { UIErrorBoundary } from './UIErrorBoundary';
-import { CANONICAL_PHASES, normalizePhaseForDb } from '../utils/phaseUtils';
+import {
+  FIVE_LCA_PHASES,
+  getPhaseMeta,
+  normalizePhaseForDb,
+  formatPhaseForDisplay
+} from '../utils/phaseUtils';
 import { sortTestsByDate, getLastValidMetricValue } from '../utils/testUtils';
 
 const FIVE_REHAB_PHASES = [
@@ -33,6 +38,7 @@ const FIVE_REHAB_PHASES = [
     tag: 'EARLY STAGE',
     title: 'Controllo Infiammazione & ROM',
     subtitle: 'Recupero estensione 0°, controllo gonfiore, riattivazione VMO e propriocezione iniziale.',
+    fullLabel: 'Fase 1 (Early Stage)',
     dbPhase: 'Early Phase'
   },
   {
@@ -41,6 +47,7 @@ const FIVE_REHAB_PHASES = [
     tag: 'MID STAGE',
     title: 'Forza, Jump & Landing',
     subtitle: 'Rinforzo muscolare progressivo in catena chiusa/aperta, landing mechanics e primi salti.',
+    fullLabel: 'Fase 2 (Mid Stage)',
     dbPhase: 'Return to Run'
   },
   {
@@ -49,6 +56,7 @@ const FIVE_REHAB_PHASES = [
     tag: 'RETURN TO RUN',
     title: 'Carico, Corsa & RSI',
     subtitle: 'Introduzione alla corsa lineare, drills meccanici, lavoro su RSI e sviluppo potenza.',
+    fullLabel: 'Fase 3 (Return to Run)',
     dbPhase: 'Return to Run'
   },
   {
@@ -57,6 +65,7 @@ const FIVE_REHAB_PHASES = [
     tag: 'LATE STAGE',
     title: 'CODs, Chaos & Plyo',
     subtitle: 'Cambi di direzione ad alta velocità, ambienti caotici/reattivi e pliometria intensiva.',
+    fullLabel: 'Fase 4 (Late Stage)',
     dbPhase: 'Return to Sport'
   },
   {
@@ -65,18 +74,14 @@ const FIVE_REHAB_PHASES = [
     tag: 'PERFORMANCE',
     title: 'Return to Sport & Peak Power',
     subtitle: 'Ritorno alla performance massimale: sprint, potenza di picco e idoneità agonistica.',
+    fullLabel: 'Fase 5 (Return to Play)',
     dbPhase: 'Return to Play'
   }
 ];
 
 function getStageIdFromPatient(patient) {
-  const raw = String(patient?.fase_attuale || patient?.fase_riabilitativa || '').toLowerCase();
-  if (raw.includes('early') || raw.includes('rom') || raw.includes('fase 1')) return 'EARLY_STAGE';
-  if (raw.includes('mid') || raw.includes('strength') || raw.includes('fase 2')) return 'MID_STAGE';
-  if (raw.includes('run') || raw.includes('drills') || raw.includes('fase 3')) return 'RETURN_TO_RUN';
-  if (raw.includes('late') || raw.includes('cod') || raw.includes('sport') || raw.includes('fase 4')) return 'LATE_STAGE';
-  if (raw.includes('perf') || raw.includes('play') || raw.includes('rts') || raw.includes('fase 5')) return 'PERFORMANCE';
-  return 'RETURN_TO_RUN';
+  const meta = getPhaseMeta(patient);
+  return meta.stageId || 'RETURN_TO_RUN';
 }
 
 export default function PatientDetail({ patient, onBack, onUpdatePatient }) {
@@ -91,9 +96,7 @@ export default function PatientDetail({ patient, onBack, onUpdatePatient }) {
   const [showAdvancedDirectives, setShowAdvancedDirectives] = useState(false);
 
   const [selectedStageId, setSelectedStageId] = useState(() => getStageIdFromPatient(patient));
-  const [faseAttualeInput, setFaseAttualeInput] = useState(
-    normalizePhaseForDb(patient?.fase_attuale || patient?.fase_riabilitativa)
-  );
+  const [faseAttualeInput, setFaseAttualeInput] = useState(() => formatPhaseForDisplay(patient));
   const [direttiveTerapistaInput, setDirettiveTerapistaInput] = useState(
     patient?.direttive_terapista || patient?.note_operative || ''
   );
@@ -109,13 +112,13 @@ export default function PatientDetail({ patient, onBack, onUpdatePatient }) {
     data_intervento: patient?.data_intervento || '',
     tipo_innesto: patient?.tipo_innesto || 'STG',
     chirurgo: patient?.chirurgo || '',
-    fase_riabilitativa: normalizePhaseForDb(patient?.fase_riabilitativa || patient?.fase_attuale)
+    fase_attuale: formatPhaseForDisplay(patient)
   });
 
   useEffect(() => {
     if (patient) {
-      const normP = normalizePhaseForDb(patient.fase_attuale || patient.fase_riabilitativa);
-      setFaseAttualeInput(normP);
+      const displayP = formatPhaseForDisplay(patient);
+      setFaseAttualeInput(displayP);
       setSelectedStageId(getStageIdFromPatient(patient));
       setDirettiveTerapistaInput(patient.direttive_terapista || patient.note_operative || '');
       setEditForm({
@@ -128,7 +131,7 @@ export default function PatientDetail({ patient, onBack, onUpdatePatient }) {
         data_intervento: patient.data_intervento || '',
         tipo_innesto: patient.tipo_innesto || 'STG',
         chirurgo: patient.chirurgo || '',
-        fase_riabilitativa: normP
+        fase_attuale: displayP
       });
     }
   }, [patient?.id, patient?.fase_riabilitativa, patient?.fase_attuale, patient?.note_operative, patient?.direttive_terapista]);
@@ -138,12 +141,13 @@ export default function PatientDetail({ patient, onBack, onUpdatePatient }) {
   const handleSaveAnagrafica = (e) => {
     e.preventDefault();
     if (onUpdatePatient) {
-      const normP = normalizePhaseForDb(editForm.fase_riabilitativa);
+      const displayP = formatPhaseForDisplay(editForm.fase_attuale);
+      const normP = normalizePhaseForDb(editForm.fase_attuale);
       onUpdatePatient({
         ...patient,
         ...editForm,
         fase_riabilitativa: normP,
-        fase_attuale: normP
+        fase_attuale: displayP
       });
     }
     setShowEditAnagrafica(false);
@@ -152,13 +156,13 @@ export default function PatientDetail({ patient, onBack, onUpdatePatient }) {
   // Selezione diretta di una delle 5 Fasi Fisse Orizzontali
   const handleSelectPhaseBlock = (phaseObj) => {
     setSelectedStageId(phaseObj.id);
-    const normP = normalizePhaseForDb(phaseObj.dbPhase);
-    setFaseAttualeInput(normP);
+    const normP = normalizePhaseForDb(phaseObj.fullLabel);
+    setFaseAttualeInput(phaseObj.fullLabel);
     if (onUpdatePatient) {
       onUpdatePatient({
         ...patient,
         fase_riabilitativa: normP,
-        fase_attuale: normP,
+        fase_attuale: phaseObj.fullLabel,
         note_operative: direttiveTerapistaInput,
         direttive_terapista: direttiveTerapistaInput
       });
@@ -171,11 +175,12 @@ export default function PatientDetail({ patient, onBack, onUpdatePatient }) {
   const handleSaveSyntheticDirectives = (e) => {
     if (e) e.preventDefault();
     if (!onUpdatePatient) return;
+    const displayP = formatPhaseForDisplay(faseAttualeInput);
     const normP = normalizePhaseForDb(faseAttualeInput);
     onUpdatePatient({
       ...patient,
       fase_riabilitativa: normP,
-      fase_attuale: normP,
+      fase_attuale: displayP,
       note_operative: direttiveTerapistaInput,
       direttive_terapista: direttiveTerapistaInput
     });
@@ -266,7 +271,7 @@ export default function PatientDetail({ patient, onBack, onUpdatePatient }) {
       <div className="flex flex-wrap items-center justify-between gap-4 print:hidden">
         <button
           onClick={onBack}
-          className="flex items-center gap-2 text-xs font-bold text-slate-700 hover:text-slate-900 bg-slate-50 hover:bg-slate-100 px-3.5 py-2 rounded-xl border border-slate-300/60 shadow-none transition-all cursor-pointer"
+          className="flex items-center gap-2 text-xs font-bold text-slate-700 hover:text-slate-900 bg-white hover:bg-slate-50 px-3.5 py-2 rounded-xl border border-slate-300/80 shadow-xs transition-all cursor-pointer"
         >
           <ArrowLeft className="w-4 h-4 text-slate-700" />
           <span>Torna all&apos;Elenco Pazienti</span>
@@ -285,7 +290,7 @@ export default function PatientDetail({ patient, onBack, onUpdatePatient }) {
 
           <button
             onClick={() => setShowEditAnagrafica(true)}
-            className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-slate-50 hover:bg-slate-100 text-slate-700 hover:text-slate-900 border border-slate-300/60 text-xs font-bold shadow-none transition-all cursor-pointer"
+            className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-white hover:bg-slate-50 text-slate-700 hover:text-slate-900 border border-slate-300/80 text-xs font-bold shadow-xs transition-all cursor-pointer"
           >
             <Edit2 className="w-3.5 h-3.5 text-slate-700" />
             <span>Modifica Anagrafica</span>
@@ -303,7 +308,7 @@ export default function PatientDetail({ patient, onBack, onUpdatePatient }) {
       </div>
 
       {/* Patient Clinical Header Card */}
-      <div className="bg-[#F7F6F2] p-5 rounded-2xl border border-slate-300/80 shadow-none relative overflow-hidden break-inside-avoid">
+      <div className="bg-white p-5 rounded-xl border border-slate-300/80 shadow-sm relative overflow-hidden break-inside-avoid">
         <div className="relative z-10 flex flex-col lg:flex-row lg:items-center justify-between gap-5">
           <div className="flex items-start sm:items-center gap-4">
             <div className="w-14 h-14 rounded-2xl bg-[#0B1736] text-white flex items-center justify-center font-bold text-xl shrink-0">
@@ -368,7 +373,7 @@ export default function PatientDetail({ patient, onBack, onUpdatePatient }) {
       </div>
 
       {/* BARRA DI NAVIGAZIONE A 3 SCHEDE (Monitoraggio & Diario | Test & Valutazioni | Copilot) */}
-      <div className="bg-[#F7F6F2] p-1.5 rounded-2xl border border-slate-300/80 shadow-none flex overflow-x-auto gap-2 print:hidden">
+      <div className="bg-white p-1.5 rounded-xl border border-slate-300/80 shadow-sm flex overflow-x-auto gap-2 print:hidden">
         {tabs.map((tab) => {
           const Icon = tab.icon;
           const isActive = activeTab === tab.id;
@@ -379,7 +384,7 @@ export default function PatientDetail({ patient, onBack, onUpdatePatient }) {
               className={`flex-1 min-w-[180px] flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl text-xs font-bold transition-all cursor-pointer whitespace-nowrap ${
                 isActive
                   ? 'bg-[#1D63FE] text-white shadow-xs'
-                  : 'bg-slate-200/70 text-slate-700 hover:text-slate-900 hover:bg-slate-300/60'
+                  : 'bg-stone-50 text-slate-700 hover:text-slate-900 hover:bg-slate-100'
               }`}
             >
               <Icon className={`w-4 h-4 ${isActive ? 'text-white' : 'text-slate-600'}`} />
@@ -397,8 +402,8 @@ export default function PatientDetail({ patient, onBack, onUpdatePatient }) {
         {activeTab === 'tab1' && (
           <div className="space-y-5">
             {/* 1. LE 5 FASI RIABILITATIVE IN ALTO FISSE E ORIZZONTALI A BLOCCHI */}
-            <div className="bg-slate-50 p-4 sm:p-5 rounded-xl border border-slate-300/60 shadow-none space-y-3.5 break-inside-avoid">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-2.5 border-b border-slate-300/60">
+            <div className="bg-white p-4 sm:p-5 rounded-xl border border-slate-300/80 shadow-sm space-y-3.5 break-inside-avoid">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-2.5 border-b border-slate-200">
                 <div className="flex items-center gap-2.5">
                   <div className="p-1.5 bg-emerald-100/80 text-emerald-900 border border-emerald-300/50 rounded shrink-0">
                     <Layers className="w-4 h-4 text-emerald-900" />
@@ -433,7 +438,7 @@ export default function PatientDetail({ patient, onBack, onUpdatePatient }) {
                       className={`p-3.5 rounded-xl text-left transition-all flex flex-col justify-between space-y-2.5 cursor-pointer ${
                         isSelected
                           ? 'bg-emerald-100/80 border-2 border-emerald-400 text-emerald-950'
-                          : 'bg-slate-100 border border-slate-300/60 hover:bg-slate-200/50 text-slate-700'
+                          : 'bg-stone-50 border border-slate-300/80 hover:bg-slate-100 text-slate-700'
                       }`}
                     >
                       <div className="space-y-1.5">
@@ -475,8 +480,8 @@ export default function PatientDetail({ patient, onBack, onUpdatePatient }) {
             </div>
 
             {/* 2. SUBITO SOTTO LE 5 FASI: CARD CON LE DIRETTIVE DEL TERAPISTA */}
-            <div className="bg-slate-50 p-4 sm:p-5 rounded-xl border border-slate-300/60 shadow-none space-y-4 break-inside-avoid">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-300/60">
+            <div className="bg-white p-4 sm:p-5 rounded-xl border border-slate-300/80 shadow-sm space-y-4 break-inside-avoid">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-200">
                 <div className="flex items-center gap-2.5">
                   <div className="p-1.5 bg-sky-100/80 text-sky-900 border border-sky-300/50 rounded shrink-0">
                     <Compass className="w-4 h-4 text-sky-900" />
@@ -532,12 +537,12 @@ export default function PatientDetail({ patient, onBack, onUpdatePatient }) {
                     value={direttiveTerapistaInput}
                     onChange={(e) => setDirettiveTerapistaInput(e.target.value)}
                     placeholder="Inserisci qui le direttive operative per il team e per il paziente (es. Focus recupero estensione attiva 0°, carichi isometrici a 60° di flessione, controllo valgismo dinamico in decelerazione...)"
-                    className="w-full bg-slate-100 border border-slate-300/60 rounded-xl p-3 text-xs text-slate-800 font-medium leading-relaxed focus:border-slate-500 focus:outline-none"
+                    className="w-full bg-stone-50 border border-slate-300/80 rounded-xl p-3 text-xs text-slate-800 font-medium leading-relaxed focus:border-slate-500 focus:outline-none"
                   />
                 </div>
 
                 {/* Colonna Destra (4/12): Riepilogo Deficit Attivi */}
-                <div className="lg:col-span-4 space-y-2 bg-slate-100 p-3.5 rounded-xl border border-slate-300/60">
+                <div className="lg:col-span-4 space-y-2 bg-stone-50 p-3.5 rounded-xl border border-slate-300/80">
                   <span className="block text-[11px] font-bold text-slate-700 uppercase tracking-wider">
                     Deficit Biomeccanici Segnalati ({(patient.deficits_list || []).length})
                   </span>
@@ -573,14 +578,14 @@ export default function PatientDetail({ patient, onBack, onUpdatePatient }) {
 
               {/* Pannello espandibile per gestione dettagliata Deficit & Esercizi Prescritti */}
               {showAdvancedDirectives && (
-                <div className="pt-4 border-t border-stone-300/70">
+                <div className="pt-4 border-t border-slate-200">
                   <UIErrorBoundary title="Modulo Direttive Dettagliate">
                     <TabDirettiveOperative
                       patient={patient}
                       onSaveDirectives={handleSaveDirectivesFromPanel}
-                      onChangePhase={(dbP) => {
-                        const normP = normalizePhaseForDb(dbP);
-                        setFaseAttualeInput(normP);
+                      onChangePhase={(newPhaseLabel) => {
+                        const displayP = formatPhaseForDisplay(newPhaseLabel);
+                        setFaseAttualeInput(displayP);
                       }}
                     />
                   </UIErrorBoundary>
@@ -631,12 +636,12 @@ export default function PatientDetail({ patient, onBack, onUpdatePatient }) {
       {/* Modal Modifica Dati Anagrafici e Clinici Paziente */}
       {showEditAnagrafica && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-stone-900/50 backdrop-blur-xs print:hidden">
-          <div className="w-full max-w-lg bg-stone-50 border border-stone-300/70 rounded-xl p-6 space-y-4 shadow-none text-stone-800">
-            <div className="flex items-center justify-between pb-3 border-b border-stone-300/70">
-              <h3 className="font-semibold text-stone-800 text-base">Modifica Anagrafica Paziente</h3>
+          <div className="w-full max-w-lg bg-white border border-slate-300/80 rounded-xl p-6 space-y-4 shadow-sm text-slate-800">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-200">
+              <h3 className="font-semibold text-slate-900 text-base">Modifica Anagrafica Paziente</h3>
               <button
                 onClick={() => setShowEditAnagrafica(false)}
-                className="text-stone-500 hover:text-stone-800 cursor-pointer"
+                className="text-slate-500 hover:text-slate-900 cursor-pointer"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -645,67 +650,67 @@ export default function PatientDetail({ patient, onBack, onUpdatePatient }) {
             <form onSubmit={handleSaveAnagrafica} className="space-y-3 text-xs">
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-stone-500 font-medium mb-1">Nome</label>
+                  <label className="block text-slate-600 font-medium mb-1">Nome</label>
                   <input
                     type="text"
                     required
                     value={editForm.nome}
                     onChange={(e) => setEditForm({ ...editForm, nome: e.target.value })}
-                    className="w-full bg-stone-100 border border-stone-300/70 rounded-lg p-2 text-stone-800 font-semibold focus:border-stone-600 focus:outline-none"
+                    className="w-full bg-stone-50 border border-slate-300/80 rounded-lg p-2 text-slate-900 font-semibold focus:border-slate-600 focus:outline-none"
                   />
                 </div>
                 <div>
-                  <label className="block text-stone-500 font-medium mb-1">Cognome</label>
+                  <label className="block text-slate-600 font-medium mb-1">Cognome</label>
                   <input
                     type="text"
                     required
                     value={editForm.cognome}
                     onChange={(e) => setEditForm({ ...editForm, cognome: e.target.value })}
-                    className="w-full bg-stone-100 border border-stone-300/70 rounded-lg p-2 text-stone-800 font-semibold focus:border-stone-600 focus:outline-none"
+                    className="w-full bg-stone-50 border border-slate-300/80 rounded-lg p-2 text-slate-900 font-semibold focus:border-slate-600 focus:outline-none"
                   />
                 </div>
               </div>
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-stone-500 font-medium mb-1">Sport</label>
+                  <label className="block text-slate-600 font-medium mb-1">Sport</label>
                   <input
                     type="text"
                     required
                     value={editForm.sport}
                     onChange={(e) => setEditForm({ ...editForm, sport: e.target.value })}
-                    className="w-full bg-stone-100 border border-stone-300/70 rounded-lg p-2 text-stone-800 font-semibold focus:border-stone-600 focus:outline-none"
+                    className="w-full bg-stone-50 border border-slate-300/80 rounded-lg p-2 text-slate-900 font-semibold focus:border-slate-600 focus:outline-none"
                   />
                 </div>
                 <div>
-                  <label className="block text-stone-500 font-medium mb-1">Ruolo / Disciplina</label>
+                  <label className="block text-slate-600 font-medium mb-1">Ruolo / Disciplina</label>
                   <input
                     type="text"
                     value={editForm.ruolo_sportivo}
                     onChange={(e) => setEditForm({ ...editForm, ruolo_sportivo: e.target.value })}
-                    className="w-full bg-stone-100 border border-stone-300/70 rounded-lg p-2 text-stone-800 font-semibold focus:border-stone-600 focus:outline-none"
+                    className="w-full bg-stone-50 border border-slate-300/80 rounded-lg p-2 text-slate-900 font-semibold focus:border-slate-600 focus:outline-none"
                   />
                 </div>
               </div>
 
               <div className="grid grid-cols-3 gap-3">
                 <div>
-                  <label className="block text-stone-500 font-medium mb-1">Lato Operato</label>
+                  <label className="block text-slate-600 font-medium mb-1">Lato Operato</label>
                   <select
                     value={editForm.lato_lesione}
                     onChange={(e) => setEditForm({ ...editForm, lato_lesione: e.target.value })}
-                    className="w-full bg-stone-100 border border-stone-300/70 rounded-lg p-2 text-stone-800 font-semibold focus:border-stone-600 focus:outline-none"
+                    className="w-full bg-stone-50 border border-slate-300/80 rounded-lg p-2 text-slate-900 font-semibold focus:border-slate-600 focus:outline-none"
                   >
                     <option value="Dx">Destro (Dx)</option>
                     <option value="Sx">Sinistro (Sx)</option>
                   </select>
                 </div>
                 <div>
-                  <label className="block text-stone-500 font-medium mb-1">Tipo Innesto</label>
+                  <label className="block text-slate-600 font-medium mb-1">Tipo Innesto</label>
                   <select
                     value={editForm.tipo_innesto}
                     onChange={(e) => setEditForm({ ...editForm, tipo_innesto: e.target.value })}
-                    className="w-full bg-stone-100 border border-stone-300/70 rounded-lg p-2 text-stone-800 font-semibold focus:border-stone-600 focus:outline-none"
+                    className="w-full bg-stone-50 border border-slate-300/80 rounded-lg p-2 text-slate-900 font-semibold focus:border-slate-600 focus:outline-none"
                   >
                     <option value="STG">STG</option>
                     <option value="Rotuleo">Rotuleo (BPTB)</option>
@@ -714,52 +719,52 @@ export default function PatientDetail({ patient, onBack, onUpdatePatient }) {
                   </select>
                 </div>
                 <div>
-                  <label className="block text-stone-500 font-medium mb-1">Data Intervento</label>
+                  <label className="block text-slate-600 font-medium mb-1">Data Intervento</label>
                   <input
                     type="date"
                     required
                     value={editForm.data_intervento}
                     onChange={(e) => setEditForm({ ...editForm, data_intervento: e.target.value })}
-                    className="w-full bg-stone-100 border border-stone-300/70 rounded-lg p-2 text-stone-800 font-mono font-semibold focus:border-stone-600 focus:outline-none"
+                    className="w-full bg-stone-50 border border-slate-300/80 rounded-lg p-2 text-slate-900 font-mono font-semibold focus:border-slate-600 focus:outline-none"
                   />
                 </div>
               </div>
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-stone-500 font-medium mb-1">Chirurgo Ortopedico</label>
+                  <label className="block text-slate-600 font-medium mb-1">Chirurgo Ortopedico</label>
                   <input
                     type="text"
                     value={editForm.chirurgo}
                     onChange={(e) => setEditForm({ ...editForm, chirurgo: e.target.value })}
-                    className="w-full bg-stone-100 border border-stone-300/70 rounded-lg p-2 text-stone-800 font-semibold focus:border-stone-600 focus:outline-none"
+                    className="w-full bg-stone-50 border border-slate-300/80 rounded-lg p-2 text-slate-900 font-semibold focus:border-slate-600 focus:outline-none"
                   />
                 </div>
                 <div>
-                  <label className="block text-stone-500 font-medium mb-1">Fase Riabilitativa</label>
+                  <label className="block text-slate-600 font-medium mb-1">Fase Riabilitativa (1-5)</label>
                   <select
-                    value={editForm.fase_riabilitativa}
-                    onChange={(e) => setEditForm({ ...editForm, fase_riabilitativa: e.target.value })}
-                    className="w-full bg-stone-100 border border-stone-300/70 rounded-lg p-2 text-stone-800 font-semibold focus:border-stone-600 focus:outline-none"
+                    value={editForm.fase_attuale}
+                    onChange={(e) => setEditForm({ ...editForm, fase_attuale: e.target.value })}
+                    className="w-full bg-stone-50 border border-slate-300/80 rounded-lg p-2 text-slate-900 font-semibold focus:border-slate-600 focus:outline-none"
                   >
-                    {CANONICAL_PHASES.map((ph) => (
-                      <option key={ph} value={ph}>{ph}</option>
+                    {FIVE_LCA_PHASES.map((ph) => (
+                      <option key={ph.id} value={ph.fullLabel}>{ph.fullLabel}</option>
                     ))}
                   </select>
                 </div>
               </div>
 
-              <div className="pt-3 border-t border-stone-300/70 flex justify-end gap-2">
+              <div className="pt-3 border-t border-slate-200 flex justify-end gap-2">
                 <button
                   type="button"
                   onClick={() => setShowEditAnagrafica(false)}
-                  className="px-4 py-2 bg-stone-100 hover:bg-stone-200/50 text-stone-800 border border-stone-300/70 rounded-xl font-semibold cursor-pointer"
+                  className="px-4 py-2 bg-stone-50 hover:bg-slate-100 text-slate-800 border border-slate-300/80 rounded-xl font-semibold cursor-pointer"
                 >
                   Annulla
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-2 bg-stone-800 hover:bg-stone-900 text-stone-100 rounded-xl font-semibold flex items-center gap-1.5 cursor-pointer"
+                  className="px-4 py-2 bg-[#0B1736] hover:bg-[#142554] text-white rounded-xl font-semibold flex items-center gap-1.5 cursor-pointer"
                 >
                   <Save className="w-4 h-4" />
                   <span>Salva Modifiche</span>
