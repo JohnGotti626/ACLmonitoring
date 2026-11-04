@@ -3,6 +3,7 @@
 -- 1. STAFF_USERS & RLS
 -- 2. METRICHE DINAMICHE PERSONALIZZATE (custom_metric_definitions & patient_custom_metrics)
 -- 3. SESSIONI REPORT & DIRETTIVE PAZIENTE
+-- 4. CARDIO BUILDER MULTI-BLOCCO (cardio_logs & workout_logs.cardio_blocks)
 -- ====================================================================
 
 -- 1. Tabella staff_users e abilitazione RLS
@@ -146,7 +147,8 @@ DO $$
 BEGIN
     IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'pazienti') THEN
         ALTER TABLE public.pazienti
-            ADD COLUMN IF NOT EXISTS fase_attuale TEXT DEFAULT NULL,
+            ADD COLUMN IF NOT EXISTS fase_attuale TEXT DEFAULT 'Fase 1',
+            ADD COLUMN IF NOT EXISTS fase_riabilitativa TEXT DEFAULT 'Fase 1',
             ADD COLUMN IF NOT EXISTS direttive_terapista TEXT DEFAULT NULL,
             ADD COLUMN IF NOT EXISTS custom_metrics_template JSONB DEFAULT '{}'::jsonb;
     END IF;
@@ -160,3 +162,40 @@ BEGIN
             ADD COLUMN IF NOT EXISTS custom_metrics JSONB DEFAULT '{}'::jsonb;
     END IF;
 END $$;
+
+-- ====================================================================
+-- 6. CARDIO BUILDER MULTI-BLOCCO (Tabella `cardio_logs` + JSONB)
+-- ====================================================================
+CREATE TABLE IF NOT EXISTS public.cardio_logs (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    session_id TEXT DEFAULT NULL,
+    patient_id TEXT NOT NULL,
+    patient_email TEXT DEFAULT NULL,
+    session_date DATE NOT NULL DEFAULT CURRENT_DATE,
+    block_order INTEGER NOT NULL DEFAULT 1,
+    modality TEXT NOT NULL CHECK (modality IN ('continuo', 'ripetute')),
+    exercise_note TEXT DEFAULT NULL,
+    -- Campi modalità "Continuo"
+    duration_min NUMERIC DEFAULT NULL,
+    distance_km NUMERIC DEFAULT NULL,
+    calculated_pace TEXT DEFAULT NULL,
+    calculated_speed_kmh NUMERIC DEFAULT NULL,
+    -- Campi modalità "Ripetute/Navette"
+    sets INTEGER DEFAULT NULL,
+    work_per_set TEXT DEFAULT NULL,
+    rest_time TEXT DEFAULT NULL,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_cardio_logs_patient_date
+    ON public.cardio_logs(patient_id, session_date DESC);
+
+ALTER TABLE public.cardio_logs ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "cardio_logs_access_policy" ON public.cardio_logs;
+CREATE POLICY "cardio_logs_access_policy"
+    ON public.cardio_logs
+    FOR ALL
+    TO anon, authenticated
+    USING (true)
+    WITH CHECK (true);

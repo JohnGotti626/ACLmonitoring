@@ -21,7 +21,10 @@ import {
   X,
   Package,
   BarChart3,
-  ChevronRight
+  ChevronRight,
+  Flame,
+  Route,
+  Repeat
 } from 'lucide-react';
 import { supabase, isSupabaseConfigured } from '../../lib/supabase';
 import {
@@ -35,6 +38,12 @@ import {
   parseUnilateralLoadsFromRow,
   calcLoadLsiPct
 } from '../ClientPortal';
+import CardioBuilder, {
+  isCardioBlockValid,
+  buildCardioSessionPayload,
+  formatCardioBlockToWorkoutRow,
+  parseCardioLogFromWorkoutRow
+} from '../CardioBuilder';
 
 export default function RilevazioniCarichiTab({
   patient,
@@ -72,9 +81,15 @@ export default function RilevazioniCarichiTab({
   const [formWeightDxKg, setFormWeightDxKg] = useState('');
   const [formTempo, setFormTempo] = useState('');
   const [formNotes, setFormNotes] = useState('');
+  const [therapistCardioBlocks, setTherapistCardioBlocks] = useState([]);
   const [savingEdit, setSavingEdit] = useState(false);
 
-  const injuredSide = (patient?.lato || patient?.chirurgia?.lato || 'DX').toUpperCase();
+  const injuredSide = (
+    patient?.lato_lesione ||
+    patient?.lato ||
+    patient?.chirurgia?.lato ||
+    'DX'
+  ).toUpperCase();
 
   // URL diretto al Portale Paziente Mobile per questo specifico paziente
   const clientPortalUrl = `${window.location.origin}/?portal=client&patientId=${patient?.id || ''}`;
@@ -186,7 +201,9 @@ export default function RilevazioniCarichiTab({
 
   // Elenco univoco esercizi svolti dal paziente (per selezione rapida progressione)
   const uniqueExercises = useMemo(() => {
-    return Array.from(new Set(logs.map(l => l.exercise_name).filter(Boolean)));
+    return Array.from(
+      new Set(logs.map(l => l.exercise_name).filter(n => n && !n.startsWith('[CARDIO')))
+    );
   }, [logs]);
 
   // Dati cronologici di progressione per l'esercizio selezionato
@@ -236,6 +253,7 @@ export default function RilevazioniCarichiTab({
     }
     setFormTempo(log.tempo_speed || log.tempo_execution || '');
     setFormNotes(parsedUni.cleanNotes || log.clean_notes || log.notes || '');
+    setTherapistCardioBlocks([]);
     setEditingModalOpen(true);
   };
 
@@ -257,16 +275,20 @@ export default function RilevazioniCarichiTab({
     setFormWeightDxKg('');
     setFormTempo('3-0-1-0');
     setFormNotes('Nessun dolore (0/10)');
+    setTherapistCardioBlocks([]);
     setEditingModalOpen(true);
   };
 
-  // Salva la modifica o il nuovo inserimento effettuato dal Terapista
+  // Salva la modifica o il nuovo inserimento effettuato dal Terapista (inclusi eventuali blocchi Cardio)
   const handleSaveTherapistEdit = async (e) => {
     e.preventDefault();
     const hasValidLoad = formIsUnilateral
       ? formWeightSxKg !== '' || formWeightDxKg !== ''
       : formWeightKg !== '';
-    if (!formExercise.trim() || !hasValidLoad) return;
+    const hasStrengthExercise = Boolean(formExercise.trim() && hasValidLoad);
+    const validCardioCount = therapistCardioBlocks.filter(isCardioBlockValid).length;
+
+    if (!hasStrengthExercise && validCardioCount === 0) return;
 
     setSavingEdit(true);
 
@@ -291,23 +313,24 @@ export default function RilevazioniCarichiTab({
       parsedDx
     );
 
-    const dbPayload = {
-      ...(editingLog?.id && !String(editingLog.id).startsWith('seed-') ? { id: editingLog.id } : {}),
-      patient_id: String(patient?.id || 'demo-patient'),
-      patient_email: patient?.email || null,
-      exercise_name: formExercise.trim(),
-      sets: Number(formSets) || 1,
-      reps: String(formReps || '1'),
-      weight_kg: effectiveWeightKg,
-      tempo_speed: formTempo.trim() || 'Standard',
-      notes: encodedNotes,
-      created_at: finalIso
-    };
+    const dbPayload = hasStrengthExercise
+      ? {
+          ...(editingLog?.id && !String(editingLog.id).startsWith('seed-') ? { id: editingLog.id } : {}),
+          patient_id: String(patient?.id || 'demo-patient'),
+          patient_email: patient?.email || null,
+          exercise_name: formExercise.trim(),
+          sets: Number(formSets) || 1,
+          reps: String(formReps || '1'),
+          weight_kg: effectiveWeightKg,
+          tempo_speed: formTempo.trim() || 'Standard',
+          notes: encodedNotes,
+          created_at: finalIso
+        }
+      : null;
 
     try {
-      if (editingLog) {
+      if (editingLog && dbPayload) {
         if (isSupabaseConfigured && editingLog.id && !String(editingLog.id).startsWith('seed-')) {
-          // Delete + Insert con stesso UUID per garantire l'update su Supabase
           await supabase.from('workout_logs').delete().eq('id', editingLog.id);
           const { error } = await supabase.from('workout_logs').insert([dbPayload]);
           if (error) {
@@ -322,25 +345,59 @@ export default function RilevazioniCarichiTab({
 
         syncLogsLocallyAndParent(updatedList);
       } else {
-        let savedRow = normalizeWorkoutLog({
-          ...dbPayload,
-          id: typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : `wlog-${Date.now()}`
-        });
+        const payloadsToInsert = [];
+        if (dbPayload) payloadsToInsert.push(dbPayload);
 
-        if (isSupabaseConfigured && patient?.id) {
+        // Aggiunge eventuali blocchi Cardio multipli
+        if (validCardioCount > 0) {
+          const cardioPayload = buildCardioSessionPayload({
+            patientId: String(patient?.id || 'demo-patient'),
+            patientEmail: patient?.email || null,
+            sessionDate: formDate,
+            blocks: therapistCardioBlocks
+          });
+
+          if (isSupabaseConfigured && patient?.id && cardioPayload.cardio_logs_rows.length > 0) {
+            try {
+              await supabase.from('cardio_logs').insert(cardioPayload.cardio_logs_rows);
+            } catch (_) {}
+          }
+
+          cardioPayload.cardio_blocks_jsonb.forEach((b) => {
+            payloadsToInsert.push(
+              formatCardioBlockToWorkoutRow(b, {
+                patientId: String(patient?.id || 'demo-patient'),
+                patientEmail: patient?.email || null,
+                createdAtISO: finalIso
+              })
+            );
+          });
+        }
+
+        let savedRows = payloadsToInsert.map((p, idx) =>
+          normalizeWorkoutLog({
+            ...p,
+            id:
+              typeof crypto !== 'undefined' && crypto.randomUUID
+                ? crypto.randomUUID()
+                : `wlog-${Date.now()}-${idx}`
+          })
+        );
+
+        if (isSupabaseConfigured && patient?.id && payloadsToInsert.length > 0) {
           const { data, error } = await supabase
             .from('workout_logs')
-            .insert([dbPayload])
+            .insert(payloadsToInsert)
             .select();
 
           if (error) {
             console.warn('Info insert Supabase workout_logs:', error.message);
           } else if (Array.isArray(data) && data.length > 0) {
-            savedRow = normalizeWorkoutLog(data[0]);
+            savedRows = data.map(normalizeWorkoutLog);
           }
         }
 
-        const updatedList = [savedRow, ...logs].sort(
+        const updatedList = [...savedRows, ...logs].sort(
           (a, b) => new Date(b.created_at) - new Date(a.created_at)
         );
         syncLogsLocallyAndParent(updatedList);
@@ -348,6 +405,7 @@ export default function RilevazioniCarichiTab({
 
       setEditingModalOpen(false);
       setEditingLog(null);
+      setTherapistCardioBlocks([]);
     } catch (err) {
       console.error('Errore salvataggio modifica terapista:', err);
     } finally {
@@ -422,14 +480,14 @@ export default function RilevazioniCarichiTab({
   return (
     <div className="space-y-6 text-slate-800">
       {/* BARRA SUPERIORE TERAPISTA: AZIONI RAPIDE */}
-      <div className="bg-slate-50 p-5 rounded-xl border border-slate-300/60 flex flex-col lg:flex-row lg:items-center justify-between gap-4 shadow-none break-inside-avoid">
+      <div className="bg-white p-5 rounded-xl border border-slate-300/80 flex flex-col lg:flex-row lg:items-center justify-between gap-4 shadow-sm break-inside-avoid">
         <div className="space-y-1">
           <div className="flex items-center gap-2">
             <div className="p-1 bg-sky-100/80 text-sky-900 border border-sky-300/50 rounded">
               <Dumbbell className="w-4 h-4 text-sky-900" />
             </div>
             <h3 className="text-base sm:text-lg font-bold text-slate-800 tracking-tight">
-              Diario Carichi &amp; Pacchetti Giornalieri
+              Diario Carichi &amp; Pacchetti Giornalieri (Forza + Cardio Multi-Blocco)
             </h3>
             <span className="px-2.5 py-0.5 rounded-full bg-emerald-100/80 text-emerald-900 border border-emerald-300/50 font-mono text-[10px] font-bold flex items-center gap-1">
               <span className="w-1.5 h-1.5 rounded-full bg-emerald-700" />
@@ -437,7 +495,7 @@ export default function RilevazioniCarichiTab({
             </span>
           </div>
           <p className="text-xs text-slate-600 font-semibold">
-            Seleziona una giornata per vedere il pacchetto di esercizi svolto da <strong className="text-slate-800">{patient?.nome} {patient?.cognome}</strong> (con carichi separati <strong>SX / DX</strong> per gli esercizi monopodalici).
+            Seleziona una giornata per vedere il pacchetto di esercizi e blocchi cardio svolto da <strong className="text-slate-800">{patient?.nome} {patient?.cognome}</strong> (Lato operato: <strong>{injuredSide}</strong>).
           </p>
         </div>
 
@@ -445,10 +503,10 @@ export default function RilevazioniCarichiTab({
           <button
             type="button"
             onClick={() => handleOpenNewModal(selectedDay)}
-            className="px-3.5 py-2 rounded-xl bg-emerald-100/80 hover:bg-emerald-200/70 text-emerald-900 border border-emerald-300/50 font-bold text-xs flex items-center gap-1.5 shadow-none transition-all cursor-pointer"
+            className="px-3.5 py-2 rounded-xl bg-emerald-100/80 hover:bg-emerald-200/70 text-emerald-900 border border-emerald-300/50 font-bold text-xs flex items-center gap-1.5 shadow-xs transition-all cursor-pointer"
           >
             <Plus className="w-4 h-4" />
-            <span>+ Aggiungi Esercizio</span>
+            <span>+ Aggiungi Esercizio / Cardio</span>
           </button>
 
           <button
@@ -463,7 +521,7 @@ export default function RilevazioniCarichiTab({
       </div>
 
       {/* SELETTORE GIORNATE DI ALLENAMENTO (PACCHETTI GIORNALIERI) */}
-      <div className="bg-slate-50 border border-slate-300/60 rounded-xl p-4 space-y-3 shadow-none print:hidden">
+      <div className="bg-white border border-slate-300/80 rounded-xl p-4 space-y-3 shadow-sm print:hidden">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
           <div>
             <h4 className="text-sm font-bold text-slate-800 flex items-center gap-2">
@@ -473,7 +531,7 @@ export default function RilevazioniCarichiTab({
               <span>Giornate di Allenamento Registrate ({groupedByDay.sortedDays.length} sedute)</span>
             </h4>
             <p className="text-[11px] text-slate-600 font-semibold">
-              Clicca su una giornata per filtrare velocemente il pacchetto di esercizi eseguito in quella data
+              Clicca su una giornata per filtrare velocemente il pacchetto di esercizi e blocchi cardio eseguito in quella data
             </p>
           </div>
 
@@ -511,7 +569,7 @@ export default function RilevazioniCarichiTab({
           >
             <div className="text-xs font-bold">Tutte le Giornate</div>
             <div className={`text-[10px] font-mono mt-0.5 ${selectedDay === 'ALL' ? 'text-emerald-800' : 'text-slate-500'}`}>
-              {groupedByDay.sortedDays.length} sedute • {logs.length} esercizi
+              {groupedByDay.sortedDays.length} sedute • {logs.length} voci
             </div>
           </button>
 
@@ -535,7 +593,7 @@ export default function RilevazioniCarichiTab({
                   <span>{formatDayLabel(dayKey)}</span>
                 </div>
                 <div className={`text-[10px] font-mono mt-0.5 ${isSelected ? 'text-emerald-800' : 'text-slate-500'}`}>
-                  📦 {dayLogs.length} {dayLogs.length === 1 ? 'esercizio' : 'esercizi'} • Max {maxKgDay} kg
+                  📦 {dayLogs.length} {dayLogs.length === 1 ? 'voce' : 'voci'} • Max {maxKgDay} kg
                 </div>
               </button>
             );
@@ -585,7 +643,7 @@ export default function RilevazioniCarichiTab({
 
       {/* PANNELLO PROGRESSIONE NEL TEMPO DELL'ESERCIZIO CLICCATO (INLINE ESPANDIBILE) */}
       {selectedExerciseProgression && (
-        <div className="bg-slate-50 border border-slate-300/60 rounded-xl p-5 space-y-4 shadow-none break-inside-avoid">
+        <div className="bg-white border border-slate-300/80 rounded-xl p-5 space-y-4 shadow-sm break-inside-avoid">
           <div className="flex items-center justify-between border-b border-slate-300/60 pb-3">
             <div className="flex items-center gap-3">
               <div className="p-2 rounded-xl bg-sky-100/80 text-sky-900 border border-sky-300/50">
@@ -834,13 +892,13 @@ export default function RilevazioniCarichiTab({
 
       {/* ELENCO PACCHETTI DI ESERCIZI RAGGRUPPATI PER GIORNATA */}
       {daysToRender.length === 0 ? (
-        <div className="bg-slate-50 border border-slate-300/60 rounded-xl p-10 text-center space-y-3 shadow-none">
+        <div className="bg-white border border-slate-300/80 rounded-xl p-10 text-center space-y-3 shadow-sm">
           <Package className="w-8 h-8 text-slate-400 mx-auto" />
           <div className="text-sm font-bold text-slate-800">
             Nessun pacchetto di allenamento ancora registrato per {patient?.nome}
           </div>
           <p className="text-xs text-slate-600 font-semibold max-w-md mx-auto">
-            Usa <strong>&quot;+ Aggiungi Esercizio&quot;</strong> per inserire il primo pacchetto di esercizi del giorno.
+            Usa <strong>&quot;+ Aggiungi Esercizio / Cardio&quot;</strong> per inserire il primo pacchetto del giorno.
           </p>
         </div>
       ) : (
@@ -859,10 +917,10 @@ export default function RilevazioniCarichiTab({
             return (
               <div
                 key={dayKey}
-                className="bg-slate-50 border border-slate-300/60 rounded-xl overflow-hidden shadow-none break-inside-avoid"
+                className="bg-white border border-slate-300/80 rounded-xl overflow-hidden shadow-sm break-inside-avoid"
               >
                 {/* HEADER DELLA GIORNATA (PACCHETTO DEL GIORNO) */}
-                <div className="p-4 bg-slate-100 border-b border-slate-300/60 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                <div className="p-4 bg-stone-50 border-b border-slate-300/80 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                   <div className="flex items-center gap-3">
                     <div className="p-1 rounded bg-sky-100/80 text-sky-900 border border-sky-300/50">
                       <Package className="w-4 h-4" />
@@ -873,11 +931,11 @@ export default function RilevazioniCarichiTab({
                           Pacchetto Seduta — {formatDayLabel(dayKey)}
                         </h4>
                         <span className="px-2.5 py-0.5 rounded-full bg-emerald-100/80 text-emerald-900 border border-emerald-300/50 font-mono text-[10px] font-bold">
-                          {dayLogs.length} {dayLogs.length === 1 ? 'esercizio' : 'esercizi'}
+                          {dayLogs.length} {dayLogs.length === 1 ? 'voce' : 'voci'}
                         </span>
                       </div>
                       <p className="text-[11px] text-slate-600 font-semibold print:hidden">
-                        Clicca sul nome di un esercizio per vedere la sua progressione nel tempo
+                        Clicca sul nome di un esercizio di forza per vedere la sua progressione nel tempo
                       </p>
                     </div>
                   </div>
@@ -888,7 +946,7 @@ export default function RilevazioniCarichiTab({
                     className="px-3 py-1.5 rounded-xl bg-emerald-100/80 hover:bg-emerald-200/70 text-emerald-900 border border-emerald-300/50 text-xs font-bold flex items-center gap-1.5 cursor-pointer self-start sm:self-auto print:hidden"
                   >
                     <Plus className="w-3.5 h-3.5" />
-                    <span>+ Esercizio in questa seduta</span>
+                    <span>+ Esercizio / Cardio in questa seduta</span>
                   </button>
                 </div>
 
@@ -897,24 +955,94 @@ export default function RilevazioniCarichiTab({
                   <table className="w-full text-left border-collapse text-xs">
                     <thead>
                       <tr className="bg-slate-100 text-slate-600 border-b border-slate-300/60 uppercase text-[10px] font-bold tracking-wider">
-                        <th className="py-2.5 px-4">Esercizio</th>
-                        <th className="py-2.5 px-4 text-center">Serie × Rip</th>
-                        <th className="py-2.5 px-4 text-center">Carico (Bilaterale o SX / DX)</th>
-                        <th className="py-2.5 px-4">Velocità / Tempo</th>
+                        <th className="py-2.5 px-4">Esercizio / Blocco Cardio</th>
+                        <th className="py-2.5 px-4 text-center">Volume / Durata</th>
+                        <th className="py-2.5 px-4 text-center">Carico (SX / DX) o Velocità</th>
+                        <th className="py-2.5 px-4">Velocità / Passo</th>
                         <th className="py-2.5 px-4">Note Dolore / RPE</th>
                         <th className="py-2.5 px-4 text-right print:hidden">Azioni</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-300/60">
                       {dayLogs.map((log, index) => {
+                        const cardioInfo = parseCardioLogFromWorkoutRow(log);
                         const rowLsi = log.is_unilateral
                           ? calcLoadLsiPct(log.weight_sx_kg, log.weight_dx_kg, injuredSide)
                           : null;
 
+                        if (cardioInfo) {
+                          return (
+                            <tr
+                              key={log.id || index}
+                              className="bg-teal-50/40 hover:bg-teal-100/40 transition-colors"
+                            >
+                              <td className="py-3 px-4">
+                                <div className="flex items-center gap-2.5">
+                                  <div className="p-1.5 rounded bg-teal-100 text-teal-900 border border-teal-300/60">
+                                    {cardioInfo.modality === 'continuo' ? (
+                                      <Route className="w-4 h-4" />
+                                    ) : (
+                                      <Repeat className="w-4 h-4" />
+                                    )}
+                                  </div>
+                                  <div>
+                                    <div className="font-bold text-slate-800 flex items-center gap-1.5 flex-wrap">
+                                      <span>{cardioInfo.title}</span>
+                                      <span className="px-1.5 py-0.5 rounded bg-teal-100 text-teal-900 border border-teal-300/60 font-mono text-[9px] font-bold uppercase">
+                                        {cardioInfo.modality === 'continuo'
+                                          ? 'CARDIO CONTINUO'
+                                          : 'RIPETUTE / NAVETTE'}
+                                      </span>
+                                    </div>
+                                  </div>
+                                </div>
+                              </td>
+                              <td className="py-3 px-4 text-center font-mono font-bold text-slate-800">
+                                {cardioInfo.modality === 'continuo'
+                                  ? `${cardioInfo.duration_min || 0} min • ${cardioInfo.distance_km || 0} km`
+                                  : cardioInfo.work_per_set}
+                              </td>
+                              <td className="py-3 px-4 text-center">
+                                <span className="px-2.5 py-0.5 rounded-lg bg-teal-100 text-teal-900 border border-teal-300/60 font-mono font-bold text-xs">
+                                  {cardioInfo.modality === 'continuo'
+                                    ? cardioInfo.speed
+                                    : `${cardioInfo.sets} serie`}
+                                </span>
+                              </td>
+                              <td className="py-3 px-4">
+                                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-slate-100 border border-slate-300/60 text-slate-700 font-mono text-[11px] font-semibold">
+                                  <Clock className="w-3 h-3 text-teal-700" />
+                                  {cardioInfo.modality === 'continuo'
+                                    ? `Passo: ${cardioInfo.pace}`
+                                    : `Rec: ${cardioInfo.rest}`}
+                                </span>
+                              </td>
+                              <td className="py-3 px-4 text-slate-600 font-semibold">
+                                <div className="flex items-center gap-1.5">
+                                  <Flame className="w-3.5 h-3.5 text-teal-700 shrink-0" />
+                                  <span>{cardioInfo.title}</span>
+                                </div>
+                              </td>
+                              <td className="py-3 px-4 text-right whitespace-nowrap print:hidden">
+                                <div className="inline-flex items-center gap-1.5">
+                                  <button
+                                    type="button"
+                                    onClick={() => handleDeleteLogByTherapist(log.id)}
+                                    className="p-1.5 rounded-lg bg-rose-100/80 hover:bg-rose-200/70 text-rose-900 border border-rose-300/50 cursor-pointer transition-colors"
+                                    title="Elimina blocco cardio"
+                                  >
+                                    <Trash2 className="w-3.5 h-3.5" />
+                                  </button>
+                                </div>
+                              </td>
+                            </tr>
+                          );
+                        }
+
                         return (
                           <tr
                             key={log.id || index}
-                            className={`${index % 2 === 0 ? 'bg-slate-50' : 'bg-slate-100/70'} hover:bg-slate-200/50 transition-colors`}
+                            className={`${index % 2 === 0 ? 'bg-white' : 'bg-stone-50'} hover:bg-slate-100/80 transition-colors`}
                           >
                             <td className="py-3 px-4">
                               <button
@@ -1014,17 +1142,17 @@ export default function RilevazioniCarichiTab({
         </div>
       )}
 
-      {/* MODAL TERAPISTA: MODIFICA QUALSIASI CAMPO O AGGIUNGI NUOVA RILEVAZIONE */}
+      {/* MODAL TERAPISTA: MODIFICA QUALSIASI CAMPO O AGGIUNGI NUOVA RILEVAZIONE + CARDIO BUILDER */}
       {editingModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm print:hidden">
-          <div className="w-full max-w-lg bg-slate-50 border border-slate-300/60 rounded-xl p-6 space-y-4 shadow-none text-slate-800">
+          <div className="w-full max-w-2xl max-h-[92vh] overflow-y-auto bg-white border border-slate-300/80 rounded-xl p-6 space-y-4 shadow-xl text-slate-800">
             <div className="flex items-center justify-between border-b border-slate-300/60 pb-3">
               <div className="flex items-center gap-2">
                 <div className="p-1 bg-purple-100/80 text-purple-900 border border-purple-300/50 rounded">
                   <Edit3 className="w-4 h-4 text-purple-900" />
                 </div>
                 <h3 className="text-base font-bold text-slate-800">
-                  {editingLog ? 'Modifica Esercizio (Terapista)' : 'Aggiungi Esercizio al Pacchetto Giornaliero'}
+                  {editingLog ? 'Modifica Esercizio (Terapista)' : 'Aggiungi Esercizio / Blocchi Cardio al Pacchetto'}
                 </h3>
               </div>
               <button
@@ -1060,10 +1188,11 @@ export default function RilevazioniCarichiTab({
               </div>
 
               <div>
-                <label className="block text-slate-600 font-bold mb-1">Esercizio</label>
+                <label className="block text-slate-600 font-bold mb-1">
+                  Esercizio di Forza (Opzionale se aggiungi solo Blocchi Cardio sotto)
+                </label>
                 <input
                   type="text"
-                  required
                   list="therapist-exercise-presets"
                   value={formExercise}
                   onChange={(e) => handleFormExerciseChange(e.target.value)}
@@ -1119,7 +1248,6 @@ export default function RilevazioniCarichiTab({
                     <input
                       type="number"
                       min="1"
-                      required
                       value={formSets}
                       onChange={(e) => setFormSets(e.target.value)}
                       className="w-full bg-slate-100 border border-slate-300/60 rounded-xl p-2.5 text-slate-800 font-mono text-center font-bold"
@@ -1129,7 +1257,6 @@ export default function RilevazioniCarichiTab({
                     <label className="block text-slate-600 font-bold mb-1">Ripetizioni</label>
                     <input
                       type="text"
-                      required
                       value={formReps}
                       onChange={(e) => setFormReps(e.target.value)}
                       className="w-full bg-slate-100 border border-slate-300/60 rounded-xl p-2.5 text-slate-800 font-mono text-center font-bold"
@@ -1140,7 +1267,6 @@ export default function RilevazioniCarichiTab({
                     <input
                       type="number"
                       step="0.5"
-                      required={!formIsUnilateral}
                       value={formWeightKg}
                       onChange={(e) => setFormWeightKg(e.target.value)}
                       className="w-full bg-emerald-100/80 border border-emerald-300/50 rounded-xl p-2.5 text-emerald-900 font-mono text-center font-bold"
@@ -1155,7 +1281,6 @@ export default function RilevazioniCarichiTab({
                       <input
                         type="number"
                         min="1"
-                        required
                         value={formSets}
                         onChange={(e) => setFormSets(e.target.value)}
                         className="w-full bg-slate-100 border border-slate-300/60 rounded-xl p-2.5 text-slate-800 font-mono text-center font-bold"
@@ -1165,7 +1290,6 @@ export default function RilevazioniCarichiTab({
                       <label className="block text-slate-600 font-bold mb-1">Ripetizioni (per gamba)</label>
                       <input
                         type="text"
-                        required
                         value={formReps}
                         onChange={(e) => setFormReps(e.target.value)}
                         className="w-full bg-slate-100 border border-slate-300/60 rounded-xl p-2.5 text-slate-800 font-mono text-center font-bold"
@@ -1181,7 +1305,6 @@ export default function RilevazioniCarichiTab({
                       <input
                         type="number"
                         step="0.5"
-                        required={formIsUnilateral}
                         value={formWeightSxKg}
                         onChange={(e) => setFormWeightSxKg(e.target.value)}
                         placeholder="es. 35"
@@ -1195,7 +1318,6 @@ export default function RilevazioniCarichiTab({
                       <input
                         type="number"
                         step="0.5"
-                        required={formIsUnilateral}
                         value={formWeightDxKg}
                         onChange={(e) => setFormWeightDxKg(e.target.value)}
                         placeholder="es. 40"
@@ -1228,6 +1350,18 @@ export default function RilevazioniCarichiTab({
                 />
               </div>
 
+              {/* CARDIO BUILDER MULTI-BLOCCO ANCHE PER IL TERAPISTA */}
+              {!editingLog && (
+                <div className="pt-2">
+                  <CardioBuilder
+                    blocks={therapistCardioBlocks}
+                    onChange={setTherapistCardioBlocks}
+                    title="Cardio Builder Multi-Blocco (Seduta)"
+                    subtitle="Aggiungi blocchi cardio distinti (Continuo con Pace/Speed automatico o Ripetute/Navette)"
+                  />
+                </div>
+              )}
+
               <div className="pt-3 border-t border-slate-300/60 flex justify-end gap-2">
                 <button
                   type="button"
@@ -1253,7 +1387,7 @@ export default function RilevazioniCarichiTab({
       {/* MODAL GENERATORE DI LINK / QR CODE E INVIO MAGIC LINK */}
       {showInviteModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm print:hidden">
-          <div className="w-full max-w-lg bg-slate-50 border border-slate-300/60 rounded-xl p-6 space-y-5 shadow-none text-slate-800">
+          <div className="w-full max-w-lg bg-white border border-slate-300/80 rounded-xl p-6 space-y-5 shadow-xl text-slate-800">
             <div className="flex items-center justify-between border-b border-slate-300/60 pb-3">
               <div className="flex items-center gap-2">
                 <div className="p-1 bg-purple-100/80 text-purple-900 border border-purple-300/50 rounded">
@@ -1272,7 +1406,7 @@ export default function RilevazioniCarichiTab({
             </div>
 
             <div className="bg-slate-100 border border-slate-300/60 rounded-xl p-4 flex flex-col sm:flex-row items-center gap-4">
-              <div className="bg-slate-50 p-2.5 rounded-xl border border-slate-300/60 shrink-0 shadow-none">
+              <div className="bg-white p-2.5 rounded-xl border border-slate-300/60 shrink-0 shadow-none">
                 <img
                   src={`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(clientPortalUrl)}`}
                   alt="QR Code Portale Paziente"

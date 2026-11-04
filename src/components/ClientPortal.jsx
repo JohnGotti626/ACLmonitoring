@@ -25,10 +25,20 @@ import {
   X,
   Package,
   BarChart3,
-  ChevronRight
+  ChevronRight,
+  Timer,
+  Gauge,
+  Repeat,
+  Route
 } from 'lucide-react';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import LogoN from './LogoN';
+import CardioBuilder, {
+  isCardioBlockValid,
+  buildCardioSessionPayload,
+  formatCardioBlockToWorkoutRow,
+  parseCardioLogFromWorkoutRow
+} from './CardioBuilder';
 
 // CATALOGO PREDEFINITO ESERCIZI RIABILITAZIONE LCA CON FLAG MONOPODALICO (isUnilateral)
 export const EXERCISE_PRESETS = [
@@ -141,6 +151,7 @@ export function calcLoadLsiPct(sx, dx) {
 export function getIconTypeFromExerciseName(name = '', fallback = 'squat') {
   if (!name) return fallback;
   const q = name.toLowerCase();
+  if (q.startsWith('[cardio') || q.includes('corsa') || q.includes('navett') || q.includes('bike')) return 'cardio';
   const preset = EXERCISE_PRESETS.find((p) => p.name.toLowerCase() === q);
   if (preset) return preset.icon;
   if (q.includes('squat')) return 'squat';
@@ -163,11 +174,13 @@ export function getIconTypeFromExerciseName(name = '', fallback = 'squat') {
 }
 
 export function getCategoryIcon(iconTypeOrName, className = 'w-4 h-4') {
-  const iconType = ['squat', 'lunge', 'knee', 'hamstring', 'press', 'plyo', 'calf'].includes(iconTypeOrName)
+  const iconType = ['squat', 'lunge', 'knee', 'hamstring', 'press', 'plyo', 'calf', 'cardio'].includes(iconTypeOrName)
     ? iconTypeOrName
     : getIconTypeFromExerciseName(iconTypeOrName);
 
   switch (iconType) {
+    case 'cardio':
+      return <Flame className={`${className} text-teal-400`} />;
     case 'squat':
       return <Dumbbell className={`${className} text-[#06B6D4]`} />;
     case 'lunge':
@@ -271,6 +284,9 @@ export default function ClientPortal({
 
   // Carrello / Pacchetto di Esercizi in preparazione per la giornata selezionata
   const [packageItems, setPackageItems] = useState([]);
+
+  // Stato Dinamico Multi-Blocco Cardio per la seduta corrente
+  const [cardioBlocks, setCardioBlocks] = useState([]);
 
   // Campi per il singolo esercizio da aggiungere al pacchetto (o modificare)
   const [editingLogId, setEditingLogId] = useState(null);
@@ -441,7 +457,9 @@ export default function ClientPortal({
 
   // Suggerimenti autocompletamento
   const suggestions = useMemo(() => {
-    const pastNames = Array.from(new Set(workoutLogs.map((l) => l.exercise_name))).filter(Boolean);
+    const pastNames = Array.from(new Set(workoutLogs.map((l) => l.exercise_name))).filter(
+      (n) => n && !n.startsWith('[CARDIO')
+    );
     const pastItems = pastNames
       .filter((name) => !EXERCISE_PRESETS.some((p) => p.name.toLowerCase() === name.toLowerCase()))
       .map((name) => ({
@@ -509,6 +527,11 @@ export default function ClientPortal({
     }
     return weightKg !== '';
   };
+
+  const validCardioBlocksCount = useMemo(
+    () => cardioBlocks.filter(isCardioBlockValid).length,
+    [cardioBlocks]
+  );
 
   const buildCurrentExerciseEntry = (customId = undefined) => {
     const sxVal = parseFloat(String(weightSxKg || 0).replace(',', '.')) || 0;
@@ -619,7 +642,7 @@ export default function ClientPortal({
     }
   };
 
-  // SALVATAGGIO PACCHETTO DI ESERCIZI DEL GIORNO (o Modifica singolo esercizio)
+  // SALVATAGGIO PACCHETTO DI ESERCIZI + BLOCCHI CARDIO DEL GIORNO (o Modifica singolo esercizio)
   const handleSaveWorkoutPackage = async (e) => {
     e.preventDefault();
 
@@ -680,11 +703,42 @@ export default function ClientPortal({
       itemsToSave.push(buildCurrentExerciseEntry());
     }
 
-    if (itemsToSave.length === 0) return;
+    // Costruisce eventuali blocchi Cardio multipli
+    const selectedDateIso = buildIsoForSelectedDate();
+    const patientEmailVal = sessionUser?.email || patient?.email || null;
+    const cardioPayload = buildCardioSessionPayload({
+      patientId: String(targetPatientId || 'demo-patient'),
+      patientEmail: patientEmailVal,
+      sessionDate: workoutDate,
+      blocks: cardioBlocks
+    });
+
+    const cardioWorkoutRows = cardioPayload.cardio_blocks_jsonb.map((b) =>
+      normalizeWorkoutLog(
+        formatCardioBlockToWorkoutRow(b, {
+          patientId: String(targetPatientId || 'demo-patient'),
+          patientEmail: patientEmailVal,
+          createdAtISO: selectedDateIso
+        })
+      )
+    );
+
+    const allItemsToSave = [...itemsToSave, ...cardioWorkoutRows];
+    if (allItemsToSave.length === 0) return;
 
     setSaving(true);
     try {
-      const dbPayloads = itemsToSave.map((item) => ({
+      // 1. Se ci sono blocchi cardio e la tabella `cardio_logs` è attiva su Supabase, inseriscili
+      if (isSupabaseConfigured && targetPatientId && cardioPayload.cardio_logs_rows.length > 0) {
+        try {
+          await supabase.from('cardio_logs').insert(cardioPayload.cardio_logs_rows);
+        } catch (_) {
+          // Fallback automatico su workout_logs
+        }
+      }
+
+      // 2. Inserimento unificato su `workout_logs` (forza + blocchi cardio)
+      const dbPayloads = allItemsToSave.map((item) => ({
         ...(item.id ? { id: item.id } : {}),
         patient_id: String(targetPatientId || 'demo-patient'),
         patient_email: item.patient_email,
@@ -724,10 +778,11 @@ export default function ClientPortal({
       }
 
       setPackageItems([]);
+      setCardioBlocks([]);
       resetExerciseFields();
       setSelectedHistoryDay(workoutDate);
       setSaveSuccess(
-        `Pacchetto di ${insertedRows.length} esercizi salvato per il ${formatDayLabel(workoutDate)}!`
+        `Sessione salvata (${insertedRows.length} voci registrate per il ${formatDayLabel(workoutDate)})!`
       );
       setTimeout(() => setSaveSuccess(''), 3500);
     } catch (err) {
@@ -748,6 +803,8 @@ export default function ClientPortal({
   };
 
   const liveLsiForm = isUnilateralMode ? calcLoadLsiPct(weightSxKg, weightDxKg) : null;
+  const totalDraftCount =
+    packageItems.length + (isCurrentFormLoadValid() ? 1 : 0) + validCardioBlocksCount;
 
   // SCHERMATA 1: LOGIN MAGIC LINK PAZIENTE
   if (!effectiveSimMode && !sessionUser) {
@@ -846,7 +903,7 @@ export default function ClientPortal({
     );
   }
 
-  // SCHERMATA 2: INTERFACCIA PAZIENTE / SMARTPHONE CON SUPPORTO MONOPODALICO GAMBA SX & DX
+  // SCHERMATA 2: INTERFACCIA PAZIENTE / SMARTPHONE CON SUPPORTO MONOPODALICO GAMBA SX & DX + CARDIO BUILDER
   return (
     <div className="min-h-screen bg-[#0F172A] text-white pb-24 font-sans">
       {/* BANNER MODALITÀ SIMULAZIONE TERAPISTA */}
@@ -982,7 +1039,7 @@ export default function ClientPortal({
                     {editingLogId ? 'Modifica Esercizio' : 'Pacchetto Esercizi del Giorno'}
                   </h3>
                   <p className="text-[11px] text-[#94A3B8]">
-                    Segna i carichi bilaterali o separati per gamba sinistra (SX) e destra (DX)
+                    Segna i carichi (SX/DX) e i blocchi cardio svolti nella seduta
                   </p>
                 </div>
                 <div className="p-2.5 rounded-2xl bg-[#0F172A] border border-[#334155]">
@@ -1017,7 +1074,7 @@ export default function ClientPortal({
               {/* 2. RICERCA / SELEZIONE ESERCIZIO CON AUTOCOMPLETAMENTO & RILEVAMENTO MONOPODALICO */}
               <div className="relative">
                 <label className="block text-xs font-extrabold text-[#94A3B8] mb-1.5">
-                  Esercizio da inserire nel Pacchetto
+                  Esercizio Forza / Riabilitazione (Opzionale se solo Cardio)
                 </label>
                 <div className="relative">
                   <Search className="w-4 h-4 text-[#06B6D4] absolute left-3.5 top-3.5" />
@@ -1298,6 +1355,18 @@ export default function ClientPortal({
                 </button>
               )}
 
+              {/* 5. COMPONENTE MODULARE MULTI-BLOCK CARDIO BUILDER */}
+              {!editingLogId && (
+                <div className="pt-2 border-t border-[#334155]">
+                  <CardioBuilder
+                    blocks={cardioBlocks}
+                    onChange={setCardioBlocks}
+                    title="Sessione Cardio Multi-Blocco"
+                    subtitle="Combina più blocchi cardio nella stessa seduta (es. 6×5m Navette + 5×50m Ripetute + 15 min Corsa Z2)"
+                  />
+                </div>
+              )}
+
               {/* RIEPILOGO PACCHETTO IN PREPARAZIONE */}
               {packageItems.length > 0 && !editingLogId && (
                 <div className="bg-[#0F172A] border border-[#06B6D4]/40 rounded-2xl p-3.5 space-y-2">
@@ -1351,10 +1420,7 @@ export default function ClientPortal({
               {/* PULSANTE PRINCIPALE: SALVA PACCHETTO ALLENAMENTO DEL GIORNO */}
               <button
                 type="submit"
-                disabled={
-                  saving ||
-                  (!editingLogId && packageItems.length === 0 && !isCurrentFormLoadValid())
-                }
+                disabled={saving || (!editingLogId && totalDraftCount === 0)}
                 className="w-full py-4 bg-gradient-to-r from-[#0D9488] to-[#06B6D4] hover:opacity-95 disabled:opacity-40 text-white font-black rounded-2xl text-sm flex items-center justify-center gap-2 shadow-xl transition-all cursor-pointer active:scale-[0.99]"
               >
                 <CheckCircle2 className="w-5 h-5" />
@@ -1363,9 +1429,7 @@ export default function ClientPortal({
                     ? 'Salvataggio in corso...'
                     : editingLogId
                     ? 'Salva Modifica Esercizio'
-                    : `Salva Pacchetto Allenamento (${
-                        packageItems.length + (isCurrentFormLoadValid() ? 1 : 0)
-                      } Esercizi)`}
+                    : `Salva Pacchetto Allenamento (${totalDraftCount} Voci)`}
                 </span>
               </button>
             </form>
@@ -1379,50 +1443,63 @@ export default function ClientPortal({
                     <span>Già registrati nel pacchetto del {formatDayLabel(workoutDate)}</span>
                   </span>
                   <span className="px-2 py-0.5 rounded-full bg-[#0F172A] text-[#06B6D4] border border-[#334155] font-mono text-[10px] font-bold">
-                    {existingLogsForSelectedDate.length} esercizi
+                    {existingLogsForSelectedDate.length} voci
                   </span>
                 </div>
                 <div className="space-y-1.5">
-                  {existingLogsForSelectedDate.map((log, i) => (
-                    <div
-                      key={log.id || i}
-                      className="bg-[#0F172A] border border-[#334155] rounded-xl px-3 py-2 flex items-center justify-between text-xs"
-                    >
-                      <button
-                        type="button"
-                        onClick={() => setSelectedExerciseForProgression(log.exercise_name)}
-                        className="flex items-center gap-2 text-left hover:text-[#06B6D4] cursor-pointer"
+                  {existingLogsForSelectedDate.map((log, i) => {
+                    const cardioInfo = parseCardioLogFromWorkoutRow(log);
+                    return (
+                      <div
+                        key={log.id || i}
+                        className="bg-[#0F172A] border border-[#334155] rounded-xl px-3 py-2 flex items-center justify-between text-xs"
                       >
-                        {getCategoryIcon(log.exercise_name, 'w-3.5 h-3.5')}
-                        <span className="font-bold text-white underline decoration-dotted underline-offset-2">
-                          {log.exercise_name}
-                        </span>
-                      </button>
-                      <div className="flex items-center gap-2">
-                        <span className="font-mono text-[#94A3B8]">{log.sets}×{log.reps}</span>
-                        {log.is_unilateral ? (
-                          <div className="flex items-center gap-1 font-mono text-[11px]">
-                            <span className="px-1.5 py-0.5 rounded bg-[#1E293B] border border-[#06B6D4]/40 text-white font-black">
-                              SX {log.weight_sx_kg}kg
-                            </span>
-                            <span className="px-1.5 py-0.5 rounded bg-[#1E293B] border border-[#0D9488]/40 text-white font-black">
-                              DX {log.weight_dx_kg}kg
-                            </span>
-                          </div>
-                        ) : (
-                          <span className="font-mono font-black text-white">{log.weight_kg} kg</span>
-                        )}
                         <button
                           type="button"
-                          onClick={() => handleStartEditLog(log)}
-                          className="p-1 text-[#06B6D4] hover:text-white"
-                          title="Modifica"
+                          onClick={() => setSelectedExerciseForProgression(log.exercise_name)}
+                          className="flex items-center gap-2 text-left hover:text-[#06B6D4] cursor-pointer"
                         >
-                          <Edit3 className="w-3.5 h-3.5" />
+                          {getCategoryIcon(log.exercise_name, 'w-3.5 h-3.5')}
+                          <span className="font-bold text-white underline decoration-dotted underline-offset-2">
+                            {cardioInfo ? cardioInfo.title : log.exercise_name}
+                          </span>
                         </button>
+                        <div className="flex items-center gap-2">
+                          {cardioInfo ? (
+                            <span className="px-2 py-0.5 rounded bg-teal-950/80 border border-teal-500/40 text-teal-300 font-mono text-[10px] font-bold">
+                              {cardioInfo.modality === 'continuo'
+                                ? `${cardioInfo.duration_min || 0}m • ${cardioInfo.distance_km || 0}km (${cardioInfo.pace})`
+                                : `${cardioInfo.work_per_set} • Rec ${cardioInfo.rest}`}
+                            </span>
+                          ) : (
+                            <>
+                              <span className="font-mono text-[#94A3B8]">{log.sets}×{log.reps}</span>
+                              {log.is_unilateral ? (
+                                <div className="flex items-center gap-1 font-mono text-[11px]">
+                                  <span className="px-1.5 py-0.5 rounded bg-[#1E293B] border border-[#06B6D4]/40 text-white font-black">
+                                    SX {log.weight_sx_kg}kg
+                                  </span>
+                                  <span className="px-1.5 py-0.5 rounded bg-[#1E293B] border border-[#0D9488]/40 text-white font-black">
+                                    DX {log.weight_dx_kg}kg
+                                  </span>
+                                </div>
+                              ) : (
+                                <span className="font-mono font-black text-white">{log.weight_kg} kg</span>
+                              )}
+                            </>
+                          )}
+                          <button
+                            type="button"
+                            onClick={() => handleStartEditLog(log)}
+                            className="p-1 text-[#06B6D4] hover:text-white"
+                            title="Modifica"
+                          >
+                            <Edit3 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
                       </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               </div>
             )}
@@ -1440,7 +1517,7 @@ export default function ClientPortal({
                   <span>Seleziona Giornata di Allenamento</span>
                 </h3>
                 <p className="text-[11px] text-[#94A3B8]">
-                  Tocca una data per vedere il pacchetto di esercizi svolti quel giorno
+                  Tocca una data per vedere il pacchetto di esercizi e blocchi cardio svolti quel giorno
                 </p>
               </div>
 
@@ -1466,7 +1543,7 @@ export default function ClientPortal({
                       >
                         <div className="text-xs font-black">{formatDayLabel(dayKey)}</div>
                         <div className="text-[10px] font-mono text-[#06B6D4] mt-0.5">
-                          📦 {dayLogs.length} {dayLogs.length === 1 ? 'esercizio' : 'esercizi'}
+                          📦 {dayLogs.length} {dayLogs.length === 1 ? 'voce' : 'voci'}
                         </div>
                       </button>
                     );
@@ -1527,9 +1604,74 @@ export default function ClientPortal({
 
                       <div className="space-y-2.5">
                         {dayLogs.map((log, idx) => {
+                          const cardioInfo = parseCardioLogFromWorkoutRow(log);
                           const lsiLoad = log.is_unilateral
                             ? calcLoadLsiPct(log.weight_sx_kg, log.weight_dx_kg)
                             : null;
+
+                          if (cardioInfo) {
+                            return (
+                              <div
+                                key={log.id || idx}
+                                className="bg-[#0F172A] border border-teal-500/40 rounded-2xl p-3.5 space-y-2"
+                              >
+                                <div className="flex items-start justify-between gap-2">
+                                  <div className="flex items-center gap-2.5">
+                                    <div className="p-2 rounded-xl bg-teal-500/15 border border-teal-500/40 text-teal-400">
+                                      {cardioInfo.modality === 'continuo' ? (
+                                        <Route className="w-4 h-4" />
+                                      ) : (
+                                        <Repeat className="w-4 h-4" />
+                                      )}
+                                    </div>
+                                    <div>
+                                      <span className="text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full bg-teal-500/20 text-teal-300 border border-teal-500/30">
+                                        {cardioInfo.modality === 'continuo'
+                                          ? 'Cardio Continuo'
+                                          : 'Ripetute / Navette'}
+                                      </span>
+                                      <h5 className="text-sm font-black text-white mt-1">
+                                        {cardioInfo.title}
+                                      </h5>
+                                    </div>
+                                  </div>
+
+                                  <div className="text-right shrink-0">
+                                    {cardioInfo.modality === 'continuo' ? (
+                                      <>
+                                        <div className="text-sm font-black text-teal-300 font-mono">
+                                          {cardioInfo.duration_min || 0} min • {cardioInfo.distance_km || 0} km
+                                        </div>
+                                        <div className="text-[10px] font-extrabold text-[#94A3B8] font-mono">
+                                          Passo: {cardioInfo.pace} • {cardioInfo.speed}
+                                        </div>
+                                      </>
+                                    ) : (
+                                      <>
+                                        <div className="text-sm font-black text-teal-300 font-mono">
+                                          {cardioInfo.work_per_set}
+                                        </div>
+                                        <div className="text-[10px] font-extrabold text-[#94A3B8] font-mono">
+                                          Recupero: {cardioInfo.rest}
+                                        </div>
+                                      </>
+                                    )}
+                                  </div>
+                                </div>
+
+                                <div className="flex items-center justify-end gap-1.5 pt-1.5 border-t border-[#334155]/60">
+                                  <button
+                                    type="button"
+                                    onClick={() => handleDeleteLog(log.id)}
+                                    className="p-1 rounded-lg bg-[#1E293B] hover:bg-rose-950 text-[#94A3B8] hover:text-rose-400 cursor-pointer"
+                                    title="Elimina blocco cardio"
+                                  >
+                                    <Trash2 className="w-3.5 h-3.5" />
+                                  </button>
+                                </div>
+                              </div>
+                            );
+                          }
 
                           return (
                             <div
