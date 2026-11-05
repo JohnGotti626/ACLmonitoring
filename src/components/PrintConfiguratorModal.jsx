@@ -2184,16 +2184,6 @@ export default function PrintConfiguratorModal({ isOpen, onClose, patient, patie
                     </p>
                   </div>
                 </div>
-
-                {/* TABBAR STILE DASHBOARD VALD */}
-                <div className="text-right flex items-center gap-1 bg-slate-50 print:bg-white p-0.5 rounded-lg border border-slate-200">
-                  <span className="px-1.5 py-0.5 bg-white font-extrabold text-slate-900 print:text-black rounded shadow-2xs print:shadow-none border border-slate-200 text-[8.5px]">
-                    Overview
-                  </span>
-                  <span className="px-1.5 py-0.5 font-bold text-slate-600 text-[8.5px]">Timeline</span>
-                  <span className="px-1.5 py-0.5 font-bold text-slate-600 text-[8.5px]">Testing</span>
-                  <span className="px-1.5 py-0.5 font-bold text-slate-600 text-[8.5px]">Most Recent</span>
-                </div>
               </div>
 
               {/* GRIGLIA UNIFICATA E ORDINABILE DI TUTTI I BLOCCHI DEL REPORT (Gap generoso gap-6 / print:gap-5, 4 righe esatte per foglio A4) */}
