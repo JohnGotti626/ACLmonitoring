@@ -4,17 +4,17 @@
 
 @layer base {
   :root {
-    --bg-primary: #EAEFF4;                   /* Grigio perla opaco e riposante */
-    --bg-card: #F7F6F2;                      /* Bianco opaco caldo (MAI #FFFFFF) */
-    --border-card: rgba(203, 213, 225, 0.8); /* border-slate-300/80 */
-    --accent-primary: #1D63FE;               /* azzurro vivace screenshot */
-    --text-primary: #0F172A;                 /* slate-900 */
-    --text-muted: #475569;                   /* slate-600 */
+    --bg-primary: #faf9f6;
+    --bg-card: #ffffff;
+    --border-card: rgba(231, 229, 228, 1);
+    --accent-primary: #2563eb;
+    --text-primary: #0f172a;
+    --text-muted: #475569;
   }
 
   body {
-    background-color: #EAEFF4;
-    color: #0F172A;
+    background-color: #faf9f6;
+    color: #0f172a;
     font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
     margin: 0;
     padding: 0;
@@ -22,8 +22,8 @@
   }
 
   input, select, textarea {
-    color: #0F172A;
-    background-color: #F7F6F2;
+    color: #0f172a;
+    background-color: #faf9f6;
   }
 }
 
@@ -31,74 +31,74 @@
   font-family: 'JetBrains Mono', 'Fira Code', monospace;
 }
 
-/* Card & Container base (Soft Pastel Medical: Opaco, zero riflessi) */
+/* Card & Container base */
 .glass-panel {
-  background-color: #F8FAFC !important;
-  border: 1px solid rgba(203, 213, 225, 0.6) !important;
+  background-color: #ffffff !important;
+  border: 1px solid #e7e5e4 !important;
   box-shadow: none !important;
-  color: #1E293B;
+  color: #0f172a;
 }
 
 .glass-card {
-  background-color: #F8FAFC !important;
-  border: 1px solid rgba(203, 213, 225, 0.6) !important;
+  background-color: #ffffff !important;
+  border: 1px solid #e7e5e4 !important;
   box-shadow: none !important;
   transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-  color: #1E293B;
+  color: #0f172a;
 }
 
 .glass-card:hover {
-  border-color: #94A3B8 !important;
-  background-color: #F1F5F9 !important;
+  border-color: #cbd5e1 !important;
+  background-color: #faf9f6 !important;
 }
 
-/* Stili Navigazione Schede (3 Tab Principali) */
+/* Stili Navigazione Schede */
 .tab-active {
-  background-color: #292524 !important; /* bg-stone-800 */
-  color: #F5F5F4 !important;            /* text-stone-100 */
-  border: 1px solid #1C1917 !important;
-  font-weight: 600;
+  background-color: #2563eb !important;
+  color: #ffffff !important;
+  border: 1px solid #1d4ed8 !important;
+  font-weight: 700;
   box-shadow: none !important;
 }
 
 .tab-inactive {
-  background-color: #F5F5F4 !important; /* bg-stone-100 */
-  color: #57534E !important;            /* text-stone-600 */
-  border: 1px solid rgba(214, 211, 209, 0.7) !important;
+  background-color: #f4f3ef !important;
+  color: #475569 !important;
+  border: 1px solid #e7e5e4 !important;
 }
 
 .tab-inactive:hover {
-  color: #292524 !important;
-  background-color: rgba(231, 229, 228, 0.6) !important;
-  border-color: #A8A29E !important;
+  color: #0f172a !important;
+  background-color: #ffffff !important;
+  border-color: #cbd5e1 !important;
 }
 
-/* Scrollbar opaca */
+/* Scrollbar */
 ::-webkit-scrollbar {
   width: 6px;
   height: 6px;
 }
 
 ::-webkit-scrollbar-track {
-  background: #E7E5E4;
+  background: #f4f3ef;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #A8A29E;
+  background: #a8a29e;
   border-radius: 3px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #57534E;
+  background: #57534e;
 }
 
 /* ========================================================================== */
-/* OTTIMIZZAZIONE REPORT & STAMPA PDF A4 (@media print)                       */
+/* OTTIMIZZAZIONE REPORT & STAMPA PDF A4 (@media print) — INK-FRIENDLY WHITE  */
 /* ========================================================================== */
 @media print {
   @page {
     size: A4 portrait;
-    margin: 12mm;
+    margin: 10mm;
   }
 
   * {
@@ -106,15 +106,18 @@
     print-color-adjust: exact !important;
   }
 
-  html, body {
-    background-color: #FAFAF9 !important;
-    color: #292524 !important;
+  html,
+  body {
+    background-color: #ffffff !important;
+    background: #ffffff !important;
+    color: #000000 !important;
     font-size: 9.5pt !important;
-    line-height: 1.35 !important;
+    line-height: 1.4 !important;
     margin: 0 !important;
     padding: 0 !important;
     width: 100% !important;
     overflow: visible !important;
+    box-shadow: none !important;
   }
 
   .no-print,
@@ -126,44 +129,77 @@
     display: none !important;
   }
 
-  body.printing-custom-report .app-shell-when-modal-print {
+  .print-only-inline {
+    display: inline-block !important;
+  }
+
+  .print-only-block {
+    display: block !important;
+  }
+
+  /* Quando il modal del report è aperto, nascondi il resto dell'app e rimuovi ogni cornice scura */
+  body.print-modal-open #root,
+  body.printing-custom-report .app-shell-when-modal-print,
+  .app-shell-when-modal-print {
     display: none !important;
   }
 
-  body.printing-custom-report .custom-print-modal-overlay {
+  .print-modal-backdrop,
+  .print-modal-container,
+  .print-modal-body,
+  .print-preview-pane,
+  .custom-print-modal-overlay,
+  .custom-print-modal-box {
     position: static !important;
     display: block !important;
-    background: #FAFAF9 !important;
+    background: #ffffff !important;
+    background-color: #ffffff !important;
+    color: #000000 !important;
     padding: 0 !important;
     margin: 0 !important;
-    overflow: visible !important;
-  }
-
-  body.printing-custom-report .custom-print-modal-box {
+    border: 0 !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
     max-width: 100% !important;
     max-height: none !important;
     width: 100% !important;
-    border: none !important;
-    box-shadow: none !important;
-    background: #FAFAF9 !important;
     overflow: visible !important;
   }
 
-  #root, main {
+  #report-a4-container,
+  .print-report-container,
+  .printable-report {
     width: 100% !important;
     max-width: 100% !important;
     margin: 0 !important;
     padding: 0 !important;
-    background: #FAFAF9 !important;
+    border: 0 !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+    background: #ffffff !important;
+    background-color: #ffffff !important;
+    color: #000000 !important;
+  }
+
+  #root,
+  main {
+    width: 100% !important;
+    max-width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    background: #ffffff !important;
+    box-shadow: none !important;
     display: block !important;
   }
 
   .glass-panel,
   .glass-card,
-  .break-inside-avoid {
-    background: #FAFAF9 !important;
-    color: #292524 !important;
-    border: 1px solid #D6D3D1 !important;
+  .break-inside-avoid,
+  .print-report-card,
+  .print-report-section {
+    background: #ffffff !important;
+    background-color: #ffffff !important;
+    color: #000000 !important;
     box-shadow: none !important;
     break-inside: avoid !important;
     page-break-inside: avoid !important;

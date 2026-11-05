@@ -1014,10 +1014,10 @@ function ValdMetricCard({
       onDragOver={(e) => onDragOver && onDragOver(e, index)}
       onDrop={() => onDrop && onDrop(index)}
       style={{ breakInside: 'avoid', pageBreakInside: 'avoid' }}
-      className={`print-report-card report-card-vald ${spanClass} bg-white border border-slate-300 rounded-xl p-3 shadow-sm space-y-2 flex flex-col justify-between break-inside-avoid text-slate-900 font-sans transition-all`}
+      className={`print-report-card report-card-vald ${spanClass} bg-white print:bg-white print:text-black print:shadow-none border border-slate-200 print:border-slate-300 rounded-2xl p-5 sm:p-6 print:p-5 shadow-xs space-y-3.5 flex flex-col justify-between break-inside-avoid text-slate-900 font-sans transition-all`}
     >
       {/* HEADER CARD */}
-      <div className="flex items-start justify-between border-b border-slate-200 pb-1.5 gap-1">
+      <div className="flex items-start justify-between border-b border-slate-200 pb-2.5 gap-2">
         <div className="flex items-center gap-2 min-w-0 flex-1">
           <div
             className="p-1 rounded-md bg-slate-100 border border-slate-300 text-slate-700 shrink-0 cursor-grab no-print"
@@ -1025,8 +1025,8 @@ function ValdMetricCard({
           >
             <GripVertical className="w-3.5 h-3.5" />
           </div>
-          <div className="hidden print-only-inline p-1 rounded-md bg-slate-100 border border-slate-300 text-slate-700 shrink-0">
-            <IconComp className="w-3.5 h-3.5" />
+          <div className="p-1.5 rounded-lg bg-slate-50 print:bg-white border border-slate-200 text-slate-700 print:text-black shrink-0">
+            <IconComp className="w-4 h-4 print:w-3.5 print:h-3.5" />
           </div>
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-1.5 flex-wrap">
@@ -1037,12 +1037,12 @@ function ValdMetricCard({
                 className="text-xs font-black text-slate-900 leading-tight bg-transparent border-b border-transparent hover:border-slate-300 focus:border-cyan-600 focus:outline-none w-full max-w-[210px] no-print"
                 title="Clicca per modificare il titolo della scheda"
               />
-              <h4 className="hidden print-only-inline text-xs font-black text-slate-900 leading-tight">
+              <h4 className="hidden print-only-inline text-xs font-black text-slate-900 print:text-black leading-tight">
                 {card.title}
               </h4>
               {isHistoricalFallback && sourceDate && (
                 <span
-                  className="text-[7px] font-mono font-bold px-1 py-0.2 bg-amber-50 text-amber-800 border border-amber-300 rounded"
+                  className="text-[7px] font-mono font-bold px-1.5 py-0.5 bg-amber-50 print:bg-white text-amber-800 print:text-black border border-amber-300 rounded"
                   title="Ultimo dato registrato cronologicamente"
                 >
                   Dato del {sourceDate}
@@ -1051,11 +1051,11 @@ function ValdMetricCard({
             </div>
 
             {/* PARAMETER SELECTION DROPDOWN */}
-            <div className="flex items-center gap-1 mt-0.5">
+            <div className="flex items-center gap-1 mt-1">
               <select
                 value={card.selectedParam}
                 onChange={(e) => onChangeParam(card.id, e.target.value)}
-                className="bg-slate-100 hover:bg-slate-200 text-slate-800 text-[8.5px] font-bold border border-slate-300 rounded px-1 py-0.5 focus:outline-none focus:border-cyan-500 cursor-pointer no-print"
+                className="bg-slate-100 hover:bg-slate-200 text-slate-800 text-[8.5px] font-bold border border-slate-300 rounded px-1.5 py-0.5 focus:outline-none focus:border-cyan-500 cursor-pointer no-print"
               >
                 {allParams.map((p) => (
                   <option key={p.id} value={p.id}>
@@ -1063,7 +1063,7 @@ function ValdMetricCard({
                   </option>
                 ))}
               </select>
-              <span className="hidden print-only-inline text-[8.5px] font-bold text-slate-700 bg-slate-100 px-1.5 py-0.5 rounded border border-slate-300">
+              <span className="hidden print-only-inline text-[8.5px] font-bold text-slate-700 print:text-black bg-slate-50 print:bg-white px-1.5 py-0.5 rounded border border-slate-300">
                 {allParams.find((p) => p.id === card.selectedParam)?.label || card.selectedParam}
               </span>
             </div>
@@ -1121,27 +1121,27 @@ function ValdMetricCard({
       </div>
 
       {/* BODY CARD: VALORI REALI SUPABASE + UNITA' DI MISURA A SINISTRA vs GRAFICO A DESTRA */}
-      <div className="grid grid-cols-12 gap-2 items-center">
-        <div className="col-span-5 space-y-1">
+      <div className="grid grid-cols-12 gap-4 items-center py-1">
+        <div className="col-span-5 space-y-2">
           {isDual ? (
-            <div className="space-y-1">
+            <div className="space-y-2">
               <div>
-                <span className="text-blue-700 text-[8px] font-extrabold block uppercase tracking-wider">
+                <span className="text-blue-700 text-[8.5px] font-extrabold block uppercase tracking-wider">
                   Left (SX)
                 </span>
-                <div className="flex items-baseline gap-1 flex-wrap">
-                  <strong className="text-sm font-black text-slate-900">
+                <div className="flex items-baseline gap-1.5 flex-wrap">
+                  <strong className="text-base font-black text-slate-900 print:text-black">
                     {leftFormatted}{' '}
                     {leftFormatted !== 'N/D' && (
-                      <span className="text-[9px] font-bold text-slate-600">{unit}</span>
+                      <span className="text-[9.5px] font-bold text-slate-600">{unit}</span>
                     )}
                   </strong>
                   {leftChange && (
                     <span
                       className={`text-[7.5px] font-extrabold px-1 rounded border ${
                         leftChange.startsWith('↓')
-                          ? 'text-amber-700 bg-amber-50 border-amber-200'
-                          : 'text-emerald-700 bg-emerald-50 border-emerald-200'
+                          ? 'text-amber-700 bg-amber-50 print:bg-white border-amber-200'
+                          : 'text-emerald-700 bg-emerald-50 print:bg-white border-emerald-200'
                       }`}
                     >
                       {leftChange}
@@ -1150,22 +1150,22 @@ function ValdMetricCard({
                 </div>
               </div>
               <div>
-                <span className="text-red-700 text-[8px] font-extrabold block uppercase tracking-wider">
+                <span className="text-red-700 text-[8.5px] font-extrabold block uppercase tracking-wider">
                   Right (DX)
                 </span>
-                <div className="flex items-baseline gap-1 flex-wrap">
-                  <strong className="text-sm font-black text-slate-900">
+                <div className="flex items-baseline gap-1.5 flex-wrap">
+                  <strong className="text-base font-black text-slate-900 print:text-black">
                     {rightFormatted}{' '}
                     {rightFormatted !== 'N/D' && (
-                      <span className="text-[9px] font-bold text-slate-600">{unit}</span>
+                      <span className="text-[9.5px] font-bold text-slate-600">{unit}</span>
                     )}
                   </strong>
                   {rightChange && (
                     <span
                       className={`text-[7.5px] font-extrabold px-1 rounded border ${
                         rightChange.startsWith('↓')
-                          ? 'text-amber-700 bg-amber-50 border-amber-200'
-                          : 'text-emerald-700 bg-emerald-50 border-emerald-200'
+                          ? 'text-amber-700 bg-amber-50 print:bg-white border-amber-200'
+                          : 'text-emerald-700 bg-emerald-50 print:bg-white border-emerald-200'
                       }`}
                     >
                       {rightChange}
@@ -1176,7 +1176,7 @@ function ValdMetricCard({
             </div>
           ) : (
             <div>
-              <div className="text-lg font-black text-slate-900 tracking-tight">
+              <div className="text-xl font-black text-slate-900 print:text-black tracking-tight">
                 {leftFormatted}{' '}
                 {leftFormatted !== 'N/D' && (
                   <span className="text-xs font-bold text-slate-600">{unit}</span>
@@ -1184,10 +1184,10 @@ function ValdMetricCard({
               </div>
               {leftChange && (
                 <span
-                  className={`inline-block text-[8px] font-extrabold px-1 rounded border mt-0.5 ${
+                  className={`inline-block text-[8px] font-extrabold px-1.5 py-0.5 rounded border mt-1 ${
                     leftChange.startsWith('↓')
-                      ? 'text-amber-700 bg-amber-50 border-amber-200'
-                      : 'text-emerald-700 bg-emerald-50 border-emerald-200'
+                      ? 'text-amber-700 bg-amber-50 print:bg-white border-amber-200'
+                      : 'text-emerald-700 bg-emerald-50 print:bg-white border-emerald-200'
                   }`}
                 >
                   {leftChange}
@@ -1198,7 +1198,7 @@ function ValdMetricCard({
 
           {/* BADGE ASIMMETRIA CALCOLATA DAI DATI REALI */}
           {asymmetry && (
-            <div className="text-[8px] font-extrabold text-blue-800 mt-1">
+            <div className="text-[8.5px] font-extrabold text-blue-800 mt-1.5">
               Asym. <span className="font-black">{asymmetry}</span>
             </div>
           )}
@@ -1212,10 +1212,10 @@ function ValdMetricCard({
 
       {/* FOOTER CARD: REFERENCE SCIENTIFICA & RATIONALE MODIFICABILE */}
       {showCitations && (
-        <div className="pt-1 border-t border-slate-200">
-          <div className="w-full bg-slate-50 border border-slate-200 rounded p-1.5 text-[7.5px] leading-tight text-slate-700">
+        <div className="pt-2 border-t border-slate-200">
+          <div className="w-full bg-slate-50 print:bg-white border border-slate-200 rounded-lg p-2.5 text-[7.5px] leading-relaxed text-slate-700 print:text-black">
             <div className="flex items-center justify-between">
-              <span className="font-extrabold text-slate-900 text-[6.5px] uppercase tracking-wider">
+              <span className="font-extrabold text-slate-900 print:text-black text-[7px] uppercase tracking-wider">
                 Scientific Reference: {citation.authors} ({citation.journal})
               </span>
               <button
@@ -1230,7 +1230,7 @@ function ValdMetricCard({
             </div>
 
             {isEditingRationale ? (
-              <div className="mt-1 space-y-1 no-print">
+              <div className="mt-1.5 space-y-1 no-print">
                 <textarea
                   rows={2}
                   value={citation.rationale || ''}
@@ -1238,14 +1238,14 @@ function ValdMetricCard({
                     onUpdateCitation &&
                     onUpdateCitation(card.citationKey, { rationale: e.target.value })
                   }
-                  className="w-full bg-white border border-cyan-500 rounded p-1 text-[8px] text-slate-900 focus:outline-none"
+                  className="w-full bg-white border border-cyan-500 rounded p-1.5 text-[8px] text-slate-900 focus:outline-none"
                   placeholder="Scrivi il Rationale clinico personalizzato..."
                 />
               </div>
             ) : null}
 
-            <div className="text-[7px] text-slate-700 italic mt-0.5 leading-snug">
-              <strong className="not-italic text-slate-900">Rationale:</strong> {citation.rationale}
+            <div className="text-[7.5px] text-slate-700 print:text-black italic mt-1 leading-snug">
+              <strong className="not-italic text-slate-900 print:text-black">Rationale:</strong> {citation.rationale}
             </div>
           </div>
         </div>
@@ -1771,15 +1771,15 @@ export default function PrintConfiguratorModal({ isOpen, onClose, patient, patie
   const hasBiblioBlock = reportBlocks.some((b) => b.type === 'bibliography');
 
   const modalContent = (
-    <div className="print-modal-backdrop fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-slate-950/85 backdrop-blur-md overflow-y-auto font-sans">
+    <div className="print-modal-backdrop fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-slate-950/85 backdrop-blur-md overflow-y-auto font-sans print:static print:block print:bg-white print:text-black print:shadow-none print:p-0 print:m-0 print:border-0 print:backdrop-blur-none print:overflow-visible">
       {/* MODAL WRAPPER CONTAINER */}
-      <div className="w-full max-w-7xl bg-slate-900 border border-slate-700/80 rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[94vh] print-modal-container">
+      <div className="w-full max-w-7xl bg-slate-900 border border-slate-700/80 rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[94vh] print-modal-container print:bg-white print:text-black print:shadow-none print:border-0 print:rounded-none print:max-w-none print:max-h-none print:p-0 print:m-0 print:overflow-visible print:block">
         
         {/* TOP MODAL HEADER (no-print) */}
-        <div className="flex items-center justify-between px-5 py-4 bg-slate-950 border-b border-slate-800 no-print">
+        <div className="flex items-center justify-between px-5 py-4 bg-slate-950 border-b border-slate-800 no-print print:hidden">
           <div className="flex items-center gap-2.5">
             <div className="p-2 rounded-xl bg-cyan-500/10 border border-cyan-500/20 text-cyan-400">
-              <Sliders className="w-5 h-5" />
+              <Sliders className="w-4 h-4" />
             </div>
             <div>
               <h3 className="text-base font-extrabold text-white flex items-center gap-2">
@@ -1817,16 +1817,16 @@ export default function PrintConfiguratorModal({ isOpen, onClose, patient, patie
               className="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white transition-colors cursor-pointer"
               title="Chiudi"
             >
-              <X className="w-5 h-5" />
+              <X className="w-4 h-4" />
             </button>
           </div>
         </div>
 
         {/* MODAL BODY: CONTROLLI A SINISTRA vs ANTEPRIMA REPORT A4 A DESTRA */}
-        <div className="print-modal-body flex-1 grid grid-cols-1 lg:grid-cols-12 overflow-hidden">
+        <div className="print-modal-body flex-1 grid grid-cols-1 lg:grid-cols-12 overflow-hidden print:block print:bg-white print:text-black print:shadow-none print:p-0 print:m-0 print:overflow-visible">
           
           {/* PANNELLO DI SINISTRA: AGGIUNTA E ORDINAMENTO LIBERO DI TUTTI GLI ELEMENTI (no-print) */}
-          <div className="lg:col-span-4 p-5 bg-slate-900 border-r border-slate-800 overflow-y-auto space-y-4 no-print text-xs">
+          <div className="lg:col-span-4 p-5 bg-slate-900 border-r border-slate-800 overflow-y-auto space-y-4 no-print print:hidden text-xs">
             
             {/* 1. SELEZIONE PAZIENTE & SESSIONE SUPABASE */}
             <div className="space-y-3 bg-slate-950 p-3.5 rounded-xl border border-slate-800">
@@ -2153,7 +2153,7 @@ export default function PrintConfiguratorModal({ isOpen, onClose, patient, patie
           </div>
 
           {/* PANNELLO DI DESTRA: ANTEPRIMA REPORT A4 VALD / FORCEDECKS DASHBOARD */}
-          <div className="print-preview-pane lg:col-span-8 bg-slate-950 p-4 sm:p-6 overflow-y-auto flex justify-center items-start">
+          <div className="print-preview-pane lg:col-span-8 bg-[#faf9f6] p-4 sm:p-8 overflow-y-auto flex justify-center items-start print:bg-white print:text-black print:shadow-none print:p-0 print:m-0 print:border-0 print:block print:overflow-visible">
             
             {/* CANVAS A4 (Target unico isolato di stampa per @media print) */}
             <div
@@ -2164,31 +2164,31 @@ export default function PrintConfiguratorModal({ isOpen, onClose, patient, patie
                 WebkitPrintColorAdjust: 'exact',
                 printColorAdjust: 'exact'
               }}
-              className="print-report-container printable-report w-full max-w-[780px] bg-white text-slate-900 p-6 sm:p-8 rounded-xl shadow-2xl border border-slate-300 print:shadow-none print:border-0 print:p-0 print:w-full text-[10px] leading-snug space-y-3.5 font-sans"
+              className="print-report-container printable-report w-full max-w-[820px] bg-white text-slate-900 p-6 sm:p-8 rounded-2xl shadow-lg border border-stone-200 print:bg-white print:text-black print:shadow-none print:border-0 print:rounded-none print:p-0 print:m-0 print:w-full print:max-w-none text-[10px] leading-relaxed space-y-6 print:space-y-6 font-sans"
             >
               {/* HEADER REPORT INTEGRATO CON SCHEDA PAZIENTE (Senza riga Sessione di Riferimento) */}
               <div
                 style={{ breakInside: 'avoid', pageBreakInside: 'avoid' }}
-                className="print-report-section break-inside-avoid flex items-center justify-between pb-3 border-b-2 border-slate-300"
+                className="print-report-section break-inside-avoid flex items-center justify-between pb-4 border-b-2 border-slate-200 print:bg-white print:text-black print:shadow-none"
               >
                 <div className="flex items-center gap-3">
-                  <LogoN className="w-12 h-12 rounded-xl shrink-0 border border-slate-300 shadow-sm" />
+                  <LogoN className="w-10 h-10 print:w-9 print:h-9 rounded-xl shrink-0 border border-slate-200 shadow-2xs print:shadow-none" />
 
                   <div>
-                    <h1 className="text-base font-black text-slate-900 tracking-tight leading-none uppercase">
+                    <h1 className="text-base font-black text-slate-900 print:text-black tracking-tight leading-none uppercase">
                       {formattedPatientName}
                     </h1>
-                    <p className="text-[9.5px] font-bold text-slate-600 tracking-wide mt-1">
+                    <p className="text-[9.5px] font-bold text-slate-600 print:text-black tracking-wide mt-1">
                       Chirurgia: <strong>{dataIntervento}</strong> • Ginocchio Operato:{' '}
-                      <strong className="text-emerald-800 font-extrabold">{operatedKnee}</strong> • Sport:{' '}
+                      <strong className="text-emerald-800 print:text-black font-extrabold">{operatedKnee}</strong> • Sport:{' '}
                       <strong>{activePatientObj?.sport || 'N/D'}</strong>
                     </p>
                   </div>
                 </div>
 
                 {/* TABBAR STILE DASHBOARD VALD */}
-                <div className="text-right flex items-center gap-1.5 bg-slate-100 p-1 rounded-lg border border-slate-200">
-                  <span className="px-2 py-1 bg-white font-extrabold text-slate-900 rounded shadow-sm text-[9px]">
+                <div className="text-right flex items-center gap-1.5 bg-slate-50 print:bg-white p-1 rounded-lg border border-slate-200">
+                  <span className="px-2 py-1 bg-white font-extrabold text-slate-900 print:text-black rounded shadow-2xs print:shadow-none border border-slate-200 text-[9px]">
                     Overview
                   </span>
                   <span className="px-2 py-1 font-bold text-slate-600 text-[9px]">Timeline</span>
@@ -2197,15 +2197,15 @@ export default function PrintConfiguratorModal({ isOpen, onClose, patient, patie
                 </div>
               </div>
 
-              {/* GRIGLIA UNIFICATA E ORDINABILE DI TUTTI I BLOCCHI DEL REPORT */}
-              <div className="print-cards-grid grid grid-cols-1 sm:grid-cols-2 print:grid-cols-2 gap-3 pt-1">
+              {/* GRIGLIA UNIFICATA E ORDINABILE DI TUTTI I BLOCCHI DEL REPORT (Spazio aumentato gap-6) */}
+              <div className="print-cards-grid grid grid-cols-1 sm:grid-cols-2 print:grid-cols-2 gap-6 print:gap-6 pt-1">
                 {reportBlocks.map((block, index) => {
                   const spanClass =
                     block.colSpan === 2
                       ? 'sm:col-span-2 print:col-span-2 print-col-span-2'
                       : 'col-span-1 print-col-span-1';
 
-                  // 1. BLOCCO BANNER IKDC (ORDINABILE)
+                  // 1. BLOCCO BANNER IKDC (ORDINABILE & INK-FRIENDLY IN STAMPA)
                   if (block.type === 'ikdc') {
                     if (!ikdcScore) return null;
                     return (
@@ -2216,16 +2216,16 @@ export default function PrintConfiguratorModal({ isOpen, onClose, patient, patie
                         onDragOver={handleDragOver}
                         onDrop={() => handleDrop(index)}
                         style={{ breakInside: 'avoid', pageBreakInside: 'avoid' }}
-                        className={`print-report-section break-inside-avoid ${spanClass} p-2.5 bg-gradient-to-r from-emerald-600 to-teal-700 text-white rounded-xl shadow border border-emerald-500 flex items-center justify-between px-4`}
+                        className={`print-report-section break-inside-avoid ${spanClass} p-5 print:p-4 bg-emerald-50/70 print:bg-white text-slate-900 print:text-black rounded-2xl shadow-xs print:shadow-none border border-emerald-300 print:border-slate-300 flex items-center justify-between px-6`}
                       >
                         <div className="flex items-center gap-2">
-                          <GripVertical className="w-3.5 h-3.5 text-white/70 cursor-grab no-print" />
-                          <span className="text-[8.5px] font-extrabold uppercase tracking-widest opacity-95">
+                          <GripVertical className="w-3.5 h-3.5 text-slate-400 cursor-grab no-print" />
+                          <span className="text-[9px] font-black uppercase tracking-widest text-emerald-950 print:text-black">
                             {block.title || 'PUNTEGGIO QUESTIONARIO SOGGETTIVO IKDC'}
                           </span>
                         </div>
                         <div className="flex items-center gap-2">
-                          <strong className="text-xs font-black font-mono bg-white/20 px-3 py-1 rounded-lg">
+                          <strong className="text-xs font-black font-mono bg-white print:bg-white text-emerald-900 print:text-black border border-emerald-300 print:border-slate-300 px-3.5 py-1.5 rounded-xl">
                             IKDC SCORE: {ikdcScore}/100
                           </strong>
                           <div className="flex items-center gap-0.5 no-print">
@@ -2233,7 +2233,7 @@ export default function PrintConfiguratorModal({ isOpen, onClose, patient, patie
                               type="button"
                               onClick={() => handleMoveBlock(index, -1)}
                               disabled={index === 0}
-                              className="p-1 rounded hover:bg-white/20 text-white disabled:opacity-30 cursor-pointer"
+                              className="p-1 rounded hover:bg-emerald-100 text-slate-700 disabled:opacity-30 cursor-pointer"
                               title="Sposta Su"
                             >
                               <ArrowUp className="w-3 h-3" />
@@ -2242,7 +2242,7 @@ export default function PrintConfiguratorModal({ isOpen, onClose, patient, patie
                               type="button"
                               onClick={() => handleMoveBlock(index, 1)}
                               disabled={index === reportBlocks.length - 1}
-                              className="p-1 rounded hover:bg-white/20 text-white disabled:opacity-30 cursor-pointer"
+                              className="p-1 rounded hover:bg-emerald-100 text-slate-700 disabled:opacity-30 cursor-pointer"
                               title="Sposta Giù"
                             >
                               <ArrowDown className="w-3 h-3" />
@@ -2250,7 +2250,7 @@ export default function PrintConfiguratorModal({ isOpen, onClose, patient, patie
                             <button
                               type="button"
                               onClick={() => handleAddNoteBlock(index + 1, 2)}
-                              className="px-1.5 py-0.5 rounded bg-white/20 hover:bg-white/30 text-white font-bold text-[7.5px] cursor-pointer"
+                              className="px-1.5 py-0.5 rounded bg-white hover:bg-emerald-100 text-emerald-900 border border-emerald-300 font-bold text-[7.5px] cursor-pointer"
                               title="Inserisci una nota subito sotto"
                             >
                               + Nota
@@ -2258,7 +2258,7 @@ export default function PrintConfiguratorModal({ isOpen, onClose, patient, patie
                             <button
                               type="button"
                               onClick={() => handleRemoveBlock(block.id)}
-                              className="p-1 rounded hover:bg-rose-500/40 text-white cursor-pointer"
+                              className="p-1 rounded hover:bg-rose-100 text-slate-500 hover:text-rose-700 cursor-pointer"
                               title="Rimuovi"
                             >
                               <Trash2 className="w-3 h-3" />
@@ -2307,13 +2307,13 @@ export default function PrintConfiguratorModal({ isOpen, onClose, patient, patie
                         onDragOver={handleDragOver}
                         onDrop={() => handleDrop(index)}
                         style={{ breakInside: 'avoid', pageBreakInside: 'avoid' }}
-                        className={`print-report-section break-inside-avoid ${spanClass} p-3.5 ${
+                        className={`print-report-section break-inside-avoid ${spanClass} p-5 sm:p-6 print:p-5 print:bg-white print:text-black print:shadow-none ${
                           isFinal
-                            ? 'bg-slate-50 border-2 border-slate-300'
-                            : 'bg-cyan-50/40 border border-slate-300'
-                        } rounded-xl space-y-1.5`}
+                            ? 'bg-slate-50/70 border border-slate-300'
+                            : 'bg-white border border-slate-200 print:border-slate-300'
+                        } rounded-2xl space-y-2.5`}
                       >
-                        <div className="flex items-center justify-between border-b border-slate-200 pb-1 gap-2">
+                        <div className="flex items-center justify-between border-b border-slate-200 pb-2 gap-2">
                           <div className="flex items-center gap-1.5 min-w-0 flex-1">
                             <GripVertical className="w-3.5 h-3.5 text-slate-400 cursor-grab no-print shrink-0" />
                             <MessageSquare
@@ -2334,7 +2334,7 @@ export default function PrintConfiguratorModal({ isOpen, onClose, patient, patie
                               }
                               className="font-extrabold text-slate-900 uppercase tracking-wider text-[9px] bg-transparent border-b border-transparent hover:border-slate-300 focus:border-cyan-600 focus:outline-none w-full no-print"
                             />
-                            <span className="hidden print-only-inline font-extrabold text-slate-900 uppercase tracking-wider text-[9px]">
+                            <span className="hidden print-only-inline font-extrabold text-slate-900 print:text-black uppercase tracking-wider text-[9px]">
                               {block.title ||
                                 (isFinal
                                   ? 'Commento Finale & Conclusioni del Fisioterapista'
@@ -2415,7 +2415,7 @@ export default function PrintConfiguratorModal({ isOpen, onClose, patient, patie
                         />
 
                         {/* Testo formattato per la stampa A4 */}
-                        <div className="hidden print-only-block text-slate-800 text-[9.5px] font-medium leading-relaxed whitespace-pre-wrap min-h-[24px]">
+                        <div className="hidden print-only-block text-slate-800 print:text-black text-[9.5px] font-medium leading-relaxed whitespace-pre-wrap min-h-[24px]">
                           {block.content && block.content.trim().length > 0
                             ? block.content
                             : '—'}
@@ -2434,12 +2434,12 @@ export default function PrintConfiguratorModal({ isOpen, onClose, patient, patie
                         onDragOver={handleDragOver}
                         onDrop={() => handleDrop(index)}
                         style={{ breakInside: 'avoid', pageBreakInside: 'avoid' }}
-                        className={`print-report-section break-inside-avoid ${spanClass} pt-3 border-t border-slate-300 space-y-1 font-sans text-[8px] text-slate-600 leading-tight mt-1`}
+                        className={`print-report-section break-inside-avoid ${spanClass} pt-4 border-t border-slate-300 space-y-2 font-sans text-[8px] text-slate-600 print:text-black print:bg-white leading-relaxed mt-2`}
                       >
-                        <div className="font-extrabold text-slate-800 uppercase tracking-wider text-[8.5px] flex items-center justify-between">
-                          <span className="flex items-center gap-1">
+                        <div className="font-extrabold text-slate-800 print:text-black uppercase tracking-wider text-[8.5px] flex items-center justify-between">
+                          <span className="flex items-center gap-1.5">
                             <GripVertical className="w-3 h-3 text-slate-400 cursor-grab no-print" />
-                            <BookOpen className="w-2.5 h-2.5 text-slate-700" />
+                            <BookOpen className="w-3 h-3 text-slate-700" />
                             <span>
                               {block.title ||
                                 'NOTE & RIFERIMENTI BIBLIOGRAFICI SCIENTIFICI (EVIDENCE-BASED ACL RTS)'}
@@ -2481,7 +2481,7 @@ export default function PrintConfiguratorModal({ isOpen, onClose, patient, patie
                             </button>
                           </div>
                         </div>
-                        <div className="grid grid-cols-2 gap-x-3 gap-y-0.5">
+                        <div className="grid grid-cols-2 gap-x-4 gap-y-1">
                           {biblioSources.slice(0, 6).map((src, i) => (
                             <div key={src.id || i} className="truncate">
                               <sup>{i + 1}</sup> <strong>{src.autori} ({src.anno}):</strong>{' '}
