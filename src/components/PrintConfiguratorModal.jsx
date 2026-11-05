@@ -745,23 +745,23 @@ function resolveCardMetricData(paramId, selectedTest, allSortedTests, bodyMassKg
 }
 
 // ============================================================================
-// 4. MICRO-GRAFICO SVG BASATO ESCLUSIVAMENTE SUI DATI REALI SUPABASE
+// 4. MICRO-GRAFICO SVG BASATO ESCLUSIVAMENTE SUI DATI REALI SUPABASE (COMPACT 64px)
 // ============================================================================
 function CardTrendChartSvg({ metricData }) {
   const width = 230;
-  const height = 90;
-  const paddingLeft = 34;
-  const paddingRight = 50;
-  const paddingTop = 12;
-  const paddingBottom = 16;
+  const height = 64;
+  const paddingLeft = 30;
+  const paddingRight = 48;
+  const paddingTop = 8;
+  const paddingBottom = 10;
 
   const { hasData, isDual, series = [], yMin = 0, yMax = 100, unit = '', decimals = 1 } = metricData || {};
 
   if (!hasData || series.length === 0) {
     return (
-      <div className="relative w-full h-[90px] bg-slate-50 border border-slate-200 rounded-lg p-2 flex flex-col items-center justify-center text-center font-sans">
-        <span className="text-[9px] font-bold text-slate-400">Nessun dato registrato su Supabase</span>
-        <span className="text-[7.5px] text-slate-400 mt-0.5">Inserisci una valutazione nella Batteria Test</span>
+      <div className="relative w-full h-[64px] bg-slate-50 print:bg-white border border-slate-200 rounded-lg p-1.5 flex flex-col items-center justify-center text-center font-sans">
+        <span className="text-[8.5px] font-bold text-slate-400 leading-tight">Nessun dato registrato</span>
+        <span className="text-[7px] text-slate-400 leading-tight">Batteria Test</span>
       </div>
     );
   }
@@ -786,8 +786,7 @@ function CardTrendChartSvg({ metricData }) {
 
   const yTicks = [
     minScale,
-    minScale + range * 0.33,
-    minScale + range * 0.66,
+    minScale + range * 0.5,
     maxScale
   ].map((v) => (decimals === 0 ? Math.round(v) : Number(v.toFixed(decimals === 2 ? 1 : decimals))));
 
@@ -824,17 +823,17 @@ function CardTrendChartSvg({ metricData }) {
   const lastRight = rightPoints.length > 0 ? rightPoints[rightPoints.length - 1].val : null;
 
   return (
-    <div className="relative w-full h-[90px] bg-[#f8fafc] border border-slate-200 rounded-lg p-1 font-sans">
-      <svg width="100%" height="90" viewBox={`0 0 ${width} ${height}`} className="overflow-visible">
+    <div className="relative w-full h-[64px] bg-[#f8fafc] print:bg-white border border-slate-200 rounded-lg p-0.5 font-sans">
+      <svg width="100%" height="62" viewBox={`0 0 ${width} ${height}`} className="overflow-visible">
         {/* Banda Normativa Target */}
         <rect
           x={paddingLeft}
           y={normY1}
           width={width - paddingLeft - paddingRight}
-          height={Math.max(14, normY2 - normY1)}
+          height={Math.max(10, normY2 - normY1)}
           fill="#e2e8f0"
           opacity="0.65"
-          rx="3"
+          rx="2"
         />
 
         {/* Griglia Asse Y */}
@@ -848,14 +847,14 @@ function CardTrendChartSvg({ metricData }) {
                 x2={width - paddingRight}
                 y2={yPos}
                 stroke="#cbd5e1"
-                strokeWidth="0.75"
+                strokeWidth="0.7"
                 strokeDasharray="2 2"
               />
               <text
                 x={paddingLeft - 3}
-                y={yPos + 2.5}
+                y={yPos + 2}
                 textAnchor="end"
-                fontSize="6.5"
+                fontSize="6"
                 fill="#64748b"
                 fontWeight="700"
               >
@@ -872,7 +871,7 @@ function CardTrendChartSvg({ metricData }) {
               <polyline
                 fill="none"
                 stroke="#2563eb"
-                strokeWidth="2"
+                strokeWidth="1.8"
                 strokeLinecap="round"
                 strokeLinejoin="round"
                 points={leftPoly}
@@ -882,17 +881,17 @@ function CardTrendChartSvg({ metricData }) {
               <polyline
                 fill="none"
                 stroke="#dc2626"
-                strokeWidth="2"
+                strokeWidth="1.8"
                 strokeLinecap="round"
                 strokeLinejoin="round"
                 points={rightPoly}
               />
             )}
             {leftPoints.map((p, i) => (
-              <circle key={`l-${i}`} cx={p.x} cy={p.y} r="2.8" fill="#2563eb" stroke="#ffffff" strokeWidth="1" />
+              <circle key={`l-${i}`} cx={p.x} cy={p.y} r="2.4" fill="#2563eb" stroke="#ffffff" strokeWidth="0.8" />
             ))}
             {rightPoints.map((p, i) => (
-              <circle key={`r-${i}`} cx={p.x} cy={p.y} r="2.8" fill="#dc2626" stroke="#ffffff" strokeWidth="1" />
+              <circle key={`r-${i}`} cx={p.x} cy={p.y} r="2.4" fill="#dc2626" stroke="#ffffff" strokeWidth="0.8" />
             ))}
           </>
         ) : (
@@ -901,39 +900,39 @@ function CardTrendChartSvg({ metricData }) {
               <polyline
                 fill="none"
                 stroke="#0f172a"
-                strokeWidth="2"
+                strokeWidth="1.8"
                 strokeLinecap="round"
                 strokeLinejoin="round"
                 points={leftPoly}
               />
             )}
             {leftPoints.map((p, i) => (
-              <circle key={`s-${i}`} cx={p.x} cy={p.y} r="3" fill="#0f172a" stroke="#ffffff" strokeWidth="1" />
+              <circle key={`s-${i}`} cx={p.x} cy={p.y} r="2.5" fill="#0f172a" stroke="#ffffff" strokeWidth="0.8" />
             ))}
           </>
         )}
       </svg>
 
       {/* Targhette Valore Finale con Unità di Misura Corretta */}
-      <div className="absolute right-1 top-2 flex flex-col gap-1 pointer-events-none">
+      <div className="absolute right-1 top-1 flex flex-col gap-0.5 pointer-events-none">
         {isDual ? (
           <>
             {lastLeft !== null && (
-              <span className="px-1.5 py-0.5 rounded-full bg-blue-50 text-blue-700 border border-blue-300 font-mono text-[7px] font-extrabold flex items-center gap-0.5 shadow-sm">
-                <span className="w-1.5 h-1.5 rounded-full bg-blue-600"></span>
+              <span className="px-1 py-0.2 rounded-full bg-blue-50 text-blue-700 border border-blue-300 font-mono text-[6.5px] font-extrabold flex items-center gap-0.5 leading-tight">
+                <span className="w-1 h-1 rounded-full bg-blue-600"></span>
                 SX {formatNum(lastLeft, decimals)} {unit}
               </span>
             )}
             {lastRight !== null && (
-              <span className="px-1.5 py-0.5 rounded-full bg-red-50 text-red-700 border border-red-300 font-mono text-[7px] font-extrabold flex items-center gap-0.5 shadow-sm">
-                <span className="w-1.5 h-1.5 rounded-full bg-red-600"></span>
+              <span className="px-1 py-0.2 rounded-full bg-red-50 text-red-700 border border-red-300 font-mono text-[6.5px] font-extrabold flex items-center gap-0.5 leading-tight">
+                <span className="w-1 h-1 rounded-full bg-red-600"></span>
                 DX {formatNum(lastRight, decimals)} {unit}
               </span>
             )}
           </>
         ) : (
           lastLeft !== null && (
-            <span className="px-1.5 py-0.5 rounded-full bg-slate-100 text-slate-800 border border-slate-300 font-mono text-[7px] font-extrabold shadow-sm">
+            <span className="px-1 py-0.2 rounded-full bg-slate-100 text-slate-800 border border-slate-300 font-mono text-[6.5px] font-extrabold leading-tight">
               {formatNum(lastLeft, decimals)} {unit}
             </span>
           )
@@ -1014,35 +1013,35 @@ function ValdMetricCard({
       onDragOver={(e) => onDragOver && onDragOver(e, index)}
       onDrop={() => onDrop && onDrop(index)}
       style={{ breakInside: 'avoid', pageBreakInside: 'avoid' }}
-      className={`print-report-card report-card-vald ${spanClass} bg-white print:bg-white print:text-black print:shadow-none border border-slate-200 print:border-slate-300 rounded-2xl p-5 sm:p-6 print:p-5 shadow-xs space-y-3.5 flex flex-col justify-between break-inside-avoid text-slate-900 font-sans transition-all`}
+      className={`print-report-card report-card-vald ${spanClass} bg-white print:bg-white print:text-black print:shadow-none border border-slate-200 print:border-slate-300 rounded-xl p-3 print:p-2.5 shadow-2xs space-y-1.5 flex flex-col justify-between break-inside-avoid text-slate-900 font-sans transition-all`}
     >
-      {/* HEADER CARD */}
-      <div className="flex items-start justify-between border-b border-slate-200 pb-2.5 gap-2">
-        <div className="flex items-center gap-2 min-w-0 flex-1">
+      {/* HEADER CARD (Compatto, icone w-4 h-4) */}
+      <div className="flex items-start justify-between border-b border-slate-200 pb-1 gap-1.5">
+        <div className="flex items-center gap-1.5 min-w-0 flex-1">
           <div
-            className="p-1 rounded-md bg-slate-100 border border-slate-300 text-slate-700 shrink-0 cursor-grab no-print"
+            className="p-0.5 rounded bg-slate-100 border border-slate-300 text-slate-700 shrink-0 cursor-grab no-print"
             title="Trascina per riordinare la scheda"
           >
-            <GripVertical className="w-3.5 h-3.5" />
+            <GripVertical className="w-3 h-3" />
           </div>
-          <div className="p-1.5 rounded-lg bg-slate-50 print:bg-white border border-slate-200 text-slate-700 print:text-black shrink-0">
+          <div className="p-1 rounded-md bg-slate-50 print:bg-white border border-slate-200 text-slate-700 print:text-black shrink-0">
             <IconComp className="w-4 h-4 print:w-3.5 print:h-3.5" />
           </div>
           <div className="min-w-0 flex-1">
-            <div className="flex items-center gap-1.5 flex-wrap">
+            <div className="flex items-center gap-1 flex-wrap">
               <input
                 type="text"
                 value={card.title}
                 onChange={(e) => onChangeTitle && onChangeTitle(card.id, e.target.value)}
-                className="text-xs font-black text-slate-900 leading-tight bg-transparent border-b border-transparent hover:border-slate-300 focus:border-cyan-600 focus:outline-none w-full max-w-[210px] no-print"
+                className="text-[11px] font-black text-slate-900 leading-tight bg-transparent border-b border-transparent hover:border-slate-300 focus:border-cyan-600 focus:outline-none w-full max-w-[200px] no-print"
                 title="Clicca per modificare il titolo della scheda"
               />
-              <h4 className="hidden print-only-inline text-xs font-black text-slate-900 print:text-black leading-tight">
+              <h4 className="hidden print-only-inline text-[11px] font-black text-slate-900 print:text-black leading-tight">
                 {card.title}
               </h4>
               {isHistoricalFallback && sourceDate && (
                 <span
-                  className="text-[7px] font-mono font-bold px-1.5 py-0.5 bg-amber-50 print:bg-white text-amber-800 print:text-black border border-amber-300 rounded"
+                  className="text-[6.5px] font-mono font-bold px-1 py-0.2 bg-amber-50 print:bg-white text-amber-800 print:text-black border border-amber-300 rounded"
                   title="Ultimo dato registrato cronologicamente"
                 >
                   Dato del {sourceDate}
@@ -1051,11 +1050,11 @@ function ValdMetricCard({
             </div>
 
             {/* PARAMETER SELECTION DROPDOWN */}
-            <div className="flex items-center gap-1 mt-1">
+            <div className="flex items-center gap-1 mt-0.5">
               <select
                 value={card.selectedParam}
                 onChange={(e) => onChangeParam(card.id, e.target.value)}
-                className="bg-slate-100 hover:bg-slate-200 text-slate-800 text-[8.5px] font-bold border border-slate-300 rounded px-1.5 py-0.5 focus:outline-none focus:border-cyan-500 cursor-pointer no-print"
+                className="bg-slate-100 hover:bg-slate-200 text-slate-800 text-[8px] font-bold border border-slate-300 rounded px-1 py-0.2 focus:outline-none focus:border-cyan-500 cursor-pointer no-print"
               >
                 {allParams.map((p) => (
                   <option key={p.id} value={p.id}>
@@ -1063,7 +1062,7 @@ function ValdMetricCard({
                   </option>
                 ))}
               </select>
-              <span className="hidden print-only-inline text-[8.5px] font-bold text-slate-700 print:text-black bg-slate-50 print:bg-white px-1.5 py-0.5 rounded border border-slate-300">
+              <span className="hidden print-only-inline text-[8px] font-bold text-slate-700 print:text-black bg-slate-50 print:bg-white px-1 py-0.2 rounded border border-slate-300 leading-tight">
                 {allParams.find((p) => p.id === card.selectedParam)?.label || card.selectedParam}
               </span>
             </div>
@@ -1077,7 +1076,7 @@ function ValdMetricCard({
             onClick={() => onMoveBlock && onMoveBlock(index, -1)}
             disabled={index === 0}
             title="Sposta Su"
-            className="p-1 rounded hover:bg-slate-100 text-slate-500 hover:text-slate-900 disabled:opacity-25 cursor-pointer"
+            className="p-0.5 rounded hover:bg-slate-100 text-slate-500 hover:text-slate-900 disabled:opacity-25 cursor-pointer"
           >
             <ArrowUp className="w-3 h-3" />
           </button>
@@ -1086,7 +1085,7 @@ function ValdMetricCard({
             onClick={() => onMoveBlock && onMoveBlock(index, 1)}
             disabled={index === totalBlocks - 1}
             title="Sposta Giù"
-            className="p-1 rounded hover:bg-slate-100 text-slate-500 hover:text-slate-900 disabled:opacity-25 cursor-pointer"
+            className="p-0.5 rounded hover:bg-slate-100 text-slate-500 hover:text-slate-900 disabled:opacity-25 cursor-pointer"
           >
             <ArrowDown className="w-3 h-3" />
           </button>
@@ -1094,7 +1093,7 @@ function ValdMetricCard({
             type="button"
             onClick={() => onToggleColSpan && onToggleColSpan(card.id)}
             title={card.colSpan === 2 ? 'Riduci a 1 Colonna' : 'Espandi a 2 Colonne (Larghezza Intera)'}
-            className="px-1 py-0.5 rounded bg-slate-100 hover:bg-slate-200 text-slate-700 font-mono text-[7.5px] font-bold cursor-pointer"
+            className="px-1 py-0.5 rounded bg-slate-100 hover:bg-slate-200 text-slate-700 font-mono text-[7px] font-bold cursor-pointer"
           >
             {card.colSpan === 2 ? '2Col' : '1Col'}
           </button>
@@ -1102,7 +1101,7 @@ function ValdMetricCard({
             type="button"
             onClick={() => onInsertNoteAfter && onInsertNoteAfter(index)}
             title="Inserisci una Nota subito sotto questa scheda"
-            className="px-1.5 py-0.5 rounded bg-cyan-50 hover:bg-cyan-100 text-cyan-800 border border-cyan-300 font-bold text-[7.5px] flex items-center gap-0.5 cursor-pointer"
+            className="px-1 py-0.5 rounded bg-cyan-50 hover:bg-cyan-100 text-cyan-800 border border-cyan-300 font-bold text-[7px] flex items-center gap-0.5 cursor-pointer"
           >
             <Plus className="w-2.5 h-2.5" />
             <span>Nota</span>
@@ -1114,31 +1113,31 @@ function ValdMetricCard({
               title="Rimuovi Scheda"
               className="text-slate-400 hover:text-rose-500 p-0.5 cursor-pointer"
             >
-              <Trash2 className="w-3.5 h-3.5" />
+              <Trash2 className="w-3 h-3" />
             </button>
           )}
         </div>
       </div>
 
-      {/* BODY CARD: VALORI REALI SUPABASE + UNITA' DI MISURA A SINISTRA vs GRAFICO A DESTRA */}
-      <div className="grid grid-cols-12 gap-4 items-center py-1">
-        <div className="col-span-5 space-y-2">
+      {/* BODY CARD: VALORI REALI SUPABASE + UNITA' DI MISURA A SINISTRA vs GRAFICO COMPATTO A DESTRA */}
+      <div className="grid grid-cols-12 gap-2 items-center">
+        <div className="col-span-5 space-y-0.5">
           {isDual ? (
-            <div className="space-y-2">
+            <div className="space-y-0.5">
               <div>
-                <span className="text-blue-700 text-[8.5px] font-extrabold block uppercase tracking-wider">
+                <span className="text-blue-700 text-[7.5px] font-extrabold block uppercase tracking-wider leading-none">
                   Left (SX)
                 </span>
-                <div className="flex items-baseline gap-1.5 flex-wrap">
-                  <strong className="text-base font-black text-slate-900 print:text-black">
+                <div className="flex items-baseline gap-1 flex-wrap leading-tight">
+                  <strong className="text-xs font-black text-slate-900 print:text-black">
                     {leftFormatted}{' '}
                     {leftFormatted !== 'N/D' && (
-                      <span className="text-[9.5px] font-bold text-slate-600">{unit}</span>
+                      <span className="text-[8.5px] font-bold text-slate-600">{unit}</span>
                     )}
                   </strong>
                   {leftChange && (
                     <span
-                      className={`text-[7.5px] font-extrabold px-1 rounded border ${
+                      className={`text-[7px] font-extrabold px-1 rounded border leading-tight ${
                         leftChange.startsWith('↓')
                           ? 'text-amber-700 bg-amber-50 print:bg-white border-amber-200'
                           : 'text-emerald-700 bg-emerald-50 print:bg-white border-emerald-200'
@@ -1150,19 +1149,19 @@ function ValdMetricCard({
                 </div>
               </div>
               <div>
-                <span className="text-red-700 text-[8.5px] font-extrabold block uppercase tracking-wider">
+                <span className="text-red-700 text-[7.5px] font-extrabold block uppercase tracking-wider leading-none">
                   Right (DX)
                 </span>
-                <div className="flex items-baseline gap-1.5 flex-wrap">
-                  <strong className="text-base font-black text-slate-900 print:text-black">
+                <div className="flex items-baseline gap-1 flex-wrap leading-tight">
+                  <strong className="text-xs font-black text-slate-900 print:text-black">
                     {rightFormatted}{' '}
                     {rightFormatted !== 'N/D' && (
-                      <span className="text-[9.5px] font-bold text-slate-600">{unit}</span>
+                      <span className="text-[8.5px] font-bold text-slate-600">{unit}</span>
                     )}
                   </strong>
                   {rightChange && (
                     <span
-                      className={`text-[7.5px] font-extrabold px-1 rounded border ${
+                      className={`text-[7px] font-extrabold px-1 rounded border leading-tight ${
                         rightChange.startsWith('↓')
                           ? 'text-amber-700 bg-amber-50 print:bg-white border-amber-200'
                           : 'text-emerald-700 bg-emerald-50 print:bg-white border-emerald-200'
@@ -1176,15 +1175,15 @@ function ValdMetricCard({
             </div>
           ) : (
             <div>
-              <div className="text-xl font-black text-slate-900 print:text-black tracking-tight">
+              <div className="text-base font-black text-slate-900 print:text-black tracking-tight leading-tight">
                 {leftFormatted}{' '}
                 {leftFormatted !== 'N/D' && (
-                  <span className="text-xs font-bold text-slate-600">{unit}</span>
+                  <span className="text-[10px] font-bold text-slate-600">{unit}</span>
                 )}
               </div>
               {leftChange && (
                 <span
-                  className={`inline-block text-[8px] font-extrabold px-1.5 py-0.5 rounded border mt-1 ${
+                  className={`inline-block text-[7.5px] font-extrabold px-1 py-0.2 rounded border mt-0.5 leading-tight ${
                     leftChange.startsWith('↓')
                       ? 'text-amber-700 bg-amber-50 print:bg-white border-amber-200'
                       : 'text-emerald-700 bg-emerald-50 print:bg-white border-emerald-200'
@@ -1198,7 +1197,7 @@ function ValdMetricCard({
 
           {/* BADGE ASIMMETRIA CALCOLATA DAI DATI REALI */}
           {asymmetry && (
-            <div className="text-[8.5px] font-extrabold text-blue-800 mt-1.5">
+            <div className="text-[7.5px] font-extrabold text-blue-800 leading-tight pt-0.5">
               Asym. <span className="font-black">{asymmetry}</span>
             </div>
           )}
@@ -1210,27 +1209,27 @@ function ValdMetricCard({
         </div>
       </div>
 
-      {/* FOOTER CARD: REFERENCE SCIENTIFICA & RATIONALE MODIFICABILE */}
+      {/* FOOTER CARD: REFERENCE SCIENTIFICA & RATIONALE COMPATTO (leading-tight) */}
       {showCitations && (
-        <div className="pt-2 border-t border-slate-200">
-          <div className="w-full bg-slate-50 print:bg-white border border-slate-200 rounded-lg p-2.5 text-[7.5px] leading-relaxed text-slate-700 print:text-black">
-            <div className="flex items-center justify-between">
-              <span className="font-extrabold text-slate-900 print:text-black text-[7px] uppercase tracking-wider">
-                Scientific Reference: {citation.authors} ({citation.journal})
+        <div className="pt-1 border-t border-slate-200">
+          <div className="w-full bg-slate-50 print:bg-white border border-slate-200 rounded p-1.5 text-[9.5px] print:text-[8px] leading-tight text-slate-700 print:text-black">
+            <div className="flex items-center justify-between gap-1">
+              <span className="font-extrabold text-slate-900 print:text-black text-[8px] print:text-[7px] uppercase tracking-wider leading-tight">
+                Ref: {citation.authors} ({citation.journal})
               </span>
               <button
                 type="button"
                 onClick={() => setIsEditingRationale((v) => !v)}
-                className="text-cyan-700 hover:text-cyan-900 font-bold text-[7px] flex items-center gap-0.5 no-print cursor-pointer"
+                className="text-cyan-700 hover:text-cyan-900 font-bold text-[7px] flex items-center gap-0.5 no-print cursor-pointer shrink-0"
                 title="Modifica il Rationale di questa scheda"
               >
                 <Edit3 className="w-2.5 h-2.5" />
-                <span>{isEditingRationale ? 'Chiudi' : 'Modifica Rationale'}</span>
+                <span>{isEditingRationale ? 'Chiudi' : 'Modifica'}</span>
               </button>
             </div>
 
             {isEditingRationale ? (
-              <div className="mt-1.5 space-y-1 no-print">
+              <div className="mt-1 space-y-1 no-print">
                 <textarea
                   rows={2}
                   value={citation.rationale || ''}
@@ -1238,13 +1237,13 @@ function ValdMetricCard({
                     onUpdateCitation &&
                     onUpdateCitation(card.citationKey, { rationale: e.target.value })
                   }
-                  className="w-full bg-white border border-cyan-500 rounded p-1.5 text-[8px] text-slate-900 focus:outline-none"
+                  className="w-full bg-white border border-cyan-500 rounded p-1 text-[8px] text-slate-900 focus:outline-none"
                   placeholder="Scrivi il Rationale clinico personalizzato..."
                 />
               </div>
             ) : null}
 
-            <div className="text-[7.5px] text-slate-700 print:text-black italic mt-1 leading-snug">
+            <div className="text-[9px] print:text-[7.5px] text-slate-700 print:text-black italic mt-0.5 leading-tight">
               <strong className="not-italic text-slate-900 print:text-black">Rationale:</strong> {citation.rationale}
             </div>
           </div>
@@ -2164,21 +2163,21 @@ export default function PrintConfiguratorModal({ isOpen, onClose, patient, patie
                 WebkitPrintColorAdjust: 'exact',
                 printColorAdjust: 'exact'
               }}
-              className="print-report-container printable-report w-full max-w-[820px] bg-white text-slate-900 p-6 sm:p-8 rounded-2xl shadow-lg border border-stone-200 print:bg-white print:text-black print:shadow-none print:border-0 print:rounded-none print:p-0 print:m-0 print:w-full print:max-w-none text-[10px] leading-relaxed space-y-6 print:space-y-6 font-sans"
+              className="print-report-container printable-report w-full max-w-[820px] bg-white text-slate-900 p-4 sm:p-5 rounded-2xl shadow-lg border border-stone-200 print:bg-white print:text-black print:shadow-none print:border-0 print:rounded-none print:p-0 print:m-0 print:w-full print:max-w-none text-[10px] leading-tight space-y-2.5 print:space-y-2 font-sans"
             >
-              {/* HEADER REPORT INTEGRATO CON SCHEDA PAZIENTE (Senza riga Sessione di Riferimento) */}
+              {/* HEADER REPORT INTEGRATO CON SCHEDA PAZIENTE (Compatto per risparmiare spazio verticale su A4) */}
               <div
                 style={{ breakInside: 'avoid', pageBreakInside: 'avoid' }}
-                className="print-report-section break-inside-avoid flex items-center justify-between pb-4 border-b-2 border-slate-200 print:bg-white print:text-black print:shadow-none"
+                className="print-report-section break-inside-avoid flex items-center justify-between pb-2 border-b border-slate-200 print:bg-white print:text-black print:shadow-none"
               >
-                <div className="flex items-center gap-3">
-                  <LogoN className="w-10 h-10 print:w-9 print:h-9 rounded-xl shrink-0 border border-slate-200 shadow-2xs print:shadow-none" />
+                <div className="flex items-center gap-2.5">
+                  <LogoN className="w-8 h-8 print:w-7 print:h-7 rounded-lg shrink-0 border border-slate-200 shadow-2xs print:shadow-none" />
 
                   <div>
-                    <h1 className="text-base font-black text-slate-900 print:text-black tracking-tight leading-none uppercase">
+                    <h1 className="text-sm font-black text-slate-900 print:text-black tracking-tight leading-none uppercase">
                       {formattedPatientName}
                     </h1>
-                    <p className="text-[9.5px] font-bold text-slate-600 print:text-black tracking-wide mt-1">
+                    <p className="text-[9px] font-bold text-slate-600 print:text-black tracking-wide mt-0.5 leading-tight">
                       Chirurgia: <strong>{dataIntervento}</strong> • Ginocchio Operato:{' '}
                       <strong className="text-emerald-800 print:text-black font-extrabold">{operatedKnee}</strong> • Sport:{' '}
                       <strong>{activePatientObj?.sport || 'N/D'}</strong>
@@ -2187,25 +2186,25 @@ export default function PrintConfiguratorModal({ isOpen, onClose, patient, patie
                 </div>
 
                 {/* TABBAR STILE DASHBOARD VALD */}
-                <div className="text-right flex items-center gap-1.5 bg-slate-50 print:bg-white p-1 rounded-lg border border-slate-200">
-                  <span className="px-2 py-1 bg-white font-extrabold text-slate-900 print:text-black rounded shadow-2xs print:shadow-none border border-slate-200 text-[9px]">
+                <div className="text-right flex items-center gap-1 bg-slate-50 print:bg-white p-0.5 rounded-lg border border-slate-200">
+                  <span className="px-1.5 py-0.5 bg-white font-extrabold text-slate-900 print:text-black rounded shadow-2xs print:shadow-none border border-slate-200 text-[8.5px]">
                     Overview
                   </span>
-                  <span className="px-2 py-1 font-bold text-slate-600 text-[9px]">Timeline</span>
-                  <span className="px-2 py-1 font-bold text-slate-600 text-[9px]">Testing</span>
-                  <span className="px-2 py-1 font-bold text-slate-600 text-[9px]">Most Recent</span>
+                  <span className="px-1.5 py-0.5 font-bold text-slate-600 text-[8.5px]">Timeline</span>
+                  <span className="px-1.5 py-0.5 font-bold text-slate-600 text-[8.5px]">Testing</span>
+                  <span className="px-1.5 py-0.5 font-bold text-slate-600 text-[8.5px]">Most Recent</span>
                 </div>
               </div>
 
-              {/* GRIGLIA UNIFICATA E ORDINABILE DI TUTTI I BLOCCHI DEL REPORT (Spazio aumentato gap-6) */}
-              <div className="print-cards-grid grid grid-cols-1 sm:grid-cols-2 print:grid-cols-2 gap-6 print:gap-6 pt-1">
+              {/* GRIGLIA UNIFICATA E ORDINABILE DI TUTTI I BLOCCHI DEL REPORT (Gap generoso gap-6 / print:gap-5, 4 righe esatte per foglio A4) */}
+              <div className="print-cards-grid grid grid-cols-1 sm:grid-cols-2 print:grid-cols-2 gap-6 print:gap-5 pt-0.5">
                 {reportBlocks.map((block, index) => {
                   const spanClass =
                     block.colSpan === 2
                       ? 'sm:col-span-2 print:col-span-2 print-col-span-2'
                       : 'col-span-1 print-col-span-1';
 
-                  // 1. BLOCCO BANNER IKDC (ORDINABILE & INK-FRIENDLY IN STAMPA)
+                  // 1. BLOCCO BANNER IKDC (COMPATTO & INK-FRIENDLY IN STAMPA)
                   if (block.type === 'ikdc') {
                     if (!ikdcScore) return null;
                     return (
@@ -2216,16 +2215,16 @@ export default function PrintConfiguratorModal({ isOpen, onClose, patient, patie
                         onDragOver={handleDragOver}
                         onDrop={() => handleDrop(index)}
                         style={{ breakInside: 'avoid', pageBreakInside: 'avoid' }}
-                        className={`print-report-section break-inside-avoid ${spanClass} p-5 print:p-4 bg-emerald-50/70 print:bg-white text-slate-900 print:text-black rounded-2xl shadow-xs print:shadow-none border border-emerald-300 print:border-slate-300 flex items-center justify-between px-6`}
+                        className={`print-report-section break-inside-avoid ${spanClass} py-1.5 px-3.5 print:py-1.5 print:px-3 bg-emerald-50/70 print:bg-white text-slate-900 print:text-black rounded-xl shadow-xs print:shadow-none border border-emerald-300 print:border-slate-300 flex items-center justify-between`}
                       >
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-1.5">
                           <GripVertical className="w-3.5 h-3.5 text-slate-400 cursor-grab no-print" />
-                          <span className="text-[9px] font-black uppercase tracking-widest text-emerald-950 print:text-black">
+                          <span className="text-[8.5px] font-black uppercase tracking-widest text-emerald-950 print:text-black">
                             {block.title || 'PUNTEGGIO QUESTIONARIO SOGGETTIVO IKDC'}
                           </span>
                         </div>
                         <div className="flex items-center gap-2">
-                          <strong className="text-xs font-black font-mono bg-white print:bg-white text-emerald-900 print:text-black border border-emerald-300 print:border-slate-300 px-3.5 py-1.5 rounded-xl">
+                          <strong className="text-[10px] font-black font-mono bg-white print:bg-white text-emerald-900 print:text-black border border-emerald-300 print:border-slate-300 px-2.5 py-0.5 rounded-lg">
                             IKDC SCORE: {ikdcScore}/100
                           </strong>
                           <div className="flex items-center gap-0.5 no-print">
@@ -2233,7 +2232,7 @@ export default function PrintConfiguratorModal({ isOpen, onClose, patient, patie
                               type="button"
                               onClick={() => handleMoveBlock(index, -1)}
                               disabled={index === 0}
-                              className="p-1 rounded hover:bg-emerald-100 text-slate-700 disabled:opacity-30 cursor-pointer"
+                              className="p-0.5 rounded hover:bg-emerald-100 text-slate-700 disabled:opacity-30 cursor-pointer"
                               title="Sposta Su"
                             >
                               <ArrowUp className="w-3 h-3" />
@@ -2242,7 +2241,7 @@ export default function PrintConfiguratorModal({ isOpen, onClose, patient, patie
                               type="button"
                               onClick={() => handleMoveBlock(index, 1)}
                               disabled={index === reportBlocks.length - 1}
-                              className="p-1 rounded hover:bg-emerald-100 text-slate-700 disabled:opacity-30 cursor-pointer"
+                              className="p-0.5 rounded hover:bg-emerald-100 text-slate-700 disabled:opacity-30 cursor-pointer"
                               title="Sposta Giù"
                             >
                               <ArrowDown className="w-3 h-3" />
@@ -2258,7 +2257,7 @@ export default function PrintConfiguratorModal({ isOpen, onClose, patient, patie
                             <button
                               type="button"
                               onClick={() => handleRemoveBlock(block.id)}
-                              className="p-1 rounded hover:bg-rose-100 text-slate-500 hover:text-rose-700 cursor-pointer"
+                              className="p-0.5 rounded hover:bg-rose-100 text-slate-500 hover:text-rose-700 cursor-pointer"
                               title="Rimuovi"
                             >
                               <Trash2 className="w-3 h-3" />
@@ -2296,7 +2295,7 @@ export default function PrintConfiguratorModal({ isOpen, onClose, patient, patie
                     );
                   }
 
-                  // 3. BLOCCO NOTA LIBERA POSIZIONABILE OVUNQUE O COMMENTO FINALE (ORDINABILE)
+                  // 3. BLOCCO NOTA LIBERA POSIZIONABILE OVUNQUE O COMMENTO FINALE (ORDINABILE & SENZA MIN-H)
                   if (block.type === 'note' || block.type === 'final_comment') {
                     const isFinal = block.type === 'final_comment';
                     return (
@@ -2307,13 +2306,13 @@ export default function PrintConfiguratorModal({ isOpen, onClose, patient, patie
                         onDragOver={handleDragOver}
                         onDrop={() => handleDrop(index)}
                         style={{ breakInside: 'avoid', pageBreakInside: 'avoid' }}
-                        className={`print-report-section break-inside-avoid ${spanClass} p-5 sm:p-6 print:p-5 print:bg-white print:text-black print:shadow-none ${
+                        className={`print-report-section break-inside-avoid ${spanClass} p-2.5 print:p-2 print:bg-white print:text-black print:shadow-none ${
                           isFinal
                             ? 'bg-slate-50/70 border border-slate-300'
                             : 'bg-white border border-slate-200 print:border-slate-300'
-                        } rounded-2xl space-y-2.5`}
+                        } rounded-xl space-y-1`}
                       >
-                        <div className="flex items-center justify-between border-b border-slate-200 pb-2 gap-2">
+                        <div className="flex items-center justify-between border-b border-slate-200 pb-1 gap-2">
                           <div className="flex items-center gap-1.5 min-w-0 flex-1">
                             <GripVertical className="w-3.5 h-3.5 text-slate-400 cursor-grab no-print shrink-0" />
                             <MessageSquare
@@ -2332,9 +2331,9 @@ export default function PrintConfiguratorModal({ isOpen, onClose, patient, patie
                                   ? 'Commento Finale & Conclusioni del Fisioterapista'
                                   : 'Titolo Nota Clinica...'
                               }
-                              className="font-extrabold text-slate-900 uppercase tracking-wider text-[9px] bg-transparent border-b border-transparent hover:border-slate-300 focus:border-cyan-600 focus:outline-none w-full no-print"
+                              className="font-extrabold text-slate-900 uppercase tracking-wider text-[8.5px] bg-transparent border-b border-transparent hover:border-slate-300 focus:border-cyan-600 focus:outline-none w-full no-print"
                             />
-                            <span className="hidden print-only-inline font-extrabold text-slate-900 print:text-black uppercase tracking-wider text-[9px]">
+                            <span className="hidden print-only-inline font-extrabold text-slate-900 print:text-black uppercase tracking-wider text-[8.5px]">
                               {block.title ||
                                 (isFinal
                                   ? 'Commento Finale & Conclusioni del Fisioterapista'
@@ -2344,7 +2343,7 @@ export default function PrintConfiguratorModal({ isOpen, onClose, patient, patie
 
                           <div className="flex items-center gap-1 shrink-0">
                             {isFinal && (
-                              <span className="text-[7.5px] font-bold text-slate-500 uppercase mr-1">
+                              <span className="text-[7px] font-bold text-slate-500 uppercase mr-1">
                                 {block.subtitle || 'Valutazione Funzionale & Conclusioni'}
                               </span>
                             )}
@@ -2354,7 +2353,7 @@ export default function PrintConfiguratorModal({ isOpen, onClose, patient, patie
                                 onClick={() => handleMoveBlock(index, -1)}
                                 disabled={index === 0}
                                 title="Sposta Su"
-                                className="p-1 rounded hover:bg-slate-200 text-slate-600 disabled:opacity-25 cursor-pointer"
+                                className="p-0.5 rounded hover:bg-slate-200 text-slate-600 disabled:opacity-25 cursor-pointer"
                               >
                                 <ArrowUp className="w-3 h-3" />
                               </button>
@@ -2363,7 +2362,7 @@ export default function PrintConfiguratorModal({ isOpen, onClose, patient, patie
                                 onClick={() => handleMoveBlock(index, 1)}
                                 disabled={index === reportBlocks.length - 1}
                                 title="Sposta Giù"
-                                className="p-1 rounded hover:bg-slate-200 text-slate-600 disabled:opacity-25 cursor-pointer"
+                                className="p-0.5 rounded hover:bg-slate-200 text-slate-600 disabled:opacity-25 cursor-pointer"
                               >
                                 <ArrowDown className="w-3 h-3" />
                               </button>
@@ -2391,9 +2390,9 @@ export default function PrintConfiguratorModal({ isOpen, onClose, patient, patie
                                 type="button"
                                 onClick={() => handleRemoveBlock(block.id)}
                                 title="Rimuovi questo blocco nota"
-                                className="p-1 text-slate-400 hover:text-rose-600 cursor-pointer"
+                                className="p-0.5 text-slate-400 hover:text-rose-600 cursor-pointer"
                               >
-                                <Trash2 className="w-3.5 h-3.5" />
+                                <Trash2 className="w-3 h-3" />
                               </button>
                             </div>
                           </div>
@@ -2401,7 +2400,7 @@ export default function PrintConfiguratorModal({ isOpen, onClose, patient, patie
 
                         {/* Textarea modificabile direttamente sull'anteprima A4 */}
                         <textarea
-                          rows={isFinal ? 3 : 2}
+                          rows={isFinal ? 2 : 1}
                           value={block.content || ''}
                           onChange={(e) =>
                             handleUpdateBlockField(block.id, 'content', e.target.value)
@@ -2411,11 +2410,11 @@ export default function PrintConfiguratorModal({ isOpen, onClose, patient, patie
                               ? 'Digita qui il commento finale del fisioterapista, le conclusioni cliniche o le indicazioni per il ritorno in campo...'
                               : 'Digita qui la tua nota personalizzata (puoi spostare questo box ovunque nel report con le frecce ↑↓)...'
                           }
-                          className="w-full bg-transparent text-slate-800 text-[9.5px] font-medium leading-relaxed focus:outline-none resize-y no-print"
+                          className="w-full bg-transparent text-slate-800 text-[9px] font-medium leading-tight focus:outline-none resize-y no-print"
                         />
 
-                        {/* Testo formattato per la stampa A4 */}
-                        <div className="hidden print-only-block text-slate-800 print:text-black text-[9.5px] font-medium leading-relaxed whitespace-pre-wrap min-h-[24px]">
+                        {/* Testo formattato per la stampa A4 (senza min-h forzato) */}
+                        <div className="hidden print-only-block text-slate-800 print:text-black text-[9px] font-medium leading-tight whitespace-pre-wrap">
                           {block.content && block.content.trim().length > 0
                             ? block.content
                             : '—'}
@@ -2424,7 +2423,7 @@ export default function PrintConfiguratorModal({ isOpen, onClose, patient, patie
                     );
                   }
 
-                  // 4. BLOCCO FOOTER BIBLIOGRAFICO A4 (ORDINABILE)
+                  // 4. BLOCCO FOOTER BIBLIOGRAFICO A4 (COMPATTO & ORDINABILE)
                   if (block.type === 'bibliography' && showCitations) {
                     return (
                       <div
@@ -2434,10 +2433,10 @@ export default function PrintConfiguratorModal({ isOpen, onClose, patient, patie
                         onDragOver={handleDragOver}
                         onDrop={() => handleDrop(index)}
                         style={{ breakInside: 'avoid', pageBreakInside: 'avoid' }}
-                        className={`print-report-section break-inside-avoid ${spanClass} pt-4 border-t border-slate-300 space-y-2 font-sans text-[8px] text-slate-600 print:text-black print:bg-white leading-relaxed mt-2`}
+                        className={`print-report-section break-inside-avoid ${spanClass} pt-2 border-t border-slate-300 space-y-1 font-sans text-[7.5px] text-slate-600 print:text-black print:bg-white leading-tight mt-1`}
                       >
-                        <div className="font-extrabold text-slate-800 print:text-black uppercase tracking-wider text-[8.5px] flex items-center justify-between">
-                          <span className="flex items-center gap-1.5">
+                        <div className="font-extrabold text-slate-800 print:text-black uppercase tracking-wider text-[8px] flex items-center justify-between">
+                          <span className="flex items-center gap-1">
                             <GripVertical className="w-3 h-3 text-slate-400 cursor-grab no-print" />
                             <BookOpen className="w-3 h-3 text-slate-700" />
                             <span>
@@ -2467,7 +2466,7 @@ export default function PrintConfiguratorModal({ isOpen, onClose, patient, patie
                             <button
                               type="button"
                               onClick={() => setIsBiblioModalOpen(true)}
-                              className="text-[8px] text-cyan-700 hover:underline font-bold ml-1 cursor-pointer"
+                              className="text-[7.5px] text-cyan-700 hover:underline font-bold ml-1 cursor-pointer"
                             >
                               Modifica Libreria & Rationale
                             </button>
@@ -2481,7 +2480,7 @@ export default function PrintConfiguratorModal({ isOpen, onClose, patient, patie
                             </button>
                           </div>
                         </div>
-                        <div className="grid grid-cols-2 gap-x-4 gap-y-1">
+                        <div className="grid grid-cols-2 gap-x-4 gap-y-0.5">
                           {biblioSources.slice(0, 6).map((src, i) => (
                             <div key={src.id || i} className="truncate">
                               <sup>{i + 1}</sup> <strong>{src.autori} ({src.anno}):</strong>{' '}
