@@ -1076,29 +1076,13 @@ export default function TabBatteriaTest({ patient, activePhase, onSaveTest }) {
                 <Flame className="w-4 h-4 text-rose-900" />
               </div>
               <div>
-                <h3 className="font-bold text-slate-800 text-sm sm:text-base tracking-wide uppercase">
-                  REPORT &amp; SESSIONI DI VALUTAZIONE CLINICA
+                <h3 className="font-bold text-slate-800 text-sm sm:text-base tracking-wide">
+                  Test e valutazione
                 </h3>
-                <p className="text-xs text-slate-600 font-semibold mt-0.5">
-                  I test effettuati in giorni diversi (7-14 gg) confluiscono nel Report; include metriche standard e personalizzate
-                </p>
               </div>
             </div>
 
             <div className="flex flex-wrap items-center gap-2 self-start xl:self-auto print:hidden">
-              <button
-                type="button"
-                onClick={() => setGroupByReportSession(prev => !prev)}
-                title="Unisce automaticamente i singoli test eseguiti nell'arco di 7-14 giorni in un unico Report di Valutazione"
-                className={`px-3 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 border transition-all cursor-pointer ${
-                  groupByReportSession
-                    ? 'bg-emerald-100/80 text-emerald-900 border-emerald-300/50'
-                    : 'bg-slate-100 text-slate-700 border-slate-300/60 hover:text-slate-900 hover:bg-slate-200/60'
-                }`}
-              >
-                <CalendarRange className="w-3.5 h-3.5" />
-                <span>{groupByReportSession ? 'Report Aggregato (7-14gg)' : 'Singole Rilevazioni'}</span>
-              </button>
 
               {activeTest && (
                 <button

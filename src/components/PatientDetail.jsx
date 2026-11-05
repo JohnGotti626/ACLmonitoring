@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import {
   ArrowLeft,
-  Calendar,
   Activity,
   Sparkles,
   FileDown,
@@ -29,7 +28,7 @@ import {
   normalizePhaseForDb,
   formatPhaseForDisplay
 } from '../utils/phaseUtils';
-import { sortTestsByDate, getLastValidMetricValue } from '../utils/testUtils';
+import { sortTestsByDate } from '../utils/testUtils';
 
 const FIVE_REHAB_PHASES = [
   {
@@ -220,21 +219,6 @@ export default function PatientDetail({ patient, onBack, onUpdatePatient }) {
     setTimeout(() => setToastMobileLink(false), 3500);
   };
 
-  const surgeryDate = new Date(patient.data_intervento || new Date());
-  const today = new Date();
-  const diffDays = Math.max(0, Math.floor((today - surgeryDate) / (1000 * 60 * 60 * 24)));
-  const months = Math.floor(diffDays / 30);
-  const days = diffDays % 30;
-
-  const sortedPatientTests = sortTestsByDate(patient.tests);
-  const lastQuadLsi = getLastValidMetricValue(sortedPatientTests, ['lsiQuad', 'lsi_quad_calculated']);
-  const lastRsiMod = getLastValidMetricValue(sortedPatientTests, [
-    'rsiDropJump',
-    'djRSI',
-    'dj_rsi',
-    'rsiCmj',
-    'rsi_cmj'
-  ]);
   const activeStageMeta = FIVE_REHAB_PHASES.find((p) => p.id === selectedStageId) || FIVE_REHAB_PHASES[2];
   const currentPhaseDisplay = `${activeStageMeta.num}: ${activeStageMeta.title}`;
 
@@ -307,66 +291,20 @@ export default function PatientDetail({ patient, onBack, onUpdatePatient }) {
         </div>
       </div>
 
-      {/* Patient Clinical Header Card */}
+      {/* Patient Clinical Header Card (Minimal & Clean: Only Patient Name + Phase Badge) */}
       <div className="bg-white p-5 rounded-xl border border-slate-300/80 shadow-sm relative overflow-hidden break-inside-avoid">
-        <div className="relative z-10 flex flex-col lg:flex-row lg:items-center justify-between gap-5">
-          <div className="flex items-start sm:items-center gap-4">
-            <div className="w-14 h-14 rounded-2xl bg-[#0B1736] text-white flex items-center justify-center font-bold text-xl shrink-0">
+        <div className="relative z-10 flex items-center justify-between gap-4">
+          <div className="flex items-center gap-4">
+            <div className="w-12 h-12 rounded-2xl bg-[#0B1736] text-white flex items-center justify-center font-bold text-lg shrink-0">
               {patient.nome?.[0]}{patient.cognome?.[0]}
             </div>
-            <div>
-              <div className="flex flex-wrap items-center gap-2">
-                <h1 className="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight">
-                  {patient.nome} {patient.cognome}
-                </h1>
-                <span className="text-xs px-3 py-0.5 rounded-full bg-[#DCE3EC] text-slate-800 font-semibold">
-                  Ginocchio {patient.lato_lesione} • {patient.tipo_innesto}
-                </span>
-                <span className="text-xs px-3 py-0.5 rounded-full bg-[#DCEBFE] text-slate-900 border border-[#C5DCFA] font-bold">
-                  {patient.sport} ({patient.ruolo_sportivo || patient.livello})
-                </span>
-              </div>
-
-              <div className="flex flex-wrap items-center gap-4 text-xs text-slate-600 font-medium mt-1.5">
-                <span className="flex items-center gap-1.5">
-                  <Calendar className="w-3.5 h-3.5 text-slate-700" />
-                  Intervento: <strong className="text-slate-900 font-mono font-bold">{patient.data_intervento}</strong>
-                </span>
-                <span>•</span>
-                <span>
-                  Chirurgo: <strong className="text-slate-900 font-bold">{patient.chirurgo || 'N/D'}</strong>
-                </span>
-                <span>•</span>
-                <span className="px-2.5 py-0.5 rounded-lg bg-[#D1F4E2] text-emerald-950 border border-[#B5E8CE] font-bold">
-                  {currentPhaseDisplay}
-                </span>
-              </div>
-            </div>
-          </div>
-
-          {/* KPI Strip Pastello */}
-          <div className="grid grid-cols-3 gap-3 sm:gap-4 pt-3 lg:pt-0 border-t lg:border-t-0 border-slate-300/60">
-            <div className="bg-[#DCEBFE] px-3.5 py-2.5 rounded-xl border border-[#C5DCFA] text-center">
-              <div className="text-[10px] text-slate-700 uppercase tracking-wider font-bold">Time Post-Op</div>
-              <div className="text-sm sm:text-base font-bold font-mono text-slate-900 mt-0.5">
-                {months}m {days}g
-              </div>
-            </div>
-            <div className={`px-3.5 py-2.5 rounded-xl border text-center ${
-              lastQuadLsi !== null && lastQuadLsi >= 85
-                ? 'bg-[#D1F4E2] border-[#B5E8CE] text-slate-900'
-                : 'bg-[#FDE2E2] border-[#F8C9C9] text-slate-900'
-            }`}>
-              <div className="text-[10px] text-slate-700 uppercase tracking-wider font-bold">LSI Quad</div>
-              <div className="text-sm sm:text-base font-bold font-mono mt-0.5">
-                {lastQuadLsi !== null ? `${lastQuadLsi}%` : 'Non testato'}
-              </div>
-            </div>
-            <div className="bg-[#EDE9FE] px-3.5 py-2.5 rounded-xl border border-[#DCD4FD] text-center">
-              <div className="text-[10px] text-slate-700 uppercase tracking-wider font-bold">RSImod</div>
-              <div className="text-sm sm:text-base font-bold font-mono text-slate-900 mt-0.5">
-                {lastRsiMod !== null ? lastRsiMod : 'Non testato'}
-              </div>
+            <div className="flex flex-wrap items-center gap-3">
+              <h1 className="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight">
+                {patient.nome} {patient.cognome}
+              </h1>
+              <span className="px-3 py-1 rounded-lg bg-[#D1F4E2] text-emerald-950 border border-[#B5E8CE] text-xs font-bold">
+                {currentPhaseDisplay}
+              </span>
             </div>
           </div>
         </div>
