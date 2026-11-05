@@ -35,14 +35,9 @@ export default function Dashboard({ patients, onSelectPatient, onNavigateToPatie
     <div className="space-y-6 text-slate-900">
       {/* Top Header Finestra ad Alto Contrasto */}
       <div className="bg-white p-5 rounded-xl border border-slate-300/80 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight">
-            Dashboard Clinica &amp; Riabilitazione LCA
-          </h1>
-          <p className="text-xs sm:text-sm text-slate-600 font-medium mt-0.5">
-            Barometro di progressione sulle 5 fasi riabilitative e stato clinico dei pazienti in carico
-          </p>
-        </div>
+        <h1 className="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight">
+          Dashboard Clinica &amp; Riabilitazione LCA
+        </h1>
 
         <button
           onClick={onNavigateToPatients}

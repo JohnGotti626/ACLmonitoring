@@ -1,6 +1,7 @@
 import React from 'react';
-import { Activity, ShieldCheck, UserCheck, Database, Menu } from 'lucide-react';
+import { ShieldCheck, UserCheck, Database, Menu } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+import LogoN from './LogoN';
 
 export default function Header({ onToggleMobileSidebar, onOpenSqlModal, currentView }) {
   const { role } = useAuth();
@@ -19,21 +20,14 @@ export default function Header({ onToggleMobileSidebar, onOpenSqlModal, currentV
           </button>
         )}
 
-        <div className="flex items-center gap-2.5">
-          <div className="w-9 h-9 rounded-xl bg-[#1D63FE] flex items-center justify-center shadow-xs">
-            <Activity className="w-4 h-4 text-white" />
-          </div>
-          <div>
-            <div className="flex items-center gap-2">
-              <span className="font-bold text-base sm:text-lg tracking-tight text-slate-900">
-                ACL <span className="text-[#1D63FE]">RETURN TO SPORT</span>
-              </span>
-              <span className="hidden md:inline-block text-[10px] font-mono uppercase tracking-widest px-2.5 py-0.5 rounded-full bg-[#DCEBFE] text-[#1D63FE] border border-[#C5DCFA] font-bold">
-                Clinical Suite
-              </span>
-            </div>
-            <p className="text-[11px] text-slate-500 font-medium hidden sm:block">
-              Monitoraggio Biomeccanico, Metriche Personalizzate &amp; Copilot Clinico
+        <div className="flex items-center gap-3">
+          <LogoN className="w-10 h-10 rounded-xl shadow-xs shrink-0" />
+          <div className="flex flex-col justify-center">
+            <span className="font-bold text-base sm:text-lg tracking-tight text-slate-900 leading-tight">
+              ACL <span className="text-[#1D63FE]">RETURN TO SPORT</span>
+            </span>
+            <p className="text-[11px] text-slate-500 font-semibold tracking-wide mt-0.5">
+              Monitoring - Testing - Repeat
             </p>
           </div>
         </div>
