@@ -38,7 +38,10 @@ const FIVE_REHAB_PHASES = [
     title: 'Controllo Infiammazione & ROM',
     subtitle: 'Recupero estensione 0°, controllo gonfiore, riattivazione VMO e propriocezione iniziale.',
     fullLabel: 'Fase 1 (Early Stage)',
-    dbPhase: 'Early Phase'
+    dbPhase: 'Early Phase',
+    topBorderCls: 'border-t-4 border-t-[#b91c1c]',
+    pillCls: 'bg-red-50 text-[#b91c1c] border border-red-200',
+    activeRingCls: 'ring-2 ring-[#b91c1c] bg-red-50/40'
   },
   {
     id: 'MID_STAGE',
@@ -47,7 +50,10 @@ const FIVE_REHAB_PHASES = [
     title: 'Forza, Jump & Landing',
     subtitle: 'Rinforzo muscolare progressivo in catena chiusa/aperta, landing mechanics e primi salti.',
     fullLabel: 'Fase 2 (Mid Stage)',
-    dbPhase: 'Return to Run'
+    dbPhase: 'Return to Run',
+    topBorderCls: 'border-t-4 border-t-[#d97706]',
+    pillCls: 'bg-amber-50 text-[#b45309] border border-amber-200',
+    activeRingCls: 'ring-2 ring-[#d97706] bg-amber-50/40'
   },
   {
     id: 'RETURN_TO_RUN',
@@ -56,7 +62,10 @@ const FIVE_REHAB_PHASES = [
     title: 'Carico, Corsa & RSI',
     subtitle: 'Introduzione alla corsa lineare, drills meccanici, lavoro su RSI e sviluppo potenza.',
     fullLabel: 'Fase 3 (Return to Run)',
-    dbPhase: 'Return to Run'
+    dbPhase: 'Return to Run',
+    topBorderCls: 'border-t-4 border-t-[#1d4ed8]',
+    pillCls: 'bg-blue-50 text-[#1d4ed8] border border-blue-200',
+    activeRingCls: 'ring-2 ring-[#1d4ed8] bg-blue-50/40'
   },
   {
     id: 'LATE_STAGE',
@@ -65,7 +74,10 @@ const FIVE_REHAB_PHASES = [
     title: 'CODs, Chaos & Plyo',
     subtitle: 'Cambi di direzione ad alta velocità, ambienti caotici/reattivi e pliometria intensiva.',
     fullLabel: 'Fase 4 (Late Stage)',
-    dbPhase: 'Return to Sport'
+    dbPhase: 'Return to Sport',
+    topBorderCls: 'border-t-4 border-t-[#059669]',
+    pillCls: 'bg-emerald-50 text-[#047857] border border-emerald-200',
+    activeRingCls: 'ring-2 ring-[#059669] bg-emerald-50/40'
   },
   {
     id: 'PERFORMANCE',
@@ -74,7 +86,10 @@ const FIVE_REHAB_PHASES = [
     title: 'Return to Sport & Peak Power',
     subtitle: 'Ritorno alla performance massimale: sprint, potenza di picco e idoneità agonistica.',
     fullLabel: 'Fase 5 (Return to Play)',
-    dbPhase: 'Return to Play'
+    dbPhase: 'Return to Play',
+    topBorderCls: 'border-t-4 border-t-[#0d9488]',
+    pillCls: 'bg-teal-50 text-[#0f766e] border border-teal-200',
+    activeRingCls: 'ring-2 ring-[#0d9488] bg-teal-50/40'
   }
 ];
 
@@ -242,11 +257,11 @@ export default function PatientDetail({ patient, onBack, onUpdatePatient }) {
   ];
 
   return (
-    <div className="space-y-5 text-slate-800">
+    <div className="space-y-6 text-slate-900">
       {/* Toast conferma copia Link Mobile Paziente */}
       {toastMobileLink && (
-        <div className="fixed bottom-5 right-5 z-50 bg-emerald-100 border border-emerald-300/60 text-emerald-900 px-4 py-3 rounded-xl flex items-center gap-2.5 text-xs font-bold print:hidden">
-          <CheckCircle2 className="w-4 h-4 text-emerald-700 shrink-0" />
+        <div className="fixed bottom-5 right-5 z-50 bg-emerald-50 border border-emerald-200 text-emerald-900 px-4 py-3 rounded-2xl shadow-lg flex items-center gap-2.5 text-xs font-extrabold print:hidden">
+          <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
           <span>Link Mobile Paziente copiato negli appunti!</span>
         </div>
       )}
@@ -255,9 +270,9 @@ export default function PatientDetail({ patient, onBack, onUpdatePatient }) {
       <div className="flex flex-wrap items-center justify-between gap-4 print:hidden">
         <button
           onClick={onBack}
-          className="flex items-center gap-2 text-xs font-bold text-slate-700 hover:text-slate-900 bg-white hover:bg-slate-50 px-3.5 py-2 rounded-xl border border-slate-300/80 shadow-xs transition-all cursor-pointer"
+          className="flex items-center gap-2 text-xs font-extrabold text-slate-800 hover:text-slate-900 bg-white hover:bg-stone-50 px-4 py-2.5 rounded-2xl border border-stone-200 shadow-sm transition-all cursor-pointer"
         >
-          <ArrowLeft className="w-4 h-4 text-slate-700" />
+          <ArrowLeft className="w-4 h-4 text-blue-600" />
           <span>Torna all&apos;Elenco Pazienti</span>
         </button>
 
@@ -265,16 +280,16 @@ export default function PatientDetail({ patient, onBack, onUpdatePatient }) {
         <div className="flex flex-wrap items-center gap-2.5 print:hidden">
           <button
             onClick={handleCopyClientPortalLink}
-            className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-sky-100/80 hover:bg-sky-200/70 text-sky-900 border border-sky-300/50 text-xs font-bold shadow-none transition-all cursor-pointer"
+            className="flex items-center gap-1.5 px-4 py-2.5 rounded-2xl bg-blue-50 hover:bg-blue-100 text-blue-900 border border-blue-200 text-xs font-extrabold shadow-xs transition-all cursor-pointer"
             title="Copia il link diretto al Diario Carichi Mobile del Paziente"
           >
-            <Smartphone className="w-3.5 h-3.5 text-sky-900" />
+            <Smartphone className="w-4 h-4 text-blue-600" />
             <span>Condividi Link Mobile</span>
           </button>
 
           <button
             onClick={() => setShowEditAnagrafica(true)}
-            className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-white hover:bg-slate-50 text-slate-700 hover:text-slate-900 border border-slate-300/80 text-xs font-bold shadow-xs transition-all cursor-pointer"
+            className="flex items-center gap-1.5 px-4 py-2.5 rounded-2xl bg-white hover:bg-stone-50 text-slate-800 hover:text-slate-900 border border-stone-200 text-xs font-extrabold shadow-xs transition-all cursor-pointer"
           >
             <Edit2 className="w-3.5 h-3.5 text-slate-700" />
             <span>Modifica Anagrafica</span>
@@ -283,7 +298,7 @@ export default function PatientDetail({ patient, onBack, onUpdatePatient }) {
           <button
             type="button"
             onClick={() => setIsPrintModalOpen(true)}
-            className="flex items-center gap-2 px-4 py-2 rounded-xl bg-purple-100/80 hover:bg-purple-200/70 text-purple-900 border border-purple-300/50 font-bold text-xs shadow-none transition-all cursor-pointer"
+            className="flex items-center gap-2 px-4 py-2.5 rounded-2xl bg-blue-600 hover:bg-blue-700 text-white font-extrabold text-xs shadow-md transition-all cursor-pointer"
           >
             <FileDown className="w-4 h-4" />
             <span>Stampa / Esporta PDF A4</span>
@@ -292,17 +307,17 @@ export default function PatientDetail({ patient, onBack, onUpdatePatient }) {
       </div>
 
       {/* Patient Clinical Header Card (Minimal & Clean: Only Patient Name + Phase Badge) */}
-      <div className="bg-white p-5 rounded-xl border border-slate-300/80 shadow-sm relative overflow-hidden break-inside-avoid">
+      <div className="bg-white p-6 rounded-3xl border border-stone-200 shadow-md relative overflow-hidden break-inside-avoid">
         <div className="relative z-10 flex items-center justify-between gap-4">
           <div className="flex items-center gap-4">
-            <div className="w-12 h-12 rounded-2xl bg-[#0B1736] text-white flex items-center justify-center font-bold text-lg shrink-0">
+            <div className="w-14 h-14 rounded-2xl bg-blue-600 text-white flex items-center justify-center font-black text-xl shadow-md shrink-0">
               {patient.nome?.[0]}{patient.cognome?.[0]}
             </div>
-            <div className="flex flex-wrap items-center gap-3">
-              <h1 className="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight">
+            <div className="flex flex-wrap items-center gap-3.5">
+              <h1 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight">
                 {patient.nome} {patient.cognome}
               </h1>
-              <span className="px-3 py-1 rounded-lg bg-[#D1F4E2] text-emerald-950 border border-[#B5E8CE] text-xs font-bold">
+              <span className={`px-3.5 py-1.5 rounded-xl text-xs font-extrabold uppercase tracking-wider ${activeStageMeta.pillCls}`}>
                 {currentPhaseDisplay}
               </span>
             </div>
@@ -311,7 +326,7 @@ export default function PatientDetail({ patient, onBack, onUpdatePatient }) {
       </div>
 
       {/* BARRA DI NAVIGAZIONE A 3 SCHEDE (Monitoraggio & Diario | Test & Valutazioni | Copilot) */}
-      <div className="bg-white p-1.5 rounded-xl border border-slate-300/80 shadow-sm flex overflow-x-auto gap-2 print:hidden">
+      <div className="bg-white p-2 rounded-3xl border border-stone-200 shadow-md flex overflow-x-auto gap-2 print:hidden">
         {tabs.map((tab) => {
           const Icon = tab.icon;
           const isActive = activeTab === tab.id;
@@ -319,13 +334,13 @@ export default function PatientDetail({ patient, onBack, onUpdatePatient }) {
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
-              className={`flex-1 min-w-[180px] flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl text-xs font-bold transition-all cursor-pointer whitespace-nowrap ${
+              className={`flex-1 min-w-[180px] flex items-center justify-center gap-2 py-3 px-4 rounded-2xl text-xs font-extrabold uppercase tracking-wider transition-all cursor-pointer whitespace-nowrap ${
                 isActive
-                  ? 'bg-[#1D63FE] text-white shadow-xs'
-                  : 'bg-stone-50 text-slate-700 hover:text-slate-900 hover:bg-slate-100'
+                  ? 'bg-blue-600 text-white shadow-md'
+                  : 'bg-[#faf9f6] text-slate-700 hover:text-slate-900 hover:bg-stone-100 border border-stone-200/70'
               }`}
             >
-              <Icon className={`w-4 h-4 ${isActive ? 'text-white' : 'text-slate-600'}`} />
+              <Icon className={`w-4 h-4 ${isActive ? 'text-white' : 'text-blue-600'}`} />
               <span>{tab.label}</span>
             </button>
           );
@@ -338,34 +353,34 @@ export default function PatientDetail({ patient, onBack, onUpdatePatient }) {
         {/* TAB 1: MONITORAGGIO & DIARIO                                          */}
         {/* ===================================================================== */}
         {activeTab === 'tab1' && (
-          <div className="space-y-5">
+          <div className="space-y-6">
             {/* 1. LE 5 FASI RIABILITATIVE IN ALTO FISSE E ORIZZONTALI A BLOCCHI */}
-            <div className="bg-white p-4 sm:p-5 rounded-xl border border-slate-300/80 shadow-sm space-y-3.5 break-inside-avoid">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-2.5 border-b border-slate-200">
+            <div className="bg-white p-6 rounded-3xl border border-stone-200 shadow-md space-y-4 break-inside-avoid">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-3 border-b border-stone-200">
                 <div className="flex items-center gap-2.5">
-                  <div className="p-1.5 bg-emerald-100/80 text-emerald-900 border border-emerald-300/50 rounded shrink-0">
-                    <Layers className="w-4 h-4 text-emerald-900" />
+                  <div className="p-2 bg-blue-50 text-blue-600 border border-blue-200 rounded-xl shrink-0">
+                    <Layers className="w-4 h-4" />
                   </div>
                   <div>
-                    <h2 className="text-sm sm:text-base font-bold text-slate-800 uppercase tracking-wide">
+                    <h2 className="text-sm sm:text-base font-black text-slate-900 uppercase tracking-wider">
                       Fasi Riabilitative LCA (Seleziona la Fase Attuale)
                     </h2>
-                    <p className="text-xs text-slate-500 font-medium">
+                    <p className="text-xs text-slate-600 font-bold">
                       Clicca sul blocco corrispondente per impostare o aggiornare la fase clinica attiva del paziente
                     </p>
                   </div>
                 </div>
 
                 {savedDirectivesToast && (
-                  <span className="px-2.5 py-1 rounded-lg bg-emerald-100/80 border border-emerald-300/50 text-emerald-900 text-xs font-bold flex items-center gap-1 self-start sm:self-auto print:hidden">
-                    <CheckCircle2 className="w-3.5 h-3.5" />
+                  <span className="px-3 py-1.5 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-900 text-xs font-extrabold flex items-center gap-1.5 self-start sm:self-auto print:hidden">
+                    <CheckCircle2 className="w-4 h-4 text-emerald-600" />
                     Salvato nel Cloud
                   </span>
                 )}
               </div>
 
               {/* Griglia fissa orizzontale a 5 Blocchi */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3.5">
                 {FIVE_REHAB_PHASES.map((ph) => {
                   const isSelected = selectedStageId === ph.id;
                   return (
@@ -373,43 +388,37 @@ export default function PatientDetail({ patient, onBack, onUpdatePatient }) {
                       key={ph.id}
                       type="button"
                       onClick={() => handleSelectPhaseBlock(ph)}
-                      className={`p-3.5 rounded-xl text-left transition-all flex flex-col justify-between space-y-2.5 cursor-pointer ${
+                      className={`p-4 rounded-2xl text-left transition-all flex flex-col justify-between space-y-3 cursor-pointer border border-stone-200 ${ph.topBorderCls} ${
                         isSelected
-                          ? 'bg-emerald-100/80 border-2 border-emerald-400 text-emerald-950'
-                          : 'bg-stone-50 border border-slate-300/80 hover:bg-slate-100 text-slate-700'
+                          ? `${ph.activeRingCls} shadow-md`
+                          : 'bg-white hover:bg-[#faf9f6] shadow-xs hover:shadow-md'
                       }`}
                     >
-                      <div className="space-y-1.5">
+                      <div className="space-y-2">
                         <div className="flex items-center justify-between gap-1">
-                          <span
-                            className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded ${
-                              isSelected
-                                ? 'bg-emerald-800 text-emerald-50'
-                                : 'bg-slate-200/80 text-slate-700'
-                            }`}
-                          >
+                          <span className={`text-[10px] font-black uppercase px-2.5 py-0.5 rounded-lg ${ph.pillCls}`}>
                             {ph.num} • {ph.tag}
                           </span>
                         </div>
 
-                        <h3 className="text-slate-800 font-bold text-xs sm:text-sm leading-snug pt-0.5">
+                        <h3 className="text-slate-900 font-black text-xs sm:text-sm leading-snug pt-0.5">
                           {ph.title}
                         </h3>
 
-                        <p className="text-slate-600 font-medium text-[11px] leading-relaxed">
+                        <p className="text-slate-600 font-semibold text-[11px] leading-relaxed">
                           {ph.subtitle}
                         </p>
                       </div>
 
                       <div
-                        className={`pt-2 border-t flex items-center justify-between text-[11px] font-bold ${
+                        className={`pt-2.5 border-t flex items-center justify-between text-[11px] font-extrabold ${
                           isSelected
-                            ? 'border-emerald-300/70 text-emerald-900'
-                            : 'border-slate-300/60 text-slate-500'
+                            ? 'border-stone-300 text-slate-900'
+                            : 'border-stone-200 text-slate-500'
                         }`}
                       >
                         <span>{isSelected ? 'Fase Attiva' : 'Imposta Fase'}</span>
-                        {isSelected && <Check className="w-3.5 h-3.5 text-emerald-900" />}
+                        {isSelected && <Check className="w-4 h-4 text-emerald-600" />}
                       </div>
                     </button>
                   );
@@ -418,17 +427,17 @@ export default function PatientDetail({ patient, onBack, onUpdatePatient }) {
             </div>
 
             {/* 2. SUBITO SOTTO LE 5 FASI: CARD CON LE DIRETTIVE DEL TERAPISTA */}
-            <div className="bg-white p-4 sm:p-5 rounded-xl border border-slate-300/80 shadow-sm space-y-4 break-inside-avoid">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-200">
+            <div className="bg-white p-6 rounded-3xl border border-stone-200 shadow-md space-y-4 break-inside-avoid">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-stone-200">
                 <div className="flex items-center gap-2.5">
-                  <div className="p-1.5 bg-sky-100/80 text-sky-900 border border-sky-300/50 rounded shrink-0">
-                    <Compass className="w-4 h-4 text-sky-900" />
+                  <div className="p-2 bg-blue-50 text-blue-600 border border-blue-200 rounded-xl shrink-0">
+                    <Compass className="w-4 h-4" />
                   </div>
                   <div>
-                    <h2 className="text-sm sm:text-base font-bold text-slate-800 uppercase tracking-wide">
+                    <h2 className="text-sm sm:text-base font-black text-slate-900 uppercase tracking-wider">
                       Direttive del Terapista &amp; Priorità Cliniche
                     </h2>
-                    <p className="text-xs text-slate-500 font-medium">
+                    <p className="text-xs text-slate-600 font-bold">
                       Consegne operative per lo staff e il paziente sincronizzate automaticamente con il Copilot
                     </p>
                   </div>
@@ -438,16 +447,16 @@ export default function PatientDetail({ patient, onBack, onUpdatePatient }) {
                   <button
                     type="button"
                     onClick={() => setShowAdvancedDirectives((prev) => !prev)}
-                    className="px-3 py-1.5 rounded-xl bg-purple-100/80 hover:bg-purple-200/70 text-purple-900 border border-purple-300/50 text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer"
+                    className="px-3.5 py-2 rounded-2xl bg-stone-100 hover:bg-stone-200 text-slate-900 border border-stone-200 text-xs font-extrabold flex items-center gap-1.5 transition-all cursor-pointer"
                   >
                     {showAdvancedDirectives ? (
                       <>
-                        <ChevronUp className="w-3.5 h-3.5" />
+                        <ChevronUp className="w-4 h-4" />
                         <span>Chiudi Gestione Deficit &amp; Focus VBT</span>
                       </>
                     ) : (
                       <>
-                        <ChevronDown className="w-3.5 h-3.5" />
+                        <ChevronDown className="w-4 h-4" />
                         <span>Gestisci Deficit ({(patient.deficits_list || []).length}) &amp; Prescrizioni VBT</span>
                       </>
                     )}
@@ -456,9 +465,9 @@ export default function PatientDetail({ patient, onBack, onUpdatePatient }) {
                   <button
                     type="button"
                     onClick={handleSaveSyntheticDirectives}
-                    className="px-4 py-1.5 rounded-xl bg-emerald-100/80 hover:bg-emerald-200/70 text-emerald-900 border border-emerald-300/50 font-bold text-xs flex items-center gap-1.5 shadow-none transition-all cursor-pointer"
+                    className="px-4 py-2 rounded-2xl bg-blue-600 hover:bg-blue-700 text-white font-extrabold text-xs flex items-center gap-1.5 shadow-md transition-all cursor-pointer"
                   >
-                    <Save className="w-3.5 h-3.5" />
+                    <Save className="w-4 h-4" />
                     <span>Salva Direttive</span>
                   </button>
                 </div>
@@ -467,7 +476,7 @@ export default function PatientDetail({ patient, onBack, onUpdatePatient }) {
               <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 items-start">
                 {/* Colonna Sinistra (8/12): Note / Direttive del Terapista */}
                 <div className="lg:col-span-8 space-y-1.5">
-                  <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider">
+                  <label className="block text-xs font-extrabold text-slate-800 uppercase tracking-wider">
                     Direttive Operative del Terapista
                   </label>
                   <textarea
@@ -475,13 +484,13 @@ export default function PatientDetail({ patient, onBack, onUpdatePatient }) {
                     value={direttiveTerapistaInput}
                     onChange={(e) => setDirettiveTerapistaInput(e.target.value)}
                     placeholder="Inserisci qui le direttive operative per il team e per il paziente (es. Focus recupero estensione attiva 0°, carichi isometrici a 60° di flessione, controllo valgismo dinamico in decelerazione...)"
-                    className="w-full bg-stone-50 border border-slate-300/80 rounded-xl p-3 text-xs text-slate-800 font-medium leading-relaxed focus:border-slate-500 focus:outline-none"
+                    className="w-full bg-[#faf9f6] border border-stone-200 rounded-2xl p-3.5 text-xs text-slate-900 font-semibold leading-relaxed focus:border-blue-600 focus:outline-none"
                   />
                 </div>
 
                 {/* Colonna Destra (4/12): Riepilogo Deficit Attivi */}
-                <div className="lg:col-span-4 space-y-2 bg-stone-50 p-3.5 rounded-xl border border-slate-300/80">
-                  <span className="block text-[11px] font-bold text-slate-700 uppercase tracking-wider">
+                <div className="lg:col-span-4 space-y-2 bg-[#faf9f6] p-4 rounded-2xl border border-stone-200">
+                  <span className="block text-[11px] font-extrabold text-slate-800 uppercase tracking-wider">
                     Deficit Biomeccanici Segnalati ({(patient.deficits_list || []).length})
                   </span>
                   {Array.isArray(patient.deficits_list) && patient.deficits_list.length > 0 ? (
@@ -493,12 +502,12 @@ export default function PatientDetail({ patient, onBack, onUpdatePatient }) {
                         return (
                           <span
                             key={def.id}
-                            className={`px-2.5 py-1 rounded-lg text-[11px] font-bold border ${
+                            className={`px-2.5 py-1 rounded-xl text-[11px] font-extrabold border ${
                               isHigh
-                                ? 'bg-rose-100/80 text-rose-900 border-rose-300/50'
+                                ? 'bg-red-50 text-[#b91c1c] border-red-200'
                                 : isMed
-                                ? 'bg-sky-100/80 text-sky-900 border-sky-300/50'
-                                : 'bg-emerald-100/80 text-emerald-900 border-emerald-300/50'
+                                ? 'bg-amber-50 text-[#b45309] border-amber-200'
+                                : 'bg-emerald-50 text-[#047857] border-emerald-200'
                             }`}
                           >
                             {def.title}
@@ -507,7 +516,7 @@ export default function PatientDetail({ patient, onBack, onUpdatePatient }) {
                       })}
                     </div>
                   ) : (
-                    <span className="text-xs text-slate-500 font-medium block">
+                    <span className="text-xs text-slate-600 font-semibold block">
                       Nessun deficit specifico registrato. Usa &quot;Gestisci Deficit&quot; per aggiungerne.
                     </span>
                   )}
@@ -516,7 +525,7 @@ export default function PatientDetail({ patient, onBack, onUpdatePatient }) {
 
               {/* Pannello espandibile per gestione dettagliata Deficit & Esercizi Prescritti */}
               {showAdvancedDirectives && (
-                <div className="pt-4 border-t border-slate-200">
+                <div className="pt-4 border-t border-stone-200">
                   <UIErrorBoundary title="Modulo Direttive Dettagliate">
                     <TabDirettiveOperative
                       patient={patient}
@@ -574,9 +583,9 @@ export default function PatientDetail({ patient, onBack, onUpdatePatient }) {
       {/* Modal Modifica Dati Anagrafici e Clinici Paziente */}
       {showEditAnagrafica && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-stone-900/50 backdrop-blur-xs print:hidden">
-          <div className="w-full max-w-lg bg-white border border-slate-300/80 rounded-xl p-6 space-y-4 shadow-sm text-slate-800">
-            <div className="flex items-center justify-between pb-3 border-b border-slate-200">
-              <h3 className="font-semibold text-slate-900 text-base">Modifica Anagrafica Paziente</h3>
+          <div className="w-full max-w-lg bg-white border border-stone-200 rounded-3xl p-6 space-y-4 shadow-xl text-slate-900">
+            <div className="flex items-center justify-between pb-3 border-b border-stone-200">
+              <h3 className="font-black text-slate-900 text-base">Modifica Anagrafica Paziente</h3>
               <button
                 onClick={() => setShowEditAnagrafica(false)}
                 className="text-slate-500 hover:text-slate-900 cursor-pointer"
@@ -588,67 +597,67 @@ export default function PatientDetail({ patient, onBack, onUpdatePatient }) {
             <form onSubmit={handleSaveAnagrafica} className="space-y-3 text-xs">
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-slate-600 font-medium mb-1">Nome</label>
+                  <label className="block text-slate-700 font-bold mb-1">Nome</label>
                   <input
                     type="text"
                     required
                     value={editForm.nome}
                     onChange={(e) => setEditForm({ ...editForm, nome: e.target.value })}
-                    className="w-full bg-stone-50 border border-slate-300/80 rounded-lg p-2 text-slate-900 font-semibold focus:border-slate-600 focus:outline-none"
+                    className="w-full bg-[#faf9f6] border border-stone-200 rounded-xl p-2.5 text-slate-900 font-bold focus:border-blue-600 focus:outline-none"
                   />
                 </div>
                 <div>
-                  <label className="block text-slate-600 font-medium mb-1">Cognome</label>
+                  <label className="block text-slate-700 font-bold mb-1">Cognome</label>
                   <input
                     type="text"
                     required
                     value={editForm.cognome}
                     onChange={(e) => setEditForm({ ...editForm, cognome: e.target.value })}
-                    className="w-full bg-stone-50 border border-slate-300/80 rounded-lg p-2 text-slate-900 font-semibold focus:border-slate-600 focus:outline-none"
+                    className="w-full bg-[#faf9f6] border border-stone-200 rounded-xl p-2.5 text-slate-900 font-bold focus:border-blue-600 focus:outline-none"
                   />
                 </div>
               </div>
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-slate-600 font-medium mb-1">Sport</label>
+                  <label className="block text-slate-700 font-bold mb-1">Sport</label>
                   <input
                     type="text"
                     required
                     value={editForm.sport}
                     onChange={(e) => setEditForm({ ...editForm, sport: e.target.value })}
-                    className="w-full bg-stone-50 border border-slate-300/80 rounded-lg p-2 text-slate-900 font-semibold focus:border-slate-600 focus:outline-none"
+                    className="w-full bg-[#faf9f6] border border-stone-200 rounded-xl p-2.5 text-slate-900 font-bold focus:border-blue-600 focus:outline-none"
                   />
                 </div>
                 <div>
-                  <label className="block text-slate-600 font-medium mb-1">Ruolo / Disciplina</label>
+                  <label className="block text-slate-700 font-bold mb-1">Ruolo / Disciplina</label>
                   <input
                     type="text"
                     value={editForm.ruolo_sportivo}
                     onChange={(e) => setEditForm({ ...editForm, ruolo_sportivo: e.target.value })}
-                    className="w-full bg-stone-50 border border-slate-300/80 rounded-lg p-2 text-slate-900 font-semibold focus:border-slate-600 focus:outline-none"
+                    className="w-full bg-[#faf9f6] border border-stone-200 rounded-xl p-2.5 text-slate-900 font-bold focus:border-blue-600 focus:outline-none"
                   />
                 </div>
               </div>
 
               <div className="grid grid-cols-3 gap-3">
                 <div>
-                  <label className="block text-slate-600 font-medium mb-1">Lato Operato</label>
+                  <label className="block text-slate-700 font-bold mb-1">Lato Operato</label>
                   <select
                     value={editForm.lato_lesione}
                     onChange={(e) => setEditForm({ ...editForm, lato_lesione: e.target.value })}
-                    className="w-full bg-stone-50 border border-slate-300/80 rounded-lg p-2 text-slate-900 font-semibold focus:border-slate-600 focus:outline-none"
+                    className="w-full bg-[#faf9f6] border border-stone-200 rounded-xl p-2.5 text-slate-900 font-bold focus:border-blue-600 focus:outline-none"
                   >
                     <option value="Dx">Destro (Dx)</option>
                     <option value="Sx">Sinistro (Sx)</option>
                   </select>
                 </div>
                 <div>
-                  <label className="block text-slate-600 font-medium mb-1">Tipo Innesto</label>
+                  <label className="block text-slate-700 font-bold mb-1">Tipo Innesto</label>
                   <select
                     value={editForm.tipo_innesto}
                     onChange={(e) => setEditForm({ ...editForm, tipo_innesto: e.target.value })}
-                    className="w-full bg-stone-50 border border-slate-300/80 rounded-lg p-2 text-slate-900 font-semibold focus:border-slate-600 focus:outline-none"
+                    className="w-full bg-[#faf9f6] border border-stone-200 rounded-xl p-2.5 text-slate-900 font-bold focus:border-blue-600 focus:outline-none"
                   >
                     <option value="STG">STG</option>
                     <option value="Rotuleo">Rotuleo (BPTB)</option>
@@ -657,33 +666,33 @@ export default function PatientDetail({ patient, onBack, onUpdatePatient }) {
                   </select>
                 </div>
                 <div>
-                  <label className="block text-slate-600 font-medium mb-1">Data Intervento</label>
+                  <label className="block text-slate-700 font-bold mb-1">Data Intervento</label>
                   <input
                     type="date"
                     required
                     value={editForm.data_intervento}
                     onChange={(e) => setEditForm({ ...editForm, data_intervento: e.target.value })}
-                    className="w-full bg-stone-50 border border-slate-300/80 rounded-lg p-2 text-slate-900 font-mono font-semibold focus:border-slate-600 focus:outline-none"
+                    className="w-full bg-[#faf9f6] border border-stone-200 rounded-xl p-2.5 text-slate-900 font-mono font-bold focus:border-blue-600 focus:outline-none"
                   />
                 </div>
               </div>
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-slate-600 font-medium mb-1">Chirurgo Ortopedico</label>
+                  <label className="block text-slate-700 font-bold mb-1">Chirurgo Ortopedico</label>
                   <input
                     type="text"
                     value={editForm.chirurgo}
                     onChange={(e) => setEditForm({ ...editForm, chirurgo: e.target.value })}
-                    className="w-full bg-stone-50 border border-slate-300/80 rounded-lg p-2 text-slate-900 font-semibold focus:border-slate-600 focus:outline-none"
+                    className="w-full bg-[#faf9f6] border border-stone-200 rounded-xl p-2.5 text-slate-900 font-bold focus:border-blue-600 focus:outline-none"
                   />
                 </div>
                 <div>
-                  <label className="block text-slate-600 font-medium mb-1">Fase Riabilitativa (1-5)</label>
+                  <label className="block text-slate-700 font-bold mb-1">Fase Riabilitativa (1-5)</label>
                   <select
                     value={editForm.fase_attuale}
                     onChange={(e) => setEditForm({ ...editForm, fase_attuale: e.target.value })}
-                    className="w-full bg-stone-50 border border-slate-300/80 rounded-lg p-2 text-slate-900 font-semibold focus:border-slate-600 focus:outline-none"
+                    className="w-full bg-[#faf9f6] border border-stone-200 rounded-xl p-2.5 text-slate-900 font-bold focus:border-blue-600 focus:outline-none"
                   >
                     {FIVE_LCA_PHASES.map((ph) => (
                       <option key={ph.id} value={ph.fullLabel}>{ph.fullLabel}</option>
@@ -692,17 +701,17 @@ export default function PatientDetail({ patient, onBack, onUpdatePatient }) {
                 </div>
               </div>
 
-              <div className="pt-3 border-t border-slate-200 flex justify-end gap-2">
+              <div className="pt-3 border-t border-stone-200 flex justify-end gap-2">
                 <button
                   type="button"
                   onClick={() => setShowEditAnagrafica(false)}
-                  className="px-4 py-2 bg-stone-50 hover:bg-slate-100 text-slate-800 border border-slate-300/80 rounded-xl font-semibold cursor-pointer"
+                  className="px-4 py-2.5 bg-[#faf9f6] hover:bg-stone-100 text-slate-800 border border-stone-200 rounded-2xl font-extrabold cursor-pointer"
                 >
                   Annulla
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-2 bg-[#0B1736] hover:bg-[#142554] text-white rounded-xl font-semibold flex items-center gap-1.5 cursor-pointer"
+                  className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-2xl font-extrabold flex items-center gap-1.5 shadow-md cursor-pointer"
                 >
                   <Save className="w-4 h-4" />
                   <span>Salva Modifiche</span>

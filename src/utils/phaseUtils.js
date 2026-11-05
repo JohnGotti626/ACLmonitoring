@@ -23,8 +23,12 @@ export const FIVE_LCA_PHASES = [
     subtitle: 'Controllo Infiammazione & ROM',
     fullLabel: 'Fase 1 (Early Stage)',
     dbPhase: 'Early Phase',
-    barometerCls: 'bg-rose-100/80 text-rose-900 border border-rose-300/60',
-    badgeCls: 'bg-rose-100/80 text-rose-900 border border-rose-300/60'
+    topBorderCls: 'border-t-4 border-t-[#b91c1c]',
+    numberColorCls: 'text-[#b91c1c]',
+    pillCls: 'bg-red-50 text-[#b91c1c] border border-red-200',
+    dotCls: 'bg-[#b91c1c]',
+    barometerCls: 'bg-white text-slate-900 border border-stone-200 border-t-4 border-t-[#b91c1c]',
+    badgeCls: 'bg-red-50 text-[#b91c1c] border border-red-200'
   },
   {
     number: 2,
@@ -35,8 +39,12 @@ export const FIVE_LCA_PHASES = [
     subtitle: 'Forza, Jump & Landing',
     fullLabel: 'Fase 2 (Mid Stage)',
     dbPhase: 'Return to Run',
-    barometerCls: 'bg-amber-100/80 text-amber-900 border border-amber-300/60',
-    badgeCls: 'bg-amber-100/80 text-amber-900 border border-amber-300/60'
+    topBorderCls: 'border-t-4 border-t-[#d97706]',
+    numberColorCls: 'text-[#d97706]',
+    pillCls: 'bg-amber-50 text-[#b45309] border border-amber-200',
+    dotCls: 'bg-[#d97706]',
+    barometerCls: 'bg-white text-slate-900 border border-stone-200 border-t-4 border-t-[#d97706]',
+    badgeCls: 'bg-amber-50 text-[#b45309] border border-amber-200'
   },
   {
     number: 3,
@@ -47,8 +55,12 @@ export const FIVE_LCA_PHASES = [
     subtitle: 'Carico, Corsa & RSI',
     fullLabel: 'Fase 3 (Return to Run)',
     dbPhase: 'Return to Run',
-    barometerCls: 'bg-yellow-100/80 text-yellow-900 border border-yellow-300/60',
-    badgeCls: 'bg-yellow-100/80 text-yellow-900 border border-yellow-300/60'
+    topBorderCls: 'border-t-4 border-t-[#1d4ed8]',
+    numberColorCls: 'text-[#1d4ed8]',
+    pillCls: 'bg-blue-50 text-[#1d4ed8] border border-blue-200',
+    dotCls: 'bg-[#1d4ed8]',
+    barometerCls: 'bg-white text-slate-900 border border-stone-200 border-t-4 border-t-[#1d4ed8]',
+    badgeCls: 'bg-blue-50 text-[#1d4ed8] border border-blue-200'
   },
   {
     number: 4,
@@ -59,8 +71,12 @@ export const FIVE_LCA_PHASES = [
     subtitle: 'CODs, Chaos & Plyo',
     fullLabel: 'Fase 4 (Late Stage)',
     dbPhase: 'Return to Sport',
-    barometerCls: 'bg-emerald-100/80 text-emerald-900 border border-emerald-300/60',
-    badgeCls: 'bg-emerald-100/80 text-emerald-900 border border-emerald-300/60'
+    topBorderCls: 'border-t-4 border-t-[#059669]',
+    numberColorCls: 'text-[#047857]',
+    pillCls: 'bg-emerald-50 text-[#047857] border border-emerald-200',
+    dotCls: 'bg-[#059669]',
+    barometerCls: 'bg-white text-slate-900 border border-stone-200 border-t-4 border-t-[#059669]',
+    badgeCls: 'bg-emerald-50 text-[#047857] border border-emerald-200'
   },
   {
     number: 5,
@@ -71,8 +87,12 @@ export const FIVE_LCA_PHASES = [
     subtitle: 'Performance & Peak Power',
     fullLabel: 'Fase 5 (Return to Play)',
     dbPhase: 'Return to Play',
-    barometerCls: 'bg-teal-100 text-teal-900 border border-teal-400/60',
-    badgeCls: 'bg-teal-100 text-teal-900 border border-teal-400/60'
+    topBorderCls: 'border-t-4 border-t-[#0d9488]',
+    numberColorCls: 'text-[#0f766e]',
+    pillCls: 'bg-teal-50 text-[#0f766e] border border-teal-200',
+    dotCls: 'bg-[#0d9488]',
+    barometerCls: 'bg-white text-slate-900 border border-stone-200 border-t-4 border-t-[#0d9488]',
+    badgeCls: 'bg-teal-50 text-[#0f766e] border border-teal-200'
   }
 ];
 
