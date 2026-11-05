@@ -92,6 +92,16 @@
   background: #57534e;
 }
 
+/* Nasconde la scrollbar mantenendo lo scorrimento orizzontale fluido */
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+
 /* ========================================================================== */
 /* OTTIMIZZAZIONE REPORT & STAMPA PDF A4 (@media print) — INK-FRIENDLY WHITE  */
 /* ========================================================================== */

@@ -54,8 +54,8 @@ export default function RilevazioniCarichiTab({
   const [loading, setLoading] = useState(false);
   const [searchFilter, setSearchFilter] = useState('');
 
-  // Selettore Giornata nello Storico Terapista ('ALL', 'LATEST', o 'YYYY-MM-DD')
-  const [selectedDay, setSelectedDay] = useState('ALL');
+  // Selettore Giornata nello Storico Terapista (null / 'ALL' mostra l'empty state pulito, oppure 'YYYY-MM-DD' mostra solo quella giornata)
+  const [selectedDate, setSelectedDate] = useState(null);
 
   // Esercizio selezionato per visualizzare il Grafico di Progressione nel Tempo
   const [selectedExerciseProgression, setSelectedExerciseProgression] = useState(null);
@@ -185,7 +185,7 @@ export default function RilevazioniCarichiTab({
     };
   }, [patient?.id]);
 
-  // Raggruppamento per Giornate ('YYYY-MM-DD')
+  // Raggruppamento per Giornate ('YYYY-MM-DD') ordinate in senso decrescente (le più recenti subito a sinistra)
   const groupedByDay = useMemo(() => {
     const map = {};
     logs.forEach(log => {
@@ -195,7 +195,9 @@ export default function RilevazioniCarichiTab({
       }
       map[dayKey].push(log);
     });
-    const sortedDays = Object.keys(map).sort((a, b) => b.localeCompare(a));
+    const sortedDays = Object.keys(map).sort(
+      (a, b) => new Date(b).getTime() - new Date(a).getTime() || b.localeCompare(a)
+    );
     return { map, sortedDays };
   }, [logs]);
 
@@ -403,6 +405,7 @@ export default function RilevazioniCarichiTab({
         syncLogsLocallyAndParent(updatedList);
       }
 
+      setSelectedDate(formDate);
       setEditingModalOpen(false);
       setEditingLog(null);
       setTherapistCardioBlocks([]);
@@ -470,12 +473,19 @@ export default function RilevazioniCarichiTab({
     window.open(`https://wa.me/?text=${text}`, '_blank');
   };
 
-  // Giorni filtrati da visualizzare
-  const daysToRender = useMemo(() => {
-    if (selectedDay === 'ALL') return groupedByDay.sortedDays;
-    if (groupedByDay.map[selectedDay]) return [selectedDay];
-    return groupedByDay.sortedDays;
-  }, [selectedDay, groupedByDay]);
+  // Esercizi filtrati esclusivamente per la giornata selezionata (`selectedDate`)
+  const selectedDayLogs = useMemo(() => {
+    if (!selectedDate || selectedDate === 'ALL' || !groupedByDay.map[selectedDate]) {
+      return [];
+    }
+    const rawDayLogs = groupedByDay.map[selectedDate] || [];
+    return rawDayLogs.filter(
+      (l) =>
+        !searchFilter.trim() ||
+        l.exercise_name?.toLowerCase().includes(searchFilter.toLowerCase()) ||
+        (l.notes || '')?.toLowerCase().includes(searchFilter.toLowerCase())
+    );
+  }, [selectedDate, groupedByDay, searchFilter]);
 
   return (
     <div className="space-y-6 text-slate-800">
@@ -502,7 +512,7 @@ export default function RilevazioniCarichiTab({
         <div className="flex flex-wrap items-center gap-2.5 print:hidden">
           <button
             type="button"
-            onClick={() => handleOpenNewModal(selectedDay)}
+            onClick={() => handleOpenNewModal(selectedDate)}
             className="px-3.5 py-2 rounded-xl bg-emerald-100/80 hover:bg-emerald-200/70 text-emerald-900 border border-emerald-300/50 font-bold text-xs flex items-center gap-1.5 shadow-xs transition-all cursor-pointer"
           >
             <Plus className="w-4 h-4" />
@@ -520,7 +530,7 @@ export default function RilevazioniCarichiTab({
         </div>
       </div>
 
-      {/* SELETTORE GIORNATE DI ALLENAMENTO (PACCHETTI GIORNALIERI) */}
+      {/* SELETTORE GIORNATE DI ALLENAMENTO (TIMELINE ORIZZONTALE SCORREVOLE) */}
       <div className="bg-white border border-slate-300/80 rounded-xl p-4 space-y-3 shadow-sm print:hidden">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
           <div>
@@ -531,7 +541,7 @@ export default function RilevazioniCarichiTab({
               <span>Giornate di Allenamento Registrate ({groupedByDay.sortedDays.length} sedute)</span>
             </h4>
             <p className="text-[11px] text-slate-600 font-semibold">
-              Clicca su una giornata per filtrare velocemente il pacchetto di esercizi e blocchi cardio eseguito in quella data
+              Scorri orizzontalmente e clicca su una giornata per visualizzare il pacchetto di esercizi eseguito in quella data
             </p>
           </div>
 
@@ -557,42 +567,43 @@ export default function RilevazioniCarichiTab({
           </div>
         </div>
 
-        <div className="flex items-center gap-2.5 overflow-x-auto pb-1.5">
+        {/* Barra Orizzontale Scorrevole (singola riga flex-nowrap, più recenti a sinistra, scrollbar nascosta) */}
+        <div className="flex flex-nowrap items-center gap-2.5 overflow-x-auto scrollbar-hide pb-1">
           <button
             type="button"
-            onClick={() => setSelectedDay('ALL')}
+            onClick={() => setSelectedDate('ALL')}
             className={`px-4 py-2.5 rounded-xl border text-left shrink-0 transition-all cursor-pointer ${
-              selectedDay === 'ALL'
+              !selectedDate || selectedDate === 'ALL'
                 ? 'bg-emerald-100/80 border-emerald-300/50 text-emerald-900 shadow-none'
                 : 'bg-slate-100 border-slate-300/60 text-slate-700 hover:text-slate-900 hover:bg-slate-200/50'
             }`}
           >
-            <div className="text-xs font-bold">Tutte le Giornate</div>
-            <div className={`text-[10px] font-mono mt-0.5 ${selectedDay === 'ALL' ? 'text-emerald-800' : 'text-slate-500'}`}>
+            <div className="text-xs font-bold whitespace-nowrap">Tutte le Giornate</div>
+            <div className={`text-[10px] font-mono mt-0.5 whitespace-nowrap ${!selectedDate || selectedDate === 'ALL' ? 'text-emerald-800' : 'text-slate-500'}`}>
               {groupedByDay.sortedDays.length} sedute • {logs.length} voci
             </div>
           </button>
 
           {groupedByDay.sortedDays.map((dayKey) => {
             const dayLogs = groupedByDay.map[dayKey] || [];
-            const isSelected = selectedDay === dayKey;
+            const isSelected = selectedDate === dayKey;
             const maxKgDay = Math.max(...dayLogs.map(l => Number(l.weight_kg) || 0), 0);
 
             return (
               <button
                 type="button"
                 key={dayKey}
-                onClick={() => setSelectedDay(dayKey)}
+                onClick={() => setSelectedDate(dayKey)}
                 className={`px-4 py-2.5 rounded-xl border text-left shrink-0 transition-all cursor-pointer ${
                   isSelected
                     ? 'bg-emerald-100/80 border-emerald-300/50 text-emerald-900 shadow-none'
                     : 'bg-slate-100 border-slate-300/60 text-slate-700 hover:bg-slate-200/50'
                 }`}
               >
-                <div className="text-xs font-bold flex items-center gap-1.5">
+                <div className="text-xs font-bold flex items-center gap-1.5 whitespace-nowrap">
                   <span>{formatDayLabel(dayKey)}</span>
                 </div>
-                <div className={`text-[10px] font-mono mt-0.5 ${isSelected ? 'text-emerald-800' : 'text-slate-500'}`}>
+                <div className={`text-[10px] font-mono mt-0.5 whitespace-nowrap ${isSelected ? 'text-emerald-800' : 'text-slate-500'}`}>
                   📦 {dayLogs.length} {dayLogs.length === 1 ? 'voce' : 'voci'} • Max {maxKgDay} kg
                 </div>
               </button>
@@ -602,7 +613,7 @@ export default function RilevazioniCarichiTab({
 
         {/* CHIP RAPIDI ESERCIZI PER VEDERE SUBITO LA PROGRESSIONE NEL TEMPO */}
         {uniqueExercises.length > 0 && (
-          <div className="pt-2 border-t border-slate-300/60 flex items-center gap-2 overflow-x-auto">
+          <div className="pt-2 border-t border-slate-300/60 flex flex-nowrap items-center gap-2 overflow-x-auto scrollbar-hide">
             <span className="text-[11px] font-bold text-slate-700 shrink-0 flex items-center gap-1">
               <BarChart3 className="w-3.5 h-3.5" />
               <span>Progressione Esercizio:</span>
@@ -890,8 +901,8 @@ export default function RilevazioniCarichiTab({
         </div>
       )}
 
-      {/* ELENCO PACCHETTI DI ESERCIZI RAGGRUPPATI PER GIORNATA */}
-      {daysToRender.length === 0 ? (
+      {/* DETTAGLIO PACCHETTO SEDUTA CONDIZIONATO ESCLUSIVAMENTE A `selectedDate` */}
+      {groupedByDay.sortedDays.length === 0 ? (
         <div className="bg-white border border-slate-300/80 rounded-xl p-10 text-center space-y-3 shadow-sm">
           <Package className="w-8 h-8 text-slate-400 mx-auto" />
           <div className="text-sm font-bold text-slate-800">
@@ -901,244 +912,247 @@ export default function RilevazioniCarichiTab({
             Usa <strong>&quot;+ Aggiungi Esercizio / Cardio&quot;</strong> per inserire il primo pacchetto del giorno.
           </p>
         </div>
+      ) : !selectedDate || selectedDate === 'ALL' || !groupedByDay.map[selectedDate] ? (
+        <div className="bg-white border border-slate-300/80 rounded-xl p-10 text-center space-y-2.5 shadow-sm">
+          <div className="w-11 h-11 rounded-2xl bg-emerald-50 border border-emerald-200 text-emerald-700 flex items-center justify-center mx-auto">
+            <Calendar className="w-5 h-5" />
+          </div>
+          <p className="text-sm font-bold text-slate-800 max-w-lg mx-auto">
+            Seleziona una giornata dalla barra scorrevole in alto per visualizzare il dettaglio degli esercizi
+          </p>
+          <p className="text-xs text-slate-500 font-semibold">
+            {groupedByDay.sortedDays.length}{' '}
+            {groupedByDay.sortedDays.length === 1
+              ? 'seduta registrata disponibile'
+              : 'sedute registrate disponibili'}{' '}
+            • Scorri orizzontalmente a destra per andare indietro nel tempo
+          </p>
+        </div>
       ) : (
-        <div className="space-y-4">
-          {daysToRender.map((dayKey) => {
-            const rawDayLogs = groupedByDay.map[dayKey] || [];
-            const dayLogs = rawDayLogs.filter(
-              l =>
-                !searchFilter.trim() ||
-                l.exercise_name?.toLowerCase().includes(searchFilter.toLowerCase()) ||
-                (l.notes || '')?.toLowerCase().includes(searchFilter.toLowerCase())
-            );
-
-            if (dayLogs.length === 0) return null;
-
-            return (
-              <div
-                key={dayKey}
-                className="bg-white border border-slate-300/80 rounded-xl overflow-hidden shadow-sm break-inside-avoid"
-              >
-                {/* HEADER DELLA GIORNATA (PACCHETTO DEL GIORNO) */}
-                <div className="p-4 bg-stone-50 border-b border-slate-300/80 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-                  <div className="flex items-center gap-3">
-                    <div className="p-1 rounded bg-sky-100/80 text-sky-900 border border-sky-300/50">
-                      <Package className="w-4 h-4" />
-                    </div>
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <h4 className="text-sm font-bold text-slate-800">
-                          Pacchetto Seduta — {formatDayLabel(dayKey)}
-                        </h4>
-                        <span className="px-2.5 py-0.5 rounded-full bg-emerald-100/80 text-emerald-900 border border-emerald-300/50 font-mono text-[10px] font-bold">
-                          {dayLogs.length} {dayLogs.length === 1 ? 'voce' : 'voci'}
-                        </span>
-                      </div>
-                      <p className="text-[11px] text-slate-600 font-semibold print:hidden">
-                        Clicca sul nome di un esercizio di forza per vedere la sua progressione nel tempo
-                      </p>
-                    </div>
-                  </div>
-
-                  <button
-                    type="button"
-                    onClick={() => handleOpenNewModal(dayKey)}
-                    className="px-3 py-1.5 rounded-xl bg-emerald-100/80 hover:bg-emerald-200/70 text-emerald-900 border border-emerald-300/50 text-xs font-bold flex items-center gap-1.5 cursor-pointer self-start sm:self-auto print:hidden"
-                  >
-                    <Plus className="w-3.5 h-3.5" />
-                    <span>+ Esercizio / Cardio in questa seduta</span>
-                  </button>
+        <div className="bg-white border border-slate-300/80 rounded-xl overflow-hidden shadow-sm break-inside-avoid">
+          {/* HEADER DELLA GIORNATA SELEZIONATA (PACCHETTO DEL GIORNO) */}
+          <div className="p-4 bg-stone-50 border-b border-slate-300/80 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+            <div className="flex items-center gap-3">
+              <div className="p-1 rounded bg-sky-100/80 text-sky-900 border border-sky-300/50">
+                <Package className="w-4 h-4" />
+              </div>
+              <div>
+                <div className="flex items-center gap-2">
+                  <h4 className="text-sm font-bold text-slate-800">
+                    Pacchetto Seduta — {formatDayLabel(selectedDate)}
+                  </h4>
+                  <span className="px-2.5 py-0.5 rounded-full bg-emerald-100/80 text-emerald-900 border border-emerald-300/50 font-mono text-[10px] font-bold">
+                    {selectedDayLogs.length} {selectedDayLogs.length === 1 ? 'voce' : 'voci'}
+                  </span>
                 </div>
+                <p className="text-[11px] text-slate-600 font-semibold print:hidden">
+                  Clicca sul nome di un esercizio di forza per vedere la sua progressione nel tempo
+                </p>
+              </div>
+            </div>
 
-                {/* TABELLA ESERCIZI DEL PACCHETTO GIORNALIERO */}
-                <div className="overflow-x-auto">
-                  <table className="w-full text-left border-collapse text-xs">
-                    <thead>
-                      <tr className="bg-slate-100 text-slate-600 border-b border-slate-300/60 uppercase text-[10px] font-bold tracking-wider">
-                        <th className="py-2.5 px-4">Esercizio / Blocco Cardio</th>
-                        <th className="py-2.5 px-4 text-center">Volume / Durata</th>
-                        <th className="py-2.5 px-4 text-center">Carico (SX / DX) o Velocità</th>
-                        <th className="py-2.5 px-4">Velocità / Passo</th>
-                        <th className="py-2.5 px-4">Note Dolore / RPE</th>
-                        <th className="py-2.5 px-4 text-right print:hidden">Azioni</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-300/60">
-                      {dayLogs.map((log, index) => {
-                        const cardioInfo = parseCardioLogFromWorkoutRow(log);
-                        const rowLsi = log.is_unilateral
-                          ? calcLoadLsiPct(log.weight_sx_kg, log.weight_dx_kg, injuredSide)
-                          : null;
+            <button
+              type="button"
+              onClick={() => handleOpenNewModal(selectedDate)}
+              className="px-3 py-1.5 rounded-xl bg-emerald-100/80 hover:bg-emerald-200/70 text-emerald-900 border border-emerald-300/50 text-xs font-bold flex items-center gap-1.5 cursor-pointer self-start sm:self-auto print:hidden"
+            >
+              <Plus className="w-3.5 h-3.5" />
+              <span>+ Esercizio / Cardio in questa seduta</span>
+            </button>
+          </div>
 
-                        if (cardioInfo) {
-                          return (
-                            <tr
-                              key={log.id || index}
-                              className="bg-teal-50/40 hover:bg-teal-100/40 transition-colors"
-                            >
-                              <td className="py-3 px-4">
-                                <div className="flex items-center gap-2.5">
-                                  <div className="p-1.5 rounded bg-teal-100 text-teal-900 border border-teal-300/60">
-                                    {cardioInfo.modality === 'continuo' ? (
-                                      <Route className="w-4 h-4" />
-                                    ) : (
-                                      <Repeat className="w-4 h-4" />
-                                    )}
-                                  </div>
-                                  <div>
-                                    <div className="font-bold text-slate-800 flex items-center gap-1.5 flex-wrap">
-                                      <span>{cardioInfo.title}</span>
-                                      <span className="px-1.5 py-0.5 rounded bg-teal-100 text-teal-900 border border-teal-300/60 font-mono text-[9px] font-bold uppercase">
-                                        {cardioInfo.modality === 'continuo'
-                                          ? 'CARDIO CONTINUO'
-                                          : 'RIPETUTE / NAVETTE'}
-                                      </span>
-                                    </div>
-                                  </div>
-                                </div>
-                              </td>
-                              <td className="py-3 px-4 text-center font-mono font-bold text-slate-800">
-                                {cardioInfo.modality === 'continuo'
-                                  ? `${cardioInfo.duration_min || 0} min • ${cardioInfo.distance_km || 0} km`
-                                  : cardioInfo.work_per_set}
-                              </td>
-                              <td className="py-3 px-4 text-center">
-                                <span className="px-2.5 py-0.5 rounded-lg bg-teal-100 text-teal-900 border border-teal-300/60 font-mono font-bold text-xs">
-                                  {cardioInfo.modality === 'continuo'
-                                    ? cardioInfo.speed
-                                    : `${cardioInfo.sets} serie`}
-                                </span>
-                              </td>
-                              <td className="py-3 px-4">
-                                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-slate-100 border border-slate-300/60 text-slate-700 font-mono text-[11px] font-semibold">
-                                  <Clock className="w-3 h-3 text-teal-700" />
-                                  {cardioInfo.modality === 'continuo'
-                                    ? `Passo: ${cardioInfo.pace}`
-                                    : `Rec: ${cardioInfo.rest}`}
-                                </span>
-                              </td>
-                              <td className="py-3 px-4 text-slate-600 font-semibold">
-                                <div className="flex items-center gap-1.5">
-                                  <Flame className="w-3.5 h-3.5 text-teal-700 shrink-0" />
+          {/* TABELLA ESERCIZI DEL PACCHETTO GIORNALIERO SELEZIONATO */}
+          {selectedDayLogs.length === 0 ? (
+            <div className="p-8 text-center text-xs text-slate-500 font-semibold">
+              Nessun esercizio trovato in questa giornata per il filtro &ldquo;{searchFilter}&rdquo;.
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-left border-collapse text-xs">
+                <thead>
+                  <tr className="bg-slate-100 text-slate-600 border-b border-slate-300/60 uppercase text-[10px] font-bold tracking-wider">
+                    <th className="py-2.5 px-4">Esercizio / Blocco Cardio</th>
+                    <th className="py-2.5 px-4 text-center">Volume / Durata</th>
+                    <th className="py-2.5 px-4 text-center">Carico (SX / DX) o Velocità</th>
+                    <th className="py-2.5 px-4">Velocità / Passo</th>
+                    <th className="py-2.5 px-4">Note Dolore / RPE</th>
+                    <th className="py-2.5 px-4 text-right print:hidden">Azioni</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-300/60">
+                  {selectedDayLogs.map((log, index) => {
+                    const cardioInfo = parseCardioLogFromWorkoutRow(log);
+                    const rowLsi = log.is_unilateral
+                      ? calcLoadLsiPct(log.weight_sx_kg, log.weight_dx_kg, injuredSide)
+                      : null;
+
+                    if (cardioInfo) {
+                      return (
+                        <tr
+                          key={log.id || index}
+                          className="bg-teal-50/40 hover:bg-teal-100/40 transition-colors"
+                        >
+                          <td className="py-3 px-4">
+                            <div className="flex items-center gap-2.5">
+                              <div className="p-1.5 rounded bg-teal-100 text-teal-900 border border-teal-300/60">
+                                {cardioInfo.modality === 'continuo' ? (
+                                  <Route className="w-4 h-4" />
+                                ) : (
+                                  <Repeat className="w-4 h-4" />
+                                )}
+                              </div>
+                              <div>
+                                <div className="font-bold text-slate-800 flex items-center gap-1.5 flex-wrap">
                                   <span>{cardioInfo.title}</span>
+                                  <span className="px-1.5 py-0.5 rounded bg-teal-100 text-teal-900 border border-teal-300/60 font-mono text-[9px] font-bold uppercase">
+                                    {cardioInfo.modality === 'continuo'
+                                      ? 'CARDIO CONTINUO'
+                                      : 'RIPETUTE / NAVETTE'}
+                                  </span>
                                 </div>
-                              </td>
-                              <td className="py-3 px-4 text-right whitespace-nowrap print:hidden">
-                                <div className="inline-flex items-center gap-1.5">
-                                  <button
-                                    type="button"
-                                    onClick={() => handleDeleteLogByTherapist(log.id)}
-                                    className="p-1.5 rounded-lg bg-rose-100/80 hover:bg-rose-200/70 text-rose-900 border border-rose-300/50 cursor-pointer transition-colors"
-                                    title="Elimina blocco cardio"
-                                  >
-                                    <Trash2 className="w-3.5 h-3.5" />
-                                  </button>
-                                </div>
-                              </td>
-                            </tr>
-                          );
-                        }
-
-                        return (
-                          <tr
-                            key={log.id || index}
-                            className={`${index % 2 === 0 ? 'bg-white' : 'bg-stone-50'} hover:bg-slate-100/80 transition-colors`}
-                          >
-                            <td className="py-3 px-4">
+                              </div>
+                            </div>
+                          </td>
+                          <td className="py-3 px-4 text-center font-mono font-bold text-slate-800">
+                            {cardioInfo.modality === 'continuo'
+                              ? `${cardioInfo.duration_min || 0} min • ${cardioInfo.distance_km || 0} km`
+                              : cardioInfo.work_per_set}
+                          </td>
+                          <td className="py-3 px-4 text-center">
+                            <span className="px-2.5 py-0.5 rounded-lg bg-teal-100 text-teal-900 border border-teal-300/60 font-mono font-bold text-xs">
+                              {cardioInfo.modality === 'continuo'
+                                ? cardioInfo.speed
+                                : `${cardioInfo.sets} serie`}
+                            </span>
+                          </td>
+                          <td className="py-3 px-4">
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-slate-100 border border-slate-300/60 text-slate-700 font-mono text-[11px] font-semibold">
+                              <Clock className="w-3 h-3 text-teal-700" />
+                              {cardioInfo.modality === 'continuo'
+                                ? `Passo: ${cardioInfo.pace}`
+                                : `Rec: ${cardioInfo.rest}`}
+                            </span>
+                          </td>
+                          <td className="py-3 px-4 text-slate-600 font-semibold">
+                            <div className="flex items-center gap-1.5">
+                              <Flame className="w-3.5 h-3.5 text-teal-700 shrink-0" />
+                              <span>{cardioInfo.title}</span>
+                            </div>
+                          </td>
+                          <td className="py-3 px-4 text-right whitespace-nowrap print:hidden">
+                            <div className="inline-flex items-center gap-1.5">
                               <button
                                 type="button"
-                                onClick={() => setSelectedExerciseProgression(log.exercise_name)}
-                                className="flex items-center gap-2.5 text-left group cursor-pointer"
-                                title="Clicca per vedere il grafico di progressione di questo esercizio"
+                                onClick={() => handleDeleteLogByTherapist(log.id)}
+                                className="p-1.5 rounded-lg bg-rose-100/80 hover:bg-rose-200/70 text-rose-900 border border-rose-300/50 cursor-pointer transition-colors"
+                                title="Elimina blocco cardio"
                               >
-                                <div className="p-1 rounded bg-slate-200/60 text-slate-700 group-hover:bg-slate-300/70">
-                                  {getCategoryIcon(log.exercise_name, 'w-4 h-4')}
-                                </div>
-                                <div>
-                                  <div className="font-bold text-slate-800 group-hover:text-slate-900 flex items-center gap-1.5 flex-wrap">
-                                    <span>{log.exercise_name}</span>
-                                    {log.is_unilateral && (
-                                      <span className="px-1.5 py-0.5 rounded bg-purple-100/80 text-purple-900 border border-purple-300/50 font-mono text-[9px] font-bold uppercase">
-                                        SX+DX
-                                      </span>
-                                    )}
-                                    <ChevronRight className="w-3.5 h-3.5 text-slate-500 print:hidden" />
-                                  </div>
-                                </div>
+                                <Trash2 className="w-3.5 h-3.5" />
                               </button>
-                            </td>
-                            <td className="py-3 px-4 text-center font-mono font-bold text-slate-800">
-                              {log.sets} × {log.reps}
-                            </td>
-                            <td className="py-3 px-4 text-center">
-                              {log.is_unilateral ? (
-                                <div className="inline-flex flex-wrap items-center justify-center gap-1.5">
-                                  <span className="px-2 py-0.5 rounded-lg bg-sky-100/80 text-sky-900 border border-sky-300/50 font-mono font-bold text-xs">
-                                    SX: {log.weight_sx_kg} kg
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    }
+
+                    return (
+                      <tr
+                        key={log.id || index}
+                        className={`${index % 2 === 0 ? 'bg-white' : 'bg-stone-50'} hover:bg-slate-100/80 transition-colors`}
+                      >
+                        <td className="py-3 px-4">
+                          <button
+                            type="button"
+                            onClick={() => setSelectedExerciseProgression(log.exercise_name)}
+                            className="flex items-center gap-2.5 text-left group cursor-pointer"
+                            title="Clicca per vedere il grafico di progressione di questo esercizio"
+                          >
+                            <div className="p-1 rounded bg-slate-200/60 text-slate-700 group-hover:bg-slate-300/70">
+                              {getCategoryIcon(log.exercise_name, 'w-4 h-4')}
+                            </div>
+                            <div>
+                              <div className="font-bold text-slate-800 group-hover:text-slate-900 flex items-center gap-1.5 flex-wrap">
+                                <span>{log.exercise_name}</span>
+                                {log.is_unilateral && (
+                                  <span className="px-1.5 py-0.5 rounded bg-purple-100/80 text-purple-900 border border-purple-300/50 font-mono text-[9px] font-bold uppercase">
+                                    SX+DX
                                   </span>
-                                  <span className="px-2 py-0.5 rounded-lg bg-sky-100/80 text-sky-900 border border-sky-300/50 font-mono font-bold text-xs">
-                                    DX: {log.weight_dx_kg} kg
-                                  </span>
-                                  {rowLsi !== null && (
-                                    <span
-                                      className={`px-2 py-0.5 rounded-md font-mono font-bold text-[10px] border ${
-                                        rowLsi >= 90
-                                          ? 'bg-emerald-100/80 text-emerald-900 border-emerald-300/50'
-                                          : 'bg-rose-100/80 text-rose-900 border-rose-300/50'
-                                      }`}
-                                      title={`Limb Symmetry Index del carico (Lato operato: ${injuredSide})`}
-                                    >
-                                      LSI {rowLsi}%
-                                    </span>
-                                  )}
-                                </div>
-                              ) : (
-                                <span className="px-2.5 py-0.5 rounded-lg bg-emerald-100/80 text-emerald-900 border border-emerald-300/50 font-mono font-bold text-xs">
-                                  {log.weight_kg} kg
+                                )}
+                                <ChevronRight className="w-3.5 h-3.5 text-slate-500 print:hidden" />
+                              </div>
+                            </div>
+                          </button>
+                        </td>
+                        <td className="py-3 px-4 text-center font-mono font-bold text-slate-800">
+                          {log.sets} × {log.reps}
+                        </td>
+                        <td className="py-3 px-4 text-center">
+                          {log.is_unilateral ? (
+                            <div className="inline-flex flex-wrap items-center justify-center gap-1.5">
+                              <span className="px-2 py-0.5 rounded-lg bg-sky-100/80 text-sky-900 border border-sky-300/50 font-mono font-bold text-xs">
+                                SX: {log.weight_sx_kg} kg
+                              </span>
+                              <span className="px-2 py-0.5 rounded-lg bg-sky-100/80 text-sky-900 border border-sky-300/50 font-mono font-bold text-xs">
+                                DX: {log.weight_dx_kg} kg
+                              </span>
+                              {rowLsi !== null && (
+                                <span
+                                  className={`px-2 py-0.5 rounded-md font-mono font-bold text-[10px] border ${
+                                    rowLsi >= 90
+                                      ? 'bg-emerald-100/80 text-emerald-900 border-emerald-300/50'
+                                      : 'bg-rose-100/80 text-rose-900 border-rose-300/50'
+                                  }`}
+                                  title={`Limb Symmetry Index del carico (Lato operato: ${injuredSide})`}
+                                >
+                                  LSI {rowLsi}%
                                 </span>
                               )}
-                            </td>
-                            <td className="py-3 px-4">
-                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-slate-100 border border-slate-300/60 text-slate-700 font-mono text-[11px] font-semibold">
-                                <Clock className="w-3 h-3 text-slate-600" />
-                                {log.tempo_speed || log.tempo_execution || 'Standard'}
-                              </span>
-                            </td>
-                            <td className="py-3 px-4 text-slate-600 font-semibold">
-                              <div className="flex items-center gap-1.5">
-                                <MessageSquare className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                                <span>{log.clean_notes || log.notes || log.notes_rpe || 'Nessun dolore'}</span>
-                              </div>
-                            </td>
-                            <td className="py-3 px-4 text-right whitespace-nowrap print:hidden">
-                              <div className="inline-flex items-center gap-1.5">
-                                <button
-                                  type="button"
-                                  onClick={() => handleOpenEditModal(log)}
-                                  className="px-2.5 py-1 rounded-lg bg-purple-100/80 hover:bg-purple-200/70 text-purple-900 border border-purple-300/50 font-bold text-[11px] inline-flex items-center gap-1 cursor-pointer transition-colors"
-                                >
-                                  <Edit3 className="w-3.5 h-3.5" />
-                                  <span>Modifica</span>
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={() => handleDeleteLogByTherapist(log.id)}
-                                  className="p-1.5 rounded-lg bg-rose-100/80 hover:bg-rose-200/70 text-rose-900 border border-rose-300/50 cursor-pointer transition-colors"
-                                  title="Elimina esercizio"
-                                >
-                                  <Trash2 className="w-3.5 h-3.5" />
-                                </button>
-                              </div>
-                            </td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            );
-          })}
+                            </div>
+                          ) : (
+                            <span className="px-2.5 py-0.5 rounded-lg bg-emerald-100/80 text-emerald-900 border border-emerald-300/50 font-mono font-bold text-xs">
+                              {log.weight_kg} kg
+                            </span>
+                          )}
+                        </td>
+                        <td className="py-3 px-4">
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-slate-100 border border-slate-300/60 text-slate-700 font-mono text-[11px] font-semibold">
+                            <Clock className="w-3 h-3 text-slate-600" />
+                            {log.tempo_speed || log.tempo_execution || 'Standard'}
+                          </span>
+                        </td>
+                        <td className="py-3 px-4 text-slate-600 font-semibold">
+                          <div className="flex items-center gap-1.5">
+                            <MessageSquare className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                            <span>{log.clean_notes || log.notes || log.notes_rpe || 'Nessun dolore'}</span>
+                          </div>
+                        </td>
+                        <td className="py-3 px-4 text-right whitespace-nowrap print:hidden">
+                          <div className="inline-flex items-center gap-1.5">
+                            <button
+                              type="button"
+                              onClick={() => handleOpenEditModal(log)}
+                              className="px-2.5 py-1 rounded-lg bg-purple-100/80 hover:bg-purple-200/70 text-purple-900 border border-purple-300/50 font-bold text-[11px] inline-flex items-center gap-1 cursor-pointer transition-colors"
+                            >
+                              <Edit3 className="w-3.5 h-3.5" />
+                              <span>Modifica</span>
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleDeleteLogByTherapist(log.id)}
+                              className="p-1.5 rounded-lg bg-rose-100/80 hover:bg-rose-200/70 text-rose-900 border border-rose-300/50 cursor-pointer transition-colors"
+                              title="Elimina esercizio"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
       )}
 
