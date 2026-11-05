@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import {
   Dumbbell,
   History,
@@ -24,12 +24,10 @@ import {
   Trash2,
   X,
   Package,
-  BarChart3,
   ChevronRight,
-  Timer,
-  Gauge,
   Repeat,
-  Route
+  Route,
+  Sparkles
 } from 'lucide-react';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import LogoN from './LogoN';
@@ -40,7 +38,256 @@ import CardioBuilder, {
   parseCardioLogFromWorkoutRow
 } from './CardioBuilder';
 
-// CATALOGO PREDEFINITO ESERCIZI RIABILITAZIONE LCA CON FLAG MONOPODALICO (isUnilateral)
+// ============================================================================
+// GAMIFICATION CONSTANTS & COMPONENTS (ISOLATED TO PATIENT VIEW ONLY)
+// ============================================================================
+
+export const WELCOME_MOTIVATIONAL_QUOTES = [
+  'Daje tutta uomo!',
+  'Altro giorno, altra leg extension...',
+  'Forza e coraggio, il ginocchio ringrazia!'
+];
+
+export const SUCCESS_ACTION_PHRASES = [
+  'TOP!!',
+  'DAJE',
+  "DI PIU'!!",
+  'ADOSS!',
+  'ME PARI ER CR7'
+];
+
+export const SUCCESS_DYNAMIC_EMOJIS = ['💪', '🔥', '🐐', '⚡', '🦁'];
+
+/**
+ * WelcomeMotivationalOverlay
+ * Conditionally rendered overlay that appears when the patient first loads the Patient View.
+ * Picks a random motivational quote, shows an animated cartoon lifter illustration/GIF placeholder,
+ * and smoothly fades out + unmounts after exactly 5 seconds (5000ms).
+ *
+ * Framer Motion suggestion:
+ * Wrap with <AnimatePresence> and replace the root <div> with:
+ * <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.45 }}>
+ */
+export function WelcomeMotivationalOverlay({ onComplete, customGifUrl = null }) {
+  const [quote] = useState(
+    () =>
+      WELCOME_MOTIVATIONAL_QUOTES[
+        Math.floor(Math.random() * WELCOME_MOTIVATIONAL_QUOTES.length)
+      ]
+  );
+  const [isExiting, setIsExiting] = useState(false);
+
+  useEffect(() => {
+    // Start smooth fade-out animation at 4.4s and unmount at 5.0s (5000ms total)
+    const fadeTimer = setTimeout(() => {
+      setIsExiting(true);
+    }, 4400);
+
+    const unmountTimer = setTimeout(() => {
+      if (onComplete) onComplete();
+    }, 5000);
+
+    return () => {
+      clearTimeout(fadeTimer);
+      clearTimeout(unmountTimer);
+    };
+  }, [onComplete]);
+
+  return (
+    <div
+      className={`fixed inset-0 z-50 flex items-center justify-center p-5 bg-slate-900/60 backdrop-blur-md transition-opacity duration-500 ${
+        isExiting ? 'opacity-0 pointer-events-none' : 'opacity-100'
+      }`}
+    >
+      <div
+        className={`w-full max-w-sm bg-white border-2 border-stone-200 rounded-3xl p-7 shadow-2xl text-center space-y-5 transform transition-all duration-500 ${
+          isExiting ? 'scale-95 translate-y-2' : 'scale-100 translate-y-0'
+        }`}
+      >
+        {/* Top pill badge */}
+        <div className="inline-flex items-center gap-1.5 px-3.5 py-1 rounded-full bg-amber-50 border border-amber-200 text-amber-800 text-[11px] font-black uppercase tracking-wider">
+          <Sparkles className="w-3.5 h-3.5 text-amber-600 animate-spin" />
+          <span>Check-In Riabilitazione LCA</span>
+        </div>
+
+        {/* Animated GIF / Lottie Placeholder: Cartoon Stickman/Athlete struggling to lift a heavy barbell */}
+        <div className="relative mx-auto w-44 h-44 rounded-3xl bg-[#faf9f6] border-2 border-stone-200 flex flex-col items-center justify-center overflow-hidden shadow-inner p-3">
+          {customGifUrl ? (
+            <img
+              src={customGifUrl}
+              alt="Motivational workout animation"
+              className="w-full h-full object-contain rounded-2xl"
+            />
+          ) : (
+            <div className="flex flex-col items-center justify-center">
+              {/* Animated SVG Stickman / Cartoon Lifter struggling with a heavy barbell */}
+              <svg
+                viewBox="0 0 160 140"
+                className="w-32 h-28 overflow-visible"
+                aria-label="Cartoon lifter struggling with weight"
+              >
+                {/* Sweat drops */}
+                <circle
+                  cx="52"
+                  cy="38"
+                  r="3"
+                  className="fill-blue-500 animate-ping"
+                />
+                <circle
+                  cx="108"
+                  cy="36"
+                  r="2.5"
+                  className="fill-blue-500 animate-ping"
+                />
+
+                {/* Animated Barbell + Plates group (bouncing/shaking with effort) */}
+                <g className="animate-bounce">
+                  {/* Barbell shaft (slightly bent from heavy weight) */}
+                  <path
+                    d="M 18 36 Q 80 26 142 36"
+                    fill="none"
+                    stroke="#1e293b"
+                    strokeWidth="5"
+                    strokeLinecap="round"
+                  />
+                  {/* Left heavy plates */}
+                  <rect x="10" y="18" width="10" height="36" rx="4" fill="#dc2626" />
+                  <rect x="22" y="22" width="7" height="28" rx="3" fill="#2563eb" />
+                  {/* Right heavy plates */}
+                  <rect x="140" y="18" width="10" height="36" rx="4" fill="#dc2626" />
+                  <rect x="131" y="22" width="7" height="28" rx="3" fill="#2563eb" />
+
+                  {/* Hands gripping bar */}
+                  <circle cx="52" cy="33" r="4.5" fill="#f59e0b" />
+                  <circle cx="108" cy="33" r="4.5" fill="#f59e0b" />
+                </g>
+
+                {/* Head */}
+                <circle
+                  cx="80"
+                  cy="54"
+                  r="14"
+                  fill="#fef3c7"
+                  stroke="#0f172a"
+                  strokeWidth="3.5"
+                />
+                {/* Headband */}
+                <path d="M 66 49 L 94 49" stroke="#dc2626" strokeWidth="4.5" strokeLinecap="round" />
+                {/* Determined squinting eyes */}
+                <path d="M 73 53 L 77 55 L 73 57" fill="none" stroke="#0f172a" strokeWidth="2.2" strokeLinecap="round" />
+                <path d="M 87 53 L 83 55 L 87 57" fill="none" stroke="#0f172a" strokeWidth="2.2" strokeLinecap="round" />
+                {/* Gritted teeth mouth */}
+                <rect x="74" y="60" width="12" height="4.5" rx="2" fill="#ffffff" stroke="#0f172a" strokeWidth="1.8" />
+
+                {/* Arms straining upward */}
+                <path
+                  d="M 68 72 L 52 35 M 92 72 L 108 35"
+                  stroke="#0f172a"
+                  strokeWidth="4.5"
+                  strokeLinecap="round"
+                />
+
+                {/* Torso */}
+                <path
+                  d="M 80 68 L 80 100"
+                  stroke="#2563eb"
+                  strokeWidth="9"
+                  strokeLinecap="round"
+                />
+
+                {/* Squatting Legs with Knee Brace on Right Knee */}
+                <path
+                  d="M 78 100 L 60 114 L 64 132"
+                  fill="none"
+                  stroke="#0f172a"
+                  strokeWidth="5"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+                <path
+                  d="M 82 100 L 100 114 L 96 132"
+                  fill="none"
+                  stroke="#0f172a"
+                  strokeWidth="5"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+                {/* Teal Knee Brace highlight */}
+                <circle cx="100" cy="114" r="5" fill="#0d9488" />
+              </svg>
+              <span className="text-[10px] font-mono font-extrabold uppercase tracking-widest text-slate-500 mt-1">
+                GIF / Lottie Rehab Mode 💪
+              </span>
+            </div>
+          )}
+        </div>
+
+        {/* Motivational Quote */}
+        <div className="space-y-1.5">
+          <h2 className="text-xl sm:text-2xl font-black text-slate-900 leading-tight tracking-tight">
+            &ldquo;{quote}&rdquo;
+          </h2>
+          <p className="text-xs font-bold text-slate-600">
+            Registra i tuoi carichi con precisione: ogni serie conta per il Return to Sport!
+          </p>
+        </div>
+
+        {/* 5-second visual progress indicator & quick skip */}
+        <div className="space-y-2 pt-1">
+          <div className="w-full h-2 bg-stone-200 rounded-full overflow-hidden">
+            <div
+              className="h-full bg-blue-600 rounded-full transition-all duration-[4800ms] ease-linear"
+              style={{ width: isExiting ? '100%' : '95%' }}
+            />
+          </div>
+          <button
+            type="button"
+            onClick={onComplete}
+            className="text-[11px] font-extrabold text-blue-600 hover:text-blue-800 uppercase tracking-wider cursor-pointer"
+          >
+            Inizia Subito →
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * SuccessActionBanner
+ * Energetic 2-second pop-up toast triggered whenever the patient saves or confirms an exercise block.
+ *
+ * Framer Motion suggestion:
+ * Wrap with <AnimatePresence> and use:
+ * <motion.div initial={{ opacity: 0, y: -30, scale: 0.85 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, scale: 0.9 }}>
+ */
+export function SuccessActionBanner({ toast }) {
+  if (!toast) return null;
+
+  return (
+    <div className="fixed top-5 left-1/2 -translate-x-1/2 z-50 pointer-events-none px-4 w-full max-w-xs sm:max-w-sm">
+      <div className="bg-slate-900 text-white border-2 border-amber-400 rounded-3xl px-5 py-3.5 shadow-2xl flex items-center justify-center gap-3 animate-bounce">
+        <span className="text-2xl sm:text-3xl select-none" role="img" aria-label="energy">
+          {toast.emoji}
+        </span>
+        <div className="text-left">
+          <div className="text-lg sm:text-xl font-black tracking-tight text-amber-300 leading-none">
+            {toast.phrase}
+          </div>
+          {toast.subtitle && (
+            <div className="text-[11px] font-extrabold text-stone-200 mt-0.5">
+              {toast.subtitle}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ============================================================================
+// CATALOGO PREDEFINITO ESERCIZI RIABILITAZIONE LCA CON FLAG MONOPODALICO
+// ============================================================================
 export const EXERCISE_PRESETS = [
   { name: 'Back Squat Bilaterale', category: 'Squat & Accosciata', icon: 'squat', defaultTempo: '3-1-1-0', isUnilateral: false },
   { name: 'Front Squat', category: 'Squat & Accosciata', icon: 'squat', defaultTempo: '3-0-1-0', isUnilateral: false },
@@ -180,21 +427,21 @@ export function getCategoryIcon(iconTypeOrName, className = 'w-4 h-4') {
 
   switch (iconType) {
     case 'cardio':
-      return <Flame className={`${className} text-teal-400`} />;
+      return <Flame className={`${className} text-teal-600`} />;
     case 'squat':
-      return <Dumbbell className={`${className} text-[#06B6D4]`} />;
+      return <Dumbbell className={`${className} text-blue-600`} />;
     case 'lunge':
-      return <Footprints className={`${className} text-[#0D9488]`} />;
+      return <Footprints className={`${className} text-teal-700`} />;
     case 'knee':
-      return <Activity className={`${className} text-amber-400`} />;
+      return <Activity className={`${className} text-amber-600`} />;
     case 'hamstring':
-      return <Flame className={`${className} text-rose-400`} />;
+      return <Flame className={`${className} text-rose-600`} />;
     case 'press':
-      return <Zap className={`${className} text-purple-400`} />;
+      return <Zap className={`${className} text-indigo-600`} />;
     case 'plyo':
-      return <TrendingUp className={`${className} text-[#06B6D4]`} />;
+      return <TrendingUp className={`${className} text-blue-600`} />;
     default:
-      return <Dumbbell className={`${className} text-[#06B6D4]`} />;
+      return <Dumbbell className={`${className} text-blue-600`} />;
   }
 }
 
@@ -268,6 +515,40 @@ export default function ClientPortal({
   onNewLogSaved
 }) {
   const effectiveSimMode = isSimulationMode || isSimulation;
+
+  // GAMIFICATION 1: Welcome Motivational Overlay (5 seconds auto-dismiss on page load)
+  const [showWelcomeOverlay, setShowWelcomeOverlay] = useState(true);
+
+  // GAMIFICATION 2: 2-Second Energetic Success Toast Banner
+  const [successToast, setSuccessToast] = useState(null);
+  const toastTimerRef = useRef(null);
+
+  const triggerSuccessBanner = useCallback((customSubtitle = '') => {
+    if (toastTimerRef.current) {
+      clearTimeout(toastTimerRef.current);
+    }
+    const randomPhrase =
+      SUCCESS_ACTION_PHRASES[Math.floor(Math.random() * SUCCESS_ACTION_PHRASES.length)];
+    const randomEmoji =
+      SUCCESS_DYNAMIC_EMOJIS[Math.floor(Math.random() * SUCCESS_DYNAMIC_EMOJIS.length)];
+
+    setSuccessToast({
+      id: Date.now(),
+      phrase: randomPhrase,
+      emoji: randomEmoji,
+      subtitle: customSubtitle
+    });
+
+    toastTimerRef.current = setTimeout(() => {
+      setSuccessToast(null);
+    }, 2000);
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+    };
+  }, []);
 
   // Autenticazione Paziente (se non in modalità simulazione Terapista)
   const [authEmail, setAuthEmail] = useState('');
@@ -574,12 +855,13 @@ export default function ClientPortal({
     setShowSuggestions(false);
   };
 
-  // Aggiunge l'esercizio compilato al "Pacchetto del Giorno"
+  // Aggiunge l'esercizio compilato al "Pacchetto del Giorno" + mostra il Success Banner da 2s
   const handleAddExerciseToPackage = () => {
     if (!isCurrentFormLoadValid()) return;
     const newItem = buildCurrentExerciseEntry();
     setPackageItems((prev) => [...prev, newItem]);
     resetExerciseFields();
+    triggerSuccessBanner(`${newItem.exercise_name} aggiunto!`);
   };
 
   const handleRemoveFromPackageDraft = (idx) => {
@@ -690,6 +972,7 @@ export default function ClientPortal({
 
         setEditingLogId(null);
         resetExerciseFields();
+        triggerSuccessBanner('Esercizio aggiornato!');
         setSaveSuccess('Modifica salvata con successo!');
         setTimeout(() => setSaveSuccess(''), 3000);
       } finally {
@@ -781,6 +1064,7 @@ export default function ClientPortal({
       setCardioBlocks([]);
       resetExerciseFields();
       setSelectedHistoryDay(workoutDate);
+      triggerSuccessBanner(`${insertedRows.length} blocchi registrati!`);
       setSaveSuccess(
         `Sessione salvata (${insertedRows.length} voci registrate per il ${formatDayLabel(workoutDate)})!`
       );
@@ -806,36 +1090,40 @@ export default function ClientPortal({
   const totalDraftCount =
     packageItems.length + (isCurrentFormLoadValid() ? 1 : 0) + validCardioBlocksCount;
 
-  // SCHERMATA 1: LOGIN MAGIC LINK PAZIENTE
+  // SCHERMATA 1: LOGIN MAGIC LINK PAZIENTE (EDITORIAL LIGHT THEME)
   if (!effectiveSimMode && !sessionUser) {
     return (
-      <div className="min-h-screen bg-[#0F172A] text-white flex flex-col justify-center items-center p-4 font-sans">
-        <div className="w-full max-w-md bg-[#1E293B] border border-[#334155] rounded-3xl p-6 sm:p-8 shadow-2xl space-y-6">
+      <div className="min-h-screen bg-[#faf9f6] text-slate-900 flex flex-col justify-center items-center p-4 font-sans">
+        {showWelcomeOverlay && (
+          <WelcomeMotivationalOverlay onComplete={() => setShowWelcomeOverlay(false)} />
+        )}
+
+        <div className="w-full max-w-md bg-white border border-stone-200 rounded-3xl p-6 sm:p-8 shadow-xl space-y-6">
           <div className="flex flex-col items-center text-center space-y-2">
-            <LogoN className="w-16 h-16 rounded-2xl border border-[#06B6D4]/40 shadow-lg" />
-            <span className="px-3 py-0.5 rounded-full bg-[#0F172A] text-[#06B6D4] border border-[#334155] text-[11px] font-extrabold uppercase tracking-wider">
+            <LogoN className="w-16 h-16 rounded-2xl border border-stone-200 shadow-md" />
+            <span className="px-3 py-1 rounded-full bg-blue-50 text-blue-700 border border-blue-200 text-[11px] font-black uppercase tracking-wider">
               Portale Paziente Mobile
             </span>
-            <h1 className="text-2xl font-black text-white tracking-tight">
+            <h1 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight">
               Diario Allenamento LCA
             </h1>
-            <p className="text-xs text-[#94A3B8] leading-relaxed">
+            <p className="text-xs text-slate-600 font-bold leading-relaxed">
               Accedi senza password tramite <strong>Magic Link</strong>. Inserisci la tua email per ricevere il link di accesso diretto sul tuo smartphone.
             </p>
           </div>
 
           {magicLinkSent ? (
-            <div className="p-5 rounded-2xl bg-[#0F172A] border border-[#0D9488] text-center space-y-3">
-              <CheckCircle2 className="w-10 h-10 text-[#0D9488] mx-auto" />
-              <h3 className="text-base font-extrabold text-white">Controlla la tua Email!</h3>
-              <p className="text-xs text-[#94A3B8] leading-relaxed">
-                Abbiamo inviato un link magico a <strong className="text-white">{authEmail}</strong>.<br />
-                Tocca il pulsante nell'email per entrare subito nel tuo Diario Allenamento.
+            <div className="p-5 rounded-2xl bg-emerald-50 border border-emerald-200 text-center space-y-3">
+              <CheckCircle2 className="w-10 h-10 text-emerald-600 mx-auto" />
+              <h3 className="text-base font-black text-slate-900">Controlla la tua Email!</h3>
+              <p className="text-xs text-slate-700 font-semibold leading-relaxed">
+                Abbiamo inviato un link magico a <strong className="text-slate-900">{authEmail}</strong>.<br />
+                Tocca il pulsante nell&apos;email per entrare subito nel tuo Diario Allenamento.
               </p>
               <button
                 type="button"
                 onClick={() => setMagicLinkSent(false)}
-                className="text-xs text-[#06B6D4] underline font-bold pt-2"
+                className="text-xs text-blue-600 underline font-extrabold pt-2 cursor-pointer"
               >
                 Usa un altro indirizzo email
               </button>
@@ -843,24 +1131,24 @@ export default function ClientPortal({
           ) : (
             <form onSubmit={handleSendMagicLink} className="space-y-4">
               <div>
-                <label className="block text-xs font-bold text-[#94A3B8] mb-1.5">
+                <label className="block text-xs font-extrabold text-slate-800 mb-1.5">
                   La tua Email personale
                 </label>
                 <div className="relative">
-                  <Mail className="w-4 h-4 text-[#94A3B8] absolute left-3.5 top-3.5" />
+                  <Mail className="w-4 h-4 text-slate-500 absolute left-3.5 top-3.5" />
                   <input
                     type="email"
                     required
                     value={authEmail}
                     onChange={(e) => setAuthEmail(e.target.value)}
                     placeholder="nome.cognome@email.it"
-                    className="w-full bg-[#0F172A] border border-[#334155] focus:border-[#06B6D4] rounded-2xl py-3 pl-10 pr-4 text-sm text-white placeholder-[#94A3B8] focus:outline-none"
+                    className="w-full bg-[#faf9f6] border border-stone-300 focus:border-blue-600 rounded-2xl py-3 pl-10 pr-4 text-sm font-bold text-slate-900 placeholder-slate-400 focus:outline-none"
                   />
                 </div>
               </div>
 
               {authError && (
-                <div className="p-3 rounded-xl bg-rose-950/80 border border-rose-500/40 text-xs text-rose-300 font-semibold">
+                <div className="p-3 rounded-xl bg-red-50 border border-red-200 text-xs text-red-700 font-bold">
                   {authError}
                 </div>
               )}
@@ -868,7 +1156,7 @@ export default function ClientPortal({
               <button
                 type="submit"
                 disabled={sendingOtp}
-                className="w-full py-3.5 bg-gradient-to-r from-[#0D9488] to-[#06B6D4] hover:opacity-95 text-white font-extrabold rounded-2xl text-sm flex items-center justify-center gap-2 shadow-lg transition-all cursor-pointer disabled:opacity-50"
+                className="w-full py-3.5 bg-blue-600 hover:bg-blue-700 text-white font-black rounded-2xl text-sm flex items-center justify-center gap-2 shadow-md transition-all cursor-pointer disabled:opacity-50"
               >
                 <span>{sendingOtp ? 'Invio Link in corso...' : 'Invia Magic Link via Email'}</span>
                 <ArrowRight className="w-4 h-4" />
@@ -877,7 +1165,7 @@ export default function ClientPortal({
           )}
 
           {patient && (
-            <div className="pt-4 border-t border-[#334155] text-center">
+            <div className="pt-4 border-t border-stone-200 text-center">
               <button
                 type="button"
                 onClick={() =>
@@ -887,15 +1175,15 @@ export default function ClientPortal({
                     user_metadata: { role: 'patient', patient_id: patient.id }
                   })
                 }
-                className="w-full py-2.5 bg-[#0F172A] hover:bg-slate-800 text-[#06B6D4] font-bold text-xs rounded-xl border border-[#334155] transition-all cursor-pointer"
+                className="w-full py-2.5 bg-[#f4f3ef] hover:bg-stone-200/80 text-blue-700 font-extrabold text-xs rounded-xl border border-stone-300 transition-all cursor-pointer"
               >
                 ⚡ Entra Subito come {patient.nome} {patient.cognome} (Link Personale)
               </button>
             </div>
           )}
 
-          <div className="flex items-center justify-center gap-2 text-[11px] text-[#94A3B8] pt-2">
-            <ShieldCheck className="w-4 h-4 text-[#0D9488]" />
+          <div className="flex items-center justify-center gap-2 text-[11px] text-slate-600 font-bold pt-2">
+            <ShieldCheck className="w-4 h-4 text-emerald-600" />
             <span>Connessione Protetta RLS • Privacy Paziente Garantita</span>
           </div>
         </div>
@@ -903,12 +1191,20 @@ export default function ClientPortal({
     );
   }
 
-  // SCHERMATA 2: INTERFACCIA PAZIENTE / SMARTPHONE CON SUPPORTO MONOPODALICO GAMBA SX & DX + CARDIO BUILDER
+  // SCHERMATA 2: INTERFACCIA PAZIENTE / SMARTPHONE (EDITORIAL LIGHT THEME + GAMIFICATION)
   return (
-    <div className="min-h-screen bg-[#0F172A] text-white pb-24 font-sans">
+    <div className="min-h-screen bg-[#faf9f6] text-slate-900 pb-24 font-sans">
+      {/* GAMIFICATION 1: WELCOME MOTIVATIONAL OVERLAY (5s auto-dismiss) */}
+      {showWelcomeOverlay && (
+        <WelcomeMotivationalOverlay onComplete={() => setShowWelcomeOverlay(false)} />
+      )}
+
+      {/* GAMIFICATION 2: 2-SECOND ENERGETIC SUCCESS TOAST BANNER */}
+      <SuccessActionBanner toast={successToast} />
+
       {/* BANNER MODALITÀ SIMULAZIONE TERAPISTA */}
       {(effectiveSimMode || onExitSimulation) && (
-        <div className="bg-amber-600 text-white px-4 py-2.5 text-xs font-extrabold flex items-center justify-between shadow-md sticky top-0 z-40">
+        <div className="bg-amber-500 text-slate-950 px-4 py-2.5 text-xs font-black flex items-center justify-between shadow-xs sticky top-0 z-40 border-b border-amber-600/30">
           <div className="flex items-center gap-2">
             <Smartphone className="w-4 h-4" />
             <span>VISTA PORTALE PAZIENTE ({targetPatientName})</span>
@@ -916,25 +1212,25 @@ export default function ClientPortal({
           {onExitSimulation && (
             <button
               onClick={onExitSimulation}
-              className="px-3 py-1 bg-[#0F172A] hover:bg-[#1E293B] text-white rounded-lg text-[11px] font-black flex items-center gap-1 cursor-pointer"
+              className="px-3 py-1 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-[11px] font-black flex items-center gap-1 cursor-pointer shadow-xs"
             >
-              <ArrowLeft className="w-3.5 h-3.5 text-[#06B6D4]" />
+              <ArrowLeft className="w-3.5 h-3.5 text-amber-300" />
               <span>Torna a Vista Terapista</span>
             </button>
           )}
         </div>
       )}
 
-      {/* TOP MOBILE BAR */}
-      <header className="bg-[#1E293B]/95 backdrop-blur-md border-b border-[#334155] px-4 py-3.5 sticky top-0 z-30">
+      {/* TOP MOBILE BAR (Warm contrasting shade bg-[#f4f3ef] + border-stone-200) */}
+      <header className="bg-[#f4f3ef]/95 backdrop-blur-md border-b border-stone-200 px-4 py-3.5 sticky top-0 z-30 shadow-2xs">
         <div className="max-w-md mx-auto flex items-center justify-between">
-          <div className="flex items-center gap-2.5">
-            <LogoN className="w-10 h-10 rounded-xl border border-[#334155]" />
+          <div className="flex items-center gap-3">
+            <LogoN className="w-10 h-10 rounded-2xl border border-stone-200 shadow-xs" />
             <div>
-              <span className="text-[10px] font-extrabold uppercase tracking-wider text-[#06B6D4] block">
+              <span className="text-[10px] font-black uppercase tracking-wider text-blue-600 block">
                 Workout Log LCA
               </span>
-              <h2 className="text-sm font-black text-white leading-tight">{targetPatientName}</h2>
+              <h2 className="text-base font-black text-slate-900 leading-tight">{targetPatientName}</h2>
             </div>
           </div>
 
@@ -942,10 +1238,10 @@ export default function ClientPortal({
             <button
               type="button"
               onClick={handleInstallPwa}
-              className="px-2.5 py-1.5 rounded-xl bg-[#0F172A] hover:bg-slate-800 text-[#06B6D4] border border-[#334155] text-[10px] font-extrabold flex items-center gap-1 cursor-pointer"
+              className="px-3 py-1.5 rounded-xl bg-white hover:bg-stone-50 text-blue-700 border border-stone-200 text-[11px] font-extrabold flex items-center gap-1 cursor-pointer shadow-2xs"
               title="Aggiungi a Schermata Home"
             >
-              <Share className="w-3 h-3" />
+              <Share className="w-3.5 h-3.5" />
               <span>Salva App</span>
             </button>
 
@@ -956,7 +1252,7 @@ export default function ClientPortal({
                   await supabase.auth.signOut().catch(() => {});
                   setSessionUser(null);
                 }}
-                className="p-2 rounded-xl bg-[#0F172A] text-[#94A3B8] hover:text-rose-400 border border-[#334155]"
+                className="p-2 rounded-xl bg-white text-slate-600 hover:text-red-600 border border-stone-200 shadow-2xs cursor-pointer"
                 title="Esci"
               >
                 <LogOut className="w-4 h-4" />
@@ -966,12 +1262,15 @@ export default function ClientPortal({
         </div>
 
         {showIosPwaTip && (
-          <div className="max-w-md mx-auto mt-2 p-2.5 rounded-xl bg-[#0F172A] border border-[#06B6D4] text-[11px] text-white flex items-center justify-between">
+          <div className="max-w-md mx-auto mt-2 p-3 rounded-2xl bg-white border border-blue-200 text-xs text-slate-800 font-bold flex items-center justify-between shadow-sm">
             <span>
-              📱 Per avere l'app sempre pronta: tocca <strong>Condividi</strong> nel browser e scegli{' '}
-              <strong>"Aggiungi alla schermata Home"</strong>.
+              📱 Per avere l&apos;app sempre pronta: tocca <strong>Condividi</strong> nel browser e scegli{' '}
+              <strong>&ldquo;Aggiungi alla schermata Home&rdquo;</strong>.
             </span>
-            <button onClick={() => setShowIosPwaTip(false)} className="text-[#06B6D4] font-bold ml-2">
+            <button
+              onClick={() => setShowIosPwaTip(false)}
+              className="text-blue-600 font-black ml-2 cursor-pointer"
+            >
               OK
             </button>
           </div>
@@ -981,14 +1280,14 @@ export default function ClientPortal({
       {/* CONTENUTO PRINCIPALE MOBILE */}
       <main className="max-w-md mx-auto p-4 space-y-5">
         {/* SWITCHER A 2 TAB */}
-        <div className="grid grid-cols-2 gap-2 p-1.5 bg-[#1E293B] rounded-2xl border border-[#334155]">
+        <div className="grid grid-cols-2 gap-2 p-1.5 bg-[#f4f3ef] rounded-2xl border border-stone-200 shadow-2xs">
           <button
             type="button"
             onClick={() => setActiveSection('log')}
-            className={`py-3 px-3 rounded-xl font-extrabold text-xs flex items-center justify-center gap-2 transition-all cursor-pointer ${
+            className={`py-3 px-3 rounded-xl font-black text-xs flex items-center justify-center gap-2 transition-all cursor-pointer ${
               activeSection === 'log'
-                ? 'bg-gradient-to-r from-[#0D9488] to-[#06B6D4] text-white shadow-md'
-                : 'text-[#94A3B8] hover:text-white'
+                ? 'bg-blue-600 text-white shadow-md'
+                : 'text-slate-700 hover:text-slate-900 hover:bg-white/60'
             }`}
           >
             <Package className="w-4 h-4" />
@@ -998,10 +1297,10 @@ export default function ClientPortal({
           <button
             type="button"
             onClick={() => setActiveSection('history')}
-            className={`py-3 px-3 rounded-xl font-extrabold text-xs flex items-center justify-center gap-2 transition-all cursor-pointer ${
+            className={`py-3 px-3 rounded-xl font-black text-xs flex items-center justify-center gap-2 transition-all cursor-pointer ${
               activeSection === 'history'
-                ? 'bg-gradient-to-r from-[#0D9488] to-[#06B6D4] text-white shadow-md'
-                : 'text-[#94A3B8] hover:text-white'
+                ? 'bg-blue-600 text-white shadow-md'
+                : 'text-slate-700 hover:text-slate-900 hover:bg-white/60'
             }`}
           >
             <History className="w-4 h-4" />
@@ -1011,21 +1310,21 @@ export default function ClientPortal({
 
         {/* SEZIONE A: COMPILAZIONE PACCHETTO DI ESERCIZI DEL GIORNO */}
         {activeSection === 'log' && (
-          <div className="space-y-4">
+          <div className="space-y-5">
             <form
               onSubmit={handleSaveWorkoutPackage}
-              className="bg-[#1E293B] border border-[#334155] rounded-3xl p-5 space-y-4 shadow-xl"
+              className="bg-white border border-stone-200 rounded-3xl p-5 sm:p-6 space-y-4 shadow-md"
             >
               {editingLogId && (
-                <div className="p-3 rounded-2xl bg-amber-950/80 border border-amber-500/40 flex items-center justify-between">
-                  <div className="flex items-center gap-2 text-xs font-extrabold text-amber-300">
-                    <Edit3 className="w-4 h-4" />
+                <div className="p-3 rounded-2xl bg-amber-50 border border-amber-200 flex items-center justify-between">
+                  <div className="flex items-center gap-2 text-xs font-black text-amber-900">
+                    <Edit3 className="w-4 h-4 text-amber-600" />
                     <span>Modifica Esercizio Selezionato</span>
                   </div>
                   <button
                     type="button"
                     onClick={handleCancelEdit}
-                    className="px-2.5 py-1 rounded-lg bg-[#0F172A] text-[#94A3B8] hover:text-white text-[11px] font-bold flex items-center gap-1 cursor-pointer"
+                    className="px-2.5 py-1 rounded-xl bg-white text-slate-700 hover:text-slate-900 border border-stone-200 text-[11px] font-extrabold flex items-center gap-1 cursor-pointer"
                   >
                     <X className="w-3.5 h-3.5" />
                     <span>Annulla</span>
@@ -1033,31 +1332,31 @@ export default function ClientPortal({
                 </div>
               )}
 
-              <div className="flex items-center justify-between border-b border-[#334155] pb-3">
+              <div className="flex items-center justify-between border-b border-stone-200 pb-3.5">
                 <div>
-                  <h3 className="text-base font-black text-white">
+                  <h3 className="text-lg font-black text-slate-900 tracking-tight">
                     {editingLogId ? 'Modifica Esercizio' : 'Pacchetto Esercizi del Giorno'}
                   </h3>
-                  <p className="text-[11px] text-[#94A3B8]">
+                  <p className="text-xs text-slate-600 font-bold">
                     Segna i carichi (SX/DX) e i blocchi cardio svolti nella seduta
                   </p>
                 </div>
-                <div className="p-2.5 rounded-2xl bg-[#0F172A] border border-[#334155]">
+                <div className="p-3 rounded-2xl bg-blue-50 border border-blue-200">
                   {getCategoryIcon(selectedCategoryIcon, 'w-5 h-5')}
                 </div>
               </div>
 
               {/* 1. SELEZIONE GIORNATA DELL'ALLENAMENTO */}
-              <div className="bg-[#0F172A] border border-[#334155] rounded-2xl p-3">
-                <label className="block text-xs font-extrabold text-[#06B6D4] mb-1.5 flex items-center justify-between">
+              <div className="bg-[#faf9f6] border border-stone-200 rounded-2xl p-3.5">
+                <label className="block text-xs font-black text-slate-900 mb-1.5 flex items-center justify-between">
                   <span className="flex items-center gap-1.5">
-                    <Calendar className="w-3.5 h-3.5" />
+                    <Calendar className="w-3.5 h-3.5 text-blue-600" />
                     <span>Giornata di Allenamento</span>
                   </span>
                   <button
                     type="button"
                     onClick={() => setWorkoutDate(toDateInputValue(new Date().toISOString()))}
-                    className="text-[10px] text-[#0D9488] hover:underline font-extrabold"
+                    className="text-[11px] text-blue-600 hover:underline font-black cursor-pointer"
                   >
                     Imposta su Oggi
                   </button>
@@ -1067,17 +1366,17 @@ export default function ClientPortal({
                   required
                   value={workoutDate}
                   onChange={(e) => setWorkoutDate(e.target.value)}
-                  className="w-full bg-[#1E293B] border border-[#334155] focus:border-[#06B6D4] rounded-xl py-2 px-3 text-xs font-mono font-bold text-white focus:outline-none"
+                  className="w-full bg-white border border-stone-200 focus:border-blue-600 rounded-xl py-2.5 px-3 text-xs font-mono font-black text-slate-900 focus:outline-none"
                 />
               </div>
 
               {/* 2. RICERCA / SELEZIONE ESERCIZIO CON AUTOCOMPLETAMENTO & RILEVAMENTO MONOPODALICO */}
               <div className="relative">
-                <label className="block text-xs font-extrabold text-[#94A3B8] mb-1.5">
+                <label className="block text-xs font-black text-slate-800 mb-1.5">
                   Esercizio Forza / Riabilitazione (Opzionale se solo Cardio)
                 </label>
                 <div className="relative">
-                  <Search className="w-4 h-4 text-[#06B6D4] absolute left-3.5 top-3.5" />
+                  <Search className="w-4 h-4 text-blue-600 absolute left-3.5 top-3.5" />
                   <input
                     type="text"
                     value={exerciseQuery}
@@ -1090,12 +1389,12 @@ export default function ClientPortal({
                       setShowSuggestions(true);
                     }}
                     placeholder="Cerca es: Bulgarian Split Squat, Leg Ext, Pressa..."
-                    className="w-full bg-[#0F172A] border border-[#334155] focus:border-[#06B6D4] rounded-2xl py-3 pl-10 pr-4 text-sm font-bold text-white placeholder-[#94A3B8] focus:outline-none"
+                    className="w-full bg-[#faf9f6] border border-stone-200 focus:border-blue-600 rounded-2xl py-3 pl-10 pr-4 text-sm font-extrabold text-slate-900 placeholder-slate-400 focus:outline-none"
                   />
                 </div>
 
                 {showSuggestions && (
-                  <div className="mt-1.5 max-h-56 overflow-y-auto bg-[#0F172A] border border-[#334155] rounded-2xl shadow-2xl divide-y divide-[#334155] z-20 relative">
+                  <div className="mt-1.5 max-h-56 overflow-y-auto bg-white border border-stone-200 rounded-2xl shadow-xl divide-y divide-stone-100 z-20 relative">
                     {suggestions.map((item, idx) => (
                       <button
                         type="button"
@@ -1109,26 +1408,26 @@ export default function ClientPortal({
                           }
                           setShowSuggestions(false);
                         }}
-                        className="w-full px-3.5 py-2.5 text-left hover:bg-[#1E293B] flex items-center justify-between transition-colors cursor-pointer"
+                        className="w-full px-3.5 py-2.5 text-left hover:bg-blue-50/50 flex items-center justify-between transition-colors cursor-pointer"
                       >
                         <div className="flex items-center gap-2.5">
-                          <div className="p-1.5 rounded-lg bg-[#1E293B] border border-[#334155]">
+                          <div className="p-1.5 rounded-xl bg-[#faf9f6] border border-stone-200">
                             {getCategoryIcon(item.icon)}
                           </div>
                           <div>
-                            <div className="text-xs font-extrabold text-white flex items-center gap-1.5">
+                            <div className="text-xs font-black text-slate-900 flex items-center gap-1.5">
                               <span>{item.name}</span>
                               {item.isUnilateral && (
-                                <span className="text-[9px] px-1.5 py-0.2 rounded bg-teal-950 text-[#06B6D4] border border-[#06B6D4]/40 font-mono">
+                                <span className="text-[9px] px-1.5 py-0.5 rounded-md bg-teal-50 text-teal-800 border border-teal-200 font-mono font-black">
                                   SX + DX
                                 </span>
                               )}
                             </div>
-                            <div className="text-[10px] text-[#94A3B8]">{item.category}</div>
+                            <div className="text-[10px] font-bold text-slate-500">{item.category}</div>
                           </div>
                         </div>
                         {item.defaultTempo && (
-                          <span className="text-[10px] font-mono text-[#06B6D4] bg-[#1E293B] px-2 py-0.5 rounded border border-[#334155]">
+                          <span className="text-[10px] font-mono font-bold text-blue-700 bg-blue-50 px-2 py-0.5 rounded-lg border border-blue-200">
                             {item.defaultTempo}
                           </span>
                         )}
@@ -1140,30 +1439,30 @@ export default function ClientPortal({
 
               {/* SELETTORE ESPLICITO MODALITÀ CARICO: BILATERALE vs MONOPODALICO (SX + DX) */}
               <div className="space-y-1.5">
-                <label className="block text-[11px] font-extrabold text-[#94A3B8]">
-                  Modalità Esecuzione & Rilevazione Carico
+                <label className="block text-[11px] font-black text-slate-800 uppercase tracking-wider">
+                  Modalità Esecuzione &amp; Rilevazione Carico
                 </label>
-                <div className="grid grid-cols-2 gap-2 p-1 bg-[#0F172A] rounded-2xl border border-[#334155]">
+                <div className="grid grid-cols-2 gap-2 p-1.5 bg-[#f4f3ef] rounded-2xl border border-stone-200">
                   <button
                     type="button"
                     onClick={() => setIsUnilateralMode(false)}
-                    className={`py-2 px-2.5 rounded-xl text-xs font-extrabold flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
+                    className={`py-2.5 px-2.5 rounded-xl text-xs font-black flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
                       !isUnilateralMode
-                        ? 'bg-[#1E293B] text-white border border-[#06B6D4] shadow-sm'
-                        : 'text-[#94A3B8] hover:text-white'
+                        ? 'bg-white text-slate-900 border border-stone-300 shadow-xs'
+                        : 'text-slate-600 hover:text-slate-900'
                     }`}
                   >
-                    <Dumbbell className="w-3.5 h-3.5 text-[#06B6D4]" />
+                    <Dumbbell className="w-3.5 h-3.5 text-blue-600" />
                     <span>Bilaterale (1 Carico)</span>
                   </button>
 
                   <button
                     type="button"
                     onClick={() => setIsUnilateralMode(true)}
-                    className={`py-2 px-2.5 rounded-xl text-xs font-extrabold flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
+                    className={`py-2.5 px-2.5 rounded-xl text-xs font-black flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
                       isUnilateralMode
-                        ? 'bg-[#0D9488] text-white border border-[#06B6D4] shadow-sm'
-                        : 'text-[#94A3B8] hover:text-white'
+                        ? 'bg-teal-600 text-white shadow-xs'
+                        : 'text-slate-600 hover:text-slate-900'
                     }`}
                   >
                     <Footprints className="w-3.5 h-3.5" />
@@ -1176,7 +1475,7 @@ export default function ClientPortal({
               {!isUnilateralMode ? (
                 <div className="grid grid-cols-3 gap-3">
                   <div>
-                    <label className="block text-[11px] font-extrabold text-[#94A3B8] mb-1">
+                    <label className="block text-[11px] font-black text-slate-700 mb-1">
                       Serie (Sets)
                     </label>
                     <input
@@ -1186,24 +1485,24 @@ export default function ClientPortal({
                       max="20"
                       value={sets}
                       onChange={(e) => setSets(e.target.value)}
-                      className="w-full bg-[#0F172A] border border-[#334155] focus:border-[#06B6D4] rounded-2xl p-3 text-center text-base font-black text-white focus:outline-none"
+                      className="w-full bg-[#faf9f6] border border-stone-200 focus:border-blue-600 rounded-2xl p-3 text-center text-base font-black text-slate-900 focus:outline-none"
                     />
                   </div>
 
                   <div>
-                    <label className="block text-[11px] font-extrabold text-[#94A3B8] mb-1">
+                    <label className="block text-[11px] font-black text-slate-700 mb-1">
                       Ripetizioni
                     </label>
                     <input
                       type="text"
                       value={reps}
                       onChange={(e) => setReps(e.target.value)}
-                      className="w-full bg-[#0F172A] border border-[#334155] focus:border-[#06B6D4] rounded-2xl p-3 text-center text-base font-black text-white focus:outline-none"
+                      className="w-full bg-[#faf9f6] border border-stone-200 focus:border-blue-600 rounded-2xl p-3 text-center text-base font-black text-slate-900 focus:outline-none"
                     />
                   </div>
 
                   <div>
-                    <label className="block text-[11px] font-extrabold text-[#06B6D4] mb-1">
+                    <label className="block text-[11px] font-black text-blue-700 mb-1">
                       Carico (Kg) *
                     </label>
                     <input
@@ -1214,15 +1513,15 @@ export default function ClientPortal({
                       placeholder="es. 60"
                       value={weightKg}
                       onChange={(e) => setWeightKg(e.target.value)}
-                      className="w-full bg-[#0F172A] border-2 border-[#0D9488] focus:border-[#06B6D4] rounded-2xl p-3 text-center text-base font-black text-white placeholder-[#94A3B8] focus:outline-none"
+                      className="w-full bg-blue-50/50 border-2 border-blue-600 rounded-2xl p-3 text-center text-base font-black text-slate-900 placeholder-slate-400 focus:outline-none"
                     />
                   </div>
                 </div>
               ) : (
-                <div className="space-y-3 bg-[#0F172A] p-3.5 rounded-2xl border border-[#334155]">
+                <div className="space-y-3 bg-[#faf9f6] p-4 rounded-2xl border border-stone-200">
                   <div className="grid grid-cols-2 gap-3">
                     <div>
-                      <label className="block text-[11px] font-extrabold text-[#94A3B8] mb-1">
+                      <label className="block text-[11px] font-black text-slate-700 mb-1">
                         Serie per Gamba
                       </label>
                       <input
@@ -1232,31 +1531,31 @@ export default function ClientPortal({
                         max="20"
                         value={sets}
                         onChange={(e) => setSets(e.target.value)}
-                        className="w-full bg-[#1E293B] border border-[#334155] focus:border-[#06B6D4] rounded-xl p-2.5 text-center text-sm font-black text-white focus:outline-none"
+                        className="w-full bg-white border border-stone-200 focus:border-blue-600 rounded-xl p-2.5 text-center text-sm font-black text-slate-900 focus:outline-none"
                       />
                     </div>
                     <div>
-                      <label className="block text-[11px] font-extrabold text-[#94A3B8] mb-1">
+                      <label className="block text-[11px] font-black text-slate-700 mb-1">
                         Ripetizioni per Gamba
                       </label>
                       <input
                         type="text"
                         value={reps}
                         onChange={(e) => setReps(e.target.value)}
-                        className="w-full bg-[#1E293B] border border-[#334155] focus:border-[#06B6D4] rounded-xl p-2.5 text-center text-sm font-black text-white focus:outline-none"
+                        className="w-full bg-white border border-stone-200 focus:border-blue-600 rounded-xl p-2.5 text-center text-sm font-black text-slate-900 focus:outline-none"
                       />
                     </div>
                   </div>
 
                   {/* DOPPIO CAMPO CARICO SEPARATO: GAMBA SINISTRA (SX) vs GAMBA DESTRA (DX) */}
                   <div className="grid grid-cols-2 gap-3 pt-1">
-                    <div className="p-2.5 rounded-2xl bg-[#1E293B] border-2 border-[#06B6D4]/70 space-y-1.5">
+                    <div className="p-3 rounded-2xl bg-white border-2 border-blue-500 space-y-1.5 shadow-2xs">
                       <div className="flex items-center justify-between">
-                        <span className="text-[11px] font-black text-[#06B6D4] uppercase tracking-wider">
+                        <span className="text-[11px] font-black text-blue-700 uppercase tracking-wider">
                           🦵 Gamba SX (Kg)
                         </span>
                         {injuredSide.includes('sx') && (
-                          <span className="text-[9px] px-1.5 py-0.2 rounded bg-amber-950 text-amber-300 border border-amber-500/40 font-bold">
+                          <span className="text-[9px] px-1.5 py-0.5 rounded-md bg-amber-100 text-amber-900 border border-amber-300 font-black">
                             Operato
                           </span>
                         )}
@@ -1266,20 +1565,20 @@ export default function ClientPortal({
                         inputMode="decimal"
                         step="0.5"
                         min="0"
-                        placeholder="Kg Gamba SX"
+                        placeholder="Kg SX"
                         value={weightSxKg}
                         onChange={(e) => setWeightSxKg(e.target.value)}
-                        className="w-full bg-[#0F172A] border border-[#334155] focus:border-[#06B6D4] rounded-xl p-2.5 text-center text-base font-black text-white font-mono focus:outline-none"
+                        className="w-full bg-[#faf9f6] border border-stone-200 focus:border-blue-600 rounded-xl p-2.5 text-center text-base font-black text-slate-900 font-mono focus:outline-none"
                       />
                     </div>
 
-                    <div className="p-2.5 rounded-2xl bg-[#1E293B] border-2 border-[#0D9488] space-y-1.5">
+                    <div className="p-3 rounded-2xl bg-white border-2 border-teal-600 space-y-1.5 shadow-2xs">
                       <div className="flex items-center justify-between">
-                        <span className="text-[11px] font-black text-[#0D9488] uppercase tracking-wider">
+                        <span className="text-[11px] font-black text-teal-800 uppercase tracking-wider">
                           🦵 Gamba DX (Kg)
                         </span>
                         {injuredSide.includes('dx') && (
-                          <span className="text-[9px] px-1.5 py-0.2 rounded bg-amber-950 text-amber-300 border border-amber-500/40 font-bold">
+                          <span className="text-[9px] px-1.5 py-0.5 rounded-md bg-amber-100 text-amber-900 border border-amber-300 font-black">
                             Operato
                           </span>
                         )}
@@ -1289,20 +1588,20 @@ export default function ClientPortal({
                         inputMode="decimal"
                         step="0.5"
                         min="0"
-                        placeholder="Kg Gamba DX"
+                        placeholder="Kg DX"
                         value={weightDxKg}
                         onChange={(e) => setWeightDxKg(e.target.value)}
-                        className="w-full bg-[#0F172A] border border-[#334155] focus:border-[#0D9488] rounded-xl p-2.5 text-center text-base font-black text-white font-mono focus:outline-none"
+                        className="w-full bg-[#faf9f6] border border-stone-200 focus:border-teal-600 rounded-xl p-2.5 text-center text-base font-black text-slate-900 font-mono focus:outline-none"
                       />
                     </div>
                   </div>
 
                   {liveLsiForm !== null && (
-                    <div className="flex items-center justify-between px-3 py-1.5 rounded-xl bg-[#1E293B] border border-[#334155] text-[11px]">
-                      <span className="text-[#94A3B8] font-bold">Simmetria Carico SX vs DX (LSI):</span>
+                    <div className="flex items-center justify-between px-3.5 py-2 rounded-xl bg-white border border-stone-200 text-xs">
+                      <span className="text-slate-700 font-extrabold">Simmetria Carico SX vs DX (LSI):</span>
                       <strong
                         className={`font-mono font-black ${
-                          liveLsiForm >= 90 ? 'text-[#06B6D4]' : 'text-amber-400'
+                          liveLsiForm >= 90 ? 'text-emerald-700' : 'text-amber-700'
                         }`}
                       >
                         {liveLsiForm}%
@@ -1315,8 +1614,8 @@ export default function ClientPortal({
               {/* 4. VELOCITÀ / TEMPO & NOTE */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-[11px] font-bold text-[#94A3B8] mb-1 flex items-center gap-1">
-                    <Clock className="w-3.5 h-3.5 text-[#06B6D4]" />
+                  <label className="block text-[11px] font-black text-slate-700 mb-1 flex items-center gap-1">
+                    <Clock className="w-3.5 h-3.5 text-blue-600" />
                     <span>Velocità / Tempo (Opz.)</span>
                   </label>
                   <input
@@ -1324,12 +1623,12 @@ export default function ClientPortal({
                     value={tempo}
                     onChange={(e) => setTempo(e.target.value)}
                     placeholder="es. 3-0-1-0 o Esplosivo"
-                    className="w-full bg-[#0F172A] border border-[#334155] rounded-xl py-2 px-3 text-xs text-white"
+                    className="w-full bg-[#faf9f6] border border-stone-200 focus:border-blue-600 rounded-xl py-2.5 px-3 text-xs font-bold text-slate-900 outline-none"
                   />
                 </div>
                 <div>
-                  <label className="block text-[11px] font-bold text-[#94A3B8] mb-1 flex items-center gap-1">
-                    <MessageSquare className="w-3.5 h-3.5 text-[#06B6D4]" />
+                  <label className="block text-[11px] font-black text-slate-700 mb-1 flex items-center gap-1">
+                    <MessageSquare className="w-3.5 h-3.5 text-blue-600" />
                     <span>Note / Dolore / RPE (Opz.)</span>
                   </label>
                   <input
@@ -1337,7 +1636,7 @@ export default function ClientPortal({
                     value={notesRpe}
                     onChange={(e) => setNotesRpe(e.target.value)}
                     placeholder="es. Nessun dolore (0/10)"
-                    className="w-full bg-[#0F172A] border border-[#334155] rounded-xl py-2 px-3 text-xs text-white"
+                    className="w-full bg-[#faf9f6] border border-stone-200 focus:border-blue-600 rounded-xl py-2.5 px-3 text-xs font-bold text-slate-900 outline-none"
                   />
                 </div>
               </div>
@@ -1348,16 +1647,16 @@ export default function ClientPortal({
                   type="button"
                   onClick={handleAddExerciseToPackage}
                   disabled={!isCurrentFormLoadValid()}
-                  className="w-full py-2.5 bg-[#0F172A] hover:bg-slate-800 disabled:opacity-40 text-[#06B6D4] border border-[#334155] font-extrabold rounded-2xl text-xs flex items-center justify-center gap-2 transition-all cursor-pointer"
+                  className="w-full py-3 bg-blue-50 hover:bg-blue-100 disabled:opacity-40 text-blue-800 border-2 border-dashed border-blue-300 font-black rounded-2xl text-xs flex items-center justify-center gap-2 transition-all cursor-pointer"
                 >
-                  <Plus className="w-4 h-4" />
-                  <span>+ Aggiungi un altro esercizio al Pacchetto del Giorno</span>
+                  <Plus className="w-4 h-4 text-blue-600" />
+                  <span>+ Aggiungi questo esercizio al Pacchetto del Giorno</span>
                 </button>
               )}
 
               {/* 5. COMPONENTE MODULARE MULTI-BLOCK CARDIO BUILDER */}
               {!editingLogId && (
-                <div className="pt-2 border-t border-[#334155]">
+                <div className="pt-2 border-t border-stone-200">
                   <CardioBuilder
                     blocks={cardioBlocks}
                     onChange={setCardioBlocks}
@@ -1369,30 +1668,30 @@ export default function ClientPortal({
 
               {/* RIEPILOGO PACCHETTO IN PREPARAZIONE */}
               {packageItems.length > 0 && !editingLogId && (
-                <div className="bg-[#0F172A] border border-[#06B6D4]/40 rounded-2xl p-3.5 space-y-2">
-                  <div className="flex items-center justify-between text-xs font-extrabold text-[#06B6D4]">
+                <div className="bg-blue-50/60 border border-blue-200 rounded-2xl p-4 space-y-2.5">
+                  <div className="flex items-center justify-between text-xs font-black text-blue-900">
                     <span className="flex items-center gap-1.5">
-                      <Package className="w-4 h-4" />
+                      <Package className="w-4 h-4 text-blue-600" />
                       <span>Pacchetto in preparazione ({packageItems.length} esercizi)</span>
                     </span>
-                    <span className="font-mono text-[10px] text-[#94A3B8]">{workoutDate}</span>
+                    <span className="font-mono text-[10px] text-slate-600">{workoutDate}</span>
                   </div>
-                  <div className="divide-y divide-[#334155]">
+                  <div className="divide-y divide-blue-200/60">
                     {packageItems.map((item, idx) => (
                       <div key={idx} className="py-2 flex items-center justify-between text-xs">
                         <div className="flex items-center gap-2">
                           {getCategoryIcon(item.exercise_name, 'w-3.5 h-3.5')}
                           <div>
-                            <div className="font-bold text-white">{item.exercise_name}</div>
-                            <div className="text-[10px] text-[#94A3B8] font-mono">
+                            <div className="font-black text-slate-900">{item.exercise_name}</div>
+                            <div className="text-[10px] text-slate-600 font-mono font-bold">
                               {item.sets} × {item.reps} •{' '}
                               {item.is_unilateral ? (
-                                <span className="text-white font-bold">
-                                  SX <strong className="text-[#06B6D4]">{item.weight_sx_kg} kg</strong> | DX{' '}
-                                  <strong className="text-[#0D9488]">{item.weight_dx_kg} kg</strong>
+                                <span className="text-slate-900 font-black">
+                                  SX <strong className="text-blue-700">{item.weight_sx_kg} kg</strong> | DX{' '}
+                                  <strong className="text-teal-700">{item.weight_dx_kg} kg</strong>
                                 </span>
                               ) : (
-                                <strong className="text-white">{item.weight_kg} kg</strong>
+                                <strong className="text-slate-900">{item.weight_kg} kg</strong>
                               )}
                             </div>
                           </div>
@@ -1400,7 +1699,7 @@ export default function ClientPortal({
                         <button
                           type="button"
                           onClick={() => handleRemoveFromPackageDraft(idx)}
-                          className="p-1 text-[#94A3B8] hover:text-rose-400"
+                          className="p-1.5 text-slate-500 hover:text-red-600 cursor-pointer"
                         >
                           <Trash2 className="w-3.5 h-3.5" />
                         </button>
@@ -1411,8 +1710,8 @@ export default function ClientPortal({
               )}
 
               {saveSuccess && (
-                <div className="p-3 rounded-2xl bg-teal-950 border border-[#0D9488] text-white text-xs font-extrabold flex items-center justify-center gap-2">
-                  <CheckCircle2 className="w-4 h-4 text-[#06B6D4] shrink-0" />
+                <div className="p-3.5 rounded-2xl bg-emerald-50 border border-emerald-300 text-emerald-950 text-xs font-black flex items-center justify-center gap-2">
+                  <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
                   <span>{saveSuccess}</span>
                 </div>
               )}
@@ -1421,7 +1720,7 @@ export default function ClientPortal({
               <button
                 type="submit"
                 disabled={saving || (!editingLogId && totalDraftCount === 0)}
-                className="w-full py-4 bg-gradient-to-r from-[#0D9488] to-[#06B6D4] hover:opacity-95 disabled:opacity-40 text-white font-black rounded-2xl text-sm flex items-center justify-center gap-2 shadow-xl transition-all cursor-pointer active:scale-[0.99]"
+                className="w-full py-4 bg-blue-600 hover:bg-blue-700 disabled:opacity-40 text-white font-black rounded-2xl text-sm flex items-center justify-center gap-2 shadow-lg transition-all cursor-pointer active:scale-[0.99]"
               >
                 <CheckCircle2 className="w-5 h-5" />
                 <span>
@@ -1436,62 +1735,64 @@ export default function ClientPortal({
 
             {/* ANTEPRIMA DEGLI ESERCIZI GIÀ SALVATI NELLA GIORNATA SELEZIONATA */}
             {existingLogsForSelectedDate.length > 0 && !editingLogId && (
-              <div className="bg-[#1E293B] border border-[#334155] rounded-3xl p-4 space-y-2.5">
+              <div className="bg-white border border-stone-200 rounded-3xl p-5 space-y-3 shadow-md">
                 <div className="flex items-center justify-between">
-                  <span className="text-xs font-extrabold text-white flex items-center gap-1.5">
-                    <Calendar className="w-4 h-4 text-[#0D9488]" />
+                  <span className="text-xs font-black text-slate-900 flex items-center gap-1.5">
+                    <Calendar className="w-4 h-4 text-blue-600" />
                     <span>Già registrati nel pacchetto del {formatDayLabel(workoutDate)}</span>
                   </span>
-                  <span className="px-2 py-0.5 rounded-full bg-[#0F172A] text-[#06B6D4] border border-[#334155] font-mono text-[10px] font-bold">
+                  <span className="px-2.5 py-0.5 rounded-full bg-blue-50 text-blue-800 border border-blue-200 font-mono text-[10px] font-black">
                     {existingLogsForSelectedDate.length} voci
                   </span>
                 </div>
-                <div className="space-y-1.5">
+                <div className="space-y-2">
                   {existingLogsForSelectedDate.map((log, i) => {
                     const cardioInfo = parseCardioLogFromWorkoutRow(log);
                     return (
                       <div
                         key={log.id || i}
-                        className="bg-[#0F172A] border border-[#334155] rounded-xl px-3 py-2 flex items-center justify-between text-xs"
+                        className="bg-[#faf9f6] border border-stone-200 rounded-2xl px-3.5 py-2.5 flex items-center justify-between text-xs"
                       >
                         <button
                           type="button"
                           onClick={() => setSelectedExerciseForProgression(log.exercise_name)}
-                          className="flex items-center gap-2 text-left hover:text-[#06B6D4] cursor-pointer"
+                          className="flex items-center gap-2 text-left hover:text-blue-600 cursor-pointer"
                         >
                           {getCategoryIcon(log.exercise_name, 'w-3.5 h-3.5')}
-                          <span className="font-bold text-white underline decoration-dotted underline-offset-2">
+                          <span className="font-black text-slate-900 underline decoration-dotted underline-offset-2">
                             {cardioInfo ? cardioInfo.title : log.exercise_name}
                           </span>
                         </button>
                         <div className="flex items-center gap-2">
                           {cardioInfo ? (
-                            <span className="px-2 py-0.5 rounded bg-teal-950/80 border border-teal-500/40 text-teal-300 font-mono text-[10px] font-bold">
+                            <span className="px-2 py-0.5 rounded-lg bg-teal-50 border border-teal-200 text-teal-800 font-mono text-[10px] font-black">
                               {cardioInfo.modality === 'continuo'
                                 ? `${cardioInfo.duration_min || 0}m • ${cardioInfo.distance_km || 0}km (${cardioInfo.pace})`
                                 : `${cardioInfo.work_per_set} • Rec ${cardioInfo.rest}`}
                             </span>
                           ) : (
                             <>
-                              <span className="font-mono text-[#94A3B8]">{log.sets}×{log.reps}</span>
+                              <span className="font-mono font-bold text-slate-600">
+                                {log.sets}×{log.reps}
+                              </span>
                               {log.is_unilateral ? (
                                 <div className="flex items-center gap-1 font-mono text-[11px]">
-                                  <span className="px-1.5 py-0.5 rounded bg-[#1E293B] border border-[#06B6D4]/40 text-white font-black">
+                                  <span className="px-1.5 py-0.5 rounded-md bg-blue-50 border border-blue-200 text-blue-800 font-black">
                                     SX {log.weight_sx_kg}kg
                                   </span>
-                                  <span className="px-1.5 py-0.5 rounded bg-[#1E293B] border border-[#0D9488]/40 text-white font-black">
+                                  <span className="px-1.5 py-0.5 rounded-md bg-teal-50 border border-teal-200 text-teal-800 font-black">
                                     DX {log.weight_dx_kg}kg
                                   </span>
                                 </div>
                               ) : (
-                                <span className="font-mono font-black text-white">{log.weight_kg} kg</span>
+                                <span className="font-mono font-black text-slate-900">{log.weight_kg} kg</span>
                               )}
                             </>
                           )}
                           <button
                             type="button"
                             onClick={() => handleStartEditLog(log)}
-                            className="p-1 text-[#06B6D4] hover:text-white"
+                            className="p-1 text-blue-600 hover:text-blue-800 cursor-pointer"
                             title="Modifica"
                           >
                             <Edit3 className="w-3.5 h-3.5" />
@@ -1510,19 +1811,19 @@ export default function ClientPortal({
         {activeSection === 'history' && (
           <div className="space-y-4">
             {/* 1. SELETTORE GIORNATE DI ALLENAMENTO */}
-            <div className="bg-[#1E293B] border border-[#334155] rounded-3xl p-4 space-y-3">
+            <div className="bg-white border border-stone-200 rounded-3xl p-5 space-y-3 shadow-md">
               <div>
-                <h3 className="text-sm font-black text-white flex items-center gap-1.5">
-                  <Calendar className="w-4 h-4 text-[#06B6D4]" />
+                <h3 className="text-base font-black text-slate-900 flex items-center gap-1.5">
+                  <Calendar className="w-4 h-4 text-blue-600" />
                   <span>Seleziona Giornata di Allenamento</span>
                 </h3>
-                <p className="text-[11px] text-[#94A3B8]">
+                <p className="text-xs text-slate-600 font-bold">
                   Tocca una data per vedere il pacchetto di esercizi e blocchi cardio svolti quel giorno
                 </p>
               </div>
 
               {groupedByDay.sortedDays.length === 0 ? (
-                <div className="text-xs text-[#94A3B8] italic py-2">
+                <div className="text-xs text-slate-500 font-bold italic py-2">
                   Nessuna giornata ancora registrata.
                 </div>
               ) : (
@@ -1537,12 +1838,16 @@ export default function ClientPortal({
                         onClick={() => setSelectedHistoryDay(dayKey)}
                         className={`px-3.5 py-2.5 rounded-2xl border text-left shrink-0 transition-all cursor-pointer ${
                           isSelected
-                            ? 'bg-[#0F172A] border-[#06B6D4] text-white shadow-md'
-                            : 'bg-[#0F172A]/60 border-[#334155] text-[#94A3B8] hover:text-white'
+                            ? 'bg-blue-600 border-blue-700 text-white shadow-md'
+                            : 'bg-[#faf9f6] border-stone-200 text-slate-700 hover:border-blue-400'
                         }`}
                       >
                         <div className="text-xs font-black">{formatDayLabel(dayKey)}</div>
-                        <div className="text-[10px] font-mono text-[#06B6D4] mt-0.5">
+                        <div
+                          className={`text-[10px] font-mono font-bold mt-0.5 ${
+                            isSelected ? 'text-blue-100' : 'text-blue-600'
+                          }`}
+                        >
                           📦 {dayLogs.length} {dayLogs.length === 1 ? 'voce' : 'voci'}
                         </div>
                       </button>
@@ -1554,12 +1859,16 @@ export default function ClientPortal({
                     onClick={() => setSelectedHistoryDay('ALL')}
                     className={`px-3.5 py-2.5 rounded-2xl border text-left shrink-0 transition-all cursor-pointer ${
                       activeHistoryDay === 'ALL'
-                        ? 'bg-[#0F172A] border-[#06B6D4] text-white'
-                        : 'bg-[#0F172A]/60 border-[#334155] text-[#94A3B8]'
+                        ? 'bg-blue-600 border-blue-700 text-white shadow-md'
+                        : 'bg-[#faf9f6] border-stone-200 text-slate-700'
                     }`}
                   >
                     <div className="text-xs font-black">Tutte le Giornate</div>
-                    <div className="text-[10px] font-mono text-[#94A3B8] mt-0.5">
+                    <div
+                      className={`text-[10px] font-mono font-bold mt-0.5 ${
+                        activeHistoryDay === 'ALL' ? 'text-blue-100' : 'text-slate-500'
+                      }`}
+                    >
                       {workoutLogs.length} totali
                     </div>
                   </button>
@@ -1569,7 +1878,9 @@ export default function ClientPortal({
 
             {/* 2. PACCHETTO ESERCIZI DELLA GIORNATA SELEZIONATA */}
             {loadingLogs ? (
-              <div className="p-8 text-center text-xs text-[#94A3B8]">Caricamento storico in corso...</div>
+              <div className="p-8 text-center text-xs font-bold text-slate-500">
+                Caricamento storico in corso...
+              </div>
             ) : (
               (activeHistoryDay === 'ALL' ? groupedByDay.sortedDays : [activeHistoryDay])
                 .filter(Boolean)
@@ -1580,14 +1891,14 @@ export default function ClientPortal({
                   return (
                     <div
                       key={dayKey}
-                      className="bg-[#1E293B] border border-[#334155] rounded-3xl p-4 space-y-3 shadow-lg"
+                      className="bg-white border border-stone-200 rounded-3xl p-5 space-y-3.5 shadow-md"
                     >
-                      <div className="flex items-center justify-between border-b border-[#334155] pb-2.5">
+                      <div className="flex items-center justify-between border-b border-stone-200 pb-3">
                         <div>
-                          <span className="text-[10px] font-extrabold uppercase tracking-wider text-[#06B6D4] block">
+                          <span className="text-[10px] font-black uppercase tracking-wider text-blue-600 block">
                             Pacchetto Allenamento Giornaliero
                           </span>
-                          <h4 className="text-sm font-black text-white">{formatDayLabel(dayKey)}</h4>
+                          <h4 className="text-base font-black text-slate-900">{formatDayLabel(dayKey)}</h4>
                         </div>
                         <button
                           type="button"
@@ -1595,9 +1906,9 @@ export default function ClientPortal({
                             setWorkoutDate(dayKey);
                             setActiveSection('log');
                           }}
-                          className="px-2.5 py-1 rounded-xl bg-[#0F172A] hover:bg-slate-800 text-[#06B6D4] border border-[#334155] text-[10px] font-extrabold flex items-center gap-1 cursor-pointer"
+                          className="px-3 py-1.5 rounded-xl bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 text-[11px] font-black flex items-center gap-1 cursor-pointer"
                         >
-                          <Plus className="w-3 h-3" />
+                          <Plus className="w-3.5 h-3.5" />
                           <span>Aggiungi a questa data</span>
                         </button>
                       </div>
@@ -1613,11 +1924,11 @@ export default function ClientPortal({
                             return (
                               <div
                                 key={log.id || idx}
-                                className="bg-[#0F172A] border border-teal-500/40 rounded-2xl p-3.5 space-y-2"
+                                className="bg-[#faf9f6] border border-teal-200 rounded-2xl p-4 space-y-2"
                               >
                                 <div className="flex items-start justify-between gap-2">
                                   <div className="flex items-center gap-2.5">
-                                    <div className="p-2 rounded-xl bg-teal-500/15 border border-teal-500/40 text-teal-400">
+                                    <div className="p-2 rounded-xl bg-teal-50 border border-teal-200 text-teal-700">
                                       {cardioInfo.modality === 'continuo' ? (
                                         <Route className="w-4 h-4" />
                                       ) : (
@@ -1625,12 +1936,12 @@ export default function ClientPortal({
                                       )}
                                     </div>
                                     <div>
-                                      <span className="text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full bg-teal-500/20 text-teal-300 border border-teal-500/30">
+                                      <span className="text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full bg-teal-50 text-teal-800 border border-teal-200">
                                         {cardioInfo.modality === 'continuo'
                                           ? 'Cardio Continuo'
                                           : 'Ripetute / Navette'}
                                       </span>
-                                      <h5 className="text-sm font-black text-white mt-1">
+                                      <h5 className="text-sm font-black text-slate-900 mt-1">
                                         {cardioInfo.title}
                                       </h5>
                                     </div>
@@ -1639,19 +1950,19 @@ export default function ClientPortal({
                                   <div className="text-right shrink-0">
                                     {cardioInfo.modality === 'continuo' ? (
                                       <>
-                                        <div className="text-sm font-black text-teal-300 font-mono">
+                                        <div className="text-sm font-black text-teal-800 font-mono">
                                           {cardioInfo.duration_min || 0} min • {cardioInfo.distance_km || 0} km
                                         </div>
-                                        <div className="text-[10px] font-extrabold text-[#94A3B8] font-mono">
+                                        <div className="text-[10px] font-extrabold text-slate-600 font-mono">
                                           Passo: {cardioInfo.pace} • {cardioInfo.speed}
                                         </div>
                                       </>
                                     ) : (
                                       <>
-                                        <div className="text-sm font-black text-teal-300 font-mono">
+                                        <div className="text-sm font-black text-teal-800 font-mono">
                                           {cardioInfo.work_per_set}
                                         </div>
-                                        <div className="text-[10px] font-extrabold text-[#94A3B8] font-mono">
+                                        <div className="text-[10px] font-extrabold text-slate-600 font-mono">
                                           Recupero: {cardioInfo.rest}
                                         </div>
                                       </>
@@ -1659,11 +1970,11 @@ export default function ClientPortal({
                                   </div>
                                 </div>
 
-                                <div className="flex items-center justify-end gap-1.5 pt-1.5 border-t border-[#334155]/60">
+                                <div className="flex items-center justify-end gap-1.5 pt-1.5 border-t border-stone-200">
                                   <button
                                     type="button"
                                     onClick={() => handleDeleteLog(log.id)}
-                                    className="p-1 rounded-lg bg-[#1E293B] hover:bg-rose-950 text-[#94A3B8] hover:text-rose-400 cursor-pointer"
+                                    className="p-1.5 rounded-lg bg-white hover:bg-red-50 text-slate-500 hover:text-red-600 border border-stone-200 cursor-pointer"
                                     title="Elimina blocco cardio"
                                   >
                                     <Trash2 className="w-3.5 h-3.5" />
@@ -1676,7 +1987,7 @@ export default function ClientPortal({
                           return (
                             <div
                               key={log.id || idx}
-                              className="bg-[#0F172A] border border-[#334155] rounded-2xl p-3.5 space-y-2"
+                              className="bg-[#faf9f6] border border-stone-200 rounded-2xl p-4 space-y-2"
                             >
                               <div className="flex items-start justify-between gap-2">
                                 <button
@@ -1684,17 +1995,17 @@ export default function ClientPortal({
                                   onClick={() => setSelectedExerciseForProgression(log.exercise_name)}
                                   className="flex items-center gap-2.5 text-left group cursor-pointer"
                                 >
-                                  <div className="p-2 rounded-xl bg-[#1E293B] border border-[#334155] group-hover:border-[#06B6D4]">
+                                  <div className="p-2 rounded-xl bg-white border border-stone-200 group-hover:border-blue-500">
                                     {getCategoryIcon(log.exercise_name)}
                                   </div>
                                   <div>
-                                    <h5 className="text-sm font-black text-white group-hover:text-[#06B6D4] flex items-center gap-1">
-                                      <span className="underline decoration-[#06B6D4]/50 decoration-dotted underline-offset-4">
+                                    <h5 className="text-sm font-black text-slate-900 group-hover:text-blue-600 flex items-center gap-1">
+                                      <span className="underline decoration-blue-400 decoration-dotted underline-offset-4">
                                         {log.exercise_name}
                                       </span>
-                                      <ChevronRight className="w-3.5 h-3.5 text-[#06B6D4]" />
+                                      <ChevronRight className="w-3.5 h-3.5 text-blue-600" />
                                     </h5>
-                                    <span className="text-[10px] text-[#06B6D4] font-bold flex items-center gap-1">
+                                    <span className="text-[10px] text-blue-600 font-extrabold flex items-center gap-1">
                                       <TrendingUp className="w-3 h-3" />
                                       <span>Vedi progressione nel tempo</span>
                                     </span>
@@ -1705,26 +2016,26 @@ export default function ClientPortal({
                                   {log.is_unilateral ? (
                                     <div className="space-y-1">
                                       <div className="flex items-center justify-end gap-1.5 font-mono text-xs">
-                                        <span className="px-2 py-0.5 rounded-lg bg-[#1E293B] border border-[#06B6D4]/50 text-white font-black">
+                                        <span className="px-2 py-0.5 rounded-lg bg-blue-50 border border-blue-200 text-blue-900 font-black">
                                           SX: {log.weight_sx_kg} kg
                                         </span>
-                                        <span className="px-2 py-0.5 rounded-lg bg-[#1E293B] border border-[#0D9488] text-white font-black">
+                                        <span className="px-2 py-0.5 rounded-lg bg-teal-50 border border-teal-200 text-teal-900 font-black">
                                           DX: {log.weight_dx_kg} kg
                                         </span>
                                       </div>
-                                      <div className="text-[10px] font-extrabold text-[#94A3B8] font-mono">
+                                      <div className="text-[10px] font-extrabold text-slate-600 font-mono">
                                         {log.sets} serie × {log.reps} rip{' '}
                                         {lsiLoad !== null && (
-                                          <span className="text-[#06B6D4] ml-1">• LSI {lsiLoad}%</span>
+                                          <span className="text-blue-700 ml-1">• LSI {lsiLoad}%</span>
                                         )}
                                       </div>
                                     </div>
                                   ) : (
                                     <>
-                                      <div className="text-base font-black text-white font-mono">
+                                      <div className="text-base font-black text-slate-900 font-mono">
                                         {log.weight_kg} kg
                                       </div>
-                                      <div className="text-[10px] font-extrabold text-[#94A3B8] font-mono">
+                                      <div className="text-[10px] font-extrabold text-slate-600 font-mono">
                                         {log.sets} serie × {log.reps} rip
                                       </div>
                                     </>
@@ -1732,15 +2043,17 @@ export default function ClientPortal({
                                 </div>
                               </div>
 
-                              <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-[#334155]/60 text-[11px]">
+                              <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-stone-200 text-[11px]">
                                 <div className="flex flex-wrap items-center gap-2">
                                   {log.tempo_speed && (
-                                    <span className="px-2 py-0.5 rounded-lg bg-[#1E293B] border border-[#334155] text-[#06B6D4] font-mono text-[10px]">
+                                    <span className="px-2 py-0.5 rounded-lg bg-white border border-stone-200 text-blue-700 font-mono font-bold text-[10px]">
                                       ⏱ {log.tempo_speed}
                                     </span>
                                   )}
                                   {log.clean_notes && (
-                                    <span className="text-[#94A3B8] italic">"{log.clean_notes}"</span>
+                                    <span className="text-slate-600 font-semibold italic">
+                                      &ldquo;{log.clean_notes}&rdquo;
+                                    </span>
                                   )}
                                 </div>
 
@@ -1748,7 +2061,7 @@ export default function ClientPortal({
                                   <button
                                     type="button"
                                     onClick={() => handleStartEditLog(log)}
-                                    className="px-2.5 py-1 rounded-lg bg-[#1E293B] hover:bg-slate-700 text-[#06B6D4] border border-[#334155] text-[10px] font-extrabold flex items-center gap-1 cursor-pointer"
+                                    className="px-2.5 py-1 rounded-lg bg-white hover:bg-blue-50 text-blue-700 border border-stone-200 text-[10px] font-black flex items-center gap-1 cursor-pointer"
                                   >
                                     <Edit3 className="w-3 h-3" />
                                     <span>Modifica</span>
@@ -1756,7 +2069,7 @@ export default function ClientPortal({
                                   <button
                                     type="button"
                                     onClick={() => handleDeleteLog(log.id)}
-                                    className="p-1 rounded-lg bg-[#1E293B] hover:bg-rose-950 text-[#94A3B8] hover:text-rose-400 cursor-pointer"
+                                    className="p-1 rounded-lg bg-white hover:bg-red-50 text-slate-500 hover:text-red-600 border border-stone-200 cursor-pointer"
                                   >
                                     <Trash2 className="w-3.5 h-3.5" />
                                   </button>
@@ -1774,20 +2087,20 @@ export default function ClientPortal({
         )}
       </main>
 
-      {/* MODAL PROGRESSIONE NEL TEMPO DELL'ESERCIZIO CLICCATO (CON SUPPORTO SX vs DX) */}
+      {/* MODAL PROGRESSIONE NEL TEMPO DELL'ESERCIZIO CLICCATO (EDITORIAL LIGHT THEME) */}
       {selectedExerciseForProgression && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[#0F172A]/85 backdrop-blur-md">
-          <div className="w-full max-w-md bg-[#1E293B] border border-[#334155] rounded-3xl p-5 space-y-4 shadow-2xl max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between border-b border-[#334155] pb-3">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-xs">
+          <div className="w-full max-w-md bg-white border border-stone-200 rounded-3xl p-5 sm:p-6 space-y-4 shadow-2xl max-h-[90vh] overflow-y-auto text-slate-900">
+            <div className="flex items-center justify-between border-b border-stone-200 pb-3.5">
               <div className="flex items-center gap-2.5">
-                <div className="p-2 rounded-xl bg-[#0F172A] border border-[#334155]">
+                <div className="p-2.5 rounded-2xl bg-blue-50 border border-blue-200">
                   {getCategoryIcon(selectedExerciseForProgression, 'w-5 h-5')}
                 </div>
                 <div>
-                  <span className="text-[10px] font-extrabold uppercase tracking-wider text-[#06B6D4] block">
+                  <span className="text-[10px] font-black uppercase tracking-wider text-blue-600 block">
                     Progressione Carichi nel Tempo
                   </span>
-                  <h3 className="text-base font-black text-white">
+                  <h3 className="text-base font-black text-slate-900">
                     {selectedExerciseForProgression}
                   </h3>
                 </div>
@@ -1795,14 +2108,14 @@ export default function ClientPortal({
               <button
                 type="button"
                 onClick={() => setSelectedExerciseForProgression(null)}
-                className="p-1.5 rounded-xl bg-[#0F172A] text-[#94A3B8] hover:text-white border border-[#334155] cursor-pointer"
+                className="p-2 rounded-xl bg-[#faf9f6] text-slate-600 hover:text-slate-900 border border-stone-200 cursor-pointer"
               >
                 <X className="w-4 h-4" />
               </button>
             </div>
 
             {exerciseProgressionData.length === 0 ? (
-              <p className="text-xs text-[#94A3B8] text-center py-4">Nessun dato trovato.</p>
+              <p className="text-xs font-bold text-slate-500 text-center py-4">Nessun dato trovato.</p>
             ) : (
               <>
                 {(() => {
@@ -1812,21 +2125,21 @@ export default function ClientPortal({
                     const lsiLast = calcLoadLsiPct(lastEntry?.weight_sx_kg, lastEntry?.weight_dx_kg);
                     return (
                       <div className="grid grid-cols-3 gap-2">
-                        <div className="bg-[#0F172A] border border-[#06B6D4]/50 rounded-2xl p-3 text-center">
-                          <span className="text-[10px] text-[#06B6D4] font-bold block">Ultimo SX</span>
-                          <span className="text-sm font-black text-white font-mono">
+                        <div className="bg-blue-50/70 border border-blue-200 rounded-2xl p-3 text-center">
+                          <span className="text-[10px] text-blue-700 font-black block">Ultimo SX</span>
+                          <span className="text-sm font-black text-slate-900 font-mono">
                             {lastEntry?.weight_sx_kg ?? 0} kg
                           </span>
                         </div>
-                        <div className="bg-[#0F172A] border border-[#0D9488] rounded-2xl p-3 text-center">
-                          <span className="text-[10px] text-[#0D9488] font-bold block">Ultimo DX</span>
-                          <span className="text-sm font-black text-white font-mono">
+                        <div className="bg-teal-50/70 border border-teal-200 rounded-2xl p-3 text-center">
+                          <span className="text-[10px] text-teal-800 font-black block">Ultimo DX</span>
+                          <span className="text-sm font-black text-slate-900 font-mono">
                             {lastEntry?.weight_dx_kg ?? 0} kg
                           </span>
                         </div>
-                        <div className="bg-[#0F172A] border border-[#334155] rounded-2xl p-3 text-center">
-                          <span className="text-[10px] text-[#94A3B8] font-bold block">Simmetria LSI</span>
-                          <span className="text-sm font-black text-white font-mono">
+                        <div className="bg-[#faf9f6] border border-stone-200 rounded-2xl p-3 text-center">
+                          <span className="text-[10px] text-slate-600 font-black block">Simmetria LSI</span>
+                          <span className="text-sm font-black text-slate-900 font-mono">
                             {lsiLast !== null ? `${lsiLast}%` : 'N/D'}
                           </span>
                         </div>
@@ -1841,17 +2154,17 @@ export default function ClientPortal({
 
                   return (
                     <div className="grid grid-cols-3 gap-2">
-                      <div className="bg-[#0F172A] border border-[#334155] rounded-2xl p-3 text-center">
-                        <span className="text-[10px] text-[#94A3B8] font-bold block">1ª Seduta</span>
-                        <span className="text-sm font-black text-white font-mono">{firstKg} kg</span>
+                      <div className="bg-[#faf9f6] border border-stone-200 rounded-2xl p-3 text-center">
+                        <span className="text-[10px] text-slate-600 font-black block">1ª Seduta</span>
+                        <span className="text-sm font-black text-slate-900 font-mono">{firstKg} kg</span>
                       </div>
-                      <div className="bg-[#0F172A] border border-[#334155] rounded-2xl p-3 text-center">
-                        <span className="text-[10px] text-[#94A3B8] font-bold block">Picco Max</span>
-                        <span className="text-sm font-black text-white font-mono">{maxKg} kg</span>
+                      <div className="bg-[#faf9f6] border border-stone-200 rounded-2xl p-3 text-center">
+                        <span className="text-[10px] text-slate-600 font-black block">Picco Max</span>
+                        <span className="text-sm font-black text-slate-900 font-mono">{maxKg} kg</span>
                       </div>
-                      <div className="bg-[#0F172A] border border-[#334155] rounded-2xl p-3 text-center">
-                        <span className="text-[10px] text-[#94A3B8] font-bold block">Evoluzione</span>
-                        <span className="text-sm font-black font-mono text-[#06B6D4]">
+                      <div className="bg-blue-50 border border-blue-200 rounded-2xl p-3 text-center">
+                        <span className="text-[10px] text-blue-700 font-black block">Evoluzione</span>
+                        <span className="text-sm font-black font-mono text-blue-700">
                           {deltaKg > 0 ? `+${deltaKg} kg` : `${deltaKg} kg`}
                         </span>
                       </div>
@@ -1859,13 +2172,13 @@ export default function ClientPortal({
                   );
                 })()}
 
-                {/* MICRO GRAFICO DI PROGRESSIONE A BARRE (DOPPIA BARRA SX/DX SE MONOPODALICO) */}
-                <div className="bg-[#0F172A] border border-[#334155] rounded-2xl p-4 space-y-2">
-                  <div className="text-[11px] font-bold text-white flex items-center justify-between">
+                {/* MICRO GRAFICO DI PROGRESSIONE A BARRE */}
+                <div className="bg-[#faf9f6] border border-stone-200 rounded-2xl p-4 space-y-2">
+                  <div className="text-[11px] font-black text-slate-900 flex items-center justify-between">
                     <span>Andamento Carico (Kg) per Seduta</span>
-                    <div className="flex items-center gap-2 text-[10px] font-mono">
-                      <span className="text-[#06B6D4]">■ SX</span>
-                      <span className="text-[#0D9488]">■ DX</span>
+                    <div className="flex items-center gap-2 text-[10px] font-mono font-bold">
+                      <span className="text-blue-600">■ SX</span>
+                      <span className="text-teal-600">■ DX</span>
                     </div>
                   </div>
                   <div className="flex items-end gap-2.5 h-32 pt-4 px-1 overflow-x-auto">
@@ -1882,22 +2195,22 @@ export default function ClientPortal({
                         const pctDx = Math.max(Math.round(((d.weight_dx_kg || 0) / maxVal) * 100), 12);
                         return (
                           <div key={d.id || i} className="flex-1 min-w-[60px] flex flex-col items-center gap-1">
-                            <span className="text-[9.5px] font-mono font-black text-white">
+                            <span className="text-[9.5px] font-mono font-black text-slate-900">
                               {d.weight_sx_kg}/{d.weight_dx_kg}kg
                             </span>
-                            <div className="w-full bg-[#1E293B] rounded-t-lg h-20 flex items-end gap-1 p-1 border border-[#334155]">
+                            <div className="w-full bg-white rounded-t-lg h-20 flex items-end gap-1 p-1 border border-stone-200">
                               <div
                                 style={{ height: `${pctSx}%` }}
-                                className="flex-1 bg-[#06B6D4] rounded-t transition-all"
+                                className="flex-1 bg-blue-600 rounded-t transition-all"
                                 title={`SX: ${d.weight_sx_kg} kg`}
                               />
                               <div
                                 style={{ height: `${pctDx}%` }}
-                                className="flex-1 bg-[#0D9488] rounded-t transition-all"
+                                className="flex-1 bg-teal-600 rounded-t transition-all"
                                 title={`DX: ${d.weight_dx_kg} kg`}
                               />
                             </div>
-                            <span className="text-[9px] font-mono text-[#94A3B8]">
+                            <span className="text-[9px] font-mono font-bold text-slate-500">
                               {new Date(d.created_at).toLocaleDateString('it-IT', {
                                 day: '2-digit',
                                 month: '2-digit'
@@ -1910,16 +2223,16 @@ export default function ClientPortal({
                       const pct = Math.max(Math.round(((d.weight_kg || 0) / maxVal) * 100), 15);
                       return (
                         <div key={d.id || i} className="flex-1 min-w-[44px] flex flex-col items-center gap-1">
-                          <span className="text-[10px] font-mono font-black text-white">
+                          <span className="text-[10px] font-mono font-black text-slate-900">
                             {d.weight_kg}kg
                           </span>
-                          <div className="w-full bg-[#1E293B] rounded-t-lg h-20 flex items-end overflow-hidden border border-[#334155] p-0.5">
+                          <div className="w-full bg-white rounded-t-lg h-20 flex items-end overflow-hidden border border-stone-200 p-0.5">
                             <div
                               style={{ height: `${pct}%` }}
-                              className="w-full bg-gradient-to-t from-[#0D9488] to-[#06B6D4] rounded-t-md transition-all"
+                              className="w-full bg-blue-600 rounded-t-md transition-all"
                             />
                           </div>
-                          <span className="text-[9px] font-mono text-[#94A3B8]">
+                          <span className="text-[9px] font-mono font-bold text-slate-500">
                             {new Date(d.created_at).toLocaleDateString('it-IT', {
                               day: '2-digit',
                               month: '2-digit'
@@ -1933,7 +2246,7 @@ export default function ClientPortal({
 
                 {/* LISTA CRONOLOGICA DELLE SEDUTE DI QUESTO ESERCIZIO */}
                 <div className="space-y-1.5">
-                  <div className="text-xs font-extrabold text-[#94A3B8]">
+                  <div className="text-xs font-black text-slate-800">
                     Storico Sedute — {selectedExerciseForProgression}
                   </div>
                   {exerciseProgressionData
@@ -1942,29 +2255,29 @@ export default function ClientPortal({
                     .map((item, idx) => (
                       <div
                         key={item.id || idx}
-                        className="bg-[#0F172A] border border-[#334155] rounded-xl px-3.5 py-2.5 flex items-center justify-between text-xs"
+                        className="bg-[#faf9f6] border border-stone-200 rounded-xl px-3.5 py-2.5 flex items-center justify-between text-xs"
                       >
                         <div>
-                          <div className="font-mono font-bold text-white">
+                          <div className="font-mono font-black text-slate-900">
                             {formatDayLabel(toDateInputValue(item.created_at))}
                           </div>
-                          <div className="text-[10px] text-[#94A3B8]">
+                          <div className="text-[10px] font-bold text-slate-600">
                             {item.sets} serie × {item.reps} rip • {item.tempo_speed}
                           </div>
                         </div>
                         <div className="text-right">
                           {item.is_unilateral ? (
-                            <div className="font-mono font-black text-white text-xs">
-                              <span className="text-[#06B6D4]">SX {item.weight_sx_kg}kg</span> •{' '}
-                              <span className="text-[#0D9488]">DX {item.weight_dx_kg}kg</span>
+                            <div className="font-mono font-black text-slate-900 text-xs">
+                              <span className="text-blue-700">SX {item.weight_sx_kg}kg</span> •{' '}
+                              <span className="text-teal-700">DX {item.weight_dx_kg}kg</span>
                             </div>
                           ) : (
-                            <div className="font-mono font-black text-white text-sm">
+                            <div className="font-mono font-black text-slate-900 text-sm">
                               {item.weight_kg} kg
                             </div>
                           )}
                           {item.clean_notes && (
-                            <div className="text-[10px] text-[#94A3B8] italic truncate max-w-[140px]">
+                            <div className="text-[10px] text-slate-500 font-semibold italic truncate max-w-[140px]">
                               {item.clean_notes}
                             </div>
                           )}

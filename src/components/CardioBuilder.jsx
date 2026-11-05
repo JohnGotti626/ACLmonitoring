@@ -11,7 +11,7 @@ import {
   FileText,
   Sparkles,
 } from 'lucide-react';
-import { supabase, isSupabaseConfigured } from '../lib/supabase';
+import { supabase } from '../lib/supabase';
 
 /**
  * Crea un nuovo blocco cardio vuoto con default "Continuo" o "Ripetute/Navette"
@@ -104,9 +104,9 @@ export function buildCardioSessionPayload({
 
   const normalizedBlocks = validBlocks.map((block, index) => {
     const isContinuo = block.modality === 'continuo';
-    const { paceFormatted, speedFormatted, speedKmh } = isContinuo
+    const { paceFormatted, speedKmh } = isContinuo
       ? calculatePaceAndSpeed(block.duration_min, block.distance_km)
-      : { paceFormatted: null, speedFormatted: null, speedKmh: null };
+      : { paceFormatted: null, speedKmh: null };
 
     return {
       block_order: index + 1,
@@ -241,10 +241,7 @@ export function parseCardioLogFromWorkoutRow(log) {
 }
 
 /**
- * Salva tutti i blocchi cardio su Supabase:
- * 1. Tenta l'inserimento nella tabella dedicata `cardio_logs` (se presente nel DB)
- * 2. In parallelo / fallback inserisce le righe strutturate in `workout_logs`
- *    così che il Diario Terapista e il Portale Paziente le visualizzino in tempo reale.
+ * Salva tutti i blocchi cardio su Supabase
  */
 export async function saveCardioBlocksToSupabase({
   sessionId,
@@ -268,7 +265,6 @@ export async function saveCardioBlocksToSupabase({
   }
 
   let cardioTableData = null;
-  // 1. Tentativo insert su `cardio_logs` (graceful se la tabella non è ancora stata creata su Supabase)
   try {
     const { data, error } = await supabase
       .from('cardio_logs')
@@ -281,7 +277,6 @@ export async function saveCardioBlocksToSupabase({
     // Fallback silenzioso su workout_logs
   }
 
-  // 2. Salvataggio su `workout_logs` per compatibilità immediata con Diario Carichi e Storico Paziente
   let workoutLogsData = [];
   if (mirrorToWorkoutLogs) {
     const workoutRows = payload.cardio_blocks_jsonb.map((b) =>
@@ -308,8 +303,7 @@ export async function saveCardioBlocksToSupabase({
 }
 
 /**
- * Dynamic Multi-Block "Cardio Builder" Component
- * Supporta sia stato controllato (`blocks` + `onChange`) sia stato interno autonomo.
+ * Dynamic Multi-Block "Cardio Builder" Component (Editorial Light Theme)
  */
 export default function CardioBuilder({
   blocks: controlledBlocks,
@@ -350,26 +344,26 @@ export default function CardioBuilder({
   };
 
   return (
-    <div className="bg-slate-900/90 border border-slate-700/80 rounded-xl p-4 sm:p-5 shadow-lg space-y-4">
+    <div className="bg-[#faf9f6] border border-stone-200 rounded-3xl p-4 sm:p-5 shadow-xs space-y-4 text-slate-900">
       {/* Header Sezione Cardio */}
-      <div className="flex flex-wrap items-center justify-between gap-2 pb-3 border-b border-slate-800">
+      <div className="flex flex-wrap items-center justify-between gap-2 pb-3 border-b border-stone-200">
         <div className="flex items-center gap-2.5">
-          <div className="w-9 h-9 rounded-xl bg-teal-500/15 border border-teal-500/40 flex items-center justify-center text-teal-400 shrink-0">
+          <div className="w-9 h-9 rounded-2xl bg-teal-50 border border-teal-200 flex items-center justify-center text-teal-700 shrink-0">
             <Flame size={18} />
           </div>
           <div>
             <div className="flex items-center gap-2">
-              <h3 className="text-sm font-black uppercase tracking-wider text-white">
+              <h3 className="text-sm font-black uppercase tracking-wider text-slate-900">
                 {title}
               </h3>
               {blocks.length > 0 && (
-                <span className="text-[10px] font-black uppercase px-2 py-0.5 rounded-full bg-teal-500/20 text-teal-300 border border-teal-500/30">
+                <span className="text-[10px] font-black uppercase px-2.5 py-0.5 rounded-full bg-teal-50 text-teal-800 border border-teal-200">
                   {blocks.length} {blocks.length === 1 ? 'Blocco' : 'Blocchi'}
                 </span>
               )}
             </div>
             {!compact && (
-              <p className="text-xs text-slate-400 mt-0.5">{subtitle}</p>
+              <p className="text-xs text-slate-600 font-bold mt-0.5">{subtitle}</p>
             )}
           </div>
         </div>
@@ -379,7 +373,7 @@ export default function CardioBuilder({
           <button
             type="button"
             onClick={() => handleAddBlock('continuo')}
-            className="text-[11px] font-bold px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-teal-300 border border-slate-700 transition-colors flex items-center gap-1"
+            className="text-[11px] font-extrabold px-3 py-1.5 rounded-xl bg-white hover:bg-teal-50 text-teal-800 border border-stone-200 hover:border-teal-300 transition-colors flex items-center gap-1 shadow-2xs cursor-pointer"
             title="Aggiungi blocco Continuo (es. Corsa Z2, Bike)"
           >
             <Plus size={12} /> Continuo
@@ -387,7 +381,7 @@ export default function CardioBuilder({
           <button
             type="button"
             onClick={() => handleAddBlock('ripetute')}
-            className="text-[11px] font-bold px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-cyan-300 border border-slate-700 transition-colors flex items-center gap-1"
+            className="text-[11px] font-extrabold px-3 py-1.5 rounded-xl bg-white hover:bg-blue-50 text-blue-800 border border-stone-200 hover:border-blue-300 transition-colors flex items-center gap-1 shadow-2xs cursor-pointer"
             title="Aggiungi blocco Ripetute / Navette"
           >
             <Plus size={12} /> Ripetute/Navette
@@ -397,12 +391,15 @@ export default function CardioBuilder({
 
       {/* Lista dinamica dei Blocchi Cardio */}
       {blocks.length === 0 ? (
-        <div className="bg-slate-800/40 border border-dashed border-slate-700 rounded-xl p-5 text-center">
-          <p className="text-xs text-slate-400 font-medium">
+        <div className="bg-white border border-dashed border-stone-300 rounded-2xl p-5 text-center">
+          <p className="text-xs text-slate-700 font-extrabold">
             Nessun blocco cardio inserito in questa sessione.
           </p>
-          <p className="text-[11px] text-slate-500 mt-1">
-            Puoi combinare più blocchi nella stessa giornata (es. <span className="text-slate-300 font-semibold">Navette 6×5m</span> + <span className="text-slate-300 font-semibold">Intervalli 5×50m</span> + <span className="text-slate-300 font-semibold">15 min Corsa Z2</span>).
+          <p className="text-[11px] text-slate-500 font-semibold mt-1">
+            Puoi combinare più blocchi nella stessa giornata (es.{' '}
+            <span className="text-slate-900 font-extrabold">Navette 6×5m</span> +{' '}
+            <span className="text-slate-900 font-extrabold">Intervalli 5×50m</span> +{' '}
+            <span className="text-slate-900 font-extrabold">15 min Corsa Z2</span>).
           </p>
         </div>
       ) : (
@@ -416,29 +413,29 @@ export default function CardioBuilder({
             return (
               <div
                 key={block.id}
-                className="bg-slate-800/90 border border-slate-700/90 hover:border-teal-500/40 rounded-xl p-4 transition-all shadow-md space-y-3.5"
+                className="bg-white border border-stone-200 hover:border-teal-500 rounded-2xl p-4 transition-all shadow-sm space-y-3.5"
               >
                 {/* Top bar della Card: Indice blocco + Toggle Modalità + Elimina */}
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <div className="flex items-center gap-2">
-                    <span className="w-6 h-6 rounded-lg bg-teal-500/20 border border-teal-500/40 text-teal-300 text-xs font-black flex items-center justify-center">
+                    <span className="w-6 h-6 rounded-lg bg-teal-50 border border-teal-200 text-teal-800 text-xs font-black flex items-center justify-center">
                       {index + 1}
                     </span>
-                    <span className="text-xs font-extrabold uppercase tracking-wider text-slate-300">
+                    <span className="text-xs font-black uppercase tracking-wider text-slate-900">
                       Blocco Cardio #{index + 1}
                     </span>
                   </div>
 
                   <div className="flex items-center gap-2">
                     {/* Segmented Toggle: Continuo vs Ripetute/Navette */}
-                    <div className="inline-flex rounded-xl bg-slate-900 p-1 border border-slate-700">
+                    <div className="inline-flex rounded-xl bg-[#f4f3ef] p-1 border border-stone-200">
                       <button
                         type="button"
                         onClick={() => handleModalityToggle(block.id, 'continuo')}
-                        className={`px-3 py-1 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 ${
+                        className={`px-3 py-1 rounded-lg text-xs font-extrabold transition-all flex items-center gap-1.5 cursor-pointer ${
                           isContinuo
                             ? 'bg-teal-600 text-white shadow-xs'
-                            : 'text-slate-400 hover:text-slate-200'
+                            : 'text-slate-700 hover:text-slate-900'
                         }`}
                       >
                         <Route size={12} />
@@ -447,10 +444,10 @@ export default function CardioBuilder({
                       <button
                         type="button"
                         onClick={() => handleModalityToggle(block.id, 'ripetute')}
-                        className={`px-3 py-1 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 ${
+                        className={`px-3 py-1 rounded-lg text-xs font-extrabold transition-all flex items-center gap-1.5 cursor-pointer ${
                           !isContinuo
-                            ? 'bg-teal-600 text-white shadow-xs'
-                            : 'text-slate-400 hover:text-slate-200'
+                            ? 'bg-blue-600 text-white shadow-xs'
+                            : 'text-slate-700 hover:text-slate-900'
                         }`}
                       >
                         <Repeat size={12} />
@@ -461,7 +458,7 @@ export default function CardioBuilder({
                     <button
                       type="button"
                       onClick={() => handleRemoveBlock(block.id)}
-                      className="p-1.5 rounded-lg bg-rose-950/40 hover:bg-rose-900/60 text-rose-400 border border-rose-800/40 transition-colors"
+                      className="p-1.5 rounded-lg bg-red-50 hover:bg-red-100 text-red-700 border border-red-200 transition-colors cursor-pointer"
                       title="Rimuovi blocco cardio"
                     >
                       <Trash2 size={14} />
@@ -471,8 +468,8 @@ export default function CardioBuilder({
 
                 {/* Input Esercizio / Note (comune a entrambi i blocchi) */}
                 <div>
-                  <label className="text-[11px] font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1.5 mb-1">
-                    <FileText size={11} className="text-teal-400" />
+                  <label className="text-[11px] font-extrabold uppercase tracking-wider text-slate-700 flex items-center gap-1.5 mb-1">
+                    <FileText size={11} className="text-teal-700" />
                     Esercizio / Note
                   </label>
                   <input
@@ -484,7 +481,7 @@ export default function CardioBuilder({
                         ? 'Es. Corsa Z2, Tapis Roulant, Bike Erg...'
                         : 'Es. Navette 5m cambio direzione, Intervalli lineari 50m...'
                     }
-                    className="w-full bg-slate-900 border border-slate-700 focus:border-teal-400 rounded-xl px-3.5 py-2 text-sm text-white placeholder-slate-500 outline-none transition-colors"
+                    className="w-full bg-[#faf9f6] border border-stone-200 focus:border-teal-600 rounded-xl px-3.5 py-2 text-sm font-bold text-slate-900 placeholder-slate-400 outline-none transition-colors"
                   />
                 </div>
 
@@ -494,7 +491,7 @@ export default function CardioBuilder({
                     {/* SOLO Durata (min) e Distanza (km) */}
                     <div className="grid grid-cols-2 gap-3">
                       <div>
-                        <label className="text-[11px] font-bold uppercase tracking-wider text-slate-300 block mb-1">
+                        <label className="text-[11px] font-extrabold uppercase tracking-wider text-slate-700 block mb-1">
                           Durata (min)
                         </label>
                         <input
@@ -507,12 +504,12 @@ export default function CardioBuilder({
                             handleBlockChange(block.id, 'duration_min', e.target.value)
                           }
                           placeholder="Es. 15"
-                          className="w-full bg-slate-900 border border-slate-700 focus:border-teal-400 rounded-xl px-3.5 py-2.5 text-sm font-bold text-white placeholder-slate-500 outline-none transition-colors"
+                          className="w-full bg-[#faf9f6] border border-stone-200 focus:border-teal-600 rounded-xl px-3.5 py-2.5 text-sm font-black text-slate-900 placeholder-slate-400 outline-none transition-colors"
                         />
                       </div>
 
                       <div>
-                        <label className="text-[11px] font-bold uppercase tracking-wider text-slate-300 block mb-1">
+                        <label className="text-[11px] font-extrabold uppercase tracking-wider text-slate-700 block mb-1">
                           Distanza (km)
                         </label>
                         <input
@@ -525,38 +522,38 @@ export default function CardioBuilder({
                             handleBlockChange(block.id, 'distance_km', e.target.value)
                           }
                           placeholder="Es. 3.0"
-                          className="w-full bg-slate-900 border border-slate-700 focus:border-teal-400 rounded-xl px-3.5 py-2.5 text-sm font-bold text-white placeholder-slate-500 outline-none transition-colors"
+                          className="w-full bg-[#faf9f6] border border-stone-200 focus:border-teal-600 rounded-xl px-3.5 py-2.5 text-sm font-black text-slate-900 placeholder-slate-400 outline-none transition-colors"
                         />
                       </div>
                     </div>
 
                     {/* Box Read-Only Auto-Calcolati: Pace (min/km) & Speed (km/h) */}
                     <div className="grid grid-cols-2 gap-3 pt-1">
-                      <div className="bg-slate-900/90 border border-teal-500/30 rounded-xl px-3.5 py-2.5 flex items-center justify-between">
+                      <div className="bg-teal-50/70 border border-teal-200 rounded-xl px-3.5 py-2.5 flex items-center justify-between">
                         <div>
-                          <span className="text-[10px] font-black uppercase tracking-wider text-teal-400 flex items-center gap-1">
+                          <span className="text-[10px] font-black uppercase tracking-wider text-teal-800 flex items-center gap-1">
                             <Timer size={11} /> Pace (Auto)
                           </span>
-                          <p className="text-sm font-black text-white mt-0.5">
+                          <p className="text-sm font-black text-slate-900 mt-0.5">
                             {paceFormatted}
                           </p>
                         </div>
                         {paceDecimal && (
-                          <Sparkles size={14} className="text-teal-400/70 shrink-0" />
+                          <Sparkles size={14} className="text-teal-600 shrink-0" />
                         )}
                       </div>
 
-                      <div className="bg-slate-900/90 border border-teal-500/30 rounded-xl px-3.5 py-2.5 flex items-center justify-between">
+                      <div className="bg-teal-50/70 border border-teal-200 rounded-xl px-3.5 py-2.5 flex items-center justify-between">
                         <div>
-                          <span className="text-[10px] font-black uppercase tracking-wider text-teal-400 flex items-center gap-1">
+                          <span className="text-[10px] font-black uppercase tracking-wider text-teal-800 flex items-center gap-1">
                             <Gauge size={11} /> Speed (Auto)
                           </span>
-                          <p className="text-sm font-black text-white mt-0.5">
+                          <p className="text-sm font-black text-slate-900 mt-0.5">
                             {speedFormatted}
                           </p>
                         </div>
                         {paceDecimal && (
-                          <Activity size={14} className="text-teal-400/70 shrink-0" />
+                          <Activity size={14} className="text-teal-600 shrink-0" />
                         )}
                       </div>
                     </div>
@@ -565,7 +562,7 @@ export default function CardioBuilder({
                   /* Modalità "Ripetute/Navette": SOLO Number of Sets, Distance/Time per Set, Rest */
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                     <div>
-                      <label className="text-[11px] font-bold uppercase tracking-wider text-slate-300 block mb-1">
+                      <label className="text-[11px] font-extrabold uppercase tracking-wider text-slate-700 block mb-1">
                         Numero Serie (Sets)
                       </label>
                       <input
@@ -577,12 +574,12 @@ export default function CardioBuilder({
                           handleBlockChange(block.id, 'sets', e.target.value)
                         }
                         placeholder="Es. 6"
-                        className="w-full bg-slate-900 border border-slate-700 focus:border-teal-400 rounded-xl px-3.5 py-2.5 text-sm font-bold text-white placeholder-slate-500 outline-none transition-colors"
+                        className="w-full bg-[#faf9f6] border border-stone-200 focus:border-blue-600 rounded-xl px-3.5 py-2.5 text-sm font-black text-slate-900 placeholder-slate-400 outline-none transition-colors"
                       />
                     </div>
 
                     <div>
-                      <label className="text-[11px] font-bold uppercase tracking-wider text-slate-300 block mb-1">
+                      <label className="text-[11px] font-extrabold uppercase tracking-wider text-slate-700 block mb-1">
                         Distanza / Tempo per Set
                       </label>
                       <input
@@ -592,12 +589,12 @@ export default function CardioBuilder({
                           handleBlockChange(block.id, 'work_per_set', e.target.value)
                         }
                         placeholder="Es. 5m, 50m o 30s"
-                        className="w-full bg-slate-900 border border-slate-700 focus:border-teal-400 rounded-xl px-3.5 py-2.5 text-sm font-bold text-white placeholder-slate-500 outline-none transition-colors"
+                        className="w-full bg-[#faf9f6] border border-stone-200 focus:border-blue-600 rounded-xl px-3.5 py-2.5 text-sm font-black text-slate-900 placeholder-slate-400 outline-none transition-colors"
                       />
                     </div>
 
                     <div>
-                      <label className="text-[11px] font-bold uppercase tracking-wider text-slate-300 block mb-1">
+                      <label className="text-[11px] font-extrabold uppercase tracking-wider text-slate-700 block mb-1">
                         Recupero (Rest)
                       </label>
                       <input
@@ -607,7 +604,7 @@ export default function CardioBuilder({
                           handleBlockChange(block.id, 'rest', e.target.value)
                         }
                         placeholder="Es. 45s o 1:00"
-                        className="w-full bg-slate-900 border border-slate-700 focus:border-teal-400 rounded-xl px-3.5 py-2.5 text-sm font-bold text-white placeholder-slate-500 outline-none transition-colors"
+                        className="w-full bg-[#faf9f6] border border-stone-200 focus:border-blue-600 rounded-xl px-3.5 py-2.5 text-sm font-black text-slate-900 placeholder-slate-400 outline-none transition-colors"
                       />
                     </div>
                   </div>
@@ -622,9 +619,9 @@ export default function CardioBuilder({
       <button
         type="button"
         onClick={() => handleAddBlock('continuo')}
-        className="w-full py-3 px-4 rounded-xl bg-teal-500/15 hover:bg-teal-500/25 border border-dashed border-teal-500/50 text-teal-300 font-extrabold text-xs uppercase tracking-wider flex items-center justify-center gap-2 transition-all active:scale-[0.99]"
+        className="w-full py-3 px-4 rounded-2xl bg-teal-50 hover:bg-teal-100 border-2 border-dashed border-teal-400 text-teal-900 font-black text-xs uppercase tracking-wider flex items-center justify-center gap-2 transition-all active:scale-[0.99] cursor-pointer"
       >
-        <Plus size={16} className="text-teal-400" />
+        <Plus size={16} className="text-teal-700" />
         + Aggiungi Blocco Cardio
       </button>
     </div>
