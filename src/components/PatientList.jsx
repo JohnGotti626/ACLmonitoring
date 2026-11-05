@@ -9,7 +9,6 @@ import {
   AlertTriangle
 } from 'lucide-react';
 import { getPhaseMeta } from '../utils/phaseUtils';
-import { sortTestsByDate, getLastValidMetricValue } from '../utils/testUtils';
 
 export default function PatientList({
   patients,
@@ -117,18 +116,15 @@ export default function PatientList({
             <thead>
               <tr className="border-b border-stone-200 bg-[#f4f3ef] text-[11px] font-mono uppercase text-slate-700">
                 <th className="py-4 px-5 font-extrabold">Paziente</th>
-                <th className="py-4 px-5 font-extrabold">Sport &amp; Livello</th>
-                <th className="py-4 px-5 font-extrabold">Lesione / Innesto</th>
+                <th className="py-4 px-5 font-extrabold">Sport</th>
+                <th className="py-4 px-5 font-extrabold">Lesione</th>
                 <th className="py-4 px-5 font-extrabold">Data Intervento</th>
                 <th className="py-4 px-5 font-extrabold">Fase Attuale</th>
-                <th className="py-4 px-5 font-extrabold text-center">Ultimo LSI Quad</th>
                 <th className="py-4 px-5 font-extrabold text-right">Azioni</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-stone-200 text-xs">
               {filtered.map((p, idx) => {
-                const sorted = sortTestsByDate(p.tests);
-                const lsiQ = getLastValidMetricValue(sorted, ['lsiQuad', 'lsi_quad_calculated']);
                 const phaseMeta = getPhaseMeta(p);
                 return (
                   <tr
@@ -142,17 +138,13 @@ export default function PatientList({
                       <div className="font-black text-slate-900 text-sm">
                         {p.nome} {p.cognome}
                       </div>
-                      <div className="text-[11px] text-slate-600 font-bold">
-                        Chirurgo: {p.chirurgo || 'N/D'}
-                      </div>
                     </td>
                     <td className="py-4 px-5">
                       <div className="font-extrabold text-slate-900">{p.sport}</div>
-                      <div className="text-[11px] text-slate-600 font-bold">{p.ruolo_sportivo} • {p.livello}</div>
                     </td>
                     <td className="py-4 px-5">
                       <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl bg-stone-100 border border-stone-200 font-mono text-slate-900 font-extrabold">
-                        Lato {p.lato_lesione} • {p.tipo_innesto}
+                        Lato {p.lato_lesione}
                       </span>
                     </td>
                     <td className="py-4 px-5 font-mono text-slate-800 font-extrabold">
@@ -162,25 +154,6 @@ export default function PatientList({
                       <span className={`px-3 py-1 rounded-xl text-[11px] font-extrabold inline-block ${phaseMeta.badgeCls}`}>
                         {phaseMeta.fullLabel}
                       </span>
-                    </td>
-                    <td className="py-4 px-5 text-center font-mono font-extrabold">
-                      {lsiQ !== null ? (
-                        <span
-                          className={`px-3 py-1 rounded-xl border ${
-                            lsiQ >= 90
-                              ? 'bg-emerald-50 text-[#047857] border-emerald-200'
-                              : lsiQ >= 75
-                              ? 'bg-blue-50 text-[#1d4ed8] border-blue-200'
-                              : 'bg-red-50 text-[#b91c1c] border-red-200'
-                          }`}
-                        >
-                          {lsiQ}%
-                        </span>
-                      ) : (
-                        <span className="px-2.5 py-1 rounded-xl bg-stone-100 border border-stone-200 text-slate-600 font-sans text-[11px] font-bold">
-                          Non testato
-                        </span>
-                      )}
                     </td>
                     <td className="py-4 px-5 text-right">
                       {viewTrash ? (
@@ -243,7 +216,7 @@ export default function PatientList({
 
               {filtered.length === 0 && (
                 <tr>
-                  <td colSpan={7} className="py-8 text-center text-stone-500 font-bold">
+                  <td colSpan={6} className="py-8 text-center text-stone-500 font-bold">
                     {viewTrash
                       ? 'Il cestino è vuoto.'
                       : 'Nessun paziente trovato con i filtri selezionati.'}
