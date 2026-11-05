@@ -1,3 +1,4 @@
+// Elenco Pazienti LCA — Simplified Table View
 import React, { useState } from 'react';
 import {
   Search,
