@@ -28,7 +28,7 @@ export default function PatientList({
   const baseList = viewTrash ? trashedPatients : activePatients;
 
   const filtered = baseList.filter((p) => {
-    const fullName = `${p.nome || ''} ${p.cognome || ''} ${p.chirurgo || ''}`.toLowerCase();
+    const fullName = `${p.nome || ''} ${p.cognome || ''}`.toLowerCase();
     const matchName = fullName.includes(search.toLowerCase());
     const matchSport = sportFilter === 'Tutti' || p.sport === sportFilter;
     return matchName && matchSport;
@@ -84,7 +84,7 @@ export default function PatientList({
             type="text"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Cerca per nome, cognome o chirurgo..."
+            placeholder="Cerca per nome o cognome..."
             className="w-full bg-[#faf9f6] border border-stone-200 rounded-2xl pl-10 pr-4 py-2.5 text-xs text-slate-900 font-bold placeholder-slate-500 focus:outline-none focus:border-blue-600"
           />
         </div>
