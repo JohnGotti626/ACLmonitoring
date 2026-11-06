@@ -4,6 +4,8 @@ import {
   Users,
   FileText,
   BookOpen,
+  Database,
+  UserCheck,
   X,
   CheckCircle2
 } from 'lucide-react';
@@ -14,7 +16,8 @@ export default function Sidebar({
   setCurrentView,
   mobileOpen,
   setMobileOpen,
-  onOpenPrintConfigurator
+  onOpenPrintConfigurator,
+  onOpenSqlModal
 }) {
   const navItems = [
     {
@@ -55,6 +58,36 @@ export default function Sidebar({
     }
   ];
 
+  const adminItems = [
+    {
+      id: 'sql-script',
+      label: 'Script SQL Supabase',
+      icon: Database,
+      action: () => {
+        if (onOpenSqlModal) onOpenSqlModal();
+        setMobileOpen(false);
+      }
+    },
+    {
+      id: 'sql-schema',
+      label: 'Schema SQL',
+      icon: Database,
+      action: () => {
+        if (onOpenSqlModal) onOpenSqlModal();
+        setMobileOpen(false);
+      }
+    },
+    {
+      id: 'client-portal',
+      label: 'Vista Atleta',
+      icon: UserCheck,
+      action: () => {
+        setCurrentView('client-portal');
+        setMobileOpen(false);
+      }
+    }
+  ];
+
   const sidebarContent = (
     <div className="flex flex-col h-full justify-between p-4 bg-[#f4f3ef] border-r border-stone-200 w-64 select-none text-slate-900 shadow-xs">
       <div className="space-y-6">
@@ -88,6 +121,32 @@ export default function Sidebar({
             Menu Navigazione
           </div>
           {navItems.map((item) => {
+            const Icon = item.icon;
+            const active = currentView === item.id;
+            return (
+              <button
+                key={item.id}
+                type="button"
+                onClick={item.action}
+                className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl text-xs font-extrabold transition-all cursor-pointer border ${
+                  active
+                    ? 'bg-blue-600 text-white border-blue-700 shadow-md'
+                    : 'bg-transparent text-slate-800 border-transparent hover:text-slate-900 hover:bg-white hover:border-stone-200 hover:shadow-2xs'
+                }`}
+              >
+                <Icon className={`w-4 h-4 shrink-0 ${active ? 'text-white' : 'text-blue-600'}`} />
+                <span className="truncate">{item.label}</span>
+              </button>
+            );
+          })}
+        </div>
+
+        {/* Strumenti Admin */}
+        <div className="space-y-2 pt-2 border-t border-stone-200/80">
+          <div className="px-3 py-1 text-[11px] font-mono uppercase tracking-wider text-slate-700 font-extrabold">
+            Strumenti Admin
+          </div>
+          {adminItems.map((item) => {
             const Icon = item.icon;
             const active = currentView === item.id;
             return (

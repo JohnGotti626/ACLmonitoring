@@ -1,9 +1,9 @@
 import React from 'react';
-import { ShieldCheck, UserCheck, Database, Menu } from 'lucide-react';
+import { Menu } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import LogoN from './LogoN';
 
-export default function Header({ onToggleMobileSidebar, onOpenSqlModal, currentView }) {
+export default function Header({ onToggleMobileSidebar, currentView }) {
   const { role } = useAuth();
   const isPortal = currentView === 'client-portal' || role === 'patient';
 
@@ -30,48 +30,6 @@ export default function Header({ onToggleMobileSidebar, onOpenSqlModal, currentV
               Monitoring - Testing - Repeat
             </p>
           </div>
-        </div>
-      </div>
-
-      <div className="flex items-center gap-2 sm:gap-2.5">
-        {!isPortal && (
-          <>
-            <button
-              onClick={onOpenSqlModal}
-              className="flex items-center gap-1.5 px-3.5 py-2 rounded-2xl bg-blue-50 hover:bg-blue-100 border border-blue-200 text-xs font-extrabold text-blue-900 transition-all cursor-pointer shadow-2xs"
-              title="Apri Script SQL Supabase (staff_users, custom_metric_definitions, patient_custom_metrics)"
-            >
-              <Database className="w-3.5 h-3.5 text-blue-600" />
-              <span>Script SQL Supabase</span>
-            </button>
-
-            <button
-              onClick={onOpenSqlModal}
-              className="hidden sm:flex items-center gap-1.5 px-3.5 py-2 rounded-2xl bg-white hover:bg-stone-50 border border-stone-200 text-xs font-extrabold text-slate-900 transition-all cursor-pointer shadow-2xs"
-              title="Visualizza Schema SQL completo"
-            >
-              <Database className="w-3.5 h-3.5 text-amber-600" />
-              <span>Schema SQL</span>
-            </button>
-          </>
-        )}
-
-        <div className="flex items-center gap-1.5 px-3.5 py-2 rounded-2xl bg-emerald-50 border border-emerald-200 shadow-2xs">
-          {role === 'admin' ? (
-            <>
-              <ShieldCheck className="w-4 h-4 text-emerald-700" />
-              <span className="text-xs font-extrabold text-emerald-900 hidden md:inline">
-                Staff Clinico Autorizzato
-              </span>
-            </>
-          ) : (
-            <>
-              <UserCheck className="w-4 h-4 text-emerald-700" />
-              <span className="text-xs font-extrabold text-emerald-900 hidden md:inline">
-                Vista Atleta
-              </span>
-            </>
-          )}
         </div>
       </div>
     </header>

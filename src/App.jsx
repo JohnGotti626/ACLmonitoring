@@ -210,13 +210,14 @@ function MainApp() {
     const matchedPatient =
       patients.find(p => p.id === urlPatientId) ||
       patients.find(p => user?.email && p.email?.toLowerCase() === user.email.toLowerCase()) ||
+      selectedPatient ||
       (urlPatientId ? { id: urlPatientId, nome: urlPatientName || 'Atleta', cognome: '' } : null);
 
     return (
       <ClientPortal
         patient={matchedPatient}
-        isSimulation={false}
-        onExitSimulation={undefined}
+        isSimulation={role !== 'patient'}
+        onExitSimulation={role !== 'patient' ? () => setCurrentView('dashboard') : undefined}
       />
     );
   }
@@ -225,7 +226,6 @@ function MainApp() {
     <div className="min-h-screen bg-[#faf9f6] text-slate-900 flex flex-col">
       <Header
         onToggleMobileSidebar={() => setMobileOpen(!mobileOpen)}
-        onOpenSqlModal={() => setSqlModalOpen(true)}
         currentView={currentView}
       />
 
@@ -251,6 +251,7 @@ function MainApp() {
           mobileOpen={mobileOpen}
           setMobileOpen={setMobileOpen}
           onOpenPrintConfigurator={() => setIsPrintModalOpen(true)}
+          onOpenSqlModal={() => setSqlModalOpen(true)}
         />
 
         <main className="flex-1 p-4 sm:p-6 md:p-8 overflow-y-auto">
