@@ -145,6 +145,17 @@ function buildPhaseTargetItem({
   };
 }
 
+export function normalizePhaseKey(fase) {
+  if (!fase) return 'Fase 3 (>80%)';
+  const str = String(fase).toLowerCase();
+  if (str.includes('1') || str.includes('early') || str.includes('rom')) return 'Fase 1';
+  if (str.includes('2') || str.includes('mid') || str.includes('forza')) return 'Fase 2 (>70%)';
+  if (str.includes('3') || str.includes('run') || str.includes('power') || str.includes('drills')) return 'Fase 3 (>80%)';
+  if (str.includes('4') || str.includes('late') || str.includes('cod') || str.includes('agility')) return 'Fase 4';
+  if (str.includes('5') || str.includes('perf') || str.includes('rts') || str.includes('sport') || str.includes('play')) return 'Fase 5 (RTS)';
+  return 'Fase 3 (>80%)';
+}
+
 /**
  * Custom Hook che implementa la 5-Phase Target Architecture:
  * - Interroga automaticamente l'ULTIMO test valido registrato per ciascuna metrica (zero perdita dati).
@@ -152,6 +163,7 @@ function buildPhaseTargetItem({
  * - Calcola l'H/Q Ratio con la formula esatta: (Hamstring 30° Peak Force N / Quad 60° Peak Force N) * 100.
  */
 export function usePhaseProgress(testsHistory, selectedPhase) {
+  const normalizedPhase = normalizePhaseKey(selectedPhase);
   return useMemo(() => {
     const lsiQuadVal = getLastValidMetricWithMeta(testsHistory, ['lsiQuad', 'lsi_quad_calculated'])?.value ?? null;
     const lsiFlexVal = getLastValidMetricWithMeta(testsHistory, ['lsiFlex', 'lsi_curl_calculated'])?.value ?? null;
@@ -187,7 +199,7 @@ export function usePhaseProgress(testsHistory, selectedPhase) {
     const aclRsiVal = getLastValidMetricWithMeta(testsHistory, ['aclrsi', 'acl_rsi'])?.value ?? null;
 
     // FASE 1 (Early Stage): Nasconde tutti i test di salto e pliometria
-    if (selectedPhase === 'Fase 1') {
+    if (normalizedPhase === 'Fase 1') {
       return {
         phaseKey: 'phase1',
         allowedSubTabs: ['LSI', 'FORZA'],
@@ -219,7 +231,7 @@ export function usePhaseProgress(testsHistory, selectedPhase) {
     }
 
     // FASE 2 (Mid Stage): Nasconde SL Jumps & Drop Jumps
-    if (selectedPhase === 'Fase 2 (>70%)') {
+    if (normalizedPhase === 'Fase 2 (>70%)') {
       return {
         phaseKey: 'phase2',
         allowedSubTabs: ['LSI', 'FORZA', 'CMJ_BILATERAL'],
@@ -282,7 +294,7 @@ export function usePhaseProgress(testsHistory, selectedPhase) {
     }
 
     // FASE 3 (Return to Run): Nasconde SL Drop Jump
-    if (selectedPhase === 'Fase 3 (>80%)') {
+    if (normalizedPhase === 'Fase 3 (>80%)') {
       return {
         phaseKey: 'phase3',
         allowedSubTabs: ['LSI', 'FORZA', 'CMJ_BILATERAL', 'CMJ_SL', 'DJ_BILATERAL'],
@@ -335,7 +347,7 @@ export function usePhaseProgress(testsHistory, selectedPhase) {
     }
 
     // FASE 4 (Late Stage)
-    if (selectedPhase === 'Fase 4') {
+    if (normalizedPhase === 'Fase 4') {
       const djBilPct = djBilateralRsiVal !== null ? Math.min(100, Math.round((djBilateralRsiVal / 1.5) * 100)) : -1;
       const slDjPct = slDjRsiLsiVal !== null ? Math.min(100, Math.round((slDjRsiLsiVal / 80) * 100)) : -1;
       const useSlDj = slDjPct > djBilPct;
@@ -459,10 +471,16 @@ export function usePhaseProgress(testsHistory, selectedPhase) {
         })
       ]
     };
-  }, [testsHistory, selectedPhase]);
+  }, [testsHistory, normalizedPhase]);
 }
 
-export default function TabBatteriaTest({ patient, activePhase, onSaveTest }) {
+export default function TabBatteriaTest({
+  patient,
+  selectedPhase: externalSelectedPhase,
+  activePhase,
+  onSelectPhase,
+  onSaveTest
+}) {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingTest, setEditingTest] = useState(null);
   const [initialModalModule, setInitialModalModule] = useState('ISO_EXT');
@@ -508,27 +526,29 @@ export default function TabBatteriaTest({ patient, activePhase, onSaveTest }) {
     }
   };
 
-  const getPhaseKeyForBatteria = (fase) => {
-    if (!fase) return 'Fase 3 (>80%)';
-    const str = String(fase).toLowerCase();
-    if (str.includes('1') || str.includes('early') || str.includes('rom')) return 'Fase 1';
-    if (str.includes('2') || str.includes('mid') || str.includes('forza')) return 'Fase 2 (>70%)';
-    if (str.includes('3') || str.includes('run') || str.includes('power') || str.includes('drills')) return 'Fase 3 (>80%)';
-    if (str.includes('4') || str.includes('late') || str.includes('cod') || str.includes('agility')) return 'Fase 4';
-    if (str.includes('5') || str.includes('perf') || str.includes('rts') || str.includes('sport') || str.includes('play')) return 'Fase 5 (RTS)';
-    return 'Fase 3 (>80%)';
-  };
-
-  const [selectedPhase, setSelectedPhase] = useState(() =>
-    getPhaseKeyForBatteria(patient?.fase_riabilitativa || activePhase)
+  const controlledPhaseSource =
+    externalSelectedPhase || activePhase || patient?.fase_attuale || patient?.fase_riabilitativa;
+  const [localPhaseFallback, setLocalPhaseFallback] = useState(() =>
+    normalizePhaseKey(controlledPhaseSource)
   );
 
   React.useEffect(() => {
-    const currentActive = patient?.fase_riabilitativa || activePhase;
-    if (currentActive) {
-      setSelectedPhase(getPhaseKeyForBatteria(currentActive));
+    if (controlledPhaseSource) {
+      setLocalPhaseFallback(normalizePhaseKey(controlledPhaseSource));
     }
-  }, [patient?.fase_riabilitativa, activePhase]);
+  }, [controlledPhaseSource]);
+
+  // Single Source of Truth: legge direttamente la fase selezionata in "Monitoraggio e Diario" (PatientDetail)
+  const selectedPhase = controlledPhaseSource
+    ? normalizePhaseKey(controlledPhaseSource)
+    : localPhaseFallback;
+
+  const handleSelectPhaseClick = (newPhaseKey) => {
+    setLocalPhaseFallback(normalizePhaseKey(newPhaseKey));
+    if (onSelectPhase) {
+      onSelectPhase(newPhaseKey);
+    }
+  };
 
   const [checklistStateByPhase, setChecklistStateByPhase] = useState({
     phase1: {
@@ -1541,7 +1561,7 @@ export default function TabBatteriaTest({ patient, activePhase, onSaveTest }) {
               return (
                 <button
                   key={pObj.key}
-                  onClick={() => setSelectedPhase(pObj.key)}
+                  onClick={() => handleSelectPhaseClick(pObj.key)}
                   className={`py-2 px-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer text-center border ${
                     isActive
                       ? 'bg-emerald-100/80 text-emerald-900 border-emerald-300/50 shadow-none'

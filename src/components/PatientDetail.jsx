@@ -109,6 +109,7 @@ export default function PatientDetail({ patient, onBack, onUpdatePatient }) {
   const [toastMobileLink, setToastMobileLink] = useState(false);
   const [showAdvancedDirectives, setShowAdvancedDirectives] = useState(false);
 
+  const [selectedPhase, setSelectedPhase] = useState(() => formatPhaseForDisplay(patient));
   const [selectedStageId, setSelectedStageId] = useState(() => getStageIdFromPatient(patient));
   const [faseAttualeInput, setFaseAttualeInput] = useState(() => formatPhaseForDisplay(patient));
   const [direttiveTerapistaInput, setDirettiveTerapistaInput] = useState(
@@ -132,6 +133,7 @@ export default function PatientDetail({ patient, onBack, onUpdatePatient }) {
   useEffect(() => {
     if (patient) {
       const displayP = formatPhaseForDisplay(patient);
+      setSelectedPhase(displayP);
       setFaseAttualeInput(displayP);
       setSelectedStageId(getStageIdFromPatient(patient));
       setDirettiveTerapistaInput(patient.direttive_terapista || patient.note_operative || '');
@@ -148,15 +150,45 @@ export default function PatientDetail({ patient, onBack, onUpdatePatient }) {
         fase_attuale: displayP
       });
     }
-  }, [patient?.id, patient?.fase_riabilitativa, patient?.fase_attuale, patient?.note_operative, patient?.direttive_terapista]);
+  }, [patient?.id, patient?.fase_attuale, patient?.note_operative, patient?.direttive_terapista]);
 
   if (!patient) return null;
+
+  // Single Source of Truth handler per sincronizzare in tempo reale la fase tra "Monitoraggio e Diario" e "Barre Target & Progresso"
+  const handlePhaseChange = (newPhaseValue) => {
+    const meta = getPhaseMeta(newPhaseValue);
+    const matchedRehabPhase =
+      FIVE_REHAB_PHASES.find((p) => p.id === meta.stageId) || FIVE_REHAB_PHASES[2];
+    const displayP = matchedRehabPhase.fullLabel;
+    const normP = normalizePhaseForDb(displayP);
+
+    setSelectedPhase(displayP);
+    setFaseAttualeInput(displayP);
+    setSelectedStageId(matchedRehabPhase.id);
+    setEditForm((prev) => ({ ...prev, fase_attuale: displayP }));
+
+    if (onUpdatePatient) {
+      onUpdatePatient({
+        ...patient,
+        fase_riabilitativa: normP,
+        fase_attuale: displayP,
+        note_operative: direttiveTerapistaInput,
+        direttive_terapista: direttiveTerapistaInput
+      });
+    }
+    setSavedDirectivesToast(true);
+    setTimeout(() => setSavedDirectivesToast(false), 2500);
+  };
 
   const handleSaveAnagrafica = (e) => {
     e.preventDefault();
     if (onUpdatePatient) {
       const displayP = formatPhaseForDisplay(editForm.fase_attuale);
       const normP = normalizePhaseForDb(editForm.fase_attuale);
+      const meta = getPhaseMeta(displayP);
+      setSelectedPhase(displayP);
+      setFaseAttualeInput(displayP);
+      setSelectedStageId(meta.stageId || 'RETURN_TO_RUN');
       onUpdatePatient({
         ...patient,
         ...editForm,
@@ -167,22 +199,9 @@ export default function PatientDetail({ patient, onBack, onUpdatePatient }) {
     setShowEditAnagrafica(false);
   };
 
-  // Selezione diretta di una delle 5 Fasi Fisse Orizzontali
+  // Selezione diretta di una delle 5 Fasi Fisse Orizzontali in "Monitoraggio e Diario"
   const handleSelectPhaseBlock = (phaseObj) => {
-    setSelectedStageId(phaseObj.id);
-    const normP = normalizePhaseForDb(phaseObj.fullLabel);
-    setFaseAttualeInput(phaseObj.fullLabel);
-    if (onUpdatePatient) {
-      onUpdatePatient({
-        ...patient,
-        fase_riabilitativa: normP,
-        fase_attuale: phaseObj.fullLabel,
-        note_operative: direttiveTerapistaInput,
-        direttive_terapista: direttiveTerapistaInput
-      });
-    }
-    setSavedDirectivesToast(true);
-    setTimeout(() => setSavedDirectivesToast(false), 2500);
+    handlePhaseChange(phaseObj.fullLabel);
   };
 
   // Salvataggio rapido delle Direttive del Terapista su Supabase
@@ -529,10 +548,10 @@ export default function PatientDetail({ patient, onBack, onUpdatePatient }) {
                   <UIErrorBoundary title="Modulo Direttive Dettagliate">
                     <TabDirettiveOperative
                       patient={patient}
+                      selectedPhase={selectedPhase}
                       onSaveDirectives={handleSaveDirectivesFromPanel}
                       onChangePhase={(newPhaseLabel) => {
-                        const displayP = formatPhaseForDisplay(newPhaseLabel);
-                        setFaseAttualeInput(displayP);
+                        handlePhaseChange(newPhaseLabel);
                       }}
                     />
                   </UIErrorBoundary>
@@ -544,6 +563,7 @@ export default function PatientDetail({ patient, onBack, onUpdatePatient }) {
             <UIErrorBoundary title="Errore nel caricamento del Diario e Rilevazioni Carichi">
               <RilevazioniCarichiTab
                 patient={patient}
+                selectedPhase={selectedPhase}
                 onUpdatePatient={onUpdatePatient}
               />
             </UIErrorBoundary>
@@ -557,7 +577,9 @@ export default function PatientDetail({ patient, onBack, onUpdatePatient }) {
           <UIErrorBoundary title="Errore nel caricamento di Test & Valutazioni">
             <TabBatteriaTest
               patient={patient}
-              activePhase={faseAttualeInput}
+              selectedPhase={selectedPhase}
+              activePhase={selectedPhase}
+              onSelectPhase={handlePhaseChange}
               onSaveTest={handleSaveNewTest}
             />
           </UIErrorBoundary>
