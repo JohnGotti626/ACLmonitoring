@@ -288,6 +288,39 @@ export function toStrictNullOrNumber(v, allowZero = false) {
 }
 
 /**
+ * Calcola in modo sicuro l'H/Q Ratio in percentuale:
+ * (Hamstring 30° Peak Force N / Quad 60° Peak Force N) * 100
+ * Gestisce 0 o null in modo sicuro per prevenire errori NaN.
+ */
+export function calculateHqRatioPercent(hamN, quadN) {
+  const h = toStrictNullOrNumber(hamN, false);
+  const q = toStrictNullOrNumber(quadN, false);
+  if (!q || q <= 0 || !h || h <= 0) return 0;
+  return parseFloat(((h / q) * 100).toFixed(1));
+}
+
+/**
+ * Cerca un valore numerico nelle metriche personalizzate (custom_metrics) della sessione
+ * filtrando per parole chiave nel nome della metrica.
+ */
+function findCustomMetricByKeywords(test, keywords = [], allowZero = false) {
+  const cmObj = test?.custom_metrics;
+  if (!cmObj || typeof cmObj !== 'object') return null;
+  for (const list of Object.values(cmObj)) {
+    if (!Array.isArray(list)) continue;
+    for (const item of list) {
+      if (!item || item.is_hidden || !item.metric_name) continue;
+      const nameLower = String(item.metric_name).toLowerCase();
+      if (keywords.some(kw => nameLower.includes(kw.toLowerCase()))) {
+        const val = toStrictNullOrNumber(item.metric_value, allowZero);
+        if (val !== null) return val;
+      }
+    }
+  }
+  return null;
+}
+
+/**
  * Estrae o calcola dinamicamente una metrica da una singola sessione di test.
  * Filtra rigorosamente tutti i valori null, undefined o 0 non validi.
  */
@@ -341,6 +374,52 @@ export function extractMetricFromSingleTest(test, keys, allowZero = false) {
     }
   }
 
+  if (keySet.has('hqRatioPct') || keySet.has('hq_ratio_pct')) {
+    const fOp = toStrictNullOrNumber(test.flexOp ?? test.iso_leg_curl_dx);
+    const qOp = toStrictNullOrNumber(test.quadOp ?? test.iso_leg_ext_dx);
+    const pctOp = calculateHqRatioPercent(fOp, qOp);
+    if (pctOp > 0) return pctOp;
+
+    const fSano = toStrictNullOrNumber(test.flexSano ?? test.iso_leg_curl_sx);
+    const qSano = toStrictNullOrNumber(test.quadSano ?? test.iso_leg_ext_sx);
+    const pctSano = calculateHqRatioPercent(fSano, qSano);
+    if (pctSano > 0) return pctSano;
+
+    const existingRatio = toStrictNullOrNumber(test.hqRatio);
+    if (existingRatio !== null && existingRatio > 0) {
+      return existingRatio <= 3 ? parseFloat((existingRatio * 100).toFixed(1)) : parseFloat(existingRatio.toFixed(1));
+    }
+  }
+
+  if (keySet.has('squatLoadAsym') || keySet.has('squat_bilateral_load_asymmetry')) {
+    const directAsym = toStrictNullOrNumber(
+      test.squatLoadAsym ??
+        test.brakingAsym ??
+        test.ecc_braking_asym_calculated ??
+        test.concImpulseAsym ??
+        test.conc_impulse_asym_calculated,
+      true
+    );
+    if (directAsym !== null) return parseFloat(directAsym.toFixed(1));
+
+    const customSquat = findCustomMetricByKeywords(test, ['squat', 'carico bilaterale', 'load asym'], true);
+    if (customSquat !== null) return parseFloat(customSquat.toFixed(1));
+
+    const concSX = toStrictNullOrNumber(test.concImpulseSX ?? test.conc_impulse_sx);
+    const concDX = toStrictNullOrNumber(test.concImpulseDX ?? test.conc_impulse_dx);
+    if (concSX !== null && concDX !== null && Math.max(concSX, concDX) > 0) {
+      const lsi = (Math.min(concSX, concDX) / Math.max(concSX, concDX)) * 100;
+      return parseFloat((100 - lsi).toFixed(1));
+    }
+
+    const eccSX = toStrictNullOrNumber(test.eccBrakingSX ?? test.ecc_braking_sx);
+    const eccDX = toStrictNullOrNumber(test.eccBrakingDX ?? test.ecc_braking_dx);
+    if (eccSX !== null && eccDX !== null && Math.max(eccSX, eccDX) > 0) {
+      const lsi = (Math.min(eccSX, eccDX) / Math.max(eccSX, eccDX)) * 100;
+      return parseFloat((100 - lsi).toFixed(1));
+    }
+  }
+
   if (keySet.has('cmjImpulseLsi') || keySet.has('lsi_cmj_braking')) {
     const sx = toStrictNullOrNumber(test.eccBrakingSX ?? test.ecc_braking_sx);
     const dx = toStrictNullOrNumber(test.eccBrakingDX ?? test.ecc_braking_dx);
@@ -351,6 +430,17 @@ export function extractMetricFromSingleTest(test, keys, allowZero = false) {
     if (asym !== null && asym >= 0 && asym < 100) {
       return parseFloat((100 - asym).toFixed(1));
     }
+  }
+
+  if (keySet.has('slCmjBrakingLsi') || keySet.has('lsi_sl_cmj_braking')) {
+    const slSX = toStrictNullOrNumber(test.slCmjEccImpulseSX ?? test.sl_cmj_ecc_impulse_sx);
+    const slDX = toStrictNullOrNumber(test.slCmjEccImpulseDX ?? test.sl_cmj_ecc_impulse_dx);
+    if (slSX !== null && slDX !== null && slSX > 0 && slDX > 0) {
+      return parseFloat(((Math.min(slSX, slDX) / Math.max(slSX, slDX)) * 100).toFixed(1));
+    }
+    // Fallback su CMJ Braking Impulse LSI esistente se presente
+    const fallbackBraking = extractMetricFromSingleTest(test, ['cmjImpulseLsi', 'lsi_cmj_braking'], allowZero);
+    if (fallbackBraking !== null) return fallbackBraking;
   }
 
   if (keySet.has('slCmjHeightLsi') || keySet.has('lsi_sl_cmj_height_calculated')) {
@@ -367,6 +457,32 @@ export function extractMetricFromSingleTest(test, keys, allowZero = false) {
     if (h !== null && ct !== null && ct > 0) {
       return parseFloat(((h / 100) / (ct / 1000)).toFixed(2));
     }
+  }
+
+  if (keySet.has('slDjRsiLsi') || keySet.has('lsi_sl_dj_rsi')) {
+    const sx = toStrictNullOrNumber(test.slDjRsiSX ?? test.sl_dj_rsi_sx);
+    const dx = toStrictNullOrNumber(test.slDjRsiDX ?? test.sl_dj_rsi_dx);
+    if (sx !== null && dx !== null && sx > 0 && dx > 0) {
+      return parseFloat(((Math.min(sx, dx) / Math.max(sx, dx)) * 100).toFixed(1));
+    }
+  }
+
+  if (keySet.has('hopTestLsiAvg') || keySet.has('hop_lsi_avg')) {
+    const singleHop = toStrictNullOrNumber(test.lsiSingleHop ?? test.lsi_single_hop);
+    const tripleHop = toStrictNullOrNumber(test.lsiTripleHop ?? test.lsi_triple_hop);
+    if (singleHop !== null && tripleHop !== null) {
+      return parseFloat(((singleHop + tripleHop) / 2).toFixed(1));
+    }
+    if (singleHop !== null) return parseFloat(singleHop.toFixed(1));
+    if (tripleHop !== null) return parseFloat(tripleHop.toFixed(1));
+  }
+
+  if (keySet.has('codAsym') || keySet.has('cod_deficit_asym')) {
+    const directCod = toStrictNullOrNumber(test.codAsym ?? test.cod_asym ?? test.cod_deficit_asym, true);
+    if (directCod !== null) return parseFloat(directCod.toFixed(1));
+
+    const customCod = findCustomMetricByKeywords(test, ['cod', 'cambio di direzione', 'change of direction', 'agility', 't-test', '505'], true);
+    if (customCod !== null) return parseFloat(customCod.toFixed(1));
   }
 
   if (keySet.has('rsiCmj') || keySet.has('rsi_cmj') || keySet.has('rsi_mod')) {

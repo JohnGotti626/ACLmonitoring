@@ -24,6 +24,7 @@ import {
   sortTestsByDate,
   getLastValidMetricWithMeta,
   toStrictNullOrNumber,
+  calculateHqRatioPercent,
   hideCustomMetricInSupabase
 } from '../../utils/testUtils';
 import { UIErrorBoundary } from '../UIErrorBoundary';
@@ -41,6 +42,425 @@ const calcRatioLsi = (val1, val2) => {
   if (max === 0) return null;
   return ((Math.min(n1, n2) / max) * 100).toFixed(1);
 };
+
+/**
+ * Calcola dinamicamente la percentuale di completamento, il colore barra e il badge stato
+ * seguendo il rulebook clinico a 5 fasi:
+ * - < 70%: Red bar (bg-rose-500) | Badge: "DEFICIT"
+ * - 70% - 89%: Orange bar (bg-amber-500) | Badge: "IN CORSO"
+ * - 90% - 99%: Cyan bar (bg-cyan-500) | Badge: "IN CORSO"
+ * - >= 100%: Green bar (bg-emerald-500) | Badge: "TARGET OK"
+ */
+function buildPhaseTargetItem({
+  id,
+  title,
+  latestValue,
+  phaseTargetValue,
+  unit = '%',
+  decimals = 1,
+  comparison = 'gt',
+  targetLabelOverride = null
+}) {
+  const isEvaluated = latestValue !== null && latestValue !== undefined && !Number.isNaN(Number(latestValue));
+  const numVal = isEvaluated ? Number(latestValue) : null;
+
+  let completionPercentage = 0;
+  let isOk = false;
+
+  if (isEvaluated && phaseTargetValue > 0) {
+    if (comparison === 'lt') {
+      // Per le asimmetrie (<10%), un valore minore o uguale al target equivale al 100% di raggiungimento
+      if (numVal <= phaseTargetValue) {
+        completionPercentage = 100;
+        isOk = true;
+      } else {
+        completionPercentage = Math.max(0, Math.min(99, Math.round((phaseTargetValue / numVal) * 100)));
+        isOk = false;
+      }
+    } else {
+      completionPercentage = Math.min(100, Math.round((numVal / phaseTargetValue) * 100));
+      isOk = completionPercentage >= 100;
+    }
+  }
+
+  let barColor = 'bg-slate-300';
+  let badgeText = 'NON TESTATO';
+  let badgeClass = 'bg-slate-200/70 border-slate-300 text-slate-600';
+  let pctBadgeClass = 'bg-slate-200/70 text-slate-600';
+
+  if (isEvaluated) {
+    if (completionPercentage >= 100) {
+      barColor = 'bg-emerald-500';
+      badgeText = 'TARGET OK';
+      badgeClass = 'bg-emerald-100/80 border-emerald-300/60 text-emerald-900';
+      pctBadgeClass = 'bg-emerald-100/80 text-emerald-900';
+    } else if (completionPercentage >= 90) {
+      barColor = 'bg-cyan-500';
+      badgeText = 'IN CORSO';
+      badgeClass = 'bg-cyan-100/80 border-cyan-300/60 text-cyan-900';
+      pctBadgeClass = 'bg-cyan-100/80 text-cyan-900';
+    } else if (completionPercentage >= 70) {
+      barColor = 'bg-amber-500';
+      badgeText = 'IN CORSO';
+      badgeClass = 'bg-amber-100/80 border-amber-300/60 text-amber-900';
+      pctBadgeClass = 'bg-amber-100/80 text-amber-900';
+    } else {
+      barColor = 'bg-rose-500';
+      badgeText = 'DEFICIT';
+      badgeClass = 'bg-rose-100/80 border-rose-300/60 text-rose-900';
+      pctBadgeClass = 'bg-rose-100/80 text-rose-900';
+    }
+  }
+
+  const formattedVal = isEvaluated ? Number(numVal).toFixed(decimals) : null;
+  const displayVal = isEvaluated
+    ? unit === '/100'
+      ? `${formattedVal}/100`
+      : unit === '%'
+      ? `${formattedVal}%`
+      : `${formattedVal} ${unit}`
+    : 'Non testato';
+
+  const defaultTargetLabel =
+    comparison === 'lt'
+      ? `Target <${phaseTargetValue}${unit === '%' ? '%' : ` ${unit}`}`
+      : unit === '/100'
+      ? `Target >${phaseTargetValue}/100`
+      : unit === '%'
+      ? `Target >${phaseTargetValue}%`
+      : `Target >${phaseTargetValue} ${unit}`;
+
+  return {
+    id,
+    title,
+    value: numVal,
+    displayVal,
+    targetLabel: targetLabelOverride || defaultTargetLabel,
+    percentageAchieved: completionPercentage,
+    isOk,
+    barColor,
+    badgeText,
+    badgeClass,
+    pctBadgeClass
+  };
+}
+
+/**
+ * Custom Hook che implementa la 5-Phase Target Architecture:
+ * - Interroga automaticamente l'ULTIMO test valido registrato per ciascuna metrica (zero perdita dati).
+ * - Filtra rigorosamente le barre di progresso e i domini di salto in base alla fase attiva.
+ * - Calcola l'H/Q Ratio con la formula esatta: (Hamstring 30° Peak Force N / Quad 60° Peak Force N) * 100.
+ */
+export function usePhaseProgress(testsHistory, selectedPhase) {
+  return useMemo(() => {
+    const lsiQuadVal = getLastValidMetricWithMeta(testsHistory, ['lsiQuad', 'lsi_quad_calculated'])?.value ?? null;
+    const lsiFlexVal = getLastValidMetricWithMeta(testsHistory, ['lsiFlex', 'lsi_curl_calculated'])?.value ?? null;
+    const quadRelVal = getLastValidMetricWithMeta(testsHistory, ['quadOpNmKg', 'quad_rel_op'])?.value ?? null;
+
+    // Calcolo H/Q Ratio: (Hamstring 30° Peak Force N / Quad 60° Peak Force N) * 100
+    const quadPeakMeta = getLastValidMetricWithMeta(testsHistory, ['quadOp', 'iso_leg_ext_dx', 'quadSano', 'iso_leg_ext_sx']);
+    const hamPeakMeta = getLastValidMetricWithMeta(testsHistory, ['flexOp', 'iso_leg_curl_dx', 'flexSano', 'iso_leg_curl_sx']);
+    const directHqPctMeta = getLastValidMetricWithMeta(testsHistory, ['hqRatioPct', 'hq_ratio_pct']);
+
+    let hqRatioPctVal = directHqPctMeta?.value ?? null;
+    if (hqRatioPctVal === null && quadPeakMeta?.value && hamPeakMeta?.value) {
+      const computedHq = calculateHqRatioPercent(hamPeakMeta.value, quadPeakMeta.value);
+      hqRatioPctVal = computedHq > 0 ? computedHq : null;
+    }
+
+    const squatAsymVal =
+      getLastValidMetricWithMeta(testsHistory, ['squatLoadAsym', 'squat_bilateral_load_asymmetry'], { allowZero: true })
+        ?.value ?? null;
+    const ikdcVal = getLastValidMetricWithMeta(testsHistory, ['ikdc', 'ikdc_score'])?.value ?? null;
+    const slCmjHeightLsiVal =
+      getLastValidMetricWithMeta(testsHistory, ['slCmjHeightLsi', 'lsi_sl_cmj_height_calculated'])?.value ?? null;
+    const slCmjBrakingLsiVal =
+      getLastValidMetricWithMeta(testsHistory, ['slCmjBrakingLsi', 'cmjImpulseLsi', 'lsi_cmj_braking'])?.value ?? null;
+    const djBilateralRsiVal =
+      getLastValidMetricWithMeta(testsHistory, ['rsiDropJump', 'djRSI', 'dj_rsi', 'rsi_drop_jump'])?.value ?? null;
+    const slDjRsiLsiVal =
+      getLastValidMetricWithMeta(testsHistory, ['slDjRsiLsi', 'lsi_sl_dj_rsi'])?.value ?? null;
+    const hopLsiAvgVal =
+      getLastValidMetricWithMeta(testsHistory, ['hopTestLsiAvg', 'lsiSingleHop', 'lsiTripleHop'])?.value ?? null;
+    const codAsymVal =
+      getLastValidMetricWithMeta(testsHistory, ['codAsym', 'cod_deficit_asym'], { allowZero: true })?.value ?? null;
+    const aclRsiVal = getLastValidMetricWithMeta(testsHistory, ['aclrsi', 'acl_rsi'])?.value ?? null;
+
+    // FASE 1 (Early Stage): Nasconde tutti i test di salto e pliometria
+    if (selectedPhase === 'Fase 1') {
+      return {
+        phaseKey: 'phase1',
+        allowedSubTabs: ['LSI', 'FORZA'],
+        checklistItems: [
+          { id: 'extComplete0', label: 'Estensione completa (0°)' },
+          { id: 'flex120', label: 'Flessione >=120°' },
+          { id: 'strokeTest', label: 'Stroke Test <=1+' },
+          { id: 'slrNoLag', label: 'SLR (No lag)' }
+        ],
+        cupsData: [
+          buildPhaseTargetItem({
+            id: 'f1_iso_quad_90',
+            title: 'Iso Quad 90° LSI (>60%)',
+            latestValue: lsiQuadVal,
+            phaseTargetValue: 60,
+            unit: '%',
+            decimals: 1
+          }),
+          buildPhaseTargetItem({
+            id: 'f1_iso_ham_90',
+            title: 'Iso Hamstring 90° LSI (>60%)',
+            latestValue: lsiFlexVal,
+            phaseTargetValue: 60,
+            unit: '%',
+            decimals: 1
+          })
+        ]
+      };
+    }
+
+    // FASE 2 (Mid Stage): Nasconde SL Jumps & Drop Jumps
+    if (selectedPhase === 'Fase 2 (>70%)') {
+      return {
+        phaseKey: 'phase2',
+        allowedSubTabs: ['LSI', 'FORZA', 'CMJ_BILATERAL'],
+        checklistItems: [
+          { id: 'pogoJumpBilateral', label: 'Pogo Jump Bilaterale' },
+          { id: 'landingControl', label: 'Landing Control' }
+        ],
+        cupsData: [
+          buildPhaseTargetItem({
+            id: 'f2_iso_quad',
+            title: 'Iso Quad 60° (or 90°) LSI (>75%)',
+            latestValue: lsiQuadVal,
+            phaseTargetValue: 75,
+            unit: '%',
+            decimals: 1
+          }),
+          buildPhaseTargetItem({
+            id: 'f2_rel_quad',
+            title: 'Relative Quad Force (>2.2 N/kg)',
+            latestValue: quadRelVal,
+            phaseTargetValue: 2.2,
+            unit: 'N/kg',
+            decimals: 2
+          }),
+          buildPhaseTargetItem({
+            id: 'f2_iso_ham',
+            title: 'Iso Hamstring 30° LSI (>75%)',
+            latestValue: lsiFlexVal,
+            phaseTargetValue: 75,
+            unit: '%',
+            decimals: 1
+          }),
+          buildPhaseTargetItem({
+            id: 'f2_hq_ratio',
+            title: 'H/Q Ratio (>55%)',
+            latestValue: hqRatioPctVal,
+            phaseTargetValue: 55,
+            unit: '%',
+            decimals: 1
+          }),
+          buildPhaseTargetItem({
+            id: 'f2_squat_asym',
+            title: 'Squat Bilateral Load Asymmetry (<10%)',
+            latestValue: squatAsymVal,
+            phaseTargetValue: 10,
+            unit: '%',
+            decimals: 1,
+            comparison: 'lt'
+          }),
+          buildPhaseTargetItem({
+            id: 'f2_ikdc',
+            title: 'IKDC Subjective Score (>60/100)',
+            latestValue: ikdcVal,
+            phaseTargetValue: 60,
+            unit: '/100',
+            decimals: 1
+          })
+        ]
+      };
+    }
+
+    // FASE 3 (Return to Run): Nasconde SL Drop Jump
+    if (selectedPhase === 'Fase 3 (>80%)') {
+      return {
+        phaseKey: 'phase3',
+        allowedSubTabs: ['LSI', 'FORZA', 'CMJ_BILATERAL', 'CMJ_SL', 'DJ_BILATERAL'],
+        checklistItems: [
+          { id: 'treadmillRun10Min', label: '10-min Treadmill Run without 24h pain/swelling' }
+        ],
+        cupsData: [
+          buildPhaseTargetItem({
+            id: 'f3_iso_quad',
+            title: 'Iso Quad 60° LSI (>85%)',
+            latestValue: lsiQuadVal,
+            phaseTargetValue: 85,
+            unit: '%',
+            decimals: 1
+          }),
+          buildPhaseTargetItem({
+            id: 'f3_iso_ham',
+            title: 'Iso Hamstring 30° LSI (>85%)',
+            latestValue: lsiFlexVal,
+            phaseTargetValue: 85,
+            unit: '%',
+            decimals: 1
+          }),
+          buildPhaseTargetItem({
+            id: 'f3_hq_ratio',
+            title: 'H/Q Ratio (>60%)',
+            latestValue: hqRatioPctVal,
+            phaseTargetValue: 60,
+            unit: '%',
+            decimals: 1
+          }),
+          buildPhaseTargetItem({
+            id: 'f3_sl_cmj_height',
+            title: 'SL CMJ Jump Height LSI (>80%)',
+            latestValue: slCmjHeightLsiVal,
+            phaseTargetValue: 80,
+            unit: '%',
+            decimals: 1
+          }),
+          buildPhaseTargetItem({
+            id: 'f3_dj_rsi',
+            title: 'Drop Jump Bilateral RSI (>1.35 m/s)',
+            latestValue: djBilateralRsiVal,
+            phaseTargetValue: 1.35,
+            unit: 'm/s',
+            decimals: 2
+          })
+        ]
+      };
+    }
+
+    // FASE 4 (Late Stage)
+    if (selectedPhase === 'Fase 4') {
+      const djBilPct = djBilateralRsiVal !== null ? Math.min(100, Math.round((djBilateralRsiVal / 1.5) * 100)) : -1;
+      const slDjPct = slDjRsiLsiVal !== null ? Math.min(100, Math.round((slDjRsiLsiVal / 80) * 100)) : -1;
+      const useSlDj = slDjPct > djBilPct;
+
+      const djItem = useSlDj
+        ? buildPhaseTargetItem({
+            id: 'f4_dj_rsi',
+            title: 'Drop Jump Bilateral RSI (>1.50 m/s or SL Drop Jump RSI LSI >80%)',
+            latestValue: slDjRsiLsiVal,
+            phaseTargetValue: 80,
+            unit: '%',
+            decimals: 1,
+            targetLabelOverride: 'Target >1.50 m/s o SL RSI >80%'
+          })
+        : buildPhaseTargetItem({
+            id: 'f4_dj_rsi',
+            title: 'Drop Jump Bilateral RSI (>1.50 m/s or SL Drop Jump RSI LSI >80%)',
+            latestValue: djBilateralRsiVal,
+            phaseTargetValue: 1.5,
+            unit: 'm/s',
+            decimals: 2,
+            targetLabelOverride: 'Target >1.50 m/s o SL RSI >80%'
+          });
+
+      return {
+        phaseKey: 'phase4',
+        allowedSubTabs: ['LSI', 'FORZA', 'CMJ_BILATERAL', 'CMJ_SL', 'DJ_BILATERAL', 'DJ_SL'],
+        checklistItems: [
+          { id: 'slDropJumpBox30', label: 'SL Drop Jump OK' },
+          { id: 'firstFieldTech', label: 'Primi Gesti Campo' },
+          { id: 'weeklyLoadTolerance', label: 'Tolleranza Carichi' }
+        ],
+        cupsData: [
+          buildPhaseTargetItem({
+            id: 'f4_iso_quad',
+            title: 'Iso Quad 60° LSI (>90%)',
+            latestValue: lsiQuadVal,
+            phaseTargetValue: 90,
+            unit: '%',
+            decimals: 1
+          }),
+          buildPhaseTargetItem({
+            id: 'f4_iso_ham',
+            title: 'Iso Hamstring 30° LSI (>90%)',
+            latestValue: lsiFlexVal,
+            phaseTargetValue: 90,
+            unit: '%',
+            decimals: 1
+          }),
+          buildPhaseTargetItem({
+            id: 'f4_sl_cmj_height',
+            title: 'SL CMJ Jump Height LSI (>85%)',
+            latestValue: slCmjHeightLsiVal,
+            phaseTargetValue: 85,
+            unit: '%',
+            decimals: 1
+          }),
+          buildPhaseTargetItem({
+            id: 'f4_sl_cmj_braking',
+            title: 'SL CMJ Braking Impulse LSI (>85%)',
+            latestValue: slCmjBrakingLsiVal,
+            phaseTargetValue: 85,
+            unit: '%',
+            decimals: 1
+          }),
+          djItem
+        ]
+      };
+    }
+
+    // FASE 5 (Return to Play)
+    return {
+      phaseKey: 'phase5',
+      allowedSubTabs: ['LSI', 'FORZA', 'CMJ_BILATERAL', 'CMJ_SL', 'DJ_BILATERAL', 'DJ_SL'],
+      checklistItems: [
+        { id: 'fullTeamTraining', label: 'Full Team Training senza restrizioni' },
+        { id: 'reactiveAgility', label: 'Sprint Massimale & CoD Reattivo' },
+        { id: 'rtsClearance', label: 'Clearance Medico-Sportiva Return to Play' }
+      ],
+      cupsData: [
+        buildPhaseTargetItem({
+          id: 'f5_iso_quad',
+          title: 'Iso Quad 60° LSI (>90%)',
+          latestValue: lsiQuadVal,
+          phaseTargetValue: 90,
+          unit: '%',
+          decimals: 1
+        }),
+        buildPhaseTargetItem({
+          id: 'f5_iso_ham',
+          title: 'Iso Hamstring 30° LSI (>90%)',
+          latestValue: lsiFlexVal,
+          phaseTargetValue: 90,
+          unit: '%',
+          decimals: 1
+        }),
+        buildPhaseTargetItem({
+          id: 'f5_hop_avg',
+          title: 'Single/Triple Hop Test LSI Average (>95%)',
+          latestValue: hopLsiAvgVal,
+          phaseTargetValue: 95,
+          unit: '%',
+          decimals: 1
+        }),
+        buildPhaseTargetItem({
+          id: 'f5_cod_asym',
+          title: 'CoD Deficit Time Asymmetry (<10%)',
+          latestValue: codAsymVal,
+          phaseTargetValue: 10,
+          unit: '%',
+          decimals: 1,
+          comparison: 'lt'
+        }),
+        buildPhaseTargetItem({
+          id: 'f5_acl_rsi',
+          title: 'ACL-RSI Score (>75/100)',
+          latestValue: aclRsiVal,
+          phaseTargetValue: 75,
+          unit: '/100',
+          decimals: 1
+        })
+      ]
+    };
+  }, [testsHistory, selectedPhase]);
+}
 
 export default function TabBatteriaTest({ patient, activePhase, onSaveTest }) {
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -110,24 +530,30 @@ export default function TabBatteriaTest({ patient, activePhase, onSaveTest }) {
     }
   }, [patient?.fase_riabilitativa, activePhase]);
 
-  const [phase2Checklist, setPhase2Checklist] = useState({
-    extensionComplete: true,
-    noEffusion: true,
-    singleLegSquat: true,
-    pogoJump: false,
-    landingStrategies: true
-  });
-
-  const [phase3Checklist, setPhase3Checklist] = useState({
-    runningCurriculum: true,
-    treadmillMechanics: true,
-    noEffusionPostLoad: true
-  });
-
-  const [phase4Checklist, setPhase4Checklist] = useState({
-    slDropJumpBox30: true,
-    firstFieldTech: true,
-    weeklyLoadTolerance: true
+  const [checklistStateByPhase, setChecklistStateByPhase] = useState({
+    phase1: {
+      extComplete0: true,
+      flex120: true,
+      strokeTest: true,
+      slrNoLag: true
+    },
+    phase2: {
+      pogoJumpBilateral: false,
+      landingControl: true
+    },
+    phase3: {
+      treadmillRun10Min: true
+    },
+    phase4: {
+      slDropJumpBox30: true,
+      firstFieldTech: true,
+      weeklyLoadTolerance: true
+    },
+    phase5: {
+      fullTeamTraining: true,
+      reactiveAgility: true,
+      rtsClearance: true
+    }
   });
 
   const [testsHistory, setTestsHistory] = useState(() => sortTestsByDate(patient?.tests));
@@ -157,284 +583,18 @@ export default function TabBatteriaTest({ patient, activePhase, onSaveTest }) {
     displayedSessions.find(t => t.id === selectedTestId) ||
     (displayedSessions.length > 0 ? displayedSessions[displayedSessions.length - 1] : null);
 
-  const phaseConfig = {
-    'Fase 1': {
-      name: '🔴 FASE 1: Early Stage (ROM & AMI)',
-      isEarlyStage: true
-    },
-    'Fase 2 (>70%)': {
-      name: '🟡 FASE 2: Mid Stage (Qualità & Landing)',
-      isPhase2: true
-    },
-    'Fase 3 (>80%)': {
-      name: '🟢 FASE 3: Return to Run & Decel',
-      isPhase3: true
-    },
-    'Fase 4': {
-      name: '🔵 FASE 4: Late Stage (ASPETAR Pliometria & Potenza)',
-      isPhase4: true
-    },
-    'Fase 5 (RTS)': {
-      name: '🌟 FASE 5: Return to Performance (Match Play)',
-      targetLSIQuad: 95,
-      targetQuadNmKg: 3.0,
-      targetLSIHam: 95,
-      targetRSI: 2.0
+  const {
+    phaseKey,
+    allowedSubTabs,
+    checklistItems: currentChecklistItems,
+    cupsData
+  } = usePhaseProgress(testsHistory, selectedPhase);
+
+  React.useEffect(() => {
+    if (Array.isArray(allowedSubTabs) && allowedSubTabs.length > 0 && !allowedSubTabs.includes(activeSubTab)) {
+      setActiveSubTab(allowedSubTabs[0]);
     }
-  };
-
-  const currentPhase = phaseConfig[selectedPhase] || phaseConfig['Fase 3 (>80%)'];
-
-  let cupsData = [];
-
-  if (currentPhase.isEarlyStage) {
-    cupsData = [
-      {
-        id: 'early_stage_info',
-        title: 'FASE 1: PRE-TEST CLINICO',
-        subtitle: 'Recupero ROM & Estensione Completa 0°',
-        earlyNote:
-          'In questa prima fase il focus è sul recupero del gonfiore, ROM completo e attivazione artrogena. I test di forza e salto ad alto carico iniziano dalla Fase 2.'
-      }
-    ];
-  } else if (currentPhase.isPhase2) {
-    const lsiQuadMeta = getLastValidMetricWithMeta(testsHistory, ['lsiQuad', 'lsi_quad_calculated']);
-    const quadOpNmKgMeta = getLastValidMetricWithMeta(testsHistory, ['quadOpNmKg', 'quad_rel_op']);
-    const lsiFlexMeta = getLastValidMetricWithMeta(testsHistory, ['lsiFlex', 'lsi_curl_calculated']);
-    const quadOpMeta = getLastValidMetricWithMeta(testsHistory, ['quadOp', 'iso_leg_ext_dx', 'iso_leg_ext_sx']);
-    const flexOpMeta = getLastValidMetricWithMeta(testsHistory, ['flexOp', 'iso_leg_curl_dx', 'iso_leg_curl_sx']);
-    const ikdcMeta = getLastValidMetricWithMeta(testsHistory, ['ikdc', 'ikdc_score']);
-
-    const lsiQuadVal = lsiQuadMeta?.value ?? null;
-    const quadOpNmKgVal = quadOpNmKgMeta?.value ?? null;
-    const lsiFlexVal = lsiFlexMeta?.value ?? null;
-    const quadOpVal = quadOpMeta?.value ?? null;
-    const flexOpVal = flexOpMeta?.value ?? null;
-    const hqRatioVal =
-      quadOpVal !== null && flexOpVal !== null && quadOpVal > 0 ? flexOpVal / quadOpVal : null;
-    const ikdcVal = ikdcMeta?.value ?? null;
-
-    cupsData = [
-      {
-        id: 'lsi_quad',
-        title: 'LSI QUADRICIPITE (Iso Push Leg Extension)',
-        value: lsiQuadVal,
-        displayVal: lsiQuadVal !== null ? `${safeFixed(lsiQuadVal, 1)}%` : 'Non testato',
-        targetLabel: 'Target >70%',
-        percentageAchieved: lsiQuadVal !== null ? Math.round((lsiQuadVal / 70) * 100) : 0,
-        isOk: lsiQuadVal !== null ? lsiQuadVal >= 70 : false
-      },
-      {
-        id: 'quad_rel_op',
-        title: 'FORZA RELATIVA QUADRICIPITE OPERATO (Nm/kg)',
-        value: quadOpNmKgVal,
-        displayVal: quadOpNmKgVal !== null ? `${safeFixed(quadOpNmKgVal, 2)} Nm/kg` : 'Non testato',
-        targetLabel: 'Target >2.0 Nm/kg',
-        percentageAchieved: quadOpNmKgVal !== null ? Math.round((quadOpNmKgVal / 2.0) * 100) : 0,
-        isOk: quadOpNmKgVal !== null ? quadOpNmKgVal >= 2.0 : false
-      },
-      {
-        id: 'lsi_flex',
-        title: 'LSI HAMSTRING (Iso Push Leg Curl)',
-        value: lsiFlexVal,
-        displayVal: lsiFlexVal !== null ? `${safeFixed(lsiFlexVal, 1)}%` : 'Non testato',
-        targetLabel: 'Target >70%',
-        percentageAchieved: lsiFlexVal !== null ? Math.round((lsiFlexVal / 70) * 100) : 0,
-        isOk: lsiFlexVal !== null ? lsiFlexVal >= 70 : false
-      },
-      {
-        id: 'hq_ratio',
-        title: 'H/Q RATIO ISOMETRICO (Flessori / Quadricipite)',
-        value: hqRatioVal,
-        displayVal: hqRatioVal !== null ? `${safeFixed(hqRatioVal, 2)}` : 'Non testato',
-        targetLabel: 'Target >0.55',
-        percentageAchieved: hqRatioVal !== null ? Math.round((hqRatioVal / 0.55) * 100) : 0,
-        isOk: hqRatioVal !== null ? hqRatioVal >= 0.55 : false
-      },
-      {
-        id: 'ikdc_score',
-        title: 'SCORE IKDC SOGGETTIVO (Prontitudine Clinica)',
-        value: ikdcVal,
-        displayVal: ikdcVal !== null ? `${safeFixed(ikdcVal, 1)}/100` : 'Non testato',
-        targetLabel: 'Target >64/100',
-        percentageAchieved: ikdcVal !== null ? Math.round((ikdcVal / 64) * 100) : 0,
-        isOk: ikdcVal !== null ? ikdcVal >= 64 : false
-      }
-    ];
-  } else if (currentPhase.isPhase3) {
-    const lsiQuadMeta = getLastValidMetricWithMeta(testsHistory, ['lsiQuad', 'lsi_quad_calculated']);
-    const lsiFlexMeta = getLastValidMetricWithMeta(testsHistory, ['lsiFlex', 'lsi_curl_calculated']);
-    const cmjImpulseLsiMeta = getLastValidMetricWithMeta(testsHistory, ['cmjImpulseLsi', 'lsi_cmj_braking']);
-    const slCmjHeightLsiMeta = getLastValidMetricWithMeta(testsHistory, ['slCmjHeightLsi', 'lsi_sl_cmj_height_calculated']);
-    const rsiDropJumpMeta = getLastValidMetricWithMeta(testsHistory, ['rsiDropJump', 'djRSI', 'dj_rsi', 'rsi_drop_jump']);
-
-    const lsiQuadVal = lsiQuadMeta?.value ?? null;
-    const lsiFlexVal = lsiFlexMeta?.value ?? null;
-    const cmjImpulseLsiVal = cmjImpulseLsiMeta?.value ?? null;
-    const slCmjHeightLsiVal = slCmjHeightLsiMeta?.value ?? null;
-    const rsiDropJumpVal = rsiDropJumpMeta?.value ?? null;
-
-    cupsData = [
-      {
-        id: 'lsi_quad_3',
-        title: 'LSI QUADRICIPITE (Iso Push Leg Extension)',
-        value: lsiQuadVal,
-        displayVal: lsiQuadVal !== null ? `${safeFixed(lsiQuadVal, 1)}%` : 'Non testato',
-        targetLabel: 'Target >80%',
-        percentageAchieved: lsiQuadVal !== null ? Math.round((lsiQuadVal / 80) * 100) : 0,
-        isOk: lsiQuadVal !== null ? lsiQuadVal >= 80 : false
-      },
-      {
-        id: 'lsi_ham_3',
-        title: 'LSI HAMSTRING (Iso Push Leg Curl)',
-        value: lsiFlexVal,
-        displayVal: lsiFlexVal !== null ? `${safeFixed(lsiFlexVal, 1)}%` : 'Non testato',
-        targetLabel: 'Target >80%',
-        percentageAchieved: lsiFlexVal !== null ? Math.round((lsiFlexVal / 80) * 100) : 0,
-        isOk: lsiFlexVal !== null ? lsiFlexVal >= 80 : false
-      },
-      {
-        id: 'cmj_braking_3',
-        title: 'LSI BRAKING IMPULSE (Frenata Eccentrica CMJ)',
-        value: cmjImpulseLsiVal,
-        displayVal: cmjImpulseLsiVal !== null ? `${safeFixed(cmjImpulseLsiVal, 1)}%` : 'Non testato',
-        targetLabel: 'Target >80%',
-        percentageAchieved: cmjImpulseLsiVal !== null ? Math.round((cmjImpulseLsiVal / 80) * 100) : 0,
-        isOk: cmjImpulseLsiVal !== null ? cmjImpulseLsiVal >= 80 : false
-      },
-      {
-        id: 'lsi_height_3',
-        title: 'SL CMJ ALTEZZA SALTO LSI (Salto Monopodalico)',
-        value: slCmjHeightLsiVal,
-        displayVal: slCmjHeightLsiVal !== null ? `${safeFixed(slCmjHeightLsiVal, 1)}%` : 'Non testato',
-        targetLabel: 'Target >80%',
-        percentageAchieved: slCmjHeightLsiVal !== null ? Math.round((slCmjHeightLsiVal / 80) * 100) : 0,
-        isOk: slCmjHeightLsiVal !== null ? slCmjHeightLsiVal >= 80 : false
-      },
-      {
-        id: 'rsi_dj_3',
-        title: 'DROP JUMP BILATERALE RSI (Indice Reattivo)',
-        value: rsiDropJumpVal,
-        displayVal: rsiDropJumpVal !== null ? `${safeFixed(rsiDropJumpVal, 2)} idx` : 'Non testato',
-        targetLabel: 'Target >1.20 idx',
-        percentageAchieved: rsiDropJumpVal !== null ? Math.round((rsiDropJumpVal / 1.2) * 100) : 0,
-        isOk: rsiDropJumpVal !== null ? rsiDropJumpVal >= 1.2 : false
-      }
-    ];
-  } else if (currentPhase.isPhase4) {
-    const lsiQuadMeta = getLastValidMetricWithMeta(testsHistory, ['lsiQuad', 'lsi_quad_calculated']);
-    const lsiFlexMeta = getLastValidMetricWithMeta(testsHistory, ['lsiFlex', 'lsi_curl_calculated']);
-    const cmjAsymLsiMeta = getLastValidMetricWithMeta(testsHistory, ['cmjImpulseLsi', 'lsi_cmj_braking']);
-    const slCmjHeightLsiMeta = getLastValidMetricWithMeta(testsHistory, ['slCmjHeightLsi', 'lsi_sl_cmj_height_calculated']);
-    const rsiDropJumpMeta = getLastValidMetricWithMeta(testsHistory, ['rsiDropJump', 'djRSI', 'dj_rsi', 'rsi_drop_jump']);
-    const aclrsiMeta = getLastValidMetricWithMeta(testsHistory, ['aclrsi', 'acl_rsi']);
-
-    const lsiQuadVal = lsiQuadMeta?.value ?? null;
-    const lsiFlexVal = lsiFlexMeta?.value ?? null;
-    const cmjAsymLsi = cmjAsymLsiMeta?.value ?? null;
-    const slCmjHeightLsiVal = slCmjHeightLsiMeta?.value ?? null;
-    const rsiDropJumpVal = rsiDropJumpMeta?.value ?? null;
-    const aclrsiVal = aclrsiMeta?.value ?? null;
-
-    cupsData = [
-      {
-        id: 'lsi_quad_p4',
-        title: 'LSI QUADRICIPITE (Iso Push Leg Extension)',
-        value: lsiQuadVal,
-        displayVal: lsiQuadVal !== null ? `${safeFixed(lsiQuadVal, 1)}%` : 'Non testato',
-        targetLabel: 'Target >85%',
-        percentageAchieved: lsiQuadVal !== null ? Math.round((lsiQuadVal / 85) * 100) : 0,
-        isOk: lsiQuadVal !== null ? lsiQuadVal >= 85 : false
-      },
-      {
-        id: 'lsi_ham_p4',
-        title: 'LSI HAMSTRING (Iso Push Leg Curl)',
-        value: lsiFlexVal,
-        displayVal: lsiFlexVal !== null ? `${safeFixed(lsiFlexVal, 1)}%` : 'Non testato',
-        targetLabel: 'Target >85%',
-        percentageAchieved: lsiFlexVal !== null ? Math.round((lsiFlexVal / 85) * 100) : 0,
-        isOk: lsiFlexVal !== null ? lsiFlexVal >= 85 : false
-      },
-      {
-        id: 'cmj_braking_p4',
-        title: 'LSI BRAKING IMPULSE (Frenata Eccentrica CMJ)',
-        value: cmjAsymLsi,
-        displayVal: cmjAsymLsi !== null ? `${safeFixed(cmjAsymLsi, 1)}%` : 'Non testato',
-        targetLabel: 'Target >85%',
-        percentageAchieved: cmjAsymLsi !== null ? Math.round((cmjAsymLsi / 85) * 100) : 0,
-        isOk: cmjAsymLsi !== null ? cmjAsymLsi >= 85 : false
-      },
-      {
-        id: 'sl_cmj_p4',
-        title: 'SL CMJ ALTEZZA SALTO LSI (Salto Monopodalico)',
-        value: slCmjHeightLsiVal,
-        displayVal: slCmjHeightLsiVal !== null ? `${safeFixed(slCmjHeightLsiVal, 1)}%` : 'Non testato',
-        targetLabel: 'Target >85%',
-        percentageAchieved: slCmjHeightLsiVal !== null ? Math.round((slCmjHeightLsiVal / 85) * 100) : 0,
-        isOk: slCmjHeightLsiVal !== null ? slCmjHeightLsiVal >= 85 : false
-      },
-      {
-        id: 'dl_dj_p4',
-        title: 'DROP JUMP BILATERALE RSI (Indice Reattivo)',
-        value: rsiDropJumpVal,
-        displayVal: rsiDropJumpVal !== null ? `${safeFixed(rsiDropJumpVal, 2)} idx` : 'Non testato',
-        targetLabel: 'Target >1.30 idx',
-        percentageAchieved: rsiDropJumpVal !== null ? Math.round((rsiDropJumpVal / 1.3) * 100) : 0,
-        isOk: rsiDropJumpVal !== null ? rsiDropJumpVal >= 1.3 : false
-      },
-      {
-        id: 'aclrsi_p4',
-        title: 'SCORE ACL-RSI (Prontitudine Psicologica)',
-        value: aclrsiVal,
-        displayVal: aclrsiVal !== null ? `${safeFixed(aclrsiVal, 1)}/100` : 'Non testato',
-        targetLabel: 'Target >65/100',
-        percentageAchieved: aclrsiVal !== null ? Math.round((aclrsiVal / 65) * 100) : 0,
-        isOk: aclrsiVal !== null ? aclrsiVal >= 65 : false
-      }
-    ];
-  } else {
-    const lsiQuadMeta = getLastValidMetricWithMeta(testsHistory, ['lsiQuad', 'lsi_quad_calculated']);
-    const quadOpNmKgMeta = getLastValidMetricWithMeta(testsHistory, ['quadOpNmKg', 'quad_rel_op']);
-    const rsiDropJumpMeta = getLastValidMetricWithMeta(testsHistory, ['rsiDropJump', 'djRSI', 'dj_rsi', 'rsi_drop_jump']);
-
-    const lsiQuadVal = lsiQuadMeta?.value ?? null;
-    const quadOpNmKgVal = quadOpNmKgMeta?.value ?? null;
-    const rsiDropJumpVal = rsiDropJumpMeta?.value ?? null;
-
-    const targetQuadLSI = currentPhase.targetLSIQuad || 95;
-    const targetNmKg = currentPhase.targetQuadNmKg || 3.0;
-    const targetRsi = currentPhase.targetRSI || 2.0;
-
-    cupsData = [
-      {
-        id: 'lsi_quad',
-        title: 'LSI QUADRICIPITE (Iso Push Leg Extension)',
-        value: lsiQuadVal,
-        displayVal: lsiQuadVal !== null ? `${safeFixed(lsiQuadVal, 1)}%` : 'Non testato',
-        targetLabel: `Target >${targetQuadLSI}%`,
-        percentageAchieved: lsiQuadVal !== null ? Math.round((lsiQuadVal / targetQuadLSI) * 100) : 0,
-        isOk: lsiQuadVal !== null ? lsiQuadVal >= targetQuadLSI : false
-      },
-      {
-        id: 'quad_nm_kg',
-        title: 'FORZA RELATIVA QUADRICIPITE OPERATO (Nm/kg)',
-        value: quadOpNmKgVal,
-        displayVal: quadOpNmKgVal !== null ? `${safeFixed(quadOpNmKgVal, 2)} Nm/kg` : 'Non testato',
-        targetLabel: `Target >${targetNmKg} Nm/kg`,
-        percentageAchieved: quadOpNmKgVal !== null ? Math.round((quadOpNmKgVal / targetNmKg) * 100) : 0,
-        isOk: quadOpNmKgVal !== null ? quadOpNmKgVal >= targetNmKg : false
-      },
-      {
-        id: 'rsi_drop_jump',
-        title: 'RSI DROP JUMP BILATERALE (Contact Time <250ms)',
-        value: rsiDropJumpVal,
-        displayVal: rsiDropJumpVal !== null ? `${safeFixed(rsiDropJumpVal, 2)} rsi` : 'Non testato',
-        targetLabel: `Target >${targetRsi} rsi`,
-        percentageAchieved: rsiDropJumpVal !== null ? Math.round((rsiDropJumpVal / targetRsi) * 100) : 0,
-        isOk: rsiDropJumpVal !== null ? rsiDropJumpVal >= targetRsi : false
-      }
-    ];
-  }
+  }, [allowedSubTabs, activeSubTab]);
 
   const handleModalSave = async (newValData) => {
     const targetId = newValData.id || editingTest?.id;
@@ -541,22 +701,26 @@ export default function TabBatteriaTest({ patient, activePhase, onSaveTest }) {
             getRawValue: (t) => toStrictNullOrNumber(t?.lsiFlex ?? t?.lsi_curl_calculated),
             getValue: (t) => fmtSingle(t?.lsiFlex ?? t?.lsi_curl_calculated, '%')
           },
-          {
-            key: 'lsiSingleHop',
-            label: 'LSI Single Hop Test',
-            unit: '%',
-            dotColor: 'bg-emerald-600',
-            getRawValue: (t) => toStrictNullOrNumber(t?.lsiSingleHop ?? t?.lsi_single_hop),
-            getValue: (t) => fmtSingle(t?.lsiSingleHop ?? t?.lsi_single_hop, '%')
-          },
-          {
-            key: 'lsiTripleHop',
-            label: 'LSI Triple Hop Test',
-            unit: '%',
-            dotColor: 'bg-emerald-600',
-            getRawValue: (t) => toStrictNullOrNumber(t?.lsiTripleHop ?? t?.lsi_triple_hop),
-            getValue: (t) => fmtSingle(t?.lsiTripleHop ?? t?.lsi_triple_hop, '%')
-          },
+          ...(selectedPhase === 'Fase 1' || selectedPhase === 'Fase 2 (>70%)'
+            ? []
+            : [
+                {
+                  key: 'lsiSingleHop',
+                  label: 'LSI Single Hop Test',
+                  unit: '%',
+                  dotColor: 'bg-emerald-600',
+                  getRawValue: (t) => toStrictNullOrNumber(t?.lsiSingleHop ?? t?.lsi_single_hop),
+                  getValue: (t) => fmtSingle(t?.lsiSingleHop ?? t?.lsi_single_hop, '%')
+                },
+                {
+                  key: 'lsiTripleHop',
+                  label: 'LSI Triple Hop Test',
+                  unit: '%',
+                  dotColor: 'bg-emerald-600',
+                  getRawValue: (t) => toStrictNullOrNumber(t?.lsiTripleHop ?? t?.lsi_triple_hop),
+                  getValue: (t) => fmtSingle(t?.lsiTripleHop ?? t?.lsi_triple_hop, '%')
+                }
+              ]),
           {
             key: 'ikdc',
             label: 'Score IKDC Soggettivo',
@@ -1029,36 +1193,26 @@ export default function TabBatteriaTest({ patient, activePhase, onSaveTest }) {
     return null;
   };
 
-  const currentChecklistItems = currentPhase.isPhase4
-    ? [
-        { id: 'slDropJumpBox30', label: 'SL Drop Jump OK' },
-        { id: 'firstFieldTech', label: 'Primi Gesti Campo' },
-        { id: 'weeklyLoadTolerance', label: 'Tolleranza Carichi' }
-      ]
-    : currentPhase.isPhase3
-    ? [
-        { id: 'runningCurriculum', label: 'Running 10min OK' },
-        { id: 'treadmillMechanics', label: 'Corsa Treadmill' },
-        { id: 'noEffusionPostLoad', label: 'No Dolore 24h' }
-      ]
-    : [
-        { id: 'extensionComplete', label: 'Estensione 0° OK' },
-        { id: 'noEffusion', label: 'Assenza Gonfiore' },
-        { id: 'singleLegSquat', label: 'Single Leg Squat' },
-        { id: 'pogoJump', label: 'Pogo Jump SL' },
-        { id: 'landingStrategies', label: 'Landing OK' }
-      ];
+  const currentChecklistState = checklistStateByPhase[phaseKey] || {};
+  const toggleChecklistItem = (itemId) => {
+    setChecklistStateByPhase((prev) => ({
+      ...prev,
+      [phaseKey]: {
+        ...(prev[phaseKey] || {}),
+        [itemId]: !prev[phaseKey]?.[itemId]
+      }
+    }));
+  };
 
-  const currentChecklistState = currentPhase.isPhase4
-    ? phase4Checklist
-    : currentPhase.isPhase3
-    ? phase3Checklist
-    : phase2Checklist;
-  const setCurrentChecklistState = currentPhase.isPhase4
-    ? setPhase4Checklist
-    : currentPhase.isPhase3
-    ? setPhase3Checklist
-    : setPhase2Checklist;
+  const allSubTabs = [
+    { id: 'LSI', label: '⚡ Simmetrie & LSI (%)' },
+    { id: 'FORZA', label: '🔥 Dominio della Forza' },
+    { id: 'CMJ_BILATERAL', label: '📈 CMJ Bilaterale' },
+    { id: 'CMJ_SL', label: '🦶 CMJ Monopodalico' },
+    { id: 'DJ_BILATERAL', label: '📦 Drop Jump Bilaterale' },
+    { id: 'DJ_SL', label: '⚡ SL Drop Jump' }
+  ];
+  const visibleSubTabs = allSubTabs.filter(tab => !allowedSubTabs || allowedSubTabs.includes(tab.id));
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 select-none w-full items-start">
@@ -1114,16 +1268,9 @@ export default function TabBatteriaTest({ patient, activePhase, onSaveTest }) {
             </div>
           </div>
 
-          {/* 6 Pills Sotto-Tab per Dominio */}
+          {/* Sotto-Tab per Dominio filtrate per Fase */}
           <div className="flex items-center gap-1.5 flex-nowrap overflow-x-auto scrollbar-none p-1.5 bg-slate-200/50 rounded-xl border border-slate-300/60 print:hidden">
-            {[
-              { id: 'LSI', label: '⚡ Simmetrie & LSI (%)' },
-              { id: 'FORZA', label: '🔥 Dominio della Forza' },
-              { id: 'CMJ_BILATERAL', label: '📈 CMJ Bilaterale' },
-              { id: 'CMJ_SL', label: '🦶 CMJ Monopodalico' },
-              { id: 'DJ_BILATERAL', label: '📦 Drop Jump Bilaterale' },
-              { id: 'DJ_SL', label: '⚡ SL Drop Jump' }
-            ].map((tab) => {
+            {visibleSubTabs.map((tab) => {
               const isActive = activeSubTab === tab.id;
               return (
                 <button
@@ -1427,6 +1574,17 @@ export default function TabBatteriaTest({ patient, activePhase, onSaveTest }) {
             const fillPct = isEvaluated ? Math.min(100, Math.max(8, cup.percentageAchieved)) : 0;
             const isTargetOk = cup.isOk;
             const cleanTargetText = cup.targetLabel ? cup.targetLabel.replace('Target:', 'Target') : '';
+            const barColorClass = cup.barColor || (!isEvaluated ? 'bg-slate-300' : isTargetOk ? 'bg-emerald-500' : 'bg-amber-500');
+            const badgeText = cup.badgeText || (!isEvaluated ? 'NON TESTATO' : isTargetOk ? 'TARGET OK' : 'IN CORSO');
+            const badgeClass =
+              cup.badgeClass ||
+              (!isEvaluated
+                ? 'bg-slate-200/70 border-slate-300 text-slate-600'
+                : isTargetOk
+                ? 'bg-emerald-100/80 border-emerald-300/50 text-emerald-900'
+                : 'bg-amber-100/80 border-amber-300/50 text-amber-900');
+            const pctBadgeClass =
+              cup.pctBadgeClass || (isTargetOk ? 'bg-emerald-100/80 text-emerald-900' : 'bg-sky-100/80 text-sky-900');
 
             return (
               <div
@@ -1440,20 +1598,10 @@ export default function TabBatteriaTest({ patient, activePhase, onSaveTest }) {
                   </span>
 
                   <div className="shrink-0 pt-0.5">
-                    {!isEvaluated ? (
-                      <span className="px-2 py-0.5 rounded-md bg-slate-200/70 border border-slate-300 text-slate-600 text-[10px] font-bold uppercase">
-                        NON TESTATO
-                      </span>
-                    ) : isTargetOk ? (
-                      <span className="px-2 py-0.5 rounded-md bg-emerald-100/80 border border-emerald-300/50 text-emerald-900 text-[10px] font-bold uppercase flex items-center gap-1">
-                        <CheckCircle2 className="w-3 h-3 text-emerald-900 shrink-0" />
-                        TARGET OK
-                      </span>
-                    ) : (
-                      <span className="px-2 py-0.5 rounded-md bg-rose-100/80 border border-rose-300/50 text-rose-900 text-[10px] font-bold uppercase flex items-center gap-1">
-                        IN CORSO
-                      </span>
-                    )}
+                    <span className={`px-2 py-0.5 rounded-md border text-[10px] font-bold uppercase flex items-center gap-1 ${badgeClass}`}>
+                      {isEvaluated && isTargetOk && <CheckCircle2 className="w-3 h-3 text-emerald-900 shrink-0" />}
+                      {badgeText}
+                    </span>
                   </div>
                 </div>
 
@@ -1478,27 +1626,17 @@ export default function TabBatteriaTest({ patient, activePhase, onSaveTest }) {
 
                   {isEvaluated && (
                     <span
-                      className={`text-xs font-mono font-bold tabular-nums px-1.5 py-0.5 rounded ${
-                        isTargetOk
-                          ? 'bg-emerald-100/80 text-emerald-900'
-                          : 'bg-sky-100/80 text-sky-900'
-                      }`}
+                      className={`text-xs font-mono font-bold tabular-nums px-1.5 py-0.5 rounded ${pctBadgeClass}`}
                     >
                       {cup.percentageAchieved}%
                     </span>
                   )}
                 </div>
 
-                {/* Riga 3: Barra di Progresso pura */}
+                {/* Riga 3: Barra di Progresso pura con codifica colore dinamica */}
                 <div className="w-full h-3.5 bg-slate-200/80 rounded-full border border-slate-300/80 overflow-hidden p-0.5">
                   <div
-                    className={`h-full rounded-full transition-all duration-700 ease-out ${
-                      !isEvaluated
-                        ? 'bg-slate-300'
-                        : isTargetOk
-                        ? 'bg-emerald-600'
-                        : 'bg-sky-600'
-                    }`}
+                    className={`h-full rounded-full transition-all duration-700 ease-out ${barColorClass}`}
                     style={{ width: `${isEvaluated ? fillPct : 0}%` }}
                   />
                 </div>
@@ -1519,17 +1657,17 @@ export default function TabBatteriaTest({ patient, activePhase, onSaveTest }) {
               </span>
             </div>
             <span className="text-[11px] font-mono text-emerald-900 font-bold bg-emerald-100/80 px-2.5 py-0.5 rounded-lg border border-emerald-300/50">
-              {Object.values(currentChecklistState).filter(Boolean).length}/{currentChecklistItems.length} OK
+              {currentChecklistItems.filter(item => Boolean(currentChecklistState[item.id])).length}/{currentChecklistItems.length} OK
             </span>
           </div>
 
           <div className="grid grid-cols-1 gap-1.5 text-xs">
             {currentChecklistItems.map((item) => {
-              const isChecked = currentChecklistState[item.id];
+              const isChecked = Boolean(currentChecklistState[item.id]);
               return (
                 <div
                   key={item.id}
-                  onClick={() => setCurrentChecklistState(prev => ({ ...prev, [item.id]: !prev[item.id] }))}
+                  onClick={() => toggleChecklistItem(item.id)}
                   className={`p-2.5 px-3 rounded-lg border flex items-center justify-between cursor-pointer transition-all ${
                     isChecked
                       ? 'bg-emerald-100/80 border-emerald-300/60 text-emerald-900 font-bold shadow-none'
