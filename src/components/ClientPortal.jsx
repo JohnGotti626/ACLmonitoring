@@ -1090,8 +1090,8 @@ export default function ClientPortal({
   const totalDraftCount =
     packageItems.length + (isCurrentFormLoadValid() ? 1 : 0) + validCardioBlocksCount;
 
-  // SCHERMATA 1: LOGIN MAGIC LINK PAZIENTE (EDITORIAL LIGHT THEME)
-  if (!effectiveSimMode && !sessionUser) {
+  // SCHERMATA 1: LOGIN MAGIC LINK PAZIENTE (Mostrata solo se non c'è né sessione né patientId/token nel Magic Link)
+  if (!effectiveSimMode && !sessionUser && !targetPatientId) {
     return (
       <div className="min-h-screen bg-[#faf9f6] text-slate-900 flex flex-col justify-center items-center p-4 font-sans">
         {showWelcomeOverlay && (

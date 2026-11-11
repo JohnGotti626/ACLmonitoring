@@ -24,9 +24,12 @@ import {
   ChevronRight,
   Flame,
   Route,
-  Repeat
+  Repeat,
+  Loader2,
+  AlertTriangle
 } from 'lucide-react';
 import { supabase, isSupabaseConfigured } from '../../lib/supabase';
+import { copyTextToClipboard, buildPatientMagicLinkUrl } from '../PatientDetail';
 import {
   getCategoryIcon,
   EXERCISE_PRESETS,
@@ -64,8 +67,21 @@ export default function RilevazioniCarichiTab({
   const [showInviteModal, setShowInviteModal] = useState(false);
   const [patientEmail, setPatientEmail] = useState(patient?.email || '');
   const [sendingMagicLink, setSendingMagicLink] = useState(false);
+  const [copyingInviteLink, setCopyingInviteLink] = useState(false);
   const [magicLinkStatus, setMagicLinkStatus] = useState('');
+  const [magicLinkToast, setMagicLinkToast] = useState(null);
   const [copiedLink, setCopiedLink] = useState(false);
+
+  useEffect(() => {
+    setPatientEmail(patient?.email || '');
+  }, [patient?.id, patient?.email]);
+
+  const triggerTabToast = (type, message) => {
+    setMagicLinkToast({ type, message });
+    setTimeout(() => {
+      setMagicLinkToast(null);
+    }, 4000);
+  };
 
   // Modal Modifica / Inserimento Manuale da parte del Terapista (può modificare qualsiasi cosa anche a posteriori)
   const [editingModalOpen, setEditingModalOpen] = useState(false);
@@ -91,8 +107,8 @@ export default function RilevazioniCarichiTab({
     'DX'
   ).toUpperCase();
 
-  // URL diretto al Portale Paziente Mobile per questo specifico paziente
-  const clientPortalUrl = `${window.location.origin}/?portal=client&patientId=${patient?.id || ''}`;
+  // URL diretto al Portale Paziente Mobile con token per questo specifico paziente
+  const clientPortalUrl = useMemo(() => buildPatientMagicLinkUrl(patient), [patient]);
 
   const syncLogsLocallyAndParent = (updatedList) => {
     setLogs(updatedList);
@@ -433,13 +449,31 @@ export default function RilevazioniCarichiTab({
   // Invio Magic Link (OTP via Email) tramite Supabase Auth direttamente dalla scheda Terapista
   const handleSendMagicLinkToPatient = async (e) => {
     e.preventDefault();
-    if (!patientEmail.trim()) return;
+    const emailTrimmed = patientEmail.trim();
+    if (!patient?.id) {
+      console.error('❌ [MagicLink] Impossibile generare Magic Link: patient.id è mancante.', patient);
+      setMagicLinkStatus('⚠️ Errore: ID del paziente mancante.');
+      triggerTabToast('error', 'Errore: ID del paziente mancante.');
+      return;
+    }
+    if (!emailTrimmed) {
+      console.warn('⚠️ [MagicLink] Email del paziente mancante per ID:', patient?.id);
+      setMagicLinkStatus('⚠️ Inserisci un indirizzo email valido del paziente.');
+      triggerTabToast('error', 'Email del paziente mancante.');
+      return;
+    }
+
     setSendingMagicLink(true);
     setMagicLinkStatus('');
     try {
-      const { error } = await supabase.auth.signInWithOtp({
-        email: patientEmail.trim(),
+      try {
+        await copyTextToClipboard(clientPortalUrl);
+      } catch (_) {}
+
+      let { error } = await supabase.auth.signInWithOtp({
+        email: emailTrimmed,
         options: {
+          shouldCreateUser: false,
           emailRedirectTo: clientPortalUrl,
           data: {
             role: 'patient',
@@ -448,22 +482,56 @@ export default function RilevazioniCarichiTab({
         }
       });
 
+      // Fallback se l'utente non esiste ancora in auth.users
+      if (error && String(error.message || '').toLowerCase().includes('signups not allowed')) {
+        const retryRes = await supabase.auth.signInWithOtp({
+          email: emailTrimmed,
+          options: {
+            emailRedirectTo: clientPortalUrl,
+            data: {
+              role: 'patient',
+              patient_id: patient?.id
+            }
+          }
+        });
+        error = retryRes.error;
+      }
+
       if (error) {
-        setMagicLinkStatus(`⚠️ Errore Supabase: ${error.message}`);
+        console.error('❌ [MagicLink] Errore Supabase signInWithOtp:', error);
+        setMagicLinkStatus(`⚠️ Errore Supabase: ${error.message} (Link diretto copiato negli appunti!)`);
+        triggerTabToast('error', `Errore Supabase: ${error.message}`);
       } else {
-        setMagicLinkStatus(`✅ Magic Link inviato con successo a ${patientEmail}!`);
+        setMagicLinkStatus(`✅ Magic Link inviato a ${emailTrimmed} e copiato negli appunti!`);
+        triggerTabToast('success', 'Magic Link inviato e copiato negli appunti!');
       }
     } catch (err) {
-      setMagicLinkStatus(`⚠️ Eccezione invio: ${err.message}`);
+      console.error('❌ [MagicLink] Eccezione invio Magic Link:', err);
+      setMagicLinkStatus(`⚠️ Errore di connessione a Supabase: ${err.message}`);
+      triggerTabToast('error', `Errore di connessione a Supabase: ${err.message}`);
     } finally {
       setSendingMagicLink(false);
     }
   };
 
-  const handleCopyInviteLink = () => {
-    navigator.clipboard.writeText(clientPortalUrl);
-    setCopiedLink(true);
-    setTimeout(() => setCopiedLink(false), 2500);
+  const handleCopyInviteLink = async () => {
+    if (!patient?.id || !clientPortalUrl) {
+      console.error('❌ [MagicLink] Impossibile copiare Magic Link: patient.id mancante.', patient);
+      triggerTabToast('error', 'ID del paziente mancante.');
+      return;
+    }
+    setCopyingInviteLink(true);
+    try {
+      await copyTextToClipboard(clientPortalUrl);
+      setCopiedLink(true);
+      triggerTabToast('success', 'Magic Link copiato negli appunti!');
+      setTimeout(() => setCopiedLink(false), 2500);
+    } catch (err) {
+      console.error('❌ [MagicLink] Errore copia negli appunti:', err);
+      triggerTabToast('error', 'Impossibile copiare il Magic Link negli appunti.');
+    } finally {
+      setCopyingInviteLink(false);
+    }
   };
 
   const handleShareWhatsApp = () => {
@@ -1440,6 +1508,23 @@ export default function RilevazioniCarichiTab({
               </div>
             </div>
 
+            {magicLinkToast && (
+              <div
+                className={`p-3 rounded-xl border text-xs font-bold flex items-center gap-2 ${
+                  magicLinkToast.type === 'error'
+                    ? 'bg-red-50 border-red-200 text-red-900'
+                    : 'bg-emerald-50 border-emerald-200 text-emerald-900'
+                }`}
+              >
+                {magicLinkToast.type === 'error' ? (
+                  <AlertTriangle className="w-4 h-4 text-red-600 shrink-0" />
+                ) : (
+                  <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                )}
+                <span>{magicLinkToast.message}</span>
+              </div>
+            )}
+
             <div className="space-y-2">
               <label className="block text-xs font-bold text-slate-700">
                 Link Diretto Permanente Portale Paziente:
@@ -1453,11 +1538,18 @@ export default function RilevazioniCarichiTab({
                 />
                 <button
                   type="button"
+                  disabled={copyingInviteLink}
                   onClick={handleCopyInviteLink}
-                  className="px-3.5 py-2 bg-sky-100/80 hover:bg-sky-200/70 text-sky-900 border border-sky-300/50 font-bold text-xs rounded-xl flex items-center gap-1.5 cursor-pointer"
+                  className="px-3.5 py-2 bg-sky-100/80 hover:bg-sky-200/70 disabled:opacity-60 text-sky-900 border border-sky-300/50 font-bold text-xs rounded-xl flex items-center gap-1.5 cursor-pointer"
                 >
-                  {copiedLink ? <CheckCircle2 className="w-4 h-4 text-emerald-800" /> : <Copy className="w-4 h-4" />}
-                  <span>{copiedLink ? 'Copiato!' : 'Copia'}</span>
+                  {copyingInviteLink ? (
+                    <Loader2 className="w-4 h-4 animate-spin text-sky-900" />
+                  ) : copiedLink ? (
+                    <CheckCircle2 className="w-4 h-4 text-emerald-800" />
+                  ) : (
+                    <Copy className="w-4 h-4" />
+                  )}
+                  <span>{copyingInviteLink ? 'Copia...' : copiedLink ? 'Copiato!' : 'Copia'}</span>
                 </button>
               </div>
 
@@ -1492,12 +1584,20 @@ export default function RilevazioniCarichiTab({
                   disabled={sendingMagicLink}
                   className="px-4 py-2 bg-purple-100/80 hover:bg-purple-200/70 text-purple-900 border border-purple-300/50 font-bold text-xs rounded-xl flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
                 >
-                  <Send className="w-3.5 h-3.5" />
+                  {sendingMagicLink ? (
+                    <Loader2 className="w-3.5 h-3.5 animate-spin text-purple-900" />
+                  ) : (
+                    <Send className="w-3.5 h-3.5" />
+                  )}
                   <span>{sendingMagicLink ? 'Invio...' : 'Invia Email'}</span>
                 </button>
               </div>
               {magicLinkStatus && (
-                <p className="text-[11px] font-bold text-emerald-900 pt-1">
+                <p
+                  className={`text-[11px] font-bold pt-1 ${
+                    magicLinkStatus.startsWith('⚠️') ? 'text-red-700' : 'text-emerald-900'
+                  }`}
+                >
                   {magicLinkStatus}
                 </p>
               )}

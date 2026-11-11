@@ -14,7 +14,9 @@ import {
   ChevronDown,
   ChevronUp,
   Layers,
-  Check
+  Check,
+  Loader2,
+  AlertTriangle
 } from 'lucide-react';
 import TabDirettiveOperative from './tabs/TabDirettiveOperative';
 import TabBatteriaTest from './tabs/TabBatteriaTest';
@@ -22,6 +24,7 @@ import RilevazioniCarichiTab from './tabs/RilevazioniCarichiTab';
 import TabCopilotPdf from './tabs/TabCopilotPdf';
 import PrintConfiguratorModal from './PrintConfiguratorModal';
 import { UIErrorBoundary } from './UIErrorBoundary';
+import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import {
   FIVE_LCA_PHASES,
   getPhaseMeta,
@@ -29,6 +32,52 @@ import {
   formatPhaseForDisplay
 } from '../utils/phaseUtils';
 import { sortTestsByDate } from '../utils/testUtils';
+
+export async function copyTextToClipboard(text) {
+  if (typeof navigator !== 'undefined' && navigator.clipboard && navigator.clipboard.writeText) {
+    try {
+      await navigator.clipboard.writeText(text);
+      return true;
+    } catch (clipErr) {
+      console.warn('[MagicLink] navigator.clipboard.writeText fallito, uso fallback:', clipErr);
+    }
+  }
+  if (typeof document !== 'undefined') {
+    const textarea = document.createElement('textarea');
+    textarea.value = text;
+    textarea.setAttribute('readonly', '');
+    textarea.style.position = 'fixed';
+    textarea.style.top = '-9999px';
+    textarea.style.opacity = '0';
+    document.body.appendChild(textarea);
+    textarea.focus();
+    textarea.select();
+    try {
+      const ok = document.execCommand('copy');
+      document.body.removeChild(textarea);
+      if (ok) return true;
+    } catch (fallbackErr) {
+      document.body.removeChild(textarea);
+      throw fallbackErr;
+    }
+  }
+  throw new Error('Impossibile copiare negli appunti su questo browser.');
+}
+
+export function buildPatientMagicLinkUrl(patient) {
+  if (!patient?.id) return '';
+  const baseUrl =
+    typeof window !== 'undefined' ? window.location.origin + window.location.pathname : '';
+  const rawTokenPayload = `${patient.id}:${Date.now()}`;
+  const customToken =
+    typeof btoa === 'function'
+      ? btoa(unescape(encodeURIComponent(rawTokenPayload))).replace(/=/g, '')
+      : encodeURIComponent(rawTokenPayload);
+  const fullName = `${patient.nome || ''} ${patient.cognome || ''}`.trim() || 'Atleta';
+  return `${baseUrl}?portal=client&patientId=${encodeURIComponent(
+    patient.id
+  )}&token=${encodeURIComponent(customToken)}&name=${encodeURIComponent(fullName)}`;
+}
 
 const FIVE_REHAB_PHASES = [
   {
@@ -106,7 +155,8 @@ export default function PatientDetail({ patient, onBack, onUpdatePatient }) {
   const [activeTab, setActiveTab] = useState('tab1');
   const [showEditAnagrafica, setShowEditAnagrafica] = useState(false);
   const [isPrintModalOpen, setIsPrintModalOpen] = useState(false);
-  const [toastMobileLink, setToastMobileLink] = useState(false);
+  const [isGeneratingMagicLink, setIsGeneratingMagicLink] = useState(false);
+  const [magicLinkToast, setMagicLinkToast] = useState(null);
   const [showAdvancedDirectives, setShowAdvancedDirectives] = useState(false);
 
   const [selectedPhase, setSelectedPhase] = useState(() => formatPhaseForDisplay(patient));
@@ -120,6 +170,7 @@ export default function PatientDetail({ patient, onBack, onUpdatePatient }) {
   const [editForm, setEditForm] = useState({
     nome: patient?.nome || '',
     cognome: patient?.cognome || '',
+    email: patient?.email || '',
     sport: patient?.sport || '',
     ruolo_sportivo: patient?.ruolo_sportivo || '',
     livello: patient?.livello || 'Amatoriale',
@@ -131,6 +182,16 @@ export default function PatientDetail({ patient, onBack, onUpdatePatient }) {
   });
 
   useEffect(() => {
+    if (!patient?.id) {
+      console.warn('⚠️ [PatientDetail] patient.id mancante o undefined:', patient);
+    }
+    if (!patient?.email) {
+      console.warn(
+        `ℹ️ [PatientDetail] patient.email non impostata per il paziente ${patient?.nome || ''} ${
+          patient?.cognome || ''
+        } (ID: ${patient?.id || 'N/A'}). Il Magic Link verrà generato tramite token diretto.`
+      );
+    }
     if (patient) {
       const displayP = formatPhaseForDisplay(patient);
       setSelectedPhase(displayP);
@@ -140,6 +201,7 @@ export default function PatientDetail({ patient, onBack, onUpdatePatient }) {
       setEditForm({
         nome: patient.nome || '',
         cognome: patient.cognome || '',
+        email: patient.email || '',
         sport: patient.sport || '',
         ruolo_sportivo: patient.ruolo_sportivo || '',
         livello: patient.livello || 'Amatoriale',
@@ -150,9 +212,16 @@ export default function PatientDetail({ patient, onBack, onUpdatePatient }) {
         fase_attuale: displayP
       });
     }
-  }, [patient?.id, patient?.fase_attuale, patient?.note_operative, patient?.direttive_terapista]);
+  }, [patient?.id, patient?.email, patient?.fase_attuale, patient?.note_operative, patient?.direttive_terapista]);
 
   if (!patient) return null;
+
+  const triggerMagicLinkToast = (type, message) => {
+    setMagicLinkToast({ type, message });
+    setTimeout(() => {
+      setMagicLinkToast(null);
+    }, 4000);
+  };
 
   // Single Source of Truth handler per sincronizzare in tempo reale la fase tra "Monitoraggio e Diario" e "Barre Target & Progresso"
   const handlePhaseChange = (newPhaseValue) => {
@@ -238,19 +307,87 @@ export default function PatientDetail({ patient, onBack, onUpdatePatient }) {
     }
   };
 
-  const handleCopyClientPortalLink = () => {
-    try {
-      localStorage.setItem('acl_client_patient_id', String(patient.id));
-    } catch (_) {}
-    const baseUrl = window.location.origin + window.location.pathname;
-    const shareUrl = `${baseUrl}?portal=client&patientId=${encodeURIComponent(patient.id)}&name=${encodeURIComponent(
-      `${patient.nome} ${patient.cognome}`
-    )}`;
-    if (navigator.clipboard && navigator.clipboard.writeText) {
-      navigator.clipboard.writeText(shareUrl);
+  const handleCopyClientPortalLink = async () => {
+    if (!patient?.id) {
+      console.error('❌ [MagicLink] Impossibile generare Magic Link: patient.id è undefined o null.', patient);
+      triggerMagicLinkToast('error', 'Errore: ID del paziente mancante.');
+      return;
     }
-    setToastMobileLink(true);
-    setTimeout(() => setToastMobileLink(false), 3500);
+
+    const emailTrimmed = String(patient?.email || '').trim();
+    if (!emailTrimmed) {
+      console.warn(
+        `⚠️ [MagicLink] Email del paziente non presente per ${patient.nome} ${patient.cognome} (ID: ${patient.id}). Utilizzo il Magic Link diretto con token paziente.`
+      );
+    }
+
+    setIsGeneratingMagicLink(true);
+
+    try {
+      try {
+        localStorage.setItem('acl_client_patient_id', String(patient.id));
+      } catch (_) {}
+
+      const shareUrl = buildPatientMagicLinkUrl(patient);
+
+      // Copia subito negli appunti mentre siamo nel contesto dell'evento click utente
+      await copyTextToClipboard(shareUrl);
+
+      // Verifica connessione / record su Supabase e, se presente l'email, invia anche l'OTP Magic Link
+      if (isSupabaseConfigured) {
+        const { error: lookupError } = await supabase
+          .from('pazienti')
+          .select('id')
+          .eq('id', patient.id)
+          .maybeSingle();
+
+        if (lookupError) {
+          console.error('❌ [MagicLink] Errore verifica paziente su Supabase:', lookupError);
+          triggerMagicLinkToast(
+            'error',
+            `Errore di connessione a Supabase (${lookupError.message}). Link locale comunque copiato.`
+          );
+          return;
+        }
+
+        if (emailTrimmed) {
+          const { error: otpError } = await supabase.auth.signInWithOtp({
+            email: emailTrimmed,
+            options: {
+              shouldCreateUser: false,
+              emailRedirectTo: shareUrl,
+              data: {
+                role: 'patient',
+                patient_id: patient.id
+              }
+            }
+          });
+
+          if (otpError) {
+            console.warn(
+              'ℹ️ [MagicLink] signInWithOtp(shouldCreateUser:false) warning, fallback al Magic Link con token:',
+              otpError.message
+            );
+          } else {
+            triggerMagicLinkToast(
+              'success',
+              `Magic Link copiato negli appunti e inviato a ${emailTrimmed}!`
+            );
+            return;
+          }
+        }
+      }
+
+      triggerMagicLinkToast('success', 'Magic Link copiato negli appunti!');
+    } catch (err) {
+      console.error('❌ [MagicLink] Errore generazione/copia Magic Link:', err);
+      triggerMagicLinkToast(
+        'error',
+        err?.message || 'Errore durante la generazione del Magic Link.'
+      );
+    } finally {
+      setIsGeneratingMagicLink(false);
+    }
   };
 
   const activeStageMeta = FIVE_REHAB_PHASES.find((p) => p.id === selectedStageId) || FIVE_REHAB_PHASES[2];
@@ -277,11 +414,21 @@ export default function PatientDetail({ patient, onBack, onUpdatePatient }) {
 
   return (
     <div className="space-y-6 text-slate-900">
-      {/* Toast conferma copia Link Mobile Paziente */}
-      {toastMobileLink && (
-        <div className="fixed bottom-5 right-5 z-50 bg-emerald-50 border border-emerald-200 text-emerald-900 px-4 py-3 rounded-2xl shadow-lg flex items-center gap-2.5 text-xs font-extrabold print:hidden">
-          <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
-          <span>Link Mobile Paziente copiato negli appunti!</span>
+      {/* Toast conferma / errore generazione Magic Link Paziente */}
+      {magicLinkToast && (
+        <div
+          className={`fixed bottom-5 right-5 z-50 px-4 py-3 rounded-2xl shadow-lg flex items-center gap-2.5 text-xs font-extrabold border print:hidden ${
+            magicLinkToast.type === 'error'
+              ? 'bg-red-50 border-red-200 text-red-900'
+              : 'bg-emerald-50 border-emerald-200 text-emerald-900'
+          }`}
+        >
+          {magicLinkToast.type === 'error' ? (
+            <AlertTriangle className="w-4 h-4 text-red-600 shrink-0" />
+          ) : (
+            <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+          )}
+          <span>{magicLinkToast.message}</span>
         </div>
       )}
 
@@ -298,12 +445,18 @@ export default function PatientDetail({ patient, onBack, onUpdatePatient }) {
         {/* Barra pulsanti in alto a destra con print:hidden */}
         <div className="flex flex-wrap items-center gap-2.5 print:hidden">
           <button
+            type="button"
+            disabled={isGeneratingMagicLink}
             onClick={handleCopyClientPortalLink}
-            className="flex items-center gap-1.5 px-4 py-2.5 rounded-2xl bg-blue-50 hover:bg-blue-100 text-blue-900 border border-blue-200 text-xs font-extrabold shadow-xs transition-all cursor-pointer"
-            title="Copia il link diretto al Diario Carichi Mobile del Paziente"
+            className="flex items-center gap-1.5 px-4 py-2.5 rounded-2xl bg-blue-50 hover:bg-blue-100 disabled:opacity-60 text-blue-900 border border-blue-200 text-xs font-extrabold shadow-xs transition-all cursor-pointer"
+            title="Genera e copia il Magic Link diretto al Diario Carichi Mobile del Paziente"
           >
-            <Smartphone className="w-4 h-4 text-blue-600" />
-            <span>Condividi Link Mobile</span>
+            {isGeneratingMagicLink ? (
+              <Loader2 className="w-4 h-4 text-blue-600 animate-spin" />
+            ) : (
+              <Smartphone className="w-4 h-4 text-blue-600" />
+            )}
+            <span>{isGeneratingMagicLink ? 'Generazione...' : 'Condividi Link Mobile'}</span>
           </button>
 
           <button

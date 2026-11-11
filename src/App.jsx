@@ -205,10 +205,30 @@ function MainApp() {
     try {
       savedPatientId = localStorage.getItem('acl_client_patient_id');
     } catch (_) {}
-    const urlPatientId = params.get('patientId') || user?.user_metadata?.patient_id || savedPatientId;
+
+    let tokenPatientId = null;
+    const rawToken = params.get('token');
+    if (rawToken) {
+      try {
+        const padded = rawToken + '='.repeat((4 - (rawToken.length % 4)) % 4);
+        const decoded = decodeURIComponent(escape(atob(padded)));
+        tokenPatientId = decoded.split(':')[0] || null;
+      } catch (_) {
+        tokenPatientId = rawToken.split(':')[0] || null;
+      }
+    }
+
+    const urlPatientId =
+      params.get('patientId') || tokenPatientId || user?.user_metadata?.patient_id || savedPatientId;
+    if (urlPatientId) {
+      try {
+        localStorage.setItem('acl_client_patient_id', String(urlPatientId));
+      } catch (_) {}
+    }
+
     const urlPatientName = params.get('name');
     const matchedPatient =
-      patients.find(p => p.id === urlPatientId) ||
+      patients.find(p => String(p.id) === String(urlPatientId)) ||
       patients.find(p => user?.email && p.email?.toLowerCase() === user.email.toLowerCase()) ||
       selectedPatient ||
       (urlPatientId ? { id: urlPatientId, nome: urlPatientName || 'Atleta', cognome: '' } : null);
