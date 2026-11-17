@@ -23,8 +23,11 @@ import {
   saveTestToSupabase,
   sortTestsByDate,
   getLastValidMetricWithMeta,
+  extractMetricFromSingleTest,
   toStrictNullOrNumber,
   calculateHqRatioPercent,
+  calculateLimbLsi,
+  resolveOperatedLimb,
   hideCustomMetricInSupabase
 } from '../../utils/testUtils';
 import { UIErrorBoundary } from '../UIErrorBoundary';
@@ -34,13 +37,9 @@ const safeFixed = (val, decimals = 1, fallback = 'N/A') => {
   return n === null ? fallback : n.toFixed(decimals);
 };
 
-const calcRatioLsi = (val1, val2) => {
-  const n1 = toStrictNullOrNumber(val1, false);
-  const n2 = toStrictNullOrNumber(val2, false);
-  if (n1 === null || n2 === null || n1 <= 0 || n2 <= 0) return null;
-  const max = Math.max(n1, n2);
-  if (max === 0) return null;
-  return ((Math.min(n1, n2) / max) * 100).toFixed(1);
+const calcRatioLsi = (valSX, valDX, operatedLimb = 'DX') => {
+  const lsi = calculateLimbLsi(valSX, valDX, operatedLimb);
+  return lsi !== null ? lsi.toFixed(1) : null;
 };
 
 /**
@@ -162,41 +161,59 @@ export function normalizePhaseKey(fase) {
  * - Filtra rigorosamente le barre di progresso e i domini di salto in base alla fase attiva.
  * - Calcola l'H/Q Ratio con la formula esatta: (Hamstring 30° Peak Force N / Quad 60° Peak Force N) * 100.
  */
-export function usePhaseProgress(testsHistory, selectedPhase) {
+export function usePhaseProgress(testsHistory, selectedPhase, patient = null) {
   const normalizedPhase = normalizePhaseKey(selectedPhase);
-  return useMemo(() => {
-    const lsiQuadVal = getLastValidMetricWithMeta(testsHistory, ['lsiQuad', 'lsi_quad_calculated'])?.value ?? null;
-    const lsiFlexVal = getLastValidMetricWithMeta(testsHistory, ['lsiFlex', 'lsi_curl_calculated'])?.value ?? null;
-    const quadRelVal = getLastValidMetricWithMeta(testsHistory, ['quadOpNmKg', 'quad_rel_op'])?.value ?? null;
+  const operatedLimb = resolveOperatedLimb(patient, 'DX');
+  // Deep signature garantisce che qualsiasi modifica interna agli oggetti test (es. SX/DX) attivi il ricalcolo istantaneo
+  const testsDeepSignature = JSON.stringify(testsHistory);
 
-    // Calcolo H/Q Ratio: (Hamstring 30° Peak Force N / Quad 60° Peak Force N) * 100
-    const quadPeakMeta = getLastValidMetricWithMeta(testsHistory, ['quadOp', 'iso_leg_ext_dx', 'quadSano', 'iso_leg_ext_sx']);
-    const hamPeakMeta = getLastValidMetricWithMeta(testsHistory, ['flexOp', 'iso_leg_curl_dx', 'flexSano', 'iso_leg_curl_sx']);
-    const directHqPctMeta = getLastValidMetricWithMeta(testsHistory, ['hqRatioPct', 'hq_ratio_pct']);
+  return useMemo(() => {
+    const opts = { operatedLimb };
+    const optsAllowZero = { allowZero: true, operatedLimb };
+
+    const lsiQuadVal = getLastValidMetricWithMeta(testsHistory, ['lsiQuad', 'lsi_quad_calculated'], opts)?.value ?? null;
+    const lsiFlexVal = getLastValidMetricWithMeta(testsHistory, ['lsiFlex', 'lsi_curl_calculated'], opts)?.value ?? null;
+    const quadRelVal = getLastValidMetricWithMeta(testsHistory, ['quadOpNmKg', 'quad_rel_op'], opts)?.value ?? null;
+
+    // Calcolo H/Q Ratio: (Hamstring 30° Peak Force N / Quad 60° Peak Force N) * 100 sull'arto operato
+    const quadKeys =
+      operatedLimb === 'SX'
+        ? ['iso_leg_ext_sx', 'quadSano', 'iso_leg_ext_dx', 'quadOp']
+        : ['iso_leg_ext_dx', 'quadOp', 'iso_leg_ext_sx', 'quadSano'];
+    const hamKeys =
+      operatedLimb === 'SX'
+        ? ['iso_leg_curl_sx', 'flexSano', 'iso_leg_curl_dx', 'flexOp']
+        : ['iso_leg_curl_dx', 'flexOp', 'iso_leg_curl_sx', 'flexSano'];
+
+    const directHqPctMeta = getLastValidMetricWithMeta(testsHistory, ['hqRatioPct', 'hq_ratio_pct'], opts);
+    const quadPeakMeta = getLastValidMetricWithMeta(testsHistory, quadKeys, opts);
+    const hamPeakMeta = getLastValidMetricWithMeta(testsHistory, hamKeys, opts);
 
     let hqRatioPctVal = directHqPctMeta?.value ?? null;
-    if (hqRatioPctVal === null && quadPeakMeta?.value && hamPeakMeta?.value) {
+    if (quadPeakMeta?.value && hamPeakMeta?.value) {
       const computedHq = calculateHqRatioPercent(hamPeakMeta.value, quadPeakMeta.value);
-      hqRatioPctVal = computedHq > 0 ? computedHq : null;
+      if (computedHq > 0) {
+        hqRatioPctVal = computedHq;
+      }
     }
 
     const squatAsymVal =
-      getLastValidMetricWithMeta(testsHistory, ['squatLoadAsym', 'squat_bilateral_load_asymmetry'], { allowZero: true })
+      getLastValidMetricWithMeta(testsHistory, ['squatLoadAsym', 'squat_bilateral_load_asymmetry'], optsAllowZero)
         ?.value ?? null;
-    const ikdcVal = getLastValidMetricWithMeta(testsHistory, ['ikdc', 'ikdc_score'])?.value ?? null;
+    const ikdcVal = getLastValidMetricWithMeta(testsHistory, ['ikdc', 'ikdc_score'], opts)?.value ?? null;
     const slCmjHeightLsiVal =
-      getLastValidMetricWithMeta(testsHistory, ['slCmjHeightLsi', 'lsi_sl_cmj_height_calculated'])?.value ?? null;
+      getLastValidMetricWithMeta(testsHistory, ['slCmjHeightLsi', 'lsi_sl_cmj_height_calculated'], opts)?.value ?? null;
     const slCmjBrakingLsiVal =
-      getLastValidMetricWithMeta(testsHistory, ['slCmjBrakingLsi', 'cmjImpulseLsi', 'lsi_cmj_braking'])?.value ?? null;
+      getLastValidMetricWithMeta(testsHistory, ['slCmjBrakingLsi', 'cmjImpulseLsi', 'lsi_cmj_braking'], opts)?.value ?? null;
     const djBilateralRsiVal =
-      getLastValidMetricWithMeta(testsHistory, ['rsiDropJump', 'djRSI', 'dj_rsi', 'rsi_drop_jump'])?.value ?? null;
+      getLastValidMetricWithMeta(testsHistory, ['rsiDropJump', 'djRSI', 'dj_rsi', 'rsi_drop_jump'], opts)?.value ?? null;
     const slDjRsiLsiVal =
-      getLastValidMetricWithMeta(testsHistory, ['slDjRsiLsi', 'lsi_sl_dj_rsi'])?.value ?? null;
+      getLastValidMetricWithMeta(testsHistory, ['slDjRsiLsi', 'lsi_sl_dj_rsi'], opts)?.value ?? null;
     const hopLsiAvgVal =
-      getLastValidMetricWithMeta(testsHistory, ['hopTestLsiAvg', 'lsiSingleHop', 'lsiTripleHop'])?.value ?? null;
+      getLastValidMetricWithMeta(testsHistory, ['hopTestLsiAvg', 'lsiSingleHop', 'lsiTripleHop'], opts)?.value ?? null;
     const codAsymVal =
-      getLastValidMetricWithMeta(testsHistory, ['codAsym', 'cod_deficit_asym'], { allowZero: true })?.value ?? null;
-    const aclRsiVal = getLastValidMetricWithMeta(testsHistory, ['aclrsi', 'acl_rsi'])?.value ?? null;
+      getLastValidMetricWithMeta(testsHistory, ['codAsym', 'cod_deficit_asym'], optsAllowZero)?.value ?? null;
+    const aclRsiVal = getLastValidMetricWithMeta(testsHistory, ['aclrsi', 'acl_rsi'], opts)?.value ?? null;
 
     // FASE 1 (Early Stage): Nasconde tutti i test di salto e pliometria
     if (normalizedPhase === 'Fase 1') {
@@ -471,7 +488,7 @@ export function usePhaseProgress(testsHistory, selectedPhase) {
         })
       ]
     };
-  }, [testsHistory, normalizedPhase]);
+  }, [testsHistory, testsDeepSignature, normalizedPhase, operatedLimb]);
 }
 
 export default function TabBatteriaTest({
@@ -486,6 +503,7 @@ export default function TabBatteriaTest({
   const [initialModalModule, setInitialModalModule] = useState('ISO_EXT');
   const [groupByReportSession, setGroupByReportSession] = useState(true);
   const [activeSubTab, setActiveSubTab] = useState('CMJ_BILATERAL');
+  const operatedLimb = resolveOperatedLimb(patient, 'DX');
 
   const getDefaultModuleForSubTab = (subTab) => {
     switch (subTab) {
@@ -582,22 +600,26 @@ export default function TabBatteriaTest({
     return cleanTests.length > 0 ? cleanTests[cleanTests.length - 1].id : null;
   });
 
+  const patientTestsSignature = JSON.stringify(patient?.tests || []);
+
   React.useEffect(() => {
     const cleanTests = sortTestsByDate(patient?.tests);
     setTestsHistory(cleanTests);
-    if (cleanTests.length > 0) {
-      setSelectedTestId(cleanTests[cleanTests.length - 1].id);
-    } else {
-      setSelectedTestId(null);
-    }
-  }, [patient?.id, patient?.tests]);
+    setSelectedTestId((prevId) => {
+      if (cleanTests.length === 0) return null;
+      if (prevId && cleanTests.some((t) => t.id === prevId)) return prevId;
+      return cleanTests[cleanTests.length - 1].id;
+    });
+  }, [patient?.id, patientTestsSignature]);
+
+  const testsHistorySignature = JSON.stringify(testsHistory);
 
   const displayedSessions = useMemo(() => {
     if (groupByReportSession) {
       return aggregateTestsIntoSessions(testsHistory, 14);
     }
     return testsHistory;
-  }, [testsHistory, groupByReportSession]);
+  }, [testsHistory, testsHistorySignature, groupByReportSession]);
 
   const activeTest =
     displayedSessions.find(t => t.id === selectedTestId) ||
@@ -608,7 +630,7 @@ export default function TabBatteriaTest({
     allowedSubTabs,
     checklistItems: currentChecklistItems,
     cupsData
-  } = usePhaseProgress(testsHistory, selectedPhase);
+  } = usePhaseProgress(testsHistory, selectedPhase, patient);
 
   React.useEffect(() => {
     if (Array.isArray(allowedSubTabs) && allowedSubTabs.length > 0 && !allowedSubTabs.includes(activeSubTab)) {
@@ -618,21 +640,48 @@ export default function TabBatteriaTest({
 
   const handleModalSave = async (newValData) => {
     const targetId = newValData.id || editingTest?.id;
-    const existingMatch = targetId ? testsHistory.find(t => t.id === targetId) : null;
+    const sourceIdsSet = new Set([
+      ...(Array.isArray(newValData.sourceIds) ? newValData.sourceIds : []),
+      ...(Array.isArray(editingTest?.sourceIds) ? editingTest.sourceIds : []),
+      ...(targetId ? [targetId] : [])
+    ]);
 
-    if (existingMatch) {
-      const updated = testsHistory.map((existingTest) => {
-        if (existingTest.id === targetId) {
-          const mergedSession = mergeTestIntoSession(existingTest, newValData, patient?.id);
-          saveTestToSupabase(mergedSession);
-          return mergedSession;
+    const payloadWithLimb = {
+      ...newValData,
+      ginocchio_operato: resolveOperatedLimb(newValData, operatedLimb)
+    };
+
+    const matchingTests = testsHistory.filter(t => sourceIdsSet.has(t.id));
+
+    if (matchingTests.length > 0) {
+      // Unisce tutte le rilevazioni appartenenti alla sessione modificata e ricalcola LSI, H/Q Ratio, N/kg e RSI
+      let baseComposite = matchingTests[0];
+      for (let i = 1; i < matchingTests.length; i++) {
+        baseComposite = mergeTestIntoSession(baseComposite, matchingTests[i], patient?.id);
+      }
+
+      const mergedSession = mergeTestIntoSession(baseComposite, payloadWithLimb, patient?.id);
+      const primaryId = targetId || mergedSession.id;
+      const finalMerged = { ...mergedSession, id: primaryId };
+
+      await saveTestToSupabase(finalMerged);
+
+      let replaced = false;
+      const updated = [];
+      for (const existingTest of testsHistory) {
+        if (sourceIdsSet.has(existingTest.id)) {
+          if (!replaced) {
+            updated.push(finalMerged);
+            replaced = true;
+          }
+        } else {
+          updated.push(existingTest);
         }
-        return existingTest;
-      });
+      }
 
       const sortedUpdated = sortTestsByDate(updated);
       setTestsHistory(sortedUpdated);
-      setSelectedTestId(targetId);
+      setSelectedTestId(primaryId);
       setEditingTest(null);
 
       if (onSaveTest) {
@@ -640,7 +689,7 @@ export default function TabBatteriaTest({
       }
     } else {
       const newNum = testsHistory.length + 1;
-      const newTest = createTestObject(newValData, patient?.id, newNum);
+      const newTest = createTestObject(payloadWithLimb, patient?.id, newNum);
 
       await saveTestToSupabase(newTest);
 
@@ -709,8 +758,9 @@ export default function TabBatteriaTest({
             label: 'LSI Quadricipite Iso Push',
             unit: '%',
             dotColor: 'bg-emerald-600',
-            getRawValue: (t) => toStrictNullOrNumber(t?.lsiQuad ?? t?.lsi_quad_calculated),
-            getValue: (t) => fmtSingle(t?.lsiQuad ?? t?.lsi_quad_calculated, '%')
+            getRawValue: (t) => extractMetricFromSingleTest(t, ['lsiQuad', 'lsi_quad_calculated'], false, operatedLimb),
+            getValue: (t) =>
+              fmtSingle(extractMetricFromSingleTest(t, ['lsiQuad', 'lsi_quad_calculated'], false, operatedLimb), '%')
           },
           {
             key: 'lsiFlex',
@@ -718,8 +768,9 @@ export default function TabBatteriaTest({
             label: 'LSI Ischiocrurali Leg Curl',
             unit: '%',
             dotColor: 'bg-emerald-600',
-            getRawValue: (t) => toStrictNullOrNumber(t?.lsiFlex ?? t?.lsi_curl_calculated),
-            getValue: (t) => fmtSingle(t?.lsiFlex ?? t?.lsi_curl_calculated, '%')
+            getRawValue: (t) => extractMetricFromSingleTest(t, ['lsiFlex', 'lsi_curl_calculated'], false, operatedLimb),
+            getValue: (t) =>
+              fmtSingle(extractMetricFromSingleTest(t, ['lsiFlex', 'lsi_curl_calculated'], false, operatedLimb), '%')
           },
           ...(selectedPhase === 'Fase 1' || selectedPhase === 'Fase 2 (>70%)'
             ? []
@@ -852,22 +903,10 @@ export default function TabBatteriaTest({
             label: 'RSImod',
             unit: 'm/s',
             dotColor: 'bg-emerald-600',
-            getRawValue: (t) => {
-              const direct = toStrictNullOrNumber(t?.rsiCmj ?? t?.rsi_cmj ?? t?.rsi_mod);
-              if (direct !== null) return direct;
-              const jh = toStrictNullOrNumber(t?.jumpHeight ?? t?.jump_height_cm ?? t?.altezza_salto);
-              const ct = toStrictNullOrNumber(t?.contractionTime ?? t?.contraction_time_ms ?? t?.tempo_contrazione);
-              return jh !== null && ct !== null && ct > 0 ? parseFloat(((jh / 100) / (ct / 1000)).toFixed(2)) : null;
-            },
+            getRawValue: (t) => extractMetricFromSingleTest(t, ['rsiCmj', 'rsi_cmj', 'rsi_mod'], false, operatedLimb),
             getValue: (t) => {
-              const direct = toStrictNullOrNumber(t?.rsiCmj ?? t?.rsi_cmj ?? t?.rsi_mod);
-              if (direct !== null) return `${direct} m/s`;
-              const jh = toStrictNullOrNumber(t?.jumpHeight ?? t?.jump_height_cm ?? t?.altezza_salto);
-              const ct = toStrictNullOrNumber(t?.contractionTime ?? t?.contraction_time_ms ?? t?.tempo_contrazione);
-              if (jh !== null && ct !== null && ct > 0) {
-                return `${((jh / 100) / (ct / 1000)).toFixed(2)} m/s`;
-              }
-              return 'Non testato';
+              const v = extractMetricFromSingleTest(t, ['rsiCmj', 'rsi_cmj', 'rsi_mod'], false, operatedLimb);
+              return v !== null ? `${v} m/s` : 'Non testato';
             }
           },
           {
@@ -911,7 +950,7 @@ export default function TabBatteriaTest({
             getTooltip: (t) => {
               const sx = toStrictNullOrNumber(t?.concImpulseSX ?? t?.conc_impulse_sx);
               const dx = toStrictNullOrNumber(t?.concImpulseDX ?? t?.conc_impulse_dx);
-              const lsi = calcRatioLsi(sx, dx);
+              const lsi = calcRatioLsi(sx, dx, operatedLimb);
               return sx !== null && dx !== null
                 ? {
                     title: 'Concentric Impulse (SX vs DX)',
@@ -936,7 +975,7 @@ export default function TabBatteriaTest({
             getTooltip: (t) => {
               const sx = toStrictNullOrNumber(t?.slCmjHeightSX);
               const dx = toStrictNullOrNumber(t?.slCmjHeightDX);
-              const lsi = calcRatioLsi(sx, dx);
+              const lsi = calcRatioLsi(sx, dx, operatedLimb);
               return sx !== null && dx !== null
                 ? { title: 'Altezza Salto SL (SX vs DX)', sx: `${sx} cm`, dx: `${dx} cm`, asym: lsi ? `LSI: ${lsi}%` : 'LSI: N/A' }
                 : null;
@@ -951,7 +990,7 @@ export default function TabBatteriaTest({
             getTooltip: (t) => {
               const sx = toStrictNullOrNumber(t?.slCmjPeakPowerSX);
               const dx = toStrictNullOrNumber(t?.slCmjPeakPowerDX);
-              const lsi = calcRatioLsi(sx, dx);
+              const lsi = calcRatioLsi(sx, dx, operatedLimb);
               return sx !== null && dx !== null
                 ? { title: 'Peak Power / BM SL (SX vs DX)', sx: `${sx} W/kg`, dx: `${dx} W/kg`, asym: lsi ? `LSI: ${lsi}%` : 'LSI: N/A' }
                 : null;
@@ -966,7 +1005,7 @@ export default function TabBatteriaTest({
             getTooltip: (t) => {
               const sx = toStrictNullOrNumber(t?.slCmjRsiSX);
               const dx = toStrictNullOrNumber(t?.slCmjRsiDX);
-              const lsi = calcRatioLsi(sx, dx);
+              const lsi = calcRatioLsi(sx, dx, operatedLimb);
               return sx !== null && dx !== null
                 ? { title: 'RSImod Monopodalico (SX vs DX)', sx: `${sx} m/s`, dx: `${dx} m/s`, asym: lsi ? `LSI: ${lsi}%` : 'LSI: N/A' }
                 : null;
@@ -981,7 +1020,7 @@ export default function TabBatteriaTest({
             getTooltip: (t) => {
               const sx = toStrictNullOrNumber(t?.slCmjDepthSX);
               const dx = toStrictNullOrNumber(t?.slCmjDepthDX);
-              const lsi = calcRatioLsi(sx, dx);
+              const lsi = calcRatioLsi(sx, dx, operatedLimb);
               return sx !== null && dx !== null
                 ? { title: 'Countermovement Depth SL (SX vs DX)', sx: `${sx} cm`, dx: `${dx} cm`, asym: lsi ? `LSI: ${lsi}%` : 'LSI: N/A' }
                 : null;
@@ -1026,8 +1065,9 @@ export default function TabBatteriaTest({
             label: '1. Efficienza Pliometrica RSI (>2.0)',
             unit: 'idx',
             dotColor: 'bg-emerald-600',
-            getRawValue: (t) => toStrictNullOrNumber(t?.rsiDropJump ?? t?.djRSI ?? t?.dj_rsi),
-            getValue: (t) => fmtSingle(t?.rsiDropJump ?? t?.djRSI ?? t?.dj_rsi, 'idx')
+            getRawValue: (t) => extractMetricFromSingleTest(t, ['rsiDropJump', 'djRSI', 'dj_rsi'], false, operatedLimb),
+            getValue: (t) =>
+              fmtSingle(extractMetricFromSingleTest(t, ['rsiDropJump', 'djRSI', 'dj_rsi'], false, operatedLimb), 'idx')
           },
           {
             key: 'djTtpfMs',
@@ -1054,16 +1094,15 @@ export default function TabBatteriaTest({
             unit: '%',
             dotColor: 'bg-emerald-600',
             getRawValue: (t) => {
-              const direct = toStrictNullOrNumber(t?.djLandingPeakLsi);
-              if (direct !== null) return direct;
-              const calc = calcRatioLsi(t?.djLandingPeakSX, t?.djLandingPeakDX);
-              return calc !== null ? parseFloat(calc) : null;
+              const calc = calcRatioLsi(t?.djLandingPeakSX, t?.djLandingPeakDX, operatedLimb);
+              if (calc !== null) return parseFloat(calc);
+              return toStrictNullOrNumber(t?.djLandingPeakLsi);
             },
             getValue: (t) => {
+              const calc = calcRatioLsi(t?.djLandingPeakSX, t?.djLandingPeakDX, operatedLimb);
+              if (calc !== null) return `${calc}%`;
               const direct = toStrictNullOrNumber(t?.djLandingPeakLsi);
-              if (direct !== null) return `${direct}%`;
-              const calc = calcRatioLsi(t?.djLandingPeakSX, t?.djLandingPeakDX);
-              return calc !== null ? `${calc}%` : 'Non testato';
+              return direct !== null ? `${direct}%` : 'Non testato';
             }
           },
           {
@@ -1072,16 +1111,15 @@ export default function TabBatteriaTest({
             unit: '%',
             dotColor: 'bg-teal-600',
             getRawValue: (t) => {
-              const direct = toStrictNullOrNumber(t?.djConcImpulseLsi);
-              if (direct !== null) return direct;
-              const calc = calcRatioLsi(t?.djConcImpulseSX, t?.djConcImpulseDX);
-              return calc !== null ? parseFloat(calc) : null;
+              const calc = calcRatioLsi(t?.djConcImpulseSX, t?.djConcImpulseDX, operatedLimb);
+              if (calc !== null) return parseFloat(calc);
+              return toStrictNullOrNumber(t?.djConcImpulseLsi);
             },
             getValue: (t) => {
+              const calc = calcRatioLsi(t?.djConcImpulseSX, t?.djConcImpulseDX, operatedLimb);
+              if (calc !== null) return `${calc}%`;
               const direct = toStrictNullOrNumber(t?.djConcImpulseLsi);
-              if (direct !== null) return `${direct}%`;
-              const calc = calcRatioLsi(t?.djConcImpulseSX, t?.djConcImpulseDX);
-              return calc !== null ? `${calc}%` : 'Non testato';
+              return direct !== null ? `${direct}%` : 'Non testato';
             }
           }
         ];

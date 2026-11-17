@@ -369,7 +369,13 @@ export default function ModalNuovaValutazione({
       setEvalDate(initialData.data_valutazione || new Date().toISOString().split('T')[0]);
       setPhase(initialData.fase_riabilitativa || patient?.fase_riabilitativa || 'Fase 3 (3-6 mesi)');
       setEvaluator(initialData.valutatore || 'N Rehab Team');
-      if (initialData.ginocchio_operato) setOpKnee(initialData.ginocchio_operato);
+      const patientLimb =
+        patient?.lato_lesione === 'Sx' || patient?.lato_lesione === 'SX'
+          ? 'SX'
+          : patient?.lato_lesione === 'Dx' || patient?.lato_lesione === 'DX'
+          ? 'DX'
+          : null;
+      setOpKnee(patientLimb || initialData.ginocchio_operato || 'DX');
       populateFormFromSession(initialData);
     } else if (recentSession) {
       setSessionMode('EXISTING');
@@ -635,6 +641,7 @@ export default function ModalNuovaValutazione({
       patient_id: patient?.id,
       patientId: patient?.id,
       id: existingTarget?.id || undefined,
+      sourceIds: existingTarget?.sourceIds || (existingTarget?.id ? [existingTarget.id] : undefined),
       session_id: existingTarget?.session_id || existingTarget?.id || undefined,
       session_name: sessionName.trim() || existingTarget?.session_name || `Valutazione #${existingSessions.length + 1}`,
       label: sessionName.trim() || existingTarget?.label || `Valutazione #${existingSessions.length + 1}`,
@@ -722,7 +729,7 @@ export default function ModalNuovaValutazione({
         parseVal(form.slCmjRsiSX) ?? computeRSImod(form.slCmjHeightSX, form.slCmjCtSX),
         parseVal(form.slCmjRsiDX) ?? computeRSImod(form.slCmjHeightDX, form.slCmjCtDX)
       ),
-      lsi_sl_cmj_ecc_impulse_calculated: computeLSI(form.slCmjEccImpulseSX, form.slCmjEccImpulseSX),
+      lsi_sl_cmj_ecc_impulse_calculated: computeLSI(form.slCmjEccImpulseSX, form.slCmjEccImpulseDX),
       lsi_sl_dj_ct_calculated: computeLSI(form.slDjCtSX, form.slDjCtDX),
       lsi_sl_dj_rsi_calculated: computeLSI(form.slDjRsiSX, form.slDjRsiDX),
       lsi_sl_dj_height_calculated: computeLSI(form.slDjHeightSX, form.slDjHeightDX),

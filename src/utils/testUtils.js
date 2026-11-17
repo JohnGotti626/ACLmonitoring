@@ -288,6 +288,50 @@ export function toStrictNullOrNumber(v, allowZero = false) {
 }
 
 /**
+ * Determina l'arto operato ('SX' o 'DX') a partire dal record test o dall'anagrafica paziente.
+ */
+export function resolveOperatedLimb(testOrPatient, fallbackLimb = 'DX') {
+  const raw =
+    testOrPatient?.injured_side ||
+    testOrPatient?.lato_lesione ||
+    testOrPatient?.ginocchio_operato ||
+    testOrPatient?.lato ||
+    fallbackLimb ||
+    'DX';
+  return String(raw).trim().toUpperCase().startsWith('S') ? 'SX' : 'DX';
+}
+
+/**
+ * Calcola l'LSI (%) usando rigorosamente l'arto operato del paziente:
+ * LSI = (Operated_Value / Healthy_Value) * 100
+ */
+export function calculateLimbLsi(valSX, valDX, operatedLimb = 'DX') {
+  const sx = toStrictNullOrNumber(valSX, false);
+  const dx = toStrictNullOrNumber(valDX, false);
+  if (sx === null || dx === null || sx <= 0 || dx <= 0) return null;
+  const isOpSx = String(operatedLimb || 'DX').toUpperCase().startsWith('S');
+  const opVal = isOpSx ? sx : dx;
+  const healthyVal = isOpSx ? dx : sx;
+  if (healthyVal <= 0) return null;
+  return parseFloat(((opVal / healthyVal) * 100).toFixed(1));
+}
+
+/**
+ * Calcola l'asimmetria percentuale assoluta tra arto sano e arto operato:
+ * Asym = |(Healthy_Value - Operated_Value) / Healthy_Value| * 100
+ */
+export function calculateLimbAsymmetry(valSX, valDX, operatedLimb = 'DX') {
+  const sx = toStrictNullOrNumber(valSX, false);
+  const dx = toStrictNullOrNumber(valDX, false);
+  if (sx === null || dx === null || sx <= 0 || dx <= 0) return null;
+  const isOpSx = String(operatedLimb || 'DX').toUpperCase().startsWith('S');
+  const opVal = isOpSx ? sx : dx;
+  const healthyVal = isOpSx ? dx : sx;
+  if (healthyVal <= 0) return null;
+  return parseFloat((Math.abs((healthyVal - opVal) / healthyVal) * 100).toFixed(1));
+}
+
+/**
  * Calcola in modo sicuro l'H/Q Ratio in percentuale:
  * (Hamstring 30° Peak Force N / Quad 60° Peak Force N) * 100
  * Gestisce 0 o null in modo sicuro per prevenire errori NaN.
@@ -322,76 +366,92 @@ function findCustomMetricByKeywords(test, keywords = [], allowZero = false) {
 
 /**
  * Estrae o calcola dinamicamente una metrica da una singola sessione di test.
- * Filtra rigorosamente tutti i valori null, undefined o 0 non validi.
+ * Dà SEMPRE priorità al calcolo dinamico dai valori grezzi SX e DX (se presenti)
+ * così che una modifica dei dati grezzi aggiorni istantaneamente LSI, H/Q Ratio, Forza Relativa e RSI.
  */
-export function extractMetricFromSingleTest(test, keys, allowZero = false) {
+export function extractMetricFromSingleTest(test, keys, allowZero = false, operatedLimbOverride = null) {
   if (!test || typeof test !== 'object') return null;
 
   const keyList = Array.isArray(keys) ? keys : [keys];
-
-  // 1. Ricerca diretta sulle chiavi richieste
-  for (const key of keyList) {
-    const num = toStrictNullOrNumber(test[key], allowZero);
-    if (num !== null) return num;
-  }
-
-  // 2. Derivazione intelligente dai dati grezzi se tutti gli input necessari sono validi (> 0)
   const keySet = new Set(keyList);
+  const opLimb = resolveOperatedLimb(test, operatedLimbOverride);
 
+  // 1. DERIVAZIONE DINAMICA PRIORITARIA DAI DATI GREZZI (SX / DX) SE PRESENTI
   if (keySet.has('lsiQuad') || keySet.has('lsi_quad_calculated')) {
-    const sx = toStrictNullOrNumber(test.quadSano ?? test.iso_leg_ext_sx);
-    const dx = toStrictNullOrNumber(test.quadOp ?? test.iso_leg_ext_dx);
-    if (sx !== null && dx !== null && sx > 0 && dx > 0) {
-      return parseFloat(((Math.min(sx, dx) / Math.max(sx, dx)) * 100).toFixed(1));
-    }
+    const sx = toStrictNullOrNumber(test.iso_leg_ext_sx ?? test.quadSano);
+    const dx = toStrictNullOrNumber(test.iso_leg_ext_dx ?? test.quadOp);
+    const dynamicLsi = calculateLimbLsi(sx, dx, opLimb);
+    if (dynamicLsi !== null) return dynamicLsi;
   }
 
   if (keySet.has('lsiFlex') || keySet.has('lsi_curl_calculated')) {
-    const sx = toStrictNullOrNumber(test.flexSano ?? test.iso_leg_curl_sx);
-    const dx = toStrictNullOrNumber(test.flexOp ?? test.iso_leg_curl_dx);
-    if (sx !== null && dx !== null && sx > 0 && dx > 0) {
-      return parseFloat(((Math.min(sx, dx) / Math.max(sx, dx)) * 100).toFixed(1));
-    }
+    const sx = toStrictNullOrNumber(test.iso_leg_curl_sx ?? test.flexSano);
+    const dx = toStrictNullOrNumber(test.iso_leg_curl_dx ?? test.flexOp);
+    const dynamicLsi = calculateLimbLsi(sx, dx, opLimb);
+    if (dynamicLsi !== null) return dynamicLsi;
   }
 
   if (keySet.has('quadOpNmKg') || keySet.has('quad_rel_op')) {
-    const qOp = toStrictNullOrNumber(test.quadOp ?? test.iso_leg_ext_dx ?? test.quadSano ?? test.iso_leg_ext_sx);
+    const sx = toStrictNullOrNumber(test.iso_leg_ext_sx ?? test.quadSano);
+    const dx = toStrictNullOrNumber(test.iso_leg_ext_dx ?? test.quadOp);
+    const qOp = opLimb === 'SX' ? (sx ?? dx) : (dx ?? sx);
     if (qOp !== null && qOp > 0) {
       return parseFloat((qOp / 150).toFixed(2));
     }
   }
 
   if (keySet.has('hqRatio')) {
-    const fOp = toStrictNullOrNumber(test.flexOp ?? test.iso_leg_curl_dx);
-    const qOp = toStrictNullOrNumber(test.quadOp ?? test.iso_leg_ext_dx);
+    const fSx = toStrictNullOrNumber(test.iso_leg_curl_sx ?? test.flexSano);
+    const fDx = toStrictNullOrNumber(test.iso_leg_curl_dx ?? test.flexOp);
+    const qSx = toStrictNullOrNumber(test.iso_leg_ext_sx ?? test.quadSano);
+    const qDx = toStrictNullOrNumber(test.iso_leg_ext_dx ?? test.quadOp);
+    const fOp = opLimb === 'SX' ? fSx : fDx;
+    const qOp = opLimb === 'SX' ? qSx : qDx;
     if (fOp !== null && qOp !== null && qOp > 0) {
       return parseFloat((fOp / qOp).toFixed(2));
     }
-    const fSano = toStrictNullOrNumber(test.flexSano ?? test.iso_leg_curl_sx);
-    const qSano = toStrictNullOrNumber(test.quadSano ?? test.iso_leg_ext_sx);
+    const fSano = opLimb === 'SX' ? fDx : fSx;
+    const qSano = opLimb === 'SX' ? qDx : qSx;
     if (fSano !== null && qSano !== null && qSano > 0) {
       return parseFloat((fSano / qSano).toFixed(2));
     }
   }
 
   if (keySet.has('hqRatioPct') || keySet.has('hq_ratio_pct')) {
-    const fOp = toStrictNullOrNumber(test.flexOp ?? test.iso_leg_curl_dx);
-    const qOp = toStrictNullOrNumber(test.quadOp ?? test.iso_leg_ext_dx);
+    const fSx = toStrictNullOrNumber(test.iso_leg_curl_sx ?? test.flexSano);
+    const fDx = toStrictNullOrNumber(test.iso_leg_curl_dx ?? test.flexOp);
+    const qSx = toStrictNullOrNumber(test.iso_leg_ext_sx ?? test.quadSano);
+    const qDx = toStrictNullOrNumber(test.iso_leg_ext_dx ?? test.quadOp);
+    const fOp = opLimb === 'SX' ? fSx : fDx;
+    const qOp = opLimb === 'SX' ? qSx : qDx;
     const pctOp = calculateHqRatioPercent(fOp, qOp);
     if (pctOp > 0) return pctOp;
 
-    const fSano = toStrictNullOrNumber(test.flexSano ?? test.iso_leg_curl_sx);
-    const qSano = toStrictNullOrNumber(test.quadSano ?? test.iso_leg_ext_sx);
+    const fSano = opLimb === 'SX' ? fDx : fSx;
+    const qSano = opLimb === 'SX' ? qDx : qSx;
     const pctSano = calculateHqRatioPercent(fSano, qSano);
     if (pctSano > 0) return pctSano;
 
-    const existingRatio = toStrictNullOrNumber(test.hqRatio);
+    const existingRatio = toStrictNullOrNumber(test.hqRatioPct ?? test.hq_ratio_pct ?? test.hqRatio);
     if (existingRatio !== null && existingRatio > 0) {
       return existingRatio <= 3 ? parseFloat((existingRatio * 100).toFixed(1)) : parseFloat(existingRatio.toFixed(1));
     }
   }
 
   if (keySet.has('squatLoadAsym') || keySet.has('squat_bilateral_load_asymmetry')) {
+    const customSquat = findCustomMetricByKeywords(test, ['squat', 'carico bilaterale', 'load asym'], true);
+    if (customSquat !== null) return parseFloat(customSquat.toFixed(1));
+
+    const concSX = toStrictNullOrNumber(test.concImpulseSX ?? test.conc_impulse_sx);
+    const concDX = toStrictNullOrNumber(test.concImpulseDX ?? test.conc_impulse_dx);
+    const concAsym = calculateLimbAsymmetry(concSX, concDX, opLimb);
+    if (concAsym !== null) return concAsym;
+
+    const eccSX = toStrictNullOrNumber(test.eccBrakingSX ?? test.ecc_braking_sx);
+    const eccDX = toStrictNullOrNumber(test.eccBrakingDX ?? test.ecc_braking_dx);
+    const eccAsym = calculateLimbAsymmetry(eccSX, eccDX, opLimb);
+    if (eccAsym !== null) return eccAsym;
+
     const directAsym = toStrictNullOrNumber(
       test.squatLoadAsym ??
         test.brakingAsym ??
@@ -400,55 +460,36 @@ export function extractMetricFromSingleTest(test, keys, allowZero = false) {
         test.conc_impulse_asym_calculated,
       true
     );
-    if (directAsym !== null) return parseFloat(directAsym.toFixed(1));
-
-    const customSquat = findCustomMetricByKeywords(test, ['squat', 'carico bilaterale', 'load asym'], true);
-    if (customSquat !== null) return parseFloat(customSquat.toFixed(1));
-
-    const concSX = toStrictNullOrNumber(test.concImpulseSX ?? test.conc_impulse_sx);
-    const concDX = toStrictNullOrNumber(test.concImpulseDX ?? test.conc_impulse_dx);
-    if (concSX !== null && concDX !== null && Math.max(concSX, concDX) > 0) {
-      const lsi = (Math.min(concSX, concDX) / Math.max(concSX, concDX)) * 100;
-      return parseFloat((100 - lsi).toFixed(1));
-    }
-
-    const eccSX = toStrictNullOrNumber(test.eccBrakingSX ?? test.ecc_braking_sx);
-    const eccDX = toStrictNullOrNumber(test.eccBrakingDX ?? test.ecc_braking_dx);
-    if (eccSX !== null && eccDX !== null && Math.max(eccSX, eccDX) > 0) {
-      const lsi = (Math.min(eccSX, eccDX) / Math.max(eccSX, eccDX)) * 100;
-      return parseFloat((100 - lsi).toFixed(1));
-    }
+    if (directAsym !== null) return parseFloat(Math.abs(directAsym).toFixed(1));
   }
 
   if (keySet.has('cmjImpulseLsi') || keySet.has('lsi_cmj_braking')) {
     const sx = toStrictNullOrNumber(test.eccBrakingSX ?? test.ecc_braking_sx);
     const dx = toStrictNullOrNumber(test.eccBrakingDX ?? test.ecc_braking_dx);
-    if (sx !== null && dx !== null && sx > 0 && dx > 0) {
-      return parseFloat(((Math.min(sx, dx) / Math.max(sx, dx)) * 100).toFixed(1));
-    }
+    const dynamicLsi = calculateLimbLsi(sx, dx, opLimb);
+    if (dynamicLsi !== null) return dynamicLsi;
+
     const asym = toStrictNullOrNumber(test.brakingAsym ?? test.ecc_braking_asym_calculated, true);
-    if (asym !== null && asym >= 0 && asym < 100) {
-      return parseFloat((100 - asym).toFixed(1));
+    if (asym !== null && Math.abs(asym) < 100) {
+      return parseFloat((100 - Math.abs(asym)).toFixed(1));
     }
   }
 
   if (keySet.has('slCmjBrakingLsi') || keySet.has('lsi_sl_cmj_braking')) {
     const slSX = toStrictNullOrNumber(test.slCmjEccImpulseSX ?? test.sl_cmj_ecc_impulse_sx);
     const slDX = toStrictNullOrNumber(test.slCmjEccImpulseDX ?? test.sl_cmj_ecc_impulse_dx);
-    if (slSX !== null && slDX !== null && slSX > 0 && slDX > 0) {
-      return parseFloat(((Math.min(slSX, slDX) / Math.max(slSX, slDX)) * 100).toFixed(1));
-    }
-    // Fallback su CMJ Braking Impulse LSI esistente se presente
-    const fallbackBraking = extractMetricFromSingleTest(test, ['cmjImpulseLsi', 'lsi_cmj_braking'], allowZero);
+    const dynamicSlBraking = calculateLimbLsi(slSX, slDX, opLimb);
+    if (dynamicSlBraking !== null) return dynamicSlBraking;
+
+    const fallbackBraking = extractMetricFromSingleTest(test, ['cmjImpulseLsi', 'lsi_cmj_braking'], allowZero, opLimb);
     if (fallbackBraking !== null) return fallbackBraking;
   }
 
   if (keySet.has('slCmjHeightLsi') || keySet.has('lsi_sl_cmj_height_calculated')) {
     const sx = toStrictNullOrNumber(test.slCmjHeightSX ?? test.sl_cmj_height_sx);
     const dx = toStrictNullOrNumber(test.slCmjHeightDX ?? test.sl_cmj_height_dx);
-    if (sx !== null && dx !== null && sx > 0 && dx > 0) {
-      return parseFloat(((Math.min(sx, dx) / Math.max(sx, dx)) * 100).toFixed(1));
-    }
+    const dynamicLsi = calculateLimbLsi(sx, dx, opLimb);
+    if (dynamicLsi !== null) return dynamicLsi;
   }
 
   if (keySet.has('rsiDropJump') || keySet.has('dj_rsi') || keySet.has('djRSI')) {
@@ -462,9 +503,8 @@ export function extractMetricFromSingleTest(test, keys, allowZero = false) {
   if (keySet.has('slDjRsiLsi') || keySet.has('lsi_sl_dj_rsi')) {
     const sx = toStrictNullOrNumber(test.slDjRsiSX ?? test.sl_dj_rsi_sx);
     const dx = toStrictNullOrNumber(test.slDjRsiDX ?? test.sl_dj_rsi_dx);
-    if (sx !== null && dx !== null && sx > 0 && dx > 0) {
-      return parseFloat(((Math.min(sx, dx) / Math.max(sx, dx)) * 100).toFixed(1));
-    }
+    const dynamicLsi = calculateLimbLsi(sx, dx, opLimb);
+    if (dynamicLsi !== null) return dynamicLsi;
   }
 
   if (keySet.has('hopTestLsiAvg') || keySet.has('hop_lsi_avg')) {
@@ -493,6 +533,12 @@ export function extractMetricFromSingleTest(test, keys, allowZero = false) {
     }
   }
 
+  // 2. Fallback sulla chiave memorizzata direttamente se i valori grezzi SX/DX non sono presenti
+  for (const key of keyList) {
+    const num = toStrictNullOrNumber(test[key], allowZero);
+    if (num !== null) return num;
+  }
+
   return null;
 }
 
@@ -505,6 +551,7 @@ export function getLastValidMetricWithMeta(tests, metricKeys, options = {}) {
   if (!Array.isArray(tests) || tests.length === 0) return null;
   const keys = Array.isArray(metricKeys) ? metricKeys : [metricKeys];
   const allowZero = Boolean(options.allowZero);
+  const operatedLimb = options.operatedLimb || null;
 
   const flat = tests.flat(Infinity).filter(t => t && typeof t === 'object' && !Array.isArray(t));
   if (flat.length === 0) return null;
@@ -513,7 +560,7 @@ export function getLastValidMetricWithMeta(tests, metricKeys, options = {}) {
 
   for (let i = 0; i < sortedDesc.length; i++) {
     const test = sortedDesc[i];
-    const val = extractMetricFromSingleTest(test, keys, allowZero);
+    const val = extractMetricFromSingleTest(test, keys, allowZero, operatedLimb);
     if (val !== null) {
       const formattedDate =
         test.date ||
@@ -619,52 +666,63 @@ export const createTestObject = (newValData, patientId, testIndex = 1) => {
   const parseVal = (v) => toStrictNullOrNumber(v, false);
   const parseValAllowZero = (v) => toStrictNullOrNumber(v, true);
 
+  const opKnee = resolveOperatedLimb(newValData, 'DX');
+
   const isoExtSx = parseVal(newValData.iso_leg_ext_sx ?? newValData.quadSano);
   const isoExtDx = parseVal(newValData.iso_leg_ext_dx ?? newValData.quadOp);
   const isoCurlSx = parseVal(newValData.iso_leg_curl_sx ?? newValData.flexSano);
   const isoCurlDx = parseVal(newValData.iso_leg_curl_dx ?? newValData.flexOp);
 
-  let calcLsiQuad = parseVal(newValData.lsi_quad_calculated ?? newValData.lsiQuad);
-  if (calcLsiQuad === null && isoExtSx !== null && isoExtDx !== null) {
-    calcLsiQuad = parseFloat(((Math.min(isoExtSx, isoExtDx) / Math.max(isoExtSx, isoExtDx)) * 100).toFixed(1));
-  }
+  // Ricalcolo prioritario LSI Quadricipite e Ischiocrurali dai valori grezzi SX/DX: LSI = (Operated / Healthy) * 100
+  const calcLsiQuad =
+    calculateLimbLsi(isoExtSx, isoExtDx, opKnee) ??
+    parseVal(newValData.lsi_quad_calculated ?? newValData.lsiQuad);
 
-  let calcLsiFlex = parseVal(newValData.lsi_curl_calculated ?? newValData.lsiFlex);
-  if (calcLsiFlex === null && isoCurlSx !== null && isoCurlDx !== null) {
-    calcLsiFlex = parseFloat(((Math.min(isoCurlSx, isoCurlDx) / Math.max(isoCurlSx, isoCurlDx)) * 100).toFixed(1));
-  }
+  const calcLsiFlex =
+    calculateLimbLsi(isoCurlSx, isoCurlDx, opKnee) ??
+    parseVal(newValData.lsi_curl_calculated ?? newValData.lsiFlex);
 
-  const opKnee = newValData.ginocchio_operato || 'DX';
   const quadOpVal = opKnee === 'SX' ? (isoExtSx ?? isoExtDx) : (isoExtDx ?? isoExtSx);
+  const flexOpVal = opKnee === 'SX' ? (isoCurlSx ?? isoCurlDx) : (isoCurlDx ?? isoCurlSx);
+
   const quadOpNmKgVal =
-    parseVal(newValData.quadOpNmKg) ??
-    (quadOpVal !== null ? parseFloat((quadOpVal / 150).toFixed(2)) : null);
+    quadOpVal !== null
+      ? parseFloat((quadOpVal / 150).toFixed(2))
+      : parseVal(newValData.quadOpNmKg ?? newValData.quad_rel_op);
+
+  const hqRatioPctVal =
+    quadOpVal !== null && flexOpVal !== null && quadOpVal > 0 && flexOpVal > 0
+      ? calculateHqRatioPercent(flexOpVal, quadOpVal)
+      : parseVal(newValData.hqRatioPct ?? newValData.hq_ratio_pct);
+
+  const hqRatioDecimalVal =
+    quadOpVal !== null && flexOpVal !== null && quadOpVal > 0 && flexOpVal > 0
+      ? parseFloat((flexOpVal / quadOpVal).toFixed(2))
+      : parseVal(newValData.hqRatio);
 
   // Drop Jump Bilaterale Metrics
   const djJumpHeight = parseVal(newValData.dj_jump_height ?? newValData.djJumpHeight);
   const djContactTime = parseVal(newValData.dj_contact_time ?? newValData.djContactTime);
 
-  let djRSI = parseVal(newValData.dj_rsi ?? newValData.rsiDropJump ?? newValData.djRSI);
-  if (djRSI === null && djJumpHeight !== null && djContactTime !== null && djContactTime > 0) {
-    djRSI = parseFloat(((djJumpHeight / 100) / (djContactTime / 1000)).toFixed(2));
-  }
+  const djRSI =
+    djJumpHeight !== null && djContactTime !== null && djContactTime > 0
+      ? parseFloat(((djJumpHeight / 100) / (djContactTime / 1000)).toFixed(2))
+      : parseVal(newValData.dj_rsi ?? newValData.rsiDropJump ?? newValData.djRSI);
 
   const djTtpfMs = parseVal(newValData.dj_ttpf_ms ?? newValData.djTtpfMs);
   const djTakeoffAsymMs = parseValAllowZero(newValData.dj_takeoff_asym_ms ?? newValData.djTakeoffAsymMs);
 
   const djLandingPeakSX = parseVal(newValData.dj_landing_peak_sx ?? newValData.djLandingPeakSX);
   const djLandingPeakDX = parseVal(newValData.dj_landing_peak_dx ?? newValData.djLandingPeakDX);
-  let djLandingPeakLsi = parseVal(newValData.dj_landing_peak_lsi ?? newValData.djLandingPeakLsi);
-  if (djLandingPeakLsi === null && djLandingPeakSX !== null && djLandingPeakDX !== null) {
-    djLandingPeakLsi = parseFloat(((Math.min(djLandingPeakSX, djLandingPeakDX) / Math.max(djLandingPeakSX, djLandingPeakDX)) * 100).toFixed(1));
-  }
+  const djLandingPeakLsi =
+    calculateLimbLsi(djLandingPeakSX, djLandingPeakDX, opKnee) ??
+    parseVal(newValData.dj_landing_peak_lsi ?? newValData.djLandingPeakLsi);
 
   const djConcImpulseSX = parseVal(newValData.dj_conc_impulse_sx ?? newValData.djConcImpulseSX);
   const djConcImpulseDX = parseVal(newValData.dj_conc_impulse_dx ?? newValData.djConcImpulseDX);
-  let djConcImpulseLsi = parseVal(newValData.dj_conc_impulse_lsi ?? newValData.djConcImpulseLsi);
-  if (djConcImpulseLsi === null && djConcImpulseSX !== null && djConcImpulseDX !== null) {
-    djConcImpulseLsi = parseFloat(((Math.min(djConcImpulseSX, djConcImpulseDX) / Math.max(djConcImpulseSX, djConcImpulseDX)) * 100).toFixed(1));
-  }
+  const djConcImpulseLsi =
+    calculateLimbLsi(djConcImpulseSX, djConcImpulseDX, opKnee) ??
+    parseVal(newValData.dj_conc_impulse_lsi ?? newValData.djConcImpulseLsi);
 
   const hasDjData =
     djJumpHeight !== null ||
@@ -721,27 +779,38 @@ export const createTestObject = (newValData, patientId, testIndex = 1) => {
   const concImpulseSX = parseVal(newValData.conc_impulse_sx ?? newValData.concImpulseSX);
   const concImpulseDX = parseVal(newValData.conc_impulse_dx ?? newValData.concImpulseDX);
 
-  let rsiCmj = parseVal(newValData.rsi_cmj ?? newValData.rsiCmj ?? newValData.rsi_mod);
-  if (rsiCmj === null && jumpHeight !== null && contractionTime !== null && contractionTime > 0) {
-    rsiCmj = parseFloat(((jumpHeight / 100) / (contractionTime / 1000)).toFixed(2));
-  }
+  const rsiCmj =
+    jumpHeight !== null && contractionTime !== null && contractionTime > 0
+      ? parseFloat(((jumpHeight / 100) / (contractionTime / 1000)).toFixed(2))
+      : parseVal(newValData.rsi_cmj ?? newValData.rsiCmj ?? newValData.rsi_mod);
 
-  let cmjImpulseLsi = parseVal(newValData.cmjImpulseLsi);
-  if (cmjImpulseLsi === null && eccBrakingSX !== null && eccBrakingDX !== null) {
-    cmjImpulseLsi = parseFloat(((Math.min(eccBrakingSX, eccBrakingDX) / Math.max(eccBrakingSX, eccBrakingDX)) * 100).toFixed(1));
-  } else if (cmjImpulseLsi === null && newValData.ecc_braking_asym_calculated !== null && newValData.ecc_braking_asym_calculated !== undefined) {
-    const asym = parseValAllowZero(newValData.ecc_braking_asym_calculated);
-    if (asym !== null) {
-      cmjImpulseLsi = parseFloat((100 - Math.abs(asym)).toFixed(1));
-    }
+  const brakingAsymCalc =
+    calculateLimbAsymmetry(eccBrakingSX, eccBrakingDX, opKnee) ??
+    parseValAllowZero(newValData.ecc_braking_asym_calculated ?? newValData.brakingAsym);
+
+  const concImpulseAsymCalc =
+    calculateLimbAsymmetry(concImpulseSX, concImpulseDX, opKnee) ??
+    parseValAllowZero(newValData.conc_impulse_asym_calculated ?? newValData.concImpulseAsym);
+
+  let cmjImpulseLsi = calculateLimbLsi(eccBrakingSX, eccBrakingDX, opKnee);
+  if (cmjImpulseLsi === null && brakingAsymCalc !== null) {
+    cmjImpulseLsi = parseFloat((100 - Math.abs(brakingAsymCalc)).toFixed(1));
+  }
+  if (cmjImpulseLsi === null) {
+    cmjImpulseLsi = parseVal(newValData.cmjImpulseLsi);
   }
 
   const slCmjHeightSX = parseVal(newValData.sl_cmj_height_sx ?? newValData.slCmjHeightSX);
   const slCmjHeightDX = parseVal(newValData.sl_cmj_height_dx ?? newValData.slCmjHeightDX);
-  let slCmjHeightLsi = parseVal(newValData.lsi_sl_cmj_height_calculated ?? newValData.slCmjHeightLsi);
-  if (slCmjHeightLsi === null && slCmjHeightSX !== null && slCmjHeightDX !== null) {
-    slCmjHeightLsi = parseFloat(((Math.min(slCmjHeightSX, slCmjHeightDX) / Math.max(slCmjHeightSX, slCmjHeightDX)) * 100).toFixed(1));
-  }
+  const slCmjHeightLsi =
+    calculateLimbLsi(slCmjHeightSX, slCmjHeightDX, opKnee) ??
+    parseVal(newValData.lsi_sl_cmj_height_calculated ?? newValData.slCmjHeightLsi);
+
+  const slCmjEccImpulseSX = parseVal(newValData.sl_cmj_ecc_impulse_sx ?? newValData.slCmjEccImpulseSX);
+  const slCmjEccImpulseDX = parseVal(newValData.sl_cmj_ecc_impulse_dx ?? newValData.slCmjEccImpulseDX);
+  const slCmjBrakingLsi =
+    calculateLimbLsi(slCmjEccImpulseSX, slCmjEccImpulseDX, opKnee) ??
+    parseVal(newValData.lsi_sl_cmj_ecc_impulse_calculated ?? newValData.slCmjBrakingLsi);
 
   const slDjCtSX = parseVal(newValData.sl_dj_ct_sx ?? newValData.slDjCtSX);
   const slDjCtDX = parseVal(newValData.sl_dj_ct_dx ?? newValData.slDjCtDX);
@@ -751,6 +820,10 @@ export const createTestObject = (newValData, patientId, testIndex = 1) => {
   const slDjHeightDX = parseVal(newValData.sl_dj_height_dx ?? newValData.slDjHeightDX);
   const slDjBrakingSX = parseVal(newValData.sl_dj_braking_sx ?? newValData.slDjBrakingSX);
   const slDjBrakingDX = parseVal(newValData.sl_dj_braking_dx ?? newValData.slDjBrakingDX);
+  const slDjRsiLsi =
+    calculateLimbLsi(slDjRsiSX, slDjRsiDX, opKnee) ??
+    parseVal(newValData.lsi_sl_dj_rsi_calculated ?? newValData.slDjRsiLsi);
+
   const hasSlDjData =
     slDjCtSX !== null ||
     slDjCtDX !== null ||
@@ -791,16 +864,22 @@ export const createTestObject = (newValData, patientId, testIndex = 1) => {
     fase_riabilitativa: newValData.fase_riabilitativa || null,
     valutatore: newValData.valutatore || null,
 
-    // Simmetria & LSI (tutti null se assenti)
+    // Simmetria & LSI ricalcolati dinamicamente
     lsiQuad: calcLsiQuad,
+    lsi_quad_calculated: calcLsiQuad,
     lsiQuadDelta: null,
     lsiFlex: calcLsiFlex,
+    lsi_curl_calculated: calcLsiFlex,
     lsiFlexDelta: null,
     lsiSingleHop: parseVal(newValData.lsi_single_hop ?? newValData.lsiSingleHop),
     lsiTripleHop: parseVal(newValData.lsi_triple_hop ?? newValData.lsiTripleHop),
 
-    // Forza (tutti null se assenti, MAI numeri hardcoded)
+    // Forza & H/Q Ratio ricalcolati
     quadOpNmKg: quadOpNmKgVal,
+    quad_rel_op: quadOpNmKgVal,
+    hqRatio: hqRatioDecimalVal,
+    hqRatioPct: hqRatioPctVal,
+    hq_ratio_pct: hqRatioPctVal,
     quadSano: isoExtSx,
     quadOp: isoExtDx,
     iso_leg_ext_sx: isoExtSx,
@@ -838,13 +917,15 @@ export const createTestObject = (newValData, patientId, testIndex = 1) => {
     ecc_braking_sx: eccBrakingSX,
     eccBrakingDX,
     ecc_braking_dx: eccBrakingDX,
-    brakingAsym: parseValAllowZero(newValData.ecc_braking_asym_calculated ?? newValData.brakingAsym),
+    brakingAsym: brakingAsymCalc,
+    ecc_braking_asym_calculated: brakingAsymCalc,
     cmjImpulseLsi,
     concImpulseSX,
     conc_impulse_sx: concImpulseSX,
     concImpulseDX,
     conc_impulse_dx: concImpulseDX,
-    concImpulseAsym: parseValAllowZero(newValData.conc_impulse_asym_calculated ?? newValData.concImpulseAsym),
+    concImpulseAsym: concImpulseAsymCalc,
+    conc_impulse_asym_calculated: concImpulseAsymCalc,
 
     // CMJ Monopodalico
     slCmjHeightSX,
@@ -857,16 +938,25 @@ export const createTestObject = (newValData, patientId, testIndex = 1) => {
     slCmjRsiDX: parseVal(newValData.sl_cmj_rsi_dx ?? newValData.slCmjRsiDX),
     slCmjDepthSX: parseVal(newValData.sl_cmj_depth_sx ?? newValData.slCmjDepthSX),
     slCmjDepthDX: parseVal(newValData.sl_cmj_depth_dx ?? newValData.slCmjDepthDX),
-    slCmjEccImpulseSX: parseVal(newValData.sl_cmj_ecc_impulse_sx ?? newValData.slCmjEccImpulseSX),
-    slCmjEccImpulseDX: parseVal(newValData.sl_cmj_ecc_impulse_dx ?? newValData.slCmjEccImpulseDX),
+    slCmjEccImpulseSX,
+    slCmjEccImpulseDX,
     slCmjHeightLsi,
-    slCmjDepthLsi: parseVal(newValData.lsi_sl_cmj_depth_calculated ?? newValData.slCmjDepthLsi),
+    lsi_sl_cmj_height_calculated: slCmjHeightLsi,
+    slCmjBrakingLsi,
+    lsi_sl_cmj_braking: slCmjBrakingLsi,
+    slCmjDepthLsi:
+      calculateLimbLsi(
+        parseVal(newValData.sl_cmj_depth_sx ?? newValData.slCmjDepthSX),
+        parseVal(newValData.sl_cmj_depth_dx ?? newValData.slCmjDepthDX),
+        opKnee
+      ) ?? parseVal(newValData.lsi_sl_cmj_depth_calculated ?? newValData.slCmjDepthLsi),
 
     // Drop Jump Bilaterale
     djBoxHeight: hasDjData ? (newValData.dj_box_height || newValData.djBoxHeight || '30 cm') : null,
     djJumpHeight,
     djContactTime,
     rsiDropJump: djRSI,
+    dj_rsi: djRSI,
     djTtpfMs,
     djTakeoffAsymMs,
     djLandingPeakSX,
@@ -890,15 +980,16 @@ export const createTestObject = (newValData, patientId, testIndex = 1) => {
     slDjHeightDX,
     slDjBrakingSX,
     slDjBrakingDX,
-    slDjRsiLsi: parseVal(newValData.lsi_sl_dj_rsi_calculated ?? newValData.slDjRsiLsi)
+    slDjRsiLsi,
+    lsi_sl_dj_rsi_calculated: slDjRsiLsi
   };
 
   return newTest;
 };
 
 /**
- * Unisce (merge) un nuovo inserimento di singolo test dentro una Sessione di Valutazione esistente.
- * I campi `null` del nuovo inserimento NON sovrascrivono i test già presenti nella sessione.
+ * Unisce (merge) un nuovo inserimento o una modifica di singolo test dentro una Sessione di Valutazione esistente.
+ * Ricalcola SEMPRE tutti i valori derivati (LSI, H/Q Ratio, Forza Relativa N/kg, RSI) dai valori grezzi SX/DX aggiornati.
  */
 export function mergeTestIntoSession(existingSession, newPartialData, patientId) {
   const base = existingSession || {};
@@ -913,8 +1004,9 @@ export function mergeTestIntoSession(existingSession, newPartialData, patientId)
 
   const mergedCustomMetrics = mergeCustomMetricsMaps(base.custom_metrics, incoming.custom_metrics);
 
+  // Costruisce i valori grezzi uniti AZZERANDO i vecchi campi derivati di `base`
+  // così `createTestObject` ricalcola da zero LSI, H/Q Ratio, N/kg e RSI sui nuovi valori SX/DX.
   const mergedRaw = {
-    ...base,
     id: base.id || incoming.id,
     patient_id: patientId || base.patient_id,
     patientId: patientId || base.patientId,
@@ -923,7 +1015,7 @@ export function mergeTestIntoSession(existingSession, newPartialData, patientId)
     session_name: newPartialData.session_name || base.session_name || base.label || incoming.label,
     label: newPartialData.session_name || base.session_name || base.label || incoming.label,
     data_valutazione: newPartialData.data_valutazione || base.data_valutazione || incoming.data_valutazione,
-    ginocchio_operato: newPartialData.ginocchio_operato || base.ginocchio_operato || 'DX',
+    ginocchio_operato: resolveOperatedLimb(newPartialData, resolveOperatedLimb(base, 'DX')),
     fase_riabilitativa: newPartialData.fase_riabilitativa || base.fase_riabilitativa,
     valutatore: newPartialData.valutatore || base.valutatore,
     module_dates: {
@@ -936,17 +1028,17 @@ export function mergeTestIntoSession(existingSession, newPartialData, patientId)
     iso_leg_ext_dx: pickNonNull(incoming.quadOp, base.quadOp ?? base.iso_leg_ext_dx),
     iso_leg_curl_sx: pickNonNull(incoming.flexSano, base.flexSano ?? base.iso_leg_curl_sx),
     iso_leg_curl_dx: pickNonNull(incoming.flexOp, base.flexOp ?? base.iso_leg_curl_dx),
-    calf_raise_sx: pickNonNull(incoming.calfRaiseSX, base.calfRaiseSX),
-    calf_raise_dx: pickNonNull(incoming.calfRaiseDX, base.calfRaiseDX),
-    soleo_sx: pickNonNull(incoming.soleoSX, base.soleoSX),
-    soleo_dx: pickNonNull(incoming.soleoDX, base.soleoDX),
-    bulgarian_sx: pickNonNull(incoming.bulgarianSX, base.bulgarianSX),
-    bulgarian_dx: pickNonNull(incoming.bulgarianDX, base.bulgarianDX),
-    imtp_peak_force: pickNonNull(incoming.imtpForce, base.imtpForce),
+    calf_raise_sx: pickNonNull(incoming.calfRaiseSX, base.calfRaiseSX ?? base.calf_raise_sx),
+    calf_raise_dx: pickNonNull(incoming.calfRaiseDX, base.calfRaiseDX ?? base.calf_raise_dx),
+    soleo_sx: pickNonNull(incoming.soleoSX, base.soleoSX ?? base.soleo_sx),
+    soleo_dx: pickNonNull(incoming.soleoDX, base.soleoDX ?? base.soleo_dx),
+    bulgarian_sx: pickNonNull(incoming.bulgarianSX, base.bulgarianSX ?? base.bulgarian_sx),
+    bulgarian_dx: pickNonNull(incoming.bulgarianDX, base.bulgarianDX ?? base.bulgarian_dx),
+    imtp_peak_force: pickNonNull(incoming.imtpForce, base.imtpForce ?? base.imtp_peak_force),
     ikdc_score: pickNonNull(incoming.ikdc, base.ikdc ?? base.ikdc_score),
-    aclrsi: pickNonNull(incoming.aclrsi, base.aclrsi),
-    lsi_single_hop: pickNonNull(incoming.lsiSingleHop, base.lsiSingleHop),
-    lsi_triple_hop: pickNonNull(incoming.lsiTripleHop, base.lsiTripleHop),
+    aclrsi: pickNonNull(incoming.aclrsi, base.aclrsi ?? base.acl_rsi),
+    lsi_single_hop: pickNonNull(incoming.lsiSingleHop, base.lsiSingleHop ?? base.lsi_single_hop),
+    lsi_triple_hop: pickNonNull(incoming.lsiTripleHop, base.lsiTripleHop ?? base.lsi_triple_hop),
 
     jump_height_cm: pickNonNull(incoming.jumpHeight, base.jumpHeight ?? base.jump_height_cm),
     contraction_time_ms: pickNonNull(incoming.contractionTime, base.contractionTime ?? base.contraction_time_ms),
@@ -958,41 +1050,41 @@ export function mergeTestIntoSession(existingSession, newPartialData, patientId)
     conc_impulse_sx: pickNonNull(incoming.concImpulseSX, base.concImpulseSX ?? base.conc_impulse_sx),
     conc_impulse_dx: pickNonNull(incoming.concImpulseDX, base.concImpulseDX ?? base.conc_impulse_dx),
 
-    sl_cmj_height_sx: pickNonNull(incoming.slCmjHeightSX, base.slCmjHeightSX),
-    sl_cmj_height_dx: pickNonNull(incoming.slCmjHeightDX, base.slCmjHeightDX),
-    sl_cmj_ct_sx: pickNonNull(incoming.slCmjCtSX, base.slCmjCtSX),
-    sl_cmj_ct_dx: pickNonNull(incoming.slCmjCtDX, base.slCmjCtDX),
-    sl_cmj_peak_power_sx: pickNonNull(incoming.slCmjPeakPowerSX, base.slCmjPeakPowerSX),
-    sl_cmj_peak_power_dx: pickNonNull(incoming.slCmjPeakPowerDX, base.slCmjPeakPowerDX),
-    sl_cmj_rsi_sx: pickNonNull(incoming.slCmjRsiSX, base.slCmjRsiSX),
-    sl_cmj_rsi_dx: pickNonNull(incoming.slCmjRsiDX, base.slCmjRsiDX),
-    sl_cmj_depth_sx: pickNonNull(incoming.slCmjDepthSX, base.slCmjDepthSX),
-    sl_cmj_depth_dx: pickNonNull(incoming.slCmjDepthDX, base.slCmjDepthDX),
-    sl_cmj_ecc_impulse_sx: pickNonNull(incoming.slCmjEccImpulseSX, base.slCmjEccImpulseSX),
-    sl_cmj_ecc_impulse_dx: pickNonNull(incoming.slCmjEccImpulseDX, base.slCmjEccImpulseDX),
+    sl_cmj_height_sx: pickNonNull(incoming.slCmjHeightSX, base.slCmjHeightSX ?? base.sl_cmj_height_sx),
+    sl_cmj_height_dx: pickNonNull(incoming.slCmjHeightDX, base.slCmjHeightDX ?? base.sl_cmj_height_dx),
+    sl_cmj_ct_sx: pickNonNull(incoming.slCmjCtSX, base.slCmjCtSX ?? base.sl_cmj_ct_sx),
+    sl_cmj_ct_dx: pickNonNull(incoming.slCmjCtDX, base.slCmjCtDX ?? base.sl_cmj_ct_dx),
+    sl_cmj_peak_power_sx: pickNonNull(incoming.slCmjPeakPowerSX, base.slCmjPeakPowerSX ?? base.sl_cmj_peak_power_sx),
+    sl_cmj_peak_power_dx: pickNonNull(incoming.slCmjPeakPowerDX, base.slCmjPeakPowerDX ?? base.sl_cmj_peak_power_dx),
+    sl_cmj_rsi_sx: pickNonNull(incoming.slCmjRsiSX, base.slCmjRsiSX ?? base.sl_cmj_rsi_sx),
+    sl_cmj_rsi_dx: pickNonNull(incoming.slCmjRsiDX, base.slCmjRsiDX ?? base.sl_cmj_rsi_dx),
+    sl_cmj_depth_sx: pickNonNull(incoming.slCmjDepthSX, base.slCmjDepthSX ?? base.sl_cmj_depth_sx),
+    sl_cmj_depth_dx: pickNonNull(incoming.slCmjDepthDX, base.slCmjDepthDX ?? base.sl_cmj_depth_dx),
+    sl_cmj_ecc_impulse_sx: pickNonNull(incoming.slCmjEccImpulseSX, base.slCmjEccImpulseSX ?? base.sl_cmj_ecc_impulse_sx),
+    sl_cmj_ecc_impulse_dx: pickNonNull(incoming.slCmjEccImpulseDX, base.slCmjEccImpulseDX ?? base.sl_cmj_ecc_impulse_dx),
 
-    dj_box_height: pickNonNull(incoming.djBoxHeight, base.djBoxHeight),
-    dj_jump_height: pickNonNull(incoming.djJumpHeight, base.djJumpHeight),
-    dj_contact_time: pickNonNull(incoming.djContactTime, base.djContactTime),
-    dj_rsi: pickNonNull(incoming.rsiDropJump, base.rsiDropJump),
-    dj_ttpf_ms: pickNonNull(incoming.djTtpfMs, base.djTtpfMs),
-    dj_takeoff_asym_ms: pickNonNull(incoming.djTakeoffAsymMs, base.djTakeoffAsymMs),
-    dj_landing_peak_sx: pickNonNull(incoming.djLandingPeakSX, base.djLandingPeakSX),
-    dj_landing_peak_dx: pickNonNull(incoming.djLandingPeakDX, base.djLandingPeakDX),
-    dj_conc_impulse_sx: pickNonNull(incoming.djConcImpulseSX, base.djConcImpulseSX),
-    dj_conc_impulse_dx: pickNonNull(incoming.djConcImpulseDX, base.djConcImpulseDX),
-    dj_braking_force: pickNonNull(incoming.djBrakingForce, base.djBrakingForce),
-    dj_braking_impulse: pickNonNull(incoming.djBrakingImpulse, base.djBrakingImpulse),
+    dj_box_height: pickNonNull(incoming.djBoxHeight, base.djBoxHeight ?? base.dj_box_height),
+    dj_jump_height: pickNonNull(incoming.djJumpHeight, base.djJumpHeight ?? base.dj_jump_height),
+    dj_contact_time: pickNonNull(incoming.djContactTime, base.djContactTime ?? base.dj_contact_time),
+    dj_rsi: pickNonNull(incoming.rsiDropJump, base.rsiDropJump ?? base.dj_rsi),
+    dj_ttpf_ms: pickNonNull(incoming.djTtpfMs, base.djTtpfMs ?? base.dj_ttpf_ms),
+    dj_takeoff_asym_ms: pickNonNull(incoming.djTakeoffAsymMs, base.djTakeoffAsymMs ?? base.dj_takeoff_asym_ms),
+    dj_landing_peak_sx: pickNonNull(incoming.djLandingPeakSX, base.djLandingPeakSX ?? base.dj_landing_peak_sx),
+    dj_landing_peak_dx: pickNonNull(incoming.djLandingPeakDX, base.djLandingPeakDX ?? base.dj_landing_peak_dx),
+    dj_conc_impulse_sx: pickNonNull(incoming.djConcImpulseSX, base.djConcImpulseSX ?? base.dj_conc_impulse_sx),
+    dj_conc_impulse_dx: pickNonNull(incoming.djConcImpulseDX, base.djConcImpulseDX ?? base.dj_conc_impulse_dx),
+    dj_braking_force: pickNonNull(incoming.djBrakingForce, base.djBrakingForce ?? base.dj_braking_force),
+    dj_braking_impulse: pickNonNull(incoming.djBrakingImpulse, base.djBrakingImpulse ?? base.dj_braking_impulse),
 
-    sl_dj_box_height: pickNonNull(incoming.slDjBoxHeight, base.slDjBoxHeight),
-    sl_dj_ct_sx: pickNonNull(incoming.slDjCtSX, base.slDjCtSX),
-    sl_dj_ct_dx: pickNonNull(incoming.slDjCtDX, base.slDjCtDX),
-    sl_dj_rsi_sx: pickNonNull(incoming.slDjRsiSX, base.slDjRsiSX),
-    sl_dj_rsi_dx: pickNonNull(incoming.slDjRsiDX, base.slDjRsiDX),
-    sl_dj_height_sx: pickNonNull(incoming.slDjHeightSX, base.slDjHeightSX),
-    sl_dj_height_dx: pickNonNull(incoming.slDjHeightDX, base.slDjHeightDX),
-    sl_dj_braking_sx: pickNonNull(incoming.slDjBrakingSX, base.slDjBrakingSX),
-    sl_dj_braking_dx: pickNonNull(incoming.slDjBrakingDX, base.slDjBrakingDX)
+    sl_dj_box_height: pickNonNull(incoming.slDjBoxHeight, base.slDjBoxHeight ?? base.sl_dj_box_height),
+    sl_dj_ct_sx: pickNonNull(incoming.slDjCtSX, base.slDjCtSX ?? base.sl_dj_ct_sx),
+    sl_dj_ct_dx: pickNonNull(incoming.slDjCtDX, base.slDjCtDX ?? base.sl_dj_ct_dx),
+    sl_dj_rsi_sx: pickNonNull(incoming.slDjRsiSX, base.slDjRsiSX ?? base.sl_dj_rsi_sx),
+    sl_dj_rsi_dx: pickNonNull(incoming.slDjRsiDX, base.slDjRsiDX ?? base.sl_dj_rsi_dx),
+    sl_dj_height_sx: pickNonNull(incoming.slDjHeightSX, base.slDjHeightSX ?? base.sl_dj_height_sx),
+    sl_dj_height_dx: pickNonNull(incoming.slDjHeightDX, base.slDjHeightDX ?? base.sl_dj_height_dx),
+    sl_dj_braking_sx: pickNonNull(incoming.slDjBrakingSX, base.slDjBrakingSX ?? base.sl_dj_braking_sx),
+    sl_dj_braking_dx: pickNonNull(incoming.slDjBrakingDX, base.slDjBrakingDX ?? base.sl_dj_braking_dx)
   };
 
   return createTestObject(mergedRaw, patientId || base.patient_id, base.num || 1);
@@ -1004,7 +1096,14 @@ export function mergeTestIntoSession(existingSession, newPartialData, patientId)
  */
 export function aggregateTestsIntoSessions(tests, windowDays = 14) {
   const sorted = sortTestsByDate(tests);
-  if (sorted.length <= 1) return sorted;
+  if (sorted.length <= 1) {
+    return sorted.map(t => ({
+      ...t,
+      sourceIds: [t.id],
+      aggregatedCount: 1,
+      dateRange: t.date
+    }));
+  }
 
   const groupedSessions = [];
   const windowMs = windowDays * 24 * 60 * 60 * 1000;
@@ -1016,6 +1115,7 @@ export function aggregateTestsIntoSessions(tests, windowDays = 14) {
     if (!lastSession) {
       groupedSessions.push({
         ...t,
+        sourceIds: [t.id],
         aggregatedCount: 1,
         dateRange: t.date
       });
@@ -1045,6 +1145,7 @@ export function aggregateTestsIntoSessions(tests, windowDays = 14) {
       groupedSessions[groupedSessions.length - 1] = {
         ...merged,
         id: lastSession.id,
+        sourceIds: Array.from(new Set([...(lastSession.sourceIds || [lastSession.id]), t.id])),
         firstDate,
         date: lastDate || merged.date,
         dateRange,
@@ -1058,6 +1159,7 @@ export function aggregateTestsIntoSessions(tests, windowDays = 14) {
     } else {
       groupedSessions.push({
         ...t,
+        sourceIds: [t.id],
         firstDate: t.date,
         dateRange: t.date,
         aggregatedCount: 1
@@ -1119,7 +1221,7 @@ export function getTestTimestamp(t) {
 
 /**
  * Ordina automaticamente una lista di test in ordine CRONOLOGICO CRESCENTE per data di esecuzione.
- * Ricalcola numeri di test, etichette e delta LSI ignorando rigorosamente i valori null/0.
+ * Ricalcola numeri di test, etichette e tutti i valori LSI/Ratio/RSI derivati dai dati grezzi SX/DX.
  */
 export function sortTestsByDate(tests) {
   if (!Array.isArray(tests)) return [];
@@ -1162,13 +1264,37 @@ export function sortTestsByDate(tests) {
       }
     }
 
+    const curQuadRel = extractMetricFromSingleTest(t, ['quadOpNmKg', 'quad_rel_op']);
+    const curHqPct = extractMetricFromSingleTest(t, ['hqRatioPct', 'hq_ratio_pct']);
+    const curHqDec = extractMetricFromSingleTest(t, ['hqRatio']);
+    const curSlCmjHeightLsi = extractMetricFromSingleTest(t, ['slCmjHeightLsi', 'lsi_sl_cmj_height_calculated']);
+    const curSlCmjBrakingLsi = extractMetricFromSingleTest(t, ['slCmjBrakingLsi', 'lsi_sl_cmj_braking']);
+    const curCmjImpulseLsi = extractMetricFromSingleTest(t, ['cmjImpulseLsi', 'lsi_cmj_braking']);
+    const curSlDjRsiLsi = extractMetricFromSingleTest(t, ['slDjRsiLsi', 'lsi_sl_dj_rsi']);
+    const curDjRsi = extractMetricFromSingleTest(t, ['rsiDropJump', 'djRSI', 'dj_rsi']);
+    const curRsiCmj = extractMetricFromSingleTest(t, ['rsiCmj', 'rsi_cmj', 'rsi_mod']);
+
     return {
       ...t,
       num,
       label,
       custom_metrics: sanitizeCustomMetricsMap(t.custom_metrics),
       lsiQuad: curQuad ?? toStrictNullOrNumber(t.lsiQuad),
+      lsi_quad_calculated: curQuad ?? toStrictNullOrNumber(t.lsi_quad_calculated ?? t.lsiQuad),
       lsiFlex: curFlex ?? toStrictNullOrNumber(t.lsiFlex),
+      lsi_curl_calculated: curFlex ?? toStrictNullOrNumber(t.lsi_curl_calculated ?? t.lsiFlex),
+      quadOpNmKg: curQuadRel ?? toStrictNullOrNumber(t.quadOpNmKg),
+      quad_rel_op: curQuadRel ?? toStrictNullOrNumber(t.quad_rel_op ?? t.quadOpNmKg),
+      hqRatio: curHqDec ?? toStrictNullOrNumber(t.hqRatio),
+      hqRatioPct: curHqPct ?? toStrictNullOrNumber(t.hqRatioPct),
+      hq_ratio_pct: curHqPct ?? toStrictNullOrNumber(t.hq_ratio_pct ?? t.hqRatioPct),
+      slCmjHeightLsi: curSlCmjHeightLsi ?? toStrictNullOrNumber(t.slCmjHeightLsi),
+      lsi_sl_cmj_height_calculated: curSlCmjHeightLsi ?? toStrictNullOrNumber(t.lsi_sl_cmj_height_calculated ?? t.slCmjHeightLsi),
+      slCmjBrakingLsi: curSlCmjBrakingLsi ?? toStrictNullOrNumber(t.slCmjBrakingLsi),
+      cmjImpulseLsi: curCmjImpulseLsi ?? toStrictNullOrNumber(t.cmjImpulseLsi),
+      slDjRsiLsi: curSlDjRsiLsi ?? toStrictNullOrNumber(t.slDjRsiLsi),
+      rsiDropJump: curDjRsi ?? toStrictNullOrNumber(t.rsiDropJump),
+      rsiCmj: curRsiCmj ?? toStrictNullOrNumber(t.rsiCmj),
       lsiQuadDelta,
       lsiFlexDelta
     };
