@@ -365,7 +365,7 @@ export default function ModalNuovaValutazione({
     if (initialData) {
       setSessionMode('EXISTING');
       setTargetSessionId(initialData.id);
-      setSessionName(initialData.session_name || initialData.label || `Valutazione #${initialData.num || 1}`);
+      setSessionName(initialData.session_name || initialData.label || `Test #${initialData.num || 1}`);
       setEvalDate(initialData.data_valutazione || new Date().toISOString().split('T')[0]);
       setPhase(initialData.fase_riabilitativa || patient?.fase_riabilitativa || 'Fase 3 (3-6 mesi)');
       setEvaluator(initialData.valutatore || 'N Rehab Team');
@@ -377,19 +377,11 @@ export default function ModalNuovaValutazione({
           : null;
       setOpKnee(patientLimb || initialData.ginocchio_operato || 'DX');
       populateFormFromSession(initialData);
-    } else if (recentSession) {
-      setSessionMode('EXISTING');
-      setTargetSessionId(recentSession.id);
-      setSessionName(recentSession.session_name || recentSession.label || `Sessione #${recentSession.num}`);
-      setEvalDate(new Date().toISOString().split('T')[0]);
-      setPhase(patient?.fase_riabilitativa || 'Fase 3 (3-6 mesi)');
-      setEvaluator('N Rehab Team');
-      populateFormFromSession(recentSession);
     } else {
       setSessionMode('NEW');
       setTargetSessionId('');
       const nextNum = existingSessions.length + 1;
-      setSessionName(`Valutazione #${nextNum}`);
+      setSessionName(`Test #${nextNum}`);
       setEvalDate(new Date().toISOString().split('T')[0]);
       setPhase(patient?.fase_riabilitativa || 'Fase 3 (3-6 mesi)');
       setEvaluator('N Rehab Team');
@@ -450,20 +442,87 @@ export default function ModalNuovaValutazione({
       setTargetSessionId(chosenId);
       const found = existingSessions.find(s => s.id === chosenId);
       if (found) {
-        setSessionName(found.session_name || found.label || `Sessione #${found.num}`);
+        setSessionName(found.session_name || found.label || `Test #${found.num || 1}`);
+        if (found.data_valutazione) {
+          setEvalDate(found.data_valutazione);
+        }
         populateFormFromSession(found);
       }
     } else {
       setTargetSessionId('');
       const nextNum = existingSessions.length + 1;
-      setSessionName(`Valutazione #${nextNum}`);
+      setSessionName(`Test #${nextNum}`);
       setForm(EMPTY_FORM);
       setCustomMetricsByType({});
     }
   };
 
+  const FIELD_LABELS = {
+    legExtSX: 'Iso Leg Ext SX (N)',
+    legExtDX: 'Iso Leg Ext DX (N)',
+    legCurlSX: 'Iso Leg Curl SX (N)',
+    legCurlDX: 'Iso Leg Curl DX (N)',
+    bulgarianSX: 'Bulgarian 6RM SX (kg)',
+    bulgarianDX: 'Bulgarian 6RM DX (kg)',
+    calfRaiseSX: 'Calf Raise SX',
+    calfRaiseDX: 'Calf Raise DX',
+    soleoSX: 'Soleo SX (kg)',
+    soleoDX: 'Soleo DX (kg)',
+    imtpPeakForce: 'IMTP Peak Force (N)',
+    jumpHeight: 'CMJ Altezza (cm)',
+    contractionTime: 'CMJ Contraction Time (ms)',
+    peakPower: 'CMJ Peak Power (W/kg)',
+    cmjDepth: 'CMJ Depth (cm)',
+    eccBrakingRfd: 'Eccentric Braking RFD (N/s)',
+    concImpulseSX: 'Concentric Impulse SX (N·s)',
+    concImpulseDX: 'Concentric Impulse DX (N·s)',
+    eccBrakingSX: 'Eccentric Braking SX (N·s)',
+    eccBrakingDX: 'Eccentric Braking DX (N·s)',
+    slCmjHeightSX: 'SL CMJ Altezza SX (cm)',
+    slCmjHeightDX: 'SL CMJ Altezza DX (cm)',
+    slCmjPeakPowerSX: 'SL CMJ Peak Power SX (W/kg)',
+    slCmjPeakPowerDX: 'SL CMJ Peak Power DX (W/kg)',
+    slCmjRsiSX: 'SL CMJ RSImod SX (m/s)',
+    slCmjRsiDX: 'SL CMJ RSImod DX (m/s)',
+    slCmjDepthSX: 'SL CMJ Depth SX (cm)',
+    slCmjDepthDX: 'SL CMJ Depth DX (cm)',
+    djJumpHeight: 'Drop Jump Altezza (cm)',
+    djContactTime: 'Drop Jump Contact Time (ms)',
+    djRSI: 'Drop Jump RSI (m/s)',
+    djTtpfMs: 'Drop Jump TTPF (ms)',
+    djTakeoffAsymMs: 'Asimmetria Stacco (ms)',
+    djLandingPeakSX: 'Landing Peak SX (N)',
+    djLandingPeakDX: 'Landing Peak DX (N)',
+    djConcImpulseSX: 'DJ Conc Impulse SX (N·s)',
+    djConcImpulseDX: 'DJ Conc Impulse DX (N·s)',
+    slDjCtSX: 'SL DJ Contact Time SX (ms)',
+    slDjCtDX: 'SL DJ Contact Time DX (ms)',
+    slDjRsiSX: 'SL DJ RSI SX (m/s)',
+    slDjRsiDX: 'SL DJ RSI DX (m/s)',
+    slDjHeightSX: 'SL DJ Altezza SX (cm)',
+    slDjHeightDX: 'SL DJ Altezza DX (cm)',
+    slDjBrakingSX: 'SL DJ Braking SX (N·s)',
+    slDjBrakingDX: 'SL DJ Braking DX (N·s)',
+    ikdcScore: 'Score IKDC (/100)',
+    aclrsiScore: 'Score ACL-RSI (/100)',
+    lsiSingleHop: 'Single Hop LSI (%)',
+    lsiTripleHop: 'Triple Hop LSI (%)'
+  };
+
   const handleChange = (field, value) => {
     setForm(prev => ({ ...prev, [field]: value }));
+  };
+
+  // Rimuove/azzera una singola metrica dal form (e aggiorna subito Supabase se la sessione esiste già)
+  const handleClearSingleField = (fieldKey) => {
+    const nextForm = { ...form, [fieldKey]: '' };
+    setForm(nextForm);
+    if (sessionMode === 'EXISTING' && (targetSessionId || initialData?.id)) {
+      const payload = buildSanitizedPayload(nextForm);
+      onSaveEvaluation(payload);
+      setSavedToast(`✓ Metrica "${FIELD_LABELS[fieldKey] || fieldKey}" rimossa dalla sessione "${payload.session_name}"!`);
+      setTimeout(() => setSavedToast(''), 3000);
+    }
   };
 
   // Gestione Metriche Personalizzate per il `test_type` attivo
@@ -595,30 +654,31 @@ export default function ModalNuovaValutazione({
     return stdCount + custCount;
   };
 
-  const buildSanitizedPayload = () => {
+  const buildSanitizedPayload = (formOverride = null) => {
+    const f = formOverride || form;
     const existingTarget =
       sessionMode === 'EXISTING'
         ? existingSessions.find(s => s.id === targetSessionId) || initialData
         : null;
 
     const hasDjFields =
-      parseVal(form.djJumpHeight) !== null ||
-      parseVal(form.djContactTime) !== null ||
-      parseVal(form.djRSI) !== null ||
-      parseVal(form.djTtpfMs) !== null ||
-      parseVal(form.djTakeoffAsymMs, true) !== null ||
-      parseVal(form.djLandingPeakSX) !== null ||
-      parseVal(form.djConcImpulseSX) !== null;
+      parseVal(f.djJumpHeight) !== null ||
+      parseVal(f.djContactTime) !== null ||
+      parseVal(f.djRSI) !== null ||
+      parseVal(f.djTtpfMs) !== null ||
+      parseVal(f.djTakeoffAsymMs, true) !== null ||
+      parseVal(f.djLandingPeakSX) !== null ||
+      parseVal(f.djConcImpulseSX) !== null;
 
     const hasSlDjFields =
-      parseVal(form.slDjCtSX) !== null ||
-      parseVal(form.slDjCtDX) !== null ||
-      parseVal(form.slDjRsiSX) !== null ||
-      parseVal(form.slDjRsiDX) !== null ||
-      parseVal(form.slDjHeightSX) !== null ||
-      parseVal(form.slDjHeightDX) !== null ||
-      parseVal(form.slDjBrakingSX) !== null ||
-      parseVal(form.slDjBrakingDX) !== null;
+      parseVal(f.slDjCtSX) !== null ||
+      parseVal(f.slDjCtDX) !== null ||
+      parseVal(f.slDjRsiSX) !== null ||
+      parseVal(f.slDjRsiDX) !== null ||
+      parseVal(f.slDjHeightSX) !== null ||
+      parseVal(f.slDjHeightDX) !== null ||
+      parseVal(f.slDjBrakingSX) !== null ||
+      parseVal(f.slDjBrakingDX) !== null;
 
     // Sanitizza le metriche personalizzate (valori vuoti -> null)
     const sanitizedCustomMap = {};
@@ -642,9 +702,10 @@ export default function ModalNuovaValutazione({
       patientId: patient?.id,
       id: existingTarget?.id || undefined,
       sourceIds: existingTarget?.sourceIds || (existingTarget?.id ? [existingTarget.id] : undefined),
+      isFullSessionReplacement: Boolean(existingTarget),
       session_id: existingTarget?.session_id || existingTarget?.id || undefined,
-      session_name: sessionName.trim() || existingTarget?.session_name || `Valutazione #${existingSessions.length + 1}`,
-      label: sessionName.trim() || existingTarget?.label || `Valutazione #${existingSessions.length + 1}`,
+      session_name: sessionName.trim() || existingTarget?.session_name || `Test #${existingSessions.length + 1}`,
+      label: sessionName.trim() || existingTarget?.label || `Test #${existingSessions.length + 1}`,
       num: existingTarget?.num || existingSessions.length + 1,
       test_module: selectedModule,
       module_dates: existingTarget?.module_dates || {},
@@ -654,86 +715,86 @@ export default function ModalNuovaValutazione({
       fase_riabilitativa: phase,
       valutatore: evaluator,
 
-      iso_leg_ext_sx: parseVal(form.legExtSX),
-      iso_leg_ext_dx: parseVal(form.legExtDX),
-      iso_leg_curl_sx: parseVal(form.legCurlSX),
-      iso_leg_curl_dx: parseVal(form.legCurlDX),
-      calf_raise_sx: parseVal(form.calfRaiseSX),
-      calf_raise_dx: parseVal(form.calfRaiseDX),
-      soleo_sx: parseVal(form.soleoSX),
-      soleo_dx: parseVal(form.soleoDX),
-      bulgarian_sx: parseVal(form.bulgarianSX),
-      bulgarian_dx: parseVal(form.bulgarianDX),
-      imtp_peak_force: parseVal(form.imtpPeakForce),
+      iso_leg_ext_sx: parseVal(f.legExtSX),
+      iso_leg_ext_dx: parseVal(f.legExtDX),
+      iso_leg_curl_sx: parseVal(f.legCurlSX),
+      iso_leg_curl_dx: parseVal(f.legCurlDX),
+      calf_raise_sx: parseVal(f.calfRaiseSX),
+      calf_raise_dx: parseVal(f.calfRaiseDX),
+      soleo_sx: parseVal(f.soleoSX),
+      soleo_dx: parseVal(f.soleoDX),
+      bulgarian_sx: parseVal(f.bulgarianSX),
+      bulgarian_dx: parseVal(f.bulgarianDX),
+      imtp_peak_force: parseVal(f.imtpPeakForce),
 
-      jump_height_cm: parseVal(form.jumpHeight),
-      contraction_time_ms: parseVal(form.contractionTime),
-      peak_power_w: parseVal(form.peakPower),
-      cmj_depth: parseVal(form.cmjDepth),
-      ecc_braking_rfd: parseVal(form.eccBrakingRfd),
-      rsi_cmj: computeRSImod(form.jumpHeight, form.contractionTime),
-      ecc_braking_sx: parseVal(form.eccBrakingSX),
-      ecc_braking_dx: parseVal(form.eccBrakingDX),
-      conc_impulse_sx: parseVal(form.concImpulseSX),
-      conc_impulse_dx: parseVal(form.concImpulseDX),
+      jump_height_cm: parseVal(f.jumpHeight),
+      contraction_time_ms: parseVal(f.contractionTime),
+      peak_power_w: parseVal(f.peakPower),
+      cmj_depth: parseVal(f.cmjDepth),
+      ecc_braking_rfd: parseVal(f.eccBrakingRfd),
+      rsi_cmj: computeRSImod(f.jumpHeight, f.contractionTime),
+      ecc_braking_sx: parseVal(f.eccBrakingSX),
+      ecc_braking_dx: parseVal(f.eccBrakingDX),
+      conc_impulse_sx: parseVal(f.concImpulseSX),
+      conc_impulse_dx: parseVal(f.concImpulseDX),
 
-      sl_cmj_height_sx: parseVal(form.slCmjHeightSX),
-      sl_cmj_height_dx: parseVal(form.slCmjHeightDX),
-      sl_cmj_ct_sx: parseVal(form.slCmjCtSX),
-      sl_cmj_ct_dx: parseVal(form.slCmjCtDX),
-      sl_cmj_peak_power_sx: parseVal(form.slCmjPeakPowerSX),
-      sl_cmj_peak_power_dx: parseVal(form.slCmjPeakPowerDX),
-      sl_cmj_rsi_sx: parseVal(form.slCmjRsiSX) ?? computeRSImod(form.slCmjHeightSX, form.slCmjCtSX),
-      sl_cmj_rsi_dx: parseVal(form.slCmjRsiDX) ?? computeRSImod(form.slCmjHeightDX, form.slCmjCtDX),
-      sl_cmj_depth_sx: parseVal(form.slCmjDepthSX),
-      sl_cmj_depth_dx: parseVal(form.slCmjDepthDX),
-      sl_cmj_ecc_impulse_sx: parseVal(form.slCmjEccImpulseSX),
-      sl_cmj_ecc_impulse_dx: parseVal(form.slCmjEccImpulseDX),
+      sl_cmj_height_sx: parseVal(f.slCmjHeightSX),
+      sl_cmj_height_dx: parseVal(f.slCmjHeightDX),
+      sl_cmj_ct_sx: parseVal(f.slCmjCtSX),
+      sl_cmj_ct_dx: parseVal(f.slCmjCtDX),
+      sl_cmj_peak_power_sx: parseVal(f.slCmjPeakPowerSX),
+      sl_cmj_peak_power_dx: parseVal(f.slCmjPeakPowerDX),
+      sl_cmj_rsi_sx: parseVal(f.slCmjRsiSX) ?? computeRSImod(f.slCmjHeightSX, f.slCmjCtSX),
+      sl_cmj_rsi_dx: parseVal(f.slCmjRsiDX) ?? computeRSImod(f.slCmjHeightDX, f.slCmjCtDX),
+      sl_cmj_depth_sx: parseVal(f.slCmjDepthSX),
+      sl_cmj_depth_dx: parseVal(f.slCmjDepthDX),
+      sl_cmj_ecc_impulse_sx: parseVal(f.slCmjEccImpulseSX),
+      sl_cmj_ecc_impulse_dx: parseVal(f.slCmjEccImpulseDX),
 
-      dj_box_height: hasDjFields ? form.djBoxHeight : null,
-      dj_jump_height: parseVal(form.djJumpHeight),
-      dj_contact_time: parseVal(form.djContactTime),
-      dj_rsi: parseVal(form.djRSI) ?? computeRSImod(form.djJumpHeight, form.djContactTime),
-      dj_ttpf_ms: parseVal(form.djTtpfMs),
-      dj_takeoff_asym_ms: parseVal(form.djTakeoffAsymMs, true),
-      dj_landing_peak_sx: parseVal(form.djLandingPeakSX),
-      dj_landing_peak_dx: parseVal(form.djLandingPeakDX),
-      dj_conc_impulse_sx: parseVal(form.djConcImpulseSX),
-      dj_conc_impulse_dx: parseVal(form.djConcImpulseDX),
-      dj_braking_force: parseVal(form.djBrakingForce),
-      dj_braking_impulse: parseVal(form.djBrakingImpulse),
+      dj_box_height: hasDjFields ? f.djBoxHeight : null,
+      dj_jump_height: parseVal(f.djJumpHeight),
+      dj_contact_time: parseVal(f.djContactTime),
+      dj_rsi: parseVal(f.djRSI) ?? computeRSImod(f.djJumpHeight, f.djContactTime),
+      dj_ttpf_ms: parseVal(f.djTtpfMs),
+      dj_takeoff_asym_ms: parseVal(f.djTakeoffAsymMs, true),
+      dj_landing_peak_sx: parseVal(f.djLandingPeakSX),
+      dj_landing_peak_dx: parseVal(f.djLandingPeakDX),
+      dj_conc_impulse_sx: parseVal(f.djConcImpulseSX),
+      dj_conc_impulse_dx: parseVal(f.djConcImpulseDX),
+      dj_braking_force: parseVal(f.djBrakingForce),
+      dj_braking_impulse: parseVal(f.djBrakingImpulse),
 
-      sl_dj_box_height: hasSlDjFields ? form.slDjBoxHeight : null,
-      sl_dj_ct_sx: parseVal(form.slDjCtSX),
-      sl_dj_ct_dx: parseVal(form.slDjCtDX),
-      sl_dj_rsi_sx: parseVal(form.slDjRsiSX),
-      sl_dj_rsi_dx: parseVal(form.slDjRsiDX),
-      sl_dj_height_sx: parseVal(form.slDjHeightSX),
-      sl_dj_height_dx: parseVal(form.slDjHeightDX),
-      sl_dj_braking_sx: parseVal(form.slDjBrakingSX),
-      sl_dj_braking_dx: parseVal(form.slDjBrakingDX),
+      sl_dj_box_height: hasSlDjFields ? f.slDjBoxHeight : null,
+      sl_dj_ct_sx: parseVal(f.slDjCtSX),
+      sl_dj_ct_dx: parseVal(f.slDjCtDX),
+      sl_dj_rsi_sx: parseVal(f.slDjRsiSX),
+      sl_dj_rsi_dx: parseVal(f.slDjRsiDX),
+      sl_dj_height_sx: parseVal(f.slDjHeightSX),
+      sl_dj_height_dx: parseVal(f.slDjHeightDX),
+      sl_dj_braking_sx: parseVal(f.slDjBrakingSX),
+      sl_dj_braking_dx: parseVal(f.slDjBrakingDX),
 
-      ikdc_score: parseVal(form.ikdcScore),
-      aclrsi: parseVal(form.aclrsiScore),
-      lsi_single_hop: parseVal(form.lsiSingleHop),
-      lsi_triple_hop: parseVal(form.lsiTripleHop),
+      ikdc_score: parseVal(f.ikdcScore),
+      aclrsi: parseVal(f.aclrsiScore),
+      lsi_single_hop: parseVal(f.lsiSingleHop),
+      lsi_triple_hop: parseVal(f.lsiTripleHop),
 
-      lsi_quad_calculated: computeLSI(form.legExtSX, form.legExtDX),
-      lsi_curl_calculated: computeLSI(form.legCurlSX, form.legCurlDX),
-      ecc_braking_asym_calculated: computeLimbAsym(form.eccBrakingSX, form.eccBrakingDX),
-      conc_impulse_asym_calculated: computeLimbAsym(form.concImpulseSX, form.concImpulseDX),
-      lsi_sl_cmj_height_calculated: computeLSI(form.slCmjHeightSX, form.slCmjHeightDX),
-      lsi_sl_cmj_ct_calculated: computeLSI(form.slCmjCtSX, form.slCmjCtDX),
-      lsi_sl_cmj_peak_power_calculated: computeLSI(form.slCmjPeakPowerSX, form.slCmjPeakPowerDX),
+      lsi_quad_calculated: computeLSI(f.legExtSX, f.legExtDX),
+      lsi_curl_calculated: computeLSI(f.legCurlSX, f.legCurlDX),
+      ecc_braking_asym_calculated: computeLimbAsym(f.eccBrakingSX, f.eccBrakingDX),
+      conc_impulse_asym_calculated: computeLimbAsym(f.concImpulseSX, f.concImpulseDX),
+      lsi_sl_cmj_height_calculated: computeLSI(f.slCmjHeightSX, f.slCmjHeightDX),
+      lsi_sl_cmj_ct_calculated: computeLSI(f.slCmjCtSX, f.slCmjCtDX),
+      lsi_sl_cmj_peak_power_calculated: computeLSI(f.slCmjPeakPowerSX, f.slCmjPeakPowerDX),
       lsi_sl_cmj_rsi_calculated: computeLSI(
-        parseVal(form.slCmjRsiSX) ?? computeRSImod(form.slCmjHeightSX, form.slCmjCtSX),
-        parseVal(form.slCmjRsiDX) ?? computeRSImod(form.slCmjHeightDX, form.slCmjCtDX)
+        parseVal(f.slCmjRsiSX) ?? computeRSImod(f.slCmjHeightSX, f.slCmjCtSX),
+        parseVal(f.slCmjRsiDX) ?? computeRSImod(f.slCmjHeightDX, f.slCmjCtDX)
       ),
-      lsi_sl_cmj_ecc_impulse_calculated: computeLSI(form.slCmjEccImpulseSX, form.slCmjEccImpulseDX),
-      lsi_sl_dj_ct_calculated: computeLSI(form.slDjCtSX, form.slDjCtDX),
-      lsi_sl_dj_rsi_calculated: computeLSI(form.slDjRsiSX, form.slDjRsiDX),
-      lsi_sl_dj_height_calculated: computeLSI(form.slDjHeightSX, form.slDjHeightDX),
-      lsi_sl_dj_braking_calculated: computeLSI(form.slDjBrakingSX, form.slDjBrakingDX)
+      lsi_sl_cmj_ecc_impulse_calculated: computeLSI(f.slCmjEccImpulseSX, f.slCmjEccImpulseDX),
+      lsi_sl_dj_ct_calculated: computeLSI(f.slDjCtSX, f.slDjCtDX),
+      lsi_sl_dj_rsi_calculated: computeLSI(f.slDjRsiSX, f.slDjRsiDX),
+      lsi_sl_dj_height_calculated: computeLSI(f.slDjHeightSX, f.slDjHeightDX),
+      lsi_sl_dj_braking_calculated: computeLSI(f.slDjBrakingSX, f.slDjBrakingDX)
     };
   };
 
@@ -850,22 +911,36 @@ export default function ModalNuovaValutazione({
 
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
               {sessionMode === 'EXISTING' && existingSessions.length > 0 ? (
-                <div className="sm:col-span-2">
-                  <label className="block text-[11px] font-bold text-slate-600 uppercase tracking-wider mb-1">
-                    Sessione / Report Clinico Attivo (Unisce test di giorni diversi)
-                  </label>
-                  <select
-                    value={targetSessionId}
-                    onChange={(e) => handleSelectSessionMode('EXISTING', e.target.value)}
-                    className="w-full bg-emerald-100/80 border border-emerald-300/50 rounded-xl p-2.5 text-xs text-emerald-900 font-bold focus:border-emerald-600 focus:outline-none"
-                  >
-                    {existingSessions.map((s) => (
-                      <option key={s.id} value={s.id}>
-                        📋 {s.session_name || s.label} ({s.dateRange || s.date})
-                      </option>
-                    ))}
-                  </select>
-                </div>
+                <>
+                  <div>
+                    <label className="block text-[11px] font-bold text-slate-600 uppercase tracking-wider mb-1">
+                      Sessione / Report Attivo
+                    </label>
+                    <select
+                      value={targetSessionId}
+                      onChange={(e) => handleSelectSessionMode('EXISTING', e.target.value)}
+                      className="w-full bg-emerald-100/80 border border-emerald-300/50 rounded-xl p-2.5 text-xs text-emerald-900 font-bold focus:border-emerald-600 focus:outline-none"
+                    >
+                      {existingSessions.map((s) => (
+                        <option key={s.id} value={s.id}>
+                          📋 {s.session_name || s.label} ({s.dateRange || s.date})
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-[11px] font-bold text-slate-600 uppercase tracking-wider mb-1">
+                      Titolo / Etichetta Sessione (Rinomina)
+                    </label>
+                    <input
+                      type="text"
+                      value={sessionName}
+                      onChange={(e) => setSessionName(e.target.value)}
+                      placeholder="es. TEST #1 / Valutazione 3° Mese"
+                      className="w-full bg-slate-50 border border-slate-300/60 rounded-xl p-2.5 text-xs text-slate-800 font-bold focus:border-slate-500 focus:outline-none"
+                    />
+                  </div>
+                </>
               ) : (
                 <div className="sm:col-span-2">
                   <label className="block text-[11px] font-bold text-slate-600 uppercase tracking-wider mb-1">
@@ -1000,11 +1075,48 @@ export default function ModalNuovaValutazione({
                   activeModuleDef.fields.forEach(f => { resetPatch[f] = ''; });
                   setForm(prev => ({ ...prev, ...resetPatch }));
                 }}
-                className="text-[11px] font-bold text-rose-900 bg-rose-100/80 hover:bg-rose-200/70 border border-rose-300/50 px-2.5 py-1 rounded-lg transition-colors self-start sm:self-auto cursor-pointer"
+                className="text-[11px] font-bold text-rose-900 bg-rose-100/80 hover:bg-rose-200/70 border border-rose-300/50 px-2.5 py-1 rounded-lg transition-colors self-start sm:self-auto cursor-pointer flex items-center gap-1"
               >
-                Svuota campi standard (imposta a Non testato)
+                <Trash2 className="w-3 h-3" />
+                <span>Svuota campi modulo</span>
               </button>
             </div>
+
+            {/* BARRA METRICHE REGISTRATE CON ELIMINAZIONE SINGOLA METRICA (UN CLICK) */}
+            {(() => {
+              const populatedFields = (activeModuleDef.fields || []).filter(
+                (f) => f !== 'customMetrics' && parseVal(form[f], true) !== null
+              );
+              if (populatedFields.length === 0) return null;
+              return (
+                <div className="p-3 rounded-xl bg-white border border-slate-200/80 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-slate-600">
+                      Metriche registrate in questo modulo (clicca il cestino per rimuovere una singola metrica dalla sessione):
+                    </span>
+                  </div>
+                  <div className="flex flex-wrap gap-1.5">
+                    {populatedFields.map((fieldKey) => (
+                      <div
+                        key={fieldKey}
+                        className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-slate-100 border border-slate-300/70 text-xs font-semibold text-slate-800"
+                      >
+                        <span>{FIELD_LABELS[fieldKey] || fieldKey}:</span>
+                        <strong className="font-mono text-slate-900">{form[fieldKey]}</strong>
+                        <button
+                          type="button"
+                          onClick={() => handleClearSingleField(fieldKey)}
+                          title={`Elimina ${FIELD_LABELS[fieldKey] || fieldKey} da questa sessione`}
+                          className="ml-0.5 p-0.5 rounded bg-rose-100 hover:bg-rose-200 text-rose-700 border border-rose-200 transition-colors cursor-pointer"
+                        >
+                          <Trash2 className="w-3 h-3" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              );
+            })()}
 
             {/* MODULO 1: ISO PUSH LEG EXTENSION */}
             {selectedModule === 'ISO_EXT' && (() => {

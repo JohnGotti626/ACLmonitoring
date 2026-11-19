@@ -1,26 +1,33 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { TrendingUp, Percent, BarChart2 } from 'lucide-react';
-import { sortTestsByDate, toStrictNullOrNumber } from '../utils/testUtils';
+import {
+  sortTestsByDate,
+  extractMetricFromSingleTest,
+  toStrictNullOrNumber
+} from '../utils/testUtils';
 
 const parsePositiveNum = (v) => toStrictNullOrNumber(v, false);
 
-const METRIC_CONFIG = [
+export const MULTIMETRIC_CONFIG = [
   {
     id: 'lsiQuad',
     cleanKey: 'lsi_quad',
     label: 'LSI Quadricipite',
     unit: '%',
     color: '#059669', // Emerald-600
-    getRawValue: (t) => {
-      const direct = parsePositiveNum(t?.lsiQuad ?? t?.lsi_quad_calculated);
-      if (direct !== null) return direct;
-      const sx = parsePositiveNum(t?.quadSano ?? t?.iso_leg_ext_sx);
-      const dx = parsePositiveNum(t?.quadOp ?? t?.iso_leg_ext_dx);
-      if (sx !== null && dx !== null) {
-        return parseFloat(((Math.min(sx, dx) / Math.max(sx, dx)) * 100).toFixed(1));
-      }
-      return null;
-    }
+    categories: ['LSI', 'FORZA'],
+    getRawValue: (t, opLimb) =>
+      extractMetricFromSingleTest(t, ['lsiQuad', 'lsi_quad_calculated'], false, opLimb)
+  },
+  {
+    id: 'lsiFlex',
+    cleanKey: 'lsi_flex',
+    label: 'LSI Flessori',
+    unit: '%',
+    color: '#0284C7', // Sky-600
+    categories: ['LSI', 'FORZA'],
+    getRawValue: (t, opLimb) =>
+      extractMetricFromSingleTest(t, ['lsiFlex', 'lsi_curl_calculated'], false, opLimb)
   },
   {
     id: 'jumpHeight',
@@ -28,6 +35,7 @@ const METRIC_CONFIG = [
     label: 'Altezza CMJ',
     unit: 'cm',
     color: '#0D9488', // Teal-600
+    categories: ['CMJ_BILATERAL'],
     getRawValue: (t) => parsePositiveNum(t?.jumpHeight ?? t?.jump_height_cm ?? t?.altezza_salto)
   },
   {
@@ -36,24 +44,9 @@ const METRIC_CONFIG = [
     label: 'RSImod',
     unit: 'm/s',
     color: '#D97706', // Amber-600
-    getRawValue: (t) => {
-      const direct = parsePositiveNum(t?.rsiCmj ?? t?.rsi_cmj ?? t?.rsi_mod);
-      if (direct !== null) return direct;
-      const h = parsePositiveNum(t?.jumpHeight ?? t?.jump_height_cm ?? t?.altezza_salto);
-      const ct = parsePositiveNum(t?.contractionTime ?? t?.contraction_time_ms ?? t?.tempo_contrazione);
-      if (h !== null && ct !== null && ct > 0) {
-        return parseFloat(((h / 100) / (ct / 1000)).toFixed(2));
-      }
-      return null;
-    }
-  },
-  {
-    id: 'lsiSingleHop',
-    cleanKey: 'single_hop',
-    label: 'Single Hop LSI',
-    unit: '%',
-    color: '#E11D48', // Rose-600
-    getRawValue: (t) => parsePositiveNum(t?.lsiSingleHop ?? t?.lsi_single_hop)
+    categories: ['CMJ_BILATERAL'],
+    getRawValue: (t, opLimb) =>
+      extractMetricFromSingleTest(t, ['rsiCmj', 'rsi_cmj', 'rsi_mod'], false, opLimb)
   },
   {
     id: 'peakPower',
@@ -61,39 +54,93 @@ const METRIC_CONFIG = [
     label: 'Peak Power',
     unit: 'W/kg',
     color: '#7C3AED', // Violet-600
+    categories: ['CMJ_BILATERAL'],
     getRawValue: (t) => parsePositiveNum(t?.peakPower ?? t?.peak_power_w ?? t?.potenza_picco)
   },
   {
-    id: 'eccBrakingSX',
-    cleanKey: 'ecc_braking',
-    label: 'Eccentric Impulse SX',
-    unit: 'N·s',
-    color: '#EA580C', // Orange-600
-    getRawValue: (t) => parsePositiveNum(t?.eccBrakingSX ?? t?.ecc_braking_sx)
+    id: 'slCmjHeightLsi',
+    cleanKey: 'sl_cmj_height_lsi',
+    label: 'SL CMJ Altezza LSI',
+    unit: '%',
+    color: '#2563EB', // Blue-600
+    categories: ['CMJ_SL', 'LSI'],
+    getRawValue: (t, opLimb) =>
+      extractMetricFromSingleTest(t, ['slCmjHeightLsi', 'lsi_sl_cmj_height_calculated'], false, opLimb)
   },
   {
-    id: 'lsiFlex',
-    cleanKey: 'lsi_flex',
-    label: 'LSI Flessori',
+    id: 'rsiDropJump',
+    cleanKey: 'dj_rsi',
+    label: 'Drop Jump RSI',
+    unit: 'm/s',
+    color: '#EA580C', // Orange-600
+    categories: ['DJ_BILATERAL'],
+    getRawValue: (t, opLimb) =>
+      extractMetricFromSingleTest(t, ['rsiDropJump', 'djRSI', 'dj_rsi'], false, opLimb)
+  },
+  {
+    id: 'slDjRsiLsi',
+    cleanKey: 'sl_dj_rsi_lsi',
+    label: 'SL Drop Jump RSI LSI',
     unit: '%',
-    color: '#0284C7', // Sky-600
-    getRawValue: (t) => {
-      const direct = parsePositiveNum(t?.lsiFlex ?? t?.lsi_curl_calculated);
-      if (direct !== null) return direct;
-      const sx = parsePositiveNum(t?.flexSano ?? t?.iso_leg_curl_sx);
-      const dx = parsePositiveNum(t?.flexOp ?? t?.iso_leg_curl_dx);
-      if (sx !== null && dx !== null) {
-        return parseFloat(((Math.min(sx, dx) / Math.max(sx, dx)) * 100).toFixed(1));
-      }
-      return null;
-    }
+    color: '#9333EA', // Purple-600
+    categories: ['DJ_SL', 'LSI'],
+    getRawValue: (t, opLimb) =>
+      extractMetricFromSingleTest(t, ['slDjRsiLsi', 'lsi_sl_dj_rsi'], false, opLimb)
+  },
+  {
+    id: 'lsiSingleHop',
+    cleanKey: 'single_hop',
+    label: 'Single Hop LSI',
+    unit: '%',
+    color: '#E11D48', // Rose-600
+    categories: ['LSI'],
+    getRawValue: (t) => parsePositiveNum(t?.lsiSingleHop ?? t?.lsi_single_hop)
+  },
+  {
+    id: 'ikdc',
+    cleanKey: 'ikdc_score',
+    label: 'Score IKDC',
+    unit: '/100',
+    color: '#0891B2', // Cyan-600
+    categories: ['LSI'],
+    getRawValue: (t) => parsePositiveNum(t?.ikdc ?? t?.ikdc_score)
   }
 ];
 
-export default function GraficoMultimetrica({ tests }) {
+export default function GraficoMultimetrica({
+  tests,
+  activeSubTab = 'CMJ_BILATERAL',
+  operatedLimb = 'DX'
+}) {
   const [viewMode, setViewMode] = useState('relative'); // 'relative' | 'absolute'
   const [activeMetrics, setActiveMetrics] = useState(['lsiQuad', 'jumpHeight', 'rsiCmj']);
   const [hoveredPoint, setHoveredPoint] = useState(null);
+
+  const testsSignature = useMemo(() => JSON.stringify(tests || []), [tests]);
+
+  // Ordina rigorosamente tutte le sessioni in senso cronologico crescente per data
+  const rawTests = useMemo(() => {
+    return sortTestsByDate(tests || []);
+  }, [tests, testsSignature]);
+
+  // Se le metriche attive non hanno alcun valore nelle sessioni registrate, attiva automaticamente le prime metriche disponibili
+  useEffect(() => {
+    if (rawTests.length === 0) return;
+    const anyActiveHasData = activeMetrics.some((mId) => {
+      const def = MULTIMETRIC_CONFIG.find((m) => m.id === mId);
+      return def && rawTests.some((t) => def.getRawValue(t, operatedLimb) !== null);
+    });
+    if (!anyActiveHasData) {
+      const populatedIds = MULTIMETRIC_CONFIG.filter((m) =>
+        rawTests.some((t) => m.getRawValue(t, operatedLimb) !== null)
+      )
+        .slice(0, 3)
+        .map((m) => m.id);
+      if (populatedIds.length > 0) {
+        setActiveMetrics(populatedIds);
+      }
+    }
+  }, [rawTests, testsSignature, operatedLimb]);
 
   const toggleMetric = (id) => {
     setActiveMetrics((prev) => {
@@ -105,7 +152,102 @@ export default function GraficoMultimetrica({ tests }) {
     });
   };
 
-  const rawTests = sortTestsByDate(tests);
+  // Calcolo reattivo memoizzato di tutte le serie temporali, coordinate X/Y e range
+  const chartData = useMemo(() => {
+    const startX = 65;
+    const endX = 945;
+    const topY = 38;
+    const bottomY = 250;
+    const numTests = rawTests.length;
+
+    const validCountByMetric = {};
+    MULTIMETRIC_CONFIG.forEach((m) => {
+      validCountByMetric[m.id] = rawTests.filter(
+        (t) => m.getRawValue(t, operatedLimb) !== null
+      ).length;
+    });
+
+    const activeMetricDefs = MULTIMETRIC_CONFIG.filter((m) => activeMetrics.includes(m.id));
+    const rawSeriesByMetric = {};
+    const allPlottedValues = [];
+
+    activeMetricDefs.forEach((m) => {
+      const validEntries = [];
+      rawTests.forEach((t, idx) => {
+        const absVal = m.getRawValue(t, operatedLimb);
+        if (absVal !== null && absVal !== undefined) {
+          validEntries.push({
+            sessionIdx: idx,
+            sessionId: t.id || `sess-${idx}`,
+            absVal,
+            testLabel: t.session_name || t.label || `Test #${idx + 1}`,
+            date: t.dateRange || t.date || ''
+          });
+        }
+      });
+
+      if (validEntries.length === 0) return;
+
+      const baseVal = validEntries[0].absVal > 0 ? validEntries[0].absVal : 1;
+
+      const plotted = validEntries.map((entry) => {
+        const val =
+          viewMode === 'relative'
+            ? parseFloat((((entry.absVal - baseVal) / baseVal) * 100).toFixed(1))
+            : entry.absVal;
+        allPlottedValues.push(val);
+        return {
+          ...entry,
+          val
+        };
+      });
+
+      rawSeriesByMetric[m.id] = plotted;
+    });
+
+    const minVal = allPlottedValues.length > 0 ? Math.min(...allPlottedValues) : 0;
+    const maxVal = allPlottedValues.length > 0 ? Math.max(...allPlottedValues) : 100;
+    const span = maxVal - minVal === 0 ? 20 : maxVal - minVal;
+    const midVal = ((maxVal + minVal) / 2).toFixed(1);
+
+    const metricLinesData = activeMetricDefs
+      .filter((m) => rawSeriesByMetric[m.id] && rawSeriesByMetric[m.id].length > 0)
+      .map((m) => {
+        const points = rawSeriesByMetric[m.id].map((pt) => {
+          const x =
+            numTests === 1
+              ? 500
+              : Math.round(startX + (pt.sessionIdx * (endX - startX)) / (numTests - 1));
+          const normalized = (pt.val - minVal) / span;
+          const y = Math.round(bottomY - normalized * (bottomY - topY));
+          return {
+            ...pt,
+            x,
+            y
+          };
+        });
+
+        const pathD = points
+          .map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x} ${p.y}`)
+          .join(' ');
+
+        return {
+          def: m,
+          points,
+          pathD
+        };
+      });
+
+    return {
+      topY,
+      bottomY,
+      minVal,
+      maxVal,
+      midVal,
+      validCountByMetric,
+      metricLinesData
+    };
+  }, [rawTests, testsSignature, activeSubTab, viewMode, activeMetrics, operatedLimb]);
 
   if (rawTests.length === 0) {
     return (
@@ -113,95 +255,18 @@ export default function GraficoMultimetrica({ tests }) {
         <div className="p-1 bg-sky-100/80 text-sky-900 border border-sky-300/50 rounded w-fit mx-auto">
           <TrendingUp className="w-4 h-4 text-sky-900" />
         </div>
-        <h4 className="text-sm font-bold text-slate-800">Nessuna sessione disponibile per il Grafico Storico</h4>
-        <p className="text-xs text-slate-600 font-semibold">Inserisci almeno un test nella Batteria Test per visualizzare il trend temporale.</p>
+        <h4 className="text-sm font-bold text-slate-800">
+          Nessuna sessione disponibile per il Grafico Storico
+        </h4>
+        <p className="text-xs text-slate-600 font-semibold">
+          Inserisci almeno un test nella Batteria Test per visualizzare il trend temporale.
+        </p>
       </div>
     );
   }
 
-  const startX = 65;
-  const endX = 945;
-  const numTests = rawTests.length;
-
-  const validCountByMetric = {};
-  METRIC_CONFIG.forEach((m) => {
-    validCountByMetric[m.id] = rawTests.filter((t) => m.getRawValue(t) !== null).length;
-  });
-
-  const activeMetricDefs = METRIC_CONFIG.filter((m) => activeMetrics.includes(m.id));
-
-  const rawSeriesByMetric = {};
-  const allPlottedValues = [];
-
-  activeMetricDefs.forEach((m) => {
-    const validEntries = [];
-    rawTests.forEach((t, idx) => {
-      const absVal = m.getRawValue(t);
-      if (absVal !== null && absVal !== undefined) {
-        validEntries.push({
-          sessionIdx: idx,
-          absVal,
-          testLabel: t.session_name || t.label || `Sessione #${idx + 1}`,
-          date: t.dateRange || t.date || ''
-        });
-      }
-    });
-
-    if (validEntries.length === 0) return;
-
-    const baseVal = validEntries[0].absVal > 0 ? validEntries[0].absVal : 1;
-
-    const plotted = validEntries.map((entry) => {
-      const val =
-        viewMode === 'relative'
-          ? parseFloat((((entry.absVal - baseVal) / baseVal) * 100).toFixed(1))
-          : entry.absVal;
-      allPlottedValues.push(val);
-      return {
-        ...entry,
-        val
-      };
-    });
-
-    rawSeriesByMetric[m.id] = plotted;
-  });
-
-  const minVal = allPlottedValues.length > 0 ? Math.min(...allPlottedValues) : 0;
-  const maxVal = allPlottedValues.length > 0 ? Math.max(...allPlottedValues) : 100;
-  const span = maxVal - minVal === 0 ? 20 : maxVal - minVal;
-
-  const topY = 38;
-  const bottomY = 250;
-
-  const metricLinesData = activeMetricDefs
-    .filter((m) => rawSeriesByMetric[m.id] && rawSeriesByMetric[m.id].length > 0)
-    .map((m) => {
-      const points = rawSeriesByMetric[m.id].map((pt) => {
-        const x =
-          numTests === 1
-            ? 500
-            : Math.round(startX + (pt.sessionIdx * (endX - startX)) / (numTests - 1));
-        const normalized = (pt.val - minVal) / span;
-        const y = Math.round(bottomY - normalized * (bottomY - topY));
-        return {
-          ...pt,
-          x,
-          y
-        };
-      });
-
-      const pathD = points
-        .map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x} ${p.y}`)
-        .join(' ');
-
-      return {
-        def: m,
-        points,
-        pathD
-      };
-    });
-
-  const midVal = ((maxVal + minVal) / 2).toFixed(1);
+  const { topY, bottomY, minVal, maxVal, midVal, validCountByMetric, metricLinesData } = chartData;
+  const chartRenderKey = `svg-${rawTests.length}-${viewMode}-${testsSignature.length}-${activeMetrics.join(',')}`;
 
   return (
     <div className="w-full bg-slate-50 border border-slate-300/60 rounded-xl p-4 shadow-none no-print break-inside-avoid">
@@ -216,7 +281,8 @@ export default function GraficoMultimetrica({ tests }) {
               GRAFICO MULTIMETRICA (TREND TEMPORALE)
             </h3>
             <p className="text-[11px] text-slate-600 font-semibold leading-tight">
-              Confronto storico tra sessioni (i test non eseguiti vengono ignorati)
+              Confronto storico tra {rawTests.length}{' '}
+              {rawTests.length === 1 ? 'sessione registrata' : 'sessioni registrate'} (in ordine cronologico)
             </p>
           </div>
         </div>
@@ -252,7 +318,7 @@ export default function GraficoMultimetrica({ tests }) {
 
       {/* 2. LEGENDA METRICHE COMPATTA */}
       <div className="flex flex-wrap gap-2 mb-4">
-        {METRIC_CONFIG.map((m) => {
+        {MULTIMETRIC_CONFIG.map((m) => {
           const isActive = activeMetrics.includes(m.id);
           const count = validCountByMetric[m.id] || 0;
           return (
@@ -288,6 +354,7 @@ export default function GraficoMultimetrica({ tests }) {
             </div>
           ) : (
             <svg
+              key={chartRenderKey}
               width="100%"
               height="100%"
               viewBox="0 0 1000 290"
@@ -324,7 +391,7 @@ export default function GraficoMultimetrica({ tests }) {
                   )}
 
                   {mLine.points.map((pt, pIdx) => (
-                    <g key={pIdx} className="cursor-pointer">
+                    <g key={`${pt.sessionId}-${pIdx}`} className="cursor-pointer">
                       <circle
                         cx={pt.x}
                         cy={pt.y}
@@ -377,12 +444,12 @@ export default function GraficoMultimetrica({ tests }) {
           )}
         </div>
 
-        {/* Etichette Asse Orizzontale */}
-        <div className="w-full flex justify-between text-xs font-mono font-bold text-slate-600 px-6 pt-2.5 border-t border-slate-300/60">
+        {/* Etichette Asse Orizzontale: Mappa TUTTE le sessioni in ordine cronologico */}
+        <div className="w-full flex justify-between items-center gap-2 text-xs font-mono font-bold text-slate-600 px-6 pt-2.5 border-t border-slate-300/60 overflow-x-auto">
           {rawTests.map((t, idx) => (
-            <div key={t.id || idx} className="text-center">
+            <div key={t.id || idx} className="text-center shrink-0">
               <span className="block text-slate-800 font-bold text-xs">
-                {t.session_name || t.label || `Sessione #${idx + 1}`}
+                {t.session_name || t.label || `Test #${idx + 1}`}
               </span>
               <span className="block text-[10px] text-emerald-900 font-semibold">
                 {t.dateRange || t.date || ''}

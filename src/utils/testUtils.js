@@ -994,8 +994,12 @@ export const createTestObject = (newValData, patientId, testIndex = 1) => {
 export function mergeTestIntoSession(existingSession, newPartialData, patientId) {
   const base = existingSession || {};
   const incoming = createTestObject(newPartialData, patientId || base.patient_id, base.num || 1);
+  const isFullReplace = Boolean(newPartialData?.isFullSessionReplacement);
 
   const pickNonNull = (newVal, oldVal) => {
+    if (isFullReplace) {
+      return newVal !== undefined && newVal !== '' && newVal !== '-' ? newVal : null;
+    }
     if (newVal !== null && newVal !== undefined && newVal !== '' && newVal !== '-') {
       return newVal;
     }
@@ -1091,49 +1095,43 @@ export function mergeTestIntoSession(existingSession, newPartialData, patientId)
 }
 
 /**
- * Raggruppa automaticamente test eseguiti in date diverse (entro una finestra di `windowDays`, default 14 giorni,
- * oppure con lo stesso `session_id` / `session_name`) in Sessioni / Report clinici unificati.
+ * Raggruppa solo rilevazioni che condividono esplicitamente lo stesso `id` o `session_id`,
+ * mantenendo separate tutte le sessioni distinte in ordine cronologico crescente.
  */
-export function aggregateTestsIntoSessions(tests, windowDays = 14) {
+export function aggregateTestsIntoSessions(tests) {
   const sorted = sortTestsByDate(tests);
   if (sorted.length <= 1) {
     return sorted.map(t => ({
       ...t,
-      sourceIds: [t.id],
-      aggregatedCount: 1,
+      sourceIds: Array.isArray(t.sourceIds) && t.sourceIds.length > 0 ? t.sourceIds : [t.id],
+      aggregatedCount: t.aggregatedCount || 1,
       dateRange: t.date
     }));
   }
 
   const groupedSessions = [];
-  const windowMs = windowDays * 24 * 60 * 60 * 1000;
 
   for (const t of sorted) {
-    const tTime = getTestTimestamp(t);
     const lastSession = groupedSessions[groupedSessions.length - 1];
 
     if (!lastSession) {
       groupedSessions.push({
         ...t,
-        sourceIds: [t.id],
+        sourceIds: Array.isArray(t.sourceIds) && t.sourceIds.length > 0 ? t.sourceIds : [t.id],
         aggregatedCount: 1,
         dateRange: t.date
       });
       continue;
     }
 
-    const lastTime = getTestTimestamp(lastSession);
     const sameExplicitSession =
-      (t.session_id && lastSession.session_id && t.session_id === lastSession.session_id) ||
-      (t.session_name &&
-        lastSession.session_name &&
-        !t.session_name.startsWith('Test #') &&
-        t.session_name === lastSession.session_name);
+      (t.id && lastSession.id && t.id === lastSession.id) ||
+      (t.session_id &&
+        lastSession.session_id &&
+        t.session_id === lastSession.session_id &&
+        t.id === lastSession.id);
 
-    const withinTimeWindow =
-      tTime > 0 && lastTime > 0 && Math.abs(tTime - lastTime) <= windowMs;
-
-    if (sameExplicitSession || withinTimeWindow) {
+    if (sameExplicitSession) {
       const merged = mergeTestIntoSession(lastSession, t, t.patient_id || lastSession.patient_id);
       const firstDate = lastSession.firstDate || lastSession.date;
       const lastDate = t.date;
@@ -1150,16 +1148,12 @@ export function aggregateTestsIntoSessions(tests, windowDays = 14) {
         date: lastDate || merged.date,
         dateRange,
         aggregatedCount: (lastSession.aggregatedCount || 1) + 1,
-        session_name:
-          (t.session_name && !t.session_name.startsWith('Test #') ? t.session_name : null) ||
-          (lastSession.session_name && !lastSession.session_name.startsWith('Test #')
-            ? lastSession.session_name
-            : lastSession.label)
+        session_name: t.session_name || lastSession.session_name || lastSession.label
       };
     } else {
       groupedSessions.push({
         ...t,
-        sourceIds: [t.id],
+        sourceIds: Array.isArray(t.sourceIds) && t.sourceIds.length > 0 ? t.sourceIds : [t.id],
         firstDate: t.date,
         dateRange: t.date,
         aggregatedCount: 1
@@ -1397,10 +1391,20 @@ export function sortTestsByDate(tests) {
 
   return sorted.map((t, idx) => {
     const num = idx + 1;
-    let label = t.session_name || t.label;
-    if (!label || /^Test #\d+$/.test(label)) {
-      label = `Test #${num}`;
-    }
+    const rawName = (t.session_name || t.label || '').trim();
+    const isAutoNumbered = !rawName || /^(Test|Valutazione|Sessione)\s*#\d+$/i.test(rawName);
+    const label = isAutoNumbered ? `Test #${num}` : rawName;
+
+    const evalDateIso =
+      t.data_valutazione && typeof t.data_valutazione === 'string' && t.data_valutazione.includes('-')
+        ? t.data_valutazione
+        : t.date && typeof t.date === 'string' && t.date.includes('/')
+        ? t.date.split('→')[0].trim().split('/').reverse().join('-')
+        : new Date().toISOString().split('T')[0];
+
+    const formattedDate = evalDateIso.includes('-')
+      ? evalDateIso.split('-').reverse().join('/')
+      : t.date || evalDateIso;
 
     let lsiQuadDelta = null;
     let lsiFlexDelta = null;
@@ -1443,6 +1447,10 @@ export function sortTestsByDate(tests) {
       ...t,
       num,
       label,
+      session_name: label,
+      data_valutazione: evalDateIso,
+      date: formattedDate,
+      dateRange: formattedDate,
       custom_metrics: sanitizeCustomMetricsMap(t.custom_metrics),
       lsiQuad: curQuad ?? toStrictNullOrNumber(t.lsiQuad),
       lsi_quad_calculated: curQuad ?? toStrictNullOrNumber(t.lsi_quad_calculated ?? t.lsiQuad),

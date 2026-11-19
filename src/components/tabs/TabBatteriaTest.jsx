@@ -1775,7 +1775,12 @@ export default function TabBatteriaTest({
         {/* GRAFICO MULTIMETRICA ALLINEATO ALLA TABELLA (2/3 LARGHEZZA, SOTTO LA TABELLA) */}
         <div className="w-full break-inside-avoid">
           <UIErrorBoundary title="Grafico Multimetrico Temporaneamente Non Disponibile">
-            <GraficoMultimetrica tests={displayedSessions} />
+            <GraficoMultimetrica
+              key={`multimetric-${displayedSessions.length}-${testsHistorySignature.length}-${activeSubTab}`}
+              tests={displayedSessions}
+              activeSubTab={activeSubTab}
+              operatedLimb={operatedLimb}
+            />
           </UIErrorBoundary>
         </div>
       </div>
@@ -2041,7 +2046,7 @@ export default function TabBatteriaTest({
             {/* Opzione 2: Eliminazione completa dell'intera sessione */}
             <div className="pt-3 border-t border-slate-200 space-y-2.5">
               <span className="block text-xs font-bold text-rose-800 uppercase tracking-wider">
-                2. Oppure elimina l&apos;intera Sessione dallo storico:
+                2. Sei sicuro di voler eliminare questa intera sessione di valutazione?
               </span>
               <div className="flex items-center justify-between gap-2">
                 <button
