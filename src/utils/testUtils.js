@@ -1187,6 +1187,171 @@ export async function saveTestToSupabase(newTest) {
 }
 
 /**
+ * Elimina una o più sessioni di test dalla tabella `evaluations` di Supabase.
+ */
+export async function deleteTestsFromSupabase(testIds) {
+  if (!isSupabaseConfigured) return;
+  const ids = (Array.isArray(testIds) ? testIds : [testIds]).filter(Boolean);
+  if (ids.length === 0) return;
+  try {
+    const { error } = await supabase
+      .from('evaluations')
+      .delete()
+      .in('id', ids);
+    if (error) {
+      console.warn('Info eliminazione Supabase evaluations:', error.message);
+    }
+  } catch (err) {
+    console.warn('Eccezione eliminazione Supabase evaluations:', err);
+  }
+}
+
+/**
+ * Rimuove/azzera un singolo modulo/dominio di test (es. ISO_EXT, ISO_CURL, CMJ_BILATERAL, CMJ_SL, DJ_BILATERAL, DJ_SL, CLINICAL_SCORES)
+ * da una sessione esistente, mantenendo intatti gli altri test della sessione e ricalcolando tutti i valori LSI/Ratio.
+ */
+export function clearTestModuleFromSession(sessionObj, moduleId, operatedLimb = 'DX') {
+  if (!sessionObj) return null;
+  const cleaned = { ...sessionObj };
+  const nullOut = (keys) => {
+    keys.forEach((k) => {
+      cleaned[k] = null;
+    });
+  };
+
+  switch (moduleId) {
+    case 'ISO_EXT':
+      nullOut(['quadSano', 'quadOp', 'iso_leg_ext_sx', 'iso_leg_ext_dx', 'lsiQuad', 'lsi_quad_calculated', 'quadOpNmKg', 'quad_rel_op', 'hqRatio', 'hqRatioPct', 'hq_ratio_pct']);
+      break;
+    case 'ISO_CURL':
+      nullOut(['flexSano', 'flexOp', 'iso_leg_curl_sx', 'iso_leg_curl_dx', 'lsiFlex', 'lsi_curl_calculated', 'hqRatio', 'hqRatioPct', 'hq_ratio_pct']);
+      break;
+    case 'FORZA_DINAMICA':
+      nullOut(['bulgarianSX', 'bulgarianDX', 'bulgarian_sx', 'bulgarian_dx', 'calfRaiseSX', 'calfRaiseDX', 'calf_raise_sx', 'calf_raise_dx', 'soleoSX', 'soleoDX', 'soleo_sx', 'soleo_dx', 'imtpForce', 'imtp_peak_force']);
+      break;
+    case 'CMJ_BILATERAL':
+      nullOut([
+        'jumpHeight', 'jump_height_cm', 'altezza_salto',
+        'contractionTime', 'contraction_time_ms', 'tempo_contrazione',
+        'peakPower', 'peak_power_w', 'potenza_picco',
+        'rsiCmj', 'rsi_cmj', 'rsi_mod',
+        'cmjDepth', 'cmj_depth',
+        'eccBrakingRfd', 'ecc_braking_rfd',
+        'eccBrakingSX', 'ecc_braking_sx', 'eccBrakingDX', 'ecc_braking_dx',
+        'brakingAsym', 'ecc_braking_asym_calculated', 'cmjImpulseLsi',
+        'concImpulseSX', 'conc_impulse_sx', 'concImpulseDX', 'conc_impulse_dx',
+        'concImpulseAsym', 'conc_impulse_asym_calculated'
+      ]);
+      break;
+    case 'CMJ_SL':
+      nullOut([
+        'slCmjHeightSX', 'sl_cmj_height_sx', 'slCmjHeightDX', 'sl_cmj_height_dx',
+        'slCmjCtSX', 'sl_cmj_ct_sx', 'slCmjCtDX', 'sl_cmj_ct_dx',
+        'slCmjPeakPowerSX', 'sl_cmj_peak_power_sx', 'slCmjPeakPowerDX', 'sl_cmj_peak_power_dx',
+        'slCmjRsiSX', 'sl_cmj_rsi_sx', 'slCmjRsiDX', 'sl_cmj_rsi_dx',
+        'slCmjDepthSX', 'sl_cmj_depth_sx', 'slCmjDepthDX', 'sl_cmj_depth_dx',
+        'slCmjEccImpulseSX', 'sl_cmj_ecc_impulse_sx', 'slCmjEccImpulseDX', 'sl_cmj_ecc_impulse_dx',
+        'slCmjHeightLsi', 'lsi_sl_cmj_height_calculated',
+        'slCmjBrakingLsi', 'lsi_sl_cmj_braking', 'lsi_sl_cmj_ecc_impulse_calculated',
+        'slCmjDepthLsi', 'lsi_sl_cmj_depth_calculated'
+      ]);
+      break;
+    case 'DJ_BILATERAL':
+      nullOut([
+        'djBoxHeight', 'dj_box_height',
+        'djJumpHeight', 'dj_jump_height',
+        'djContactTime', 'dj_contact_time',
+        'rsiDropJump', 'djRSI', 'dj_rsi',
+        'djTtpfMs', 'dj_ttpf_ms',
+        'djTakeoffAsymMs', 'dj_takeoff_asym_ms',
+        'djLandingPeakSX', 'dj_landing_peak_sx', 'djLandingPeakDX', 'dj_landing_peak_dx', 'djLandingPeakLsi', 'dj_landing_peak_lsi',
+        'djConcImpulseSX', 'dj_conc_impulse_sx', 'djConcImpulseDX', 'dj_conc_impulse_dx', 'djConcImpulseLsi', 'dj_conc_impulse_lsi',
+        'djBrakingForce', 'dj_braking_force', 'djBrakingImpulse', 'dj_braking_impulse',
+        'djValidationStatus', 'djFailReason'
+      ]);
+      break;
+    case 'DJ_SL':
+      nullOut([
+        'slDjBoxHeight', 'sl_dj_box_height',
+        'slDjCtSX', 'sl_dj_ct_sx', 'slDjCtDX', 'sl_dj_ct_dx',
+        'slDjRsiSX', 'sl_dj_rsi_sx', 'slDjRsiDX', 'sl_dj_rsi_dx',
+        'slDjHeightSX', 'sl_dj_height_sx', 'slDjHeightDX', 'sl_dj_height_dx',
+        'slDjBrakingSX', 'sl_dj_braking_sx', 'slDjBrakingDX', 'sl_dj_braking_dx',
+        'slDjRsiLsi', 'lsi_sl_dj_rsi_calculated'
+      ]);
+      break;
+    case 'CLINICAL_SCORES':
+      nullOut(['ikdc', 'ikdc_score', 'aclrsi', 'acl_rsi', 'lsiSingleHop', 'lsi_single_hop', 'lsiTripleHop', 'lsi_triple_hop']);
+      break;
+    default:
+      break;
+  }
+
+  cleaned.ginocchio_operato = resolveOperatedLimb(cleaned, operatedLimb);
+  return createTestObject(cleaned, cleaned.patient_id || cleaned.patientId, cleaned.num || 1);
+}
+
+/**
+ * Rimuove una singola riga/metrica (o coppia SX/DX) da una sessione esistente e ricalcola i derivati.
+ */
+export function clearSingleRowFromSession(sessionObj, rowKey, operatedLimb = 'DX') {
+  if (!sessionObj || !rowKey) return sessionObj;
+  const cleaned = { ...sessionObj };
+  const nullOut = (keys) => keys.forEach((k) => { cleaned[k] = null; });
+
+  const rowKeyToFields = {
+    lsiQuad: ['quadSano', 'quadOp', 'iso_leg_ext_sx', 'iso_leg_ext_dx', 'lsiQuad', 'lsi_quad_calculated', 'quadOpNmKg', 'quad_rel_op', 'hqRatio', 'hqRatioPct', 'hq_ratio_pct'],
+    lsiFlex: ['flexSano', 'flexOp', 'iso_leg_curl_sx', 'iso_leg_curl_dx', 'lsiFlex', 'lsi_curl_calculated', 'hqRatio', 'hqRatioPct', 'hq_ratio_pct'],
+    lsiSingleHop: ['lsiSingleHop', 'lsi_single_hop'],
+    lsiTripleHop: ['lsiTripleHop', 'lsi_triple_hop'],
+    ikdc: ['ikdc', 'ikdc_score'],
+    aclrsi: ['aclrsi', 'acl_rsi'],
+    quadSano: ['quadSano', 'iso_leg_ext_sx', 'lsiQuad', 'lsi_quad_calculated'],
+    quadOp: ['quadOp', 'iso_leg_ext_dx', 'lsiQuad', 'lsi_quad_calculated', 'quadOpNmKg', 'quad_rel_op'],
+    flexSano: ['flexSano', 'iso_leg_curl_sx', 'lsiFlex', 'lsi_curl_calculated'],
+    flexOp: ['flexOp', 'iso_leg_curl_dx', 'lsiFlex', 'lsi_curl_calculated'],
+    bulgarianSX: ['bulgarianSX', 'bulgarian_sx'],
+    bulgarianDX: ['bulgarianDX', 'bulgarian_dx'],
+    soleoSX: ['soleoSX', 'soleo_sx'],
+    soleoDX: ['soleoDX', 'soleo_dx'],
+    imtpForce: ['imtpForce', 'imtp_peak_force'],
+    jumpHeight: ['jumpHeight', 'jump_height_cm', 'altezza_salto', 'rsiCmj', 'rsi_cmj'],
+    rsiCmj: ['rsiCmj', 'rsi_cmj', 'rsi_mod'],
+    peakPower: ['peakPower', 'peak_power_w', 'potenza_picco'],
+    cmjDepth: ['cmjDepth', 'cmj_depth'],
+    contractionTime: ['contractionTime', 'contraction_time_ms', 'rsiCmj', 'rsi_cmj'],
+    eccBrakingRfd: ['eccBrakingRfd', 'ecc_braking_rfd'],
+    concImpulseSplit: ['concImpulseSX', 'conc_impulse_sx', 'concImpulseDX', 'conc_impulse_dx', 'concImpulseAsym', 'conc_impulse_asym_calculated'],
+    slCmjHeightSplit: ['slCmjHeightSX', 'sl_cmj_height_sx', 'slCmjHeightDX', 'sl_cmj_height_dx', 'slCmjHeightLsi', 'lsi_sl_cmj_height_calculated'],
+    slCmjPeakPowerSplit: ['slCmjPeakPowerSX', 'sl_cmj_peak_power_sx', 'slCmjPeakPowerDX', 'sl_cmj_peak_power_dx'],
+    slCmjRsiSplit: ['slCmjRsiSX', 'sl_cmj_rsi_sx', 'slCmjRsiDX', 'sl_cmj_rsi_dx'],
+    slCmjDepthSplit: ['slCmjDepthSX', 'sl_cmj_depth_sx', 'slCmjDepthDX', 'sl_cmj_depth_dx', 'slCmjDepthLsi', 'lsi_sl_cmj_depth_calculated'],
+    djBoxHeight: ['djBoxHeight', 'dj_box_height'],
+    djJumpHeight: ['djJumpHeight', 'dj_jump_height', 'rsiDropJump', 'djRSI', 'dj_rsi'],
+    djContactTime: ['djContactTime', 'dj_contact_time', 'rsiDropJump', 'djRSI', 'dj_rsi'],
+    rsiDropJump: ['rsiDropJump', 'djRSI', 'dj_rsi'],
+    djTtpfMs: ['djTtpfMs', 'dj_ttpf_ms'],
+    djTakeoffAsymMs: ['djTakeoffAsymMs', 'dj_takeoff_asym_ms'],
+    djLandingPeakLsi: ['djLandingPeakSX', 'dj_landing_peak_sx', 'djLandingPeakDX', 'dj_landing_peak_dx', 'djLandingPeakLsi', 'dj_landing_peak_lsi'],
+    djConcImpulseLsi: ['djConcImpulseSX', 'dj_conc_impulse_sx', 'djConcImpulseDX', 'dj_conc_impulse_dx', 'djConcImpulseLsi', 'dj_conc_impulse_lsi'],
+    slDjBoxHeight: ['slDjBoxHeight', 'sl_dj_box_height'],
+    slDjCtSplit: ['slDjCtSX', 'sl_dj_ct_sx', 'slDjCtDX', 'sl_dj_ct_dx'],
+    slDjRsiSplit: ['slDjRsiSX', 'sl_dj_rsi_sx', 'slDjRsiDX', 'sl_dj_rsi_dx', 'slDjRsiLsi', 'lsi_sl_dj_rsi_calculated'],
+    slDjHeightSplit: ['slDjHeightSX', 'sl_dj_height_sx', 'slDjHeightDX', 'sl_dj_height_dx'],
+    slDjBrakingSplit: ['slDjBrakingSX', 'sl_dj_braking_sx', 'slDjBrakingDX', 'sl_dj_braking_dx']
+  };
+
+  if (rowKeyToFields[rowKey]) {
+    nullOut(rowKeyToFields[rowKey]);
+  } else {
+    nullOut([rowKey]);
+  }
+
+  cleaned.ginocchio_operato = resolveOperatedLimb(cleaned, operatedLimb);
+  return createTestObject(cleaned, cleaned.patient_id || cleaned.patientId, cleaned.num || 1);
+}
+
+/**
  * Ricava il timestamp Unix in ms dalla data del test (data_valutazione, date o created_at)
  */
 export function getTestTimestamp(t) {

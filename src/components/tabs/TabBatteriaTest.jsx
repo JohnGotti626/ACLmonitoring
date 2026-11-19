@@ -12,7 +12,9 @@ import {
   Layers,
   CalendarRange,
   Sliders,
-  Trash2
+  Trash2,
+  X,
+  AlertTriangle
 } from 'lucide-react';
 import ModalNuovaValutazione from '../ModalNuovaValutazione';
 import GraficoMultimetrica from '../GraficoMultimetrica';
@@ -21,6 +23,9 @@ import {
   mergeTestIntoSession,
   aggregateTestsIntoSessions,
   saveTestToSupabase,
+  deleteTestsFromSupabase,
+  clearTestModuleFromSession,
+  clearSingleRowFromSession,
   sortTestsByDate,
   getLastValidMetricWithMeta,
   extractMetricFromSingleTest,
@@ -503,6 +508,7 @@ export default function TabBatteriaTest({
   const [initialModalModule, setInitialModalModule] = useState('ISO_EXT');
   const [groupByReportSession, setGroupByReportSession] = useState(true);
   const [activeSubTab, setActiveSubTab] = useState('CMJ_BILATERAL');
+  const [sessionToDelete, setSessionToDelete] = useState(null);
   const operatedLimb = resolveOperatedLimb(patient, 'DX');
 
   const getDefaultModuleForSubTab = (subTab) => {
@@ -732,6 +738,187 @@ export default function TabBatteriaTest({
     if (patient?.id) {
       await hideCustomMetricInSupabase(patient.id, testType, metricName);
     }
+  };
+
+  // Elimina un'intera sessione di test (e tutte le sotto-rilevazioni associate in sourceIds)
+  const handleDeleteEntireSession = async (sessionObj) => {
+    if (!sessionObj) return;
+    const idsToDelete = new Set([
+      ...(Array.isArray(sessionObj.sourceIds) ? sessionObj.sourceIds : []),
+      ...(sessionObj.id ? [sessionObj.id] : [])
+    ]);
+
+    const remaining = testsHistory.filter((t) => !idsToDelete.has(t.id));
+    const sortedRemaining = sortTestsByDate(remaining);
+
+    setTestsHistory(sortedRemaining);
+    setSelectedTestId(
+      sortedRemaining.length > 0 ? sortedRemaining[sortedRemaining.length - 1].id : null
+    );
+    setSessionToDelete(null);
+
+    await deleteTestsFromSupabase(Array.from(idsToDelete));
+
+    if (onSaveTest) {
+      onSaveTest(sortedRemaining);
+    }
+  };
+
+  // Elimina solo uno specifico modulo/test da una sessione (es. solo Iso Push Leg Ext, solo CMJ, ecc.)
+  const handleDeleteTestModuleFromSession = async (sessionObj, moduleId) => {
+    if (!sessionObj || !moduleId) return;
+    const idsToUpdate = new Set([
+      ...(Array.isArray(sessionObj.sourceIds) ? sessionObj.sourceIds : []),
+      ...(sessionObj.id ? [sessionObj.id] : [])
+    ]);
+
+    const matchingTests = testsHistory.filter((t) => idsToUpdate.has(t.id));
+    let composite = sessionObj;
+    if (matchingTests.length > 0) {
+      composite = matchingTests[0];
+      for (let i = 1; i < matchingTests.length; i++) {
+        composite = mergeTestIntoSession(composite, matchingTests[i], patient?.id);
+      }
+    }
+
+    const clearedSession = clearTestModuleFromSession(composite, moduleId, operatedLimb);
+    const primaryId = sessionObj.id || clearedSession.id;
+    const finalCleaned = { ...clearedSession, id: primaryId };
+
+    await saveTestToSupabase(finalCleaned);
+
+    let replaced = false;
+    const updated = [];
+    for (const existingTest of testsHistory) {
+      if (idsToUpdate.has(existingTest.id)) {
+        if (!replaced) {
+          updated.push(finalCleaned);
+          replaced = true;
+        }
+      } else {
+        updated.push(existingTest);
+      }
+    }
+
+    const sortedUpdated = sortTestsByDate(updated);
+    setTestsHistory(sortedUpdated);
+    setSelectedTestId(primaryId);
+    setSessionToDelete(finalCleaned);
+
+    if (onSaveTest) {
+      onSaveTest(sortedUpdated);
+    }
+  };
+
+  // Elimina rapidamente un singolo parametro/valore (cella) da una sessione
+  const handleDeleteSingleCellMetric = async (sessionObj, row) => {
+    if (!sessionObj || !row) return;
+    const idsToUpdate = new Set([
+      ...(Array.isArray(sessionObj.sourceIds) ? sessionObj.sourceIds : []),
+      ...(sessionObj.id ? [sessionObj.id] : [])
+    ]);
+
+    const matchingTests = testsHistory.filter((t) => idsToUpdate.has(t.id));
+    let composite = sessionObj;
+    if (matchingTests.length > 0) {
+      composite = matchingTests[0];
+      for (let i = 1; i < matchingTests.length; i++) {
+        composite = mergeTestIntoSession(composite, matchingTests[i], patient?.id);
+      }
+    }
+
+    let finalCleaned;
+    if (row.isCustomMetric) {
+      const cm = composite.custom_metrics || {};
+      const list = Array.isArray(cm[row.customTestType]) ? cm[row.customTestType] : [];
+      const nextList = list.map((item) =>
+        item.metric_name?.trim().toLowerCase() === row.customMetricName?.trim().toLowerCase()
+          ? { ...item, metric_value: null }
+          : item
+      );
+      finalCleaned = {
+        ...composite,
+        id: sessionObj.id || composite.id,
+        custom_metrics: {
+          ...cm,
+          [row.customTestType]: nextList
+        }
+      };
+    } else {
+      const cleared = clearSingleRowFromSession(composite, row.key, operatedLimb);
+      finalCleaned = { ...cleared, id: sessionObj.id || cleared.id };
+    }
+
+    await saveTestToSupabase(finalCleaned);
+
+    let replaced = false;
+    const updated = [];
+    for (const existingTest of testsHistory) {
+      if (idsToUpdate.has(existingTest.id)) {
+        if (!replaced) {
+          updated.push(finalCleaned);
+          replaced = true;
+        }
+      } else {
+        updated.push(existingTest);
+      }
+    }
+
+    const sortedUpdated = sortTestsByDate(updated);
+    setTestsHistory(sortedUpdated);
+
+    if (onSaveTest) {
+      onSaveTest(sortedUpdated);
+    }
+  };
+
+  // Elenca i moduli di test effettivamente compilati dentro una sessione (per il modale di eliminazione selettiva)
+  const getPopulatedModulesForSession = (sess) => {
+    if (!sess) return [];
+    const hasVal = (...vals) => vals.some((v) => toStrictNullOrNumber(v, false) !== null);
+    const modules = [
+      {
+        id: 'ISO_EXT',
+        label: 'Iso Push Leg Ext (Quadricipite SX/DX & LSI)',
+        isPopulated: hasVal(sess.quadSano, sess.quadOp, sess.iso_leg_ext_sx, sess.iso_leg_ext_dx, sess.lsiQuad)
+      },
+      {
+        id: 'ISO_CURL',
+        label: 'Iso Push Leg Curl (Ischiocrurali SX/DX & H/Q)',
+        isPopulated: hasVal(sess.flexSano, sess.flexOp, sess.iso_leg_curl_sx, sess.iso_leg_curl_dx, sess.lsiFlex)
+      },
+      {
+        id: 'FORZA_DINAMICA',
+        label: 'Forza Accessoria & IMTP (Bulgarian, Calf, Soleo, IMTP)',
+        isPopulated: hasVal(sess.bulgarianSX, sess.bulgarianDX, sess.calfRaiseSX, sess.calfRaiseDX, sess.soleoSX, sess.soleoDX, sess.imtpForce)
+      },
+      {
+        id: 'CMJ_BILATERAL',
+        label: 'CMJ Bilaterale (Altezza, RSImod, Impulse SX/DX)',
+        isPopulated: hasVal(sess.jumpHeight, sess.contractionTime, sess.peakPower, sess.cmjDepth, sess.eccBrakingRfd, sess.concImpulseSX, sess.concImpulseDX, sess.eccBrakingSX, sess.eccBrakingDX)
+      },
+      {
+        id: 'CMJ_SL',
+        label: 'CMJ Monopodalico (Single Leg Jump SX/DX)',
+        isPopulated: hasVal(sess.slCmjHeightSX, sess.slCmjHeightDX, sess.slCmjPeakPowerSX, sess.slCmjPeakPowerDX, sess.slCmjRsiSX, sess.slCmjRsiDX, sess.slCmjDepthSX, sess.slCmjDepthDX)
+      },
+      {
+        id: 'DJ_BILATERAL',
+        label: 'Drop Jump Bilaterale (RSI, GCT, Force Plates)',
+        isPopulated: hasVal(sess.djJumpHeight, sess.djContactTime, sess.rsiDropJump, sess.djTtpfMs, sess.djLandingPeakSX, sess.djLandingPeakDX, sess.djConcImpulseSX, sess.djConcImpulseDX)
+      },
+      {
+        id: 'DJ_SL',
+        label: 'SL Drop Jump (Reattività Monopodalica SX/DX)',
+        isPopulated: hasVal(sess.slDjCtSX, sess.slDjCtDX, sess.slDjRsiSX, sess.slDjRsiDX, sess.slDjHeightSX, sess.slDjHeightDX, sess.slDjBrakingSX, sess.slDjBrakingDX)
+      },
+      {
+        id: 'CLINICAL_SCORES',
+        label: 'Hop Test & Score Clinici (IKDC, ACL-RSI, Single/Triple Hop)',
+        isPopulated: hasVal(sess.ikdc, sess.ikdc_score, sess.aclrsi, sess.lsiSingleHop, sess.lsiTripleHop)
+      }
+    ];
+    return modules.filter((m) => m.isPopulated);
   };
 
   const getSubTabRows = () => {
@@ -1297,18 +1484,30 @@ export default function TabBatteriaTest({
             <div className="flex flex-wrap items-center gap-2 self-start xl:self-auto print:hidden">
 
               {activeTest && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    setEditingTest(activeTest);
-                    setInitialModalModule(getDefaultModuleForSubTab(activeSubTab));
-                    setIsModalOpen(true);
-                  }}
-                  className="px-3.5 py-2 bg-purple-100/80 hover:bg-purple-200/70 text-purple-900 font-bold rounded-xl text-xs flex items-center gap-1.5 border border-purple-300/50 transition-all cursor-pointer shrink-0 shadow-none"
-                >
-                  <Edit3 className="w-3.5 h-3.5 text-purple-900" />
-                  <span>Modifica / + Metrica in {activeTest.session_name || activeTest.label}</span>
-                </button>
+                <>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setEditingTest(activeTest);
+                      setInitialModalModule(getDefaultModuleForSubTab(activeSubTab));
+                      setIsModalOpen(true);
+                    }}
+                    className="px-3.5 py-2 bg-purple-100/80 hover:bg-purple-200/70 text-purple-900 font-bold rounded-xl text-xs flex items-center gap-1.5 border border-purple-300/50 transition-all cursor-pointer shrink-0 shadow-none"
+                  >
+                    <Edit3 className="w-3.5 h-3.5 text-purple-900" />
+                    <span>Modifica / + Metrica in {activeTest.session_name || activeTest.label}</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setSessionToDelete(activeTest)}
+                    title={`Elimina un singolo test o l'intera sessione ${activeTest.session_name || activeTest.label}`}
+                    className="px-3 py-2 bg-rose-100/80 hover:bg-rose-200/70 text-rose-900 font-bold rounded-xl text-xs flex items-center gap-1.5 border border-rose-300/50 transition-all cursor-pointer shrink-0 shadow-none"
+                  >
+                    <Trash2 className="w-3.5 h-3.5 text-rose-900" />
+                    <span>Elimina Test / Sessione</span>
+                  </button>
+                </>
               )}
 
               <button
@@ -1367,7 +1566,7 @@ export default function TabBatteriaTest({
                             : 'bg-slate-100 hover:bg-slate-200/50 text-slate-700'
                         }`}
                       >
-                        <div className="flex items-center justify-center gap-1.5">
+                        <div className="flex items-center justify-center gap-1">
                           <span className="font-bold text-xs tracking-tight text-slate-800">
                             {t.session_name || t.label}
                           </span>
@@ -1384,6 +1583,18 @@ export default function TabBatteriaTest({
                             className="p-1 hover:bg-slate-200/70 rounded transition-colors text-slate-600 hover:text-slate-900 print:hidden"
                           >
                             <Edit3 className="w-3 h-3" />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setSelectedTestId(t.id);
+                              setSessionToDelete(t);
+                            }}
+                            title={`Elimina un test o l'intera sessione ${t.session_name || t.label}`}
+                            className="p-1 hover:bg-rose-100 rounded transition-colors text-slate-500 hover:text-rose-800 print:hidden"
+                          >
+                            <Trash2 className="w-3 h-3" />
                           </button>
                         </div>
                         <div className="text-[10px] text-slate-600 font-mono font-semibold mt-0.5">
@@ -1494,7 +1705,7 @@ export default function TabBatteriaTest({
                                 Non testato
                               </span>
                             ) : (
-                              <div className="flex items-center justify-center gap-1.5 flex-wrap">
+                              <div className="flex items-center justify-center gap-1.5 flex-wrap relative">
                                 <span className="font-bold text-[13px] text-slate-800 tabular-nums">
                                   {displayVal}
                                 </span>
@@ -1509,6 +1720,17 @@ export default function TabBatteriaTest({
                                     {delta}
                                   </span>
                                 )}
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleDeleteSingleCellMetric(t, row);
+                                  }}
+                                  title={`Elimina ${row.label} da ${t.session_name || t.label}`}
+                                  className="opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-rose-100 text-slate-400 hover:text-rose-800 transition-all cursor-pointer print:hidden"
+                                >
+                                  <Trash2 className="w-3 h-3" />
+                                </button>
                               </div>
                             )}
 
@@ -1749,6 +1971,99 @@ export default function TabBatteriaTest({
         </div>
 
       </div>
+
+      {/* MODAL ELIMINAZIONE SELETTIVA SINGOLO TEST O INTERA SESSIONE */}
+      {sessionToDelete && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-xs print:hidden">
+          <div className="w-full max-w-lg bg-white border border-slate-300 rounded-2xl p-6 space-y-4 shadow-xl text-slate-800">
+            <div className="flex items-center justify-between border-b border-slate-200 pb-3">
+              <div className="flex items-center gap-2.5">
+                <div className="p-2 rounded-xl bg-rose-100 text-rose-800 border border-rose-200">
+                  <AlertTriangle className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="font-bold text-slate-900 text-base">
+                    Elimina Test o Sessione
+                  </h3>
+                  <p className="text-xs text-slate-600 font-semibold">
+                    Sessione: <strong className="text-slate-900">{sessionToDelete.session_name || sessionToDelete.label}</strong> ({sessionToDelete.dateRange || sessionToDelete.date})
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setSessionToDelete(null)}
+                className="p-1.5 rounded-lg text-slate-500 hover:text-slate-900 hover:bg-slate-100 cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Opzione 1: Eliminazione selettiva di singoli moduli/test presenti nella sessione */}
+            <div className="space-y-2">
+              <span className="block text-xs font-bold text-slate-700 uppercase tracking-wider">
+                1. Elimina un singolo Test dentro questa sessione:
+              </span>
+              {(() => {
+                const populatedModules = getPopulatedModulesForSession(sessionToDelete);
+                if (populatedModules.length === 0) {
+                  return (
+                    <div className="p-3 rounded-xl bg-slate-100 border border-slate-200 text-xs text-slate-600 font-semibold">
+                      Tutti i singoli test di questa sessione sono già stati svuotati. Puoi procedere a eliminare l&apos;intera colonna sessione qui sotto.
+                    </div>
+                  );
+                }
+                return (
+                  <div className="space-y-1.5 max-h-56 overflow-y-auto pr-1">
+                    {populatedModules.map((mod) => (
+                      <div
+                        key={mod.id}
+                        className="p-2.5 px-3 rounded-xl bg-slate-50 border border-slate-200 flex items-center justify-between gap-3"
+                      >
+                        <span className="text-xs font-bold text-slate-800 leading-snug">
+                          {mod.label}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => handleDeleteTestModuleFromSession(sessionToDelete, mod.id)}
+                          className="px-2.5 py-1.5 rounded-lg bg-amber-100 hover:bg-amber-200 text-amber-900 border border-amber-300 text-[11px] font-bold flex items-center gap-1 shrink-0 cursor-pointer transition-colors"
+                        >
+                          <Trash2 className="w-3 h-3" />
+                          <span>Rimuovi Test</span>
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                );
+              })()}
+            </div>
+
+            {/* Opzione 2: Eliminazione completa dell'intera sessione */}
+            <div className="pt-3 border-t border-slate-200 space-y-2.5">
+              <span className="block text-xs font-bold text-rose-800 uppercase tracking-wider">
+                2. Oppure elimina l&apos;intera Sessione dallo storico:
+              </span>
+              <div className="flex items-center justify-between gap-2">
+                <button
+                  type="button"
+                  onClick={() => setSessionToDelete(null)}
+                  className="px-4 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 border border-slate-300 text-xs font-bold cursor-pointer"
+                >
+                  Chiudi
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleDeleteEntireSession(sessionToDelete)}
+                  className="px-4 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold flex items-center gap-1.5 shadow-sm cursor-pointer"
+                >
+                  <Trash2 className="w-4 h-4" />
+                  <span>Elimina Intera Sessione ({sessionToDelete.session_name || sessionToDelete.label})</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* MODAL RILEVAZIONE MODULARE TEST CLINICI LCA */}
       <ModalNuovaValutazione
